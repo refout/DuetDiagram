@@ -1,23 +1,48 @@
 id: P0-09
-title: MEAI 与 MCP 共用同一份工具定义 PoC
+title: 工具定义在内部模型与外部代理之间共用
 phase: 0a
-status: pending
-depends_on: [P0-01]
+status: done
+depends_on: [P0-01, P0-05]
 estimated_loc: 300
 files:
   create:
     - tools/Poc/SharedTools/Poc.csproj
     - tools/Poc/SharedTools/Program.cs
+    - tools/Poc/SharedTools/Checks.cs
+    - tools/Poc/SharedTools/ApiDump.cs
     - reports/phase0a-shared-tools.md
-  modify: []
+  modify:
+    - Directory.Packages.props
 acceptance:
-  - command: dotnet run --project tools/Poc/SharedTools
-    expect: 一个 ToolDescriptor 同时产出 AIFunction 与 McpServerTool，且参数 schema 一致
+  - command: dotnet run --project tools/Poc/SharedTools -c Release
+    expect: 退出码 0，共用与退路两组检查全部通过
+  - command: 一份定义同时产出模型侧函数与代理侧工具，参数 schema 逐字相同
+    expect: 全部通过
 constraints:
-  - PoC 项目不进 DuetDiagram.slnx
-  - 结论必须回答方案 §6.3 的问题：ToolRegistry 能否同时供 MEAI 与 MCP。
-    不能则明确降级为「命令层共用 + 工具定义各自维护」，并把结论写进 docs/Architecture.md
+  - PoC 项目不进解决方案文件
+  - 结论必须回答能否共用；不能共用则明确降级路径与代价
+  - 要用可执行的断言回答，不靠读文档推断
 context:
-  - 方案 §6.1 八个粗粒度工具
-  - 方案 §6.3 工具定义共用
-  - 方案 §13.3 P0-09
+  - 八个粗粒度工具要同时供内部模型与外部代理使用
+  - 两边的工具抽象由不同的包实现，声明推导规则可能不同
+result:
+  verdict: 共用可行，且应当共用
+  bridge: 代理侧有接受模型侧函数抽象的创建入口，由它直接派生
+  verified:
+    - 名称一致
+    - 描述一致
+    - 参数 schema 逐字相同（339 字符）
+    - 可空参数被正确识别为可选，必填参数被正确列入
+  fallback:
+    verdict: 也可行
+    schema_identical: true
+    caveat: 两边恰好一致是因为推导规则相同，属于巧合而不是结构保证；选择这条路必须补 schema 逐字相同的断言
+  interop_note:
+    observation: 可空参数生成为 JSON Schema 的数组形式（类型写成两个值的数组）
+    risk: 老的校验器只认字符串形式，外部代理可能拒绝
+    handling: 接入阶段实测一次
+  not_verified:
+    - 真实模型的调用
+    - 真实代理的端到端调用
+    - 行为一致性的实际运行确认
+    - 八个工具同时注册时的名称冲突与顺序

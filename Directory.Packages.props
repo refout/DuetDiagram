@@ -48,6 +48,12 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
 
     <!--
+      内部模型集成。MCP 的工具类型与它共用同一套函数抽象，
+      因此一份工具定义有可能同时供内部模型与外部代理使用。
+    -->
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.7.0" />
+
+    <!--
       宿主与日志的具体实现。MCP 的宿主集成包只依赖宿主的抽象层，
       因此不引用网络框架的宿主需要自己引入这两个包。
       版本与 MCP 包声明的一致，避免两套抽象层版本混用。

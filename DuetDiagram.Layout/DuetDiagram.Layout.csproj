@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Layout</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    布局引擎封装。它是 Core 之外的第一块，因为它要依赖第三方布局引擎，
+    而 Core 的硬约定是只依赖基础类库（CI 的 core-bcl-only 作业会拦）。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Mostlylucid.Dagre" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

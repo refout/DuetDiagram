@@ -10,14 +10,29 @@ files:
     - DuetDiagram.Core/Model/NodeDef.cs
     - DuetDiagram.Core/Model/EdgeDef.cs
     - DuetDiagram.Core/Model/DiagramEnums.cs
+    - DuetDiagram.Core/Model/IDefinition.cs
+    - DuetDiagram.Core/Model/DefinitionCollection.cs
+    - DuetDiagram.Core/Model/CollectionEquality.cs
+    - DuetDiagram.Core/Model/Styles.cs
+    - DuetDiagram.Core/Model/Composites.cs
+    - DuetDiagram.Core/Model/SupportingDefs.cs
+    - DuetDiagram.Core/Model/PageAndLayer.cs
+    - DuetDiagram.Core/Model/Palette.cs
+    - DuetDiagram.Core/Model/LayoutHints.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
     - DuetDiagram.Core/Serialization/DiagramJsonContext.cs
     - DuetDiagram.Core/Serialization/DiagramSerializer.cs
     - DuetDiagram.Core/Serialization/DiagramHashing.cs
-  modify: []
+  modify:
+    - AGENTS.md
+    - docs/IR-Schema.md
   test:
     - DuetDiagram.Core.Tests/RoundTripTests.cs
+    - DuetDiagram.Core.Tests/IrExtensionTests.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=RoundTrip"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrHashing"
     expect: 全通过
   - command: 断言 DiagramSerializer.Normalize(Deserialize(Serialize(doc))) == Serialize(doc)
     expect: 逐字节一致
@@ -27,10 +42,27 @@ constraints:
   - 序列化必须走源生成，AOT 安全，不得使用反射式 JsonSerializer
 result:
   landed: true
+  delivered:
+    collections: 九个集合全部就位，共用一个命名空间
+    sub_objects: 调色板、布局提示、画布设置
+    styles: 节点样式、边样式、文本样式、端口
+    composites: 抽象基类加分组、泳道、子流程、组合框四个派生
+    snapshot: 取快照与从快照恢复；第三个方法的语义方案未定义，留空
+    validator: 整体一致性校验，覆盖标识唯一、端点、端口、成员归属与引用
+  design_decisions:
+    hash_semantics: 结构哈希的判据从"结构变了吗"改成"现有坐标还有效吗"，端口、布局提示、字体因此归位
+    hash_subset: 视觉哈希先算结构部分再追加外观部分，包含关系由构造方式保证而不是碰巧成立
+    canonical_hashing: 样式子记录走序列化取规范化文本，新增字段自动进入哈希，不再依赖手工同步
+    read_only_runtime: 只读集合在运行时也守住，不再只是编译期契约
+    edge_style_nesting: 边的画线属性收进边样式，与节点的形状不对称；这是方案本身的规定，已写进注释
+  findings:
+    record_equality_trap: 记录类型加了集合成员之后，自动生成的相等性对集合用引用比较，内容相同的两份定义会被判为不等；这个缺陷不报错，只在差异计算、去重、快照比对处悄悄给出错误答案
+    visual_hash_gap: 原先视觉哈希漏掉节点父级，存在"结构变了视觉却没变"的情况，没有任何地方会报错
+    validator_caught_fixture: 校验器抓到了测试数据自身的不一致（节点被列为成员但父级为空）
+  deferred:
+    - ApplySnapshot 的语义待澄清，协作同步设计清楚之前不实现
+    - PageDef 与 LayerDef 的字段取最小集合，等对应交互开工时再补
   notes:
     - DiagramDocument 的反序列化构造函数参数类型必须与属性类型完全一致（IReadOnlyList<T>），
       放宽成 List<T> 会被 System.Text.Json 以 "constructor parameter must bind to an object property" 拒绝
-  deferred:
-    - 九个集合中的 Pages / Layers / Composites / Tags / Actions / Fonts / TextPresets
-    - Palette / Layout / Canvas 三个子对象
-    - 快照三方法 TakeFullSnapshot / RestoreFromSnapshot / ApplySnapshot
+    - 集合参数一律可空，旧版本产出的文件缺这些字段时按空处理，否则旧文件会整个读不出来

@@ -20,6 +20,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+    <!--
+      布局引擎也进冒烟。方案原先规定这个工程「只引用 Core」，
+      那时还没有别的可发布组件；现在布局是要装进产品的一块，
+      而它依赖的第三方引擎是否原生友好**分析器看不出来**——分析器只看我们自己的代码。
+      只有真的发布一次才知道，而那正是这个工程存在的意义。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Layout\DuetDiagram.Layout.csproj" />
   </ItemGroup>
 
 </Project>

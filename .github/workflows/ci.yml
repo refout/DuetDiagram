@@ -28,8 +28,11 @@ jobs:
       - name: Build（警告即错误）
         run: dotnet build DuetDiagram.slnx -c ${{ env.CONFIGURATION }} --no-restore
 
-      - name: Test
-        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+      - name: Test（全部测试工程）
+        run: |
+          dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
 
       # P1 判据 #1：DuetDiagram.Core 仅依赖 BCL
       - name: Core 引用门禁（csproj 层）
@@ -50,6 +53,18 @@ jobs:
       # P1 判据 #22：LOC 一致
       - name: LOC 一致性
         run: dotnet run --project tools/LocCounter -c ${{ env.CONFIGURATION }} -- --root "$PWD" --check
+
+      # 布局的不变量：固定坐标精确、无残留重叠、四个方向。方案 §10 的布局判据。
+      - name: 布局不变量门禁
+        run: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Layout"
+
+      # 降级的核心性质：级别唯一、固定位置保留到最后一级之前。
+      - name: 降级门禁
+        run: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=LayoutFallback"
+
+      # 空间索引的跨边界正确性。这一条退化的表现是「拖动时元素一半画出来一半没有」。
+      - name: 视口索引门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=QuadTree"
 
   app-and-aot:
     name: 界面栈自检 + 原生发布
@@ -78,7 +93,10 @@ jobs:
           }
         shell: pwsh
 
-      # 多态快照必须在原生编译后仍能反序列化，这一步同时覆盖核心层与冒烟程序。
+      # 多态快照与九个集合必须在原生编译后仍能反序列化。
+      # 这一步同时覆盖核心层、布局引擎与冒烟程序——
+      # 而布局依赖第三方引擎，它是否原生友好**分析器看不出来**，只有真的发布一次才知道。
+      # 这里失败意味着布局引擎在原生构建下不可用，那是选型层面的问题，不是配置问题。
       - name: 原生发布
         run: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c ${{ env.CONFIGURATION }}
 

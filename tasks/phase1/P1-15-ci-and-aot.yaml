@@ -1,0 +1,41 @@
+id: P1-15
+title: CI、LOC 强制与 AOT 冒烟
+phase: 1
+status: done
+depends_on: [P1-01]
+estimated_loc: 150
+files:
+  modify:
+    - .github/workflows/ci.yml
+    - DuetDiagram.AotSmokeTest/Program.cs
+    - DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj
+    - AGENTS.md
+acceptance:
+  - command: 校验 CI 配置合法
+    expect: YAML 可解析，作业与步骤齐全
+  - command: dotnet run --project DuetDiagram.AotSmokeTest -c Release
+    expect: 输出 AOT smoke test: PASS，退出码 0
+constraints:
+  - 本地缺 C++ 工具链，原生发布只能由持续集成验证
+  - 冒烟程序不做格式化输出，只用退出码表达结果
+context:
+  - 方案对 P1-15 的要求是「LOC 由脚本生成、CI 强制一致」与门禁强制
+  - 冒烟工程原先只引用 Core，那时还没有别的可发布组件
+result:
+  verdict: 完成
+  delivered:
+    smoke_extended: 冒烟覆盖扩展到九个集合、三个子对象、多态组合、校验器与快照
+    smoke_layout: 冒烟新增布局引擎与降级路径的验证
+    ci_test_projects: 三个测试工程全部进 CI
+    ci_gates: 新增布局不变量、降级、视口索引三道门禁
+  design_decisions:
+    smoke_charter: 冒烟工程原先只引用 Core，现在也引用 Layout。方案写那一条时还没有别的可发布组件，而布局依赖的第三方引擎是否原生友好**分析器看不出来**——分析器只看我们自己的代码，只有真的发布一次才知道。这是有意偏离，已记进差异表
+    extended_ir_matters: 多态类型的标签漏标一个，普通运行完全正常（反射兜住），原生发布之后才在第一次反序列化时失败；源生成器不会为此报错，只能靠真的跑一遍
+    gates_as_named_steps: 三道新门禁做成独立的具名步骤而不是塞进全量测试里。失败了要一眼看出是哪一类性质被破坏了，而不是只知道「有测试红了」
+  findings:
+    local_aot_blocked: 本机尝试原生发布，失败在链接器的前置检查，编译还没开始。因此这个尝试得不出任何关于原生兼容性的结论，那一项只能交给持续集成
+    analyzers_already_on: 构建属性默认对每个工程开着原生分析器，所以布局与渲染的我们自己的代码已经过了分析且零警告。未验证的只是第三方引擎的运行时行为
+    dagre_risk: 若持续集成在原生发布那一步失败，意味着布局引擎在原生构建下不可用。那是选型层面的问题，不是配置问题，处置方式完全不同
+  not_verified:
+    - 原生发布本身未在本机验证过，缺 C++ 工具链
+    - 界面程序的原生发布同样未验证

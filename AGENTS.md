@@ -162,7 +162,9 @@ dotnet run --project tools/LocCounter -- --root . --check
 | §4.9 步骤 3/4 | 填充的是 `ChangeContext` 的 `Timestamp` / `SessionId` | 这是唯一读得通的解释 |
 | §4.1 IR 字段 | 九个集合与三个子对象已实现，但 `PageDef` / `LayerDef` 的字段取最小集合 | 方案只列出集合存在、未给字段；等对应交互开工时再补，见 `docs/IR-Schema.md` |
 | §4.1 快照方法 | 只实现 `TakeFullSnapshot` / `RestoreFromSnapshot`，`ApplySnapshot` 未实现 | 它的语义方案未定义，协作同步设计清楚之前不硬猜 |
-| §4.2 布局提示 | 已进 IR，但尚未接到布局引擎 | 约束补齐逻辑已在验证程序中跑通，接线属 Phase 1 后续任务 |
+| §4.2 布局提示 | 已进 IR，但尚未接到布局引擎 | 约束补齐逻辑已落地，接线属 Phase 1 后续任务 |
+| §12 冒烟工程只引用 Core | 现在也引用 Layout | 方案写这一条时还没有别的可发布组件。布局依赖的第三方引擎**是否原生友好分析器看不出来**——分析器只看我们自己的代码，只有真的发布一次才知道 |
+| §12 工程命名 | 用 `DuetDiagram.*` 而不是 `Diagram.*` | 与解决方案文件名的前缀一致 |
 | §4.3 Sidecar | 未实现 | Phase 1 P1-06 |
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |

@@ -1,0 +1,14 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:DuetDiagram.App"
+        x:Class="DuetDiagram.App.MainWindow"
+        Title="DuetDiagram"
+        Width="900" Height="600">
+  <DockPanel>
+    <TextBlock DockPanel.Dock="Top"
+               Margin="16,12"
+               FontSize="13"
+               Text="技术栈验证界面：这里只确认渲染链路可用，编辑功能在后续阶段实现。" />
+    <local:DiagramPreview />
+  </DockPanel>
+</Window>

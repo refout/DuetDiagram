@@ -5,12 +5,14 @@ using Xunit;
 namespace DuetDiagram.Core.Tests;
 
 /// <summary>
-/// P1 判据 #1：DuetDiagram.Core 仅依赖 BCL。
+/// 核心程序集的依赖边界。
 /// </summary>
 /// <remarks>
-/// 这条约束是 DAG 的地基 —— 它是 <c>DuetDiagram.AotSmokeTest</c> 能只引用 Core、
-/// 以及 Core 能被任何宿主（GUI / CLI / 测试）无副作用引用的前提。
-/// 一旦被打破，重新拆包的成本极高，所以用测试钉住。
+/// <para>
+/// 这个边界一旦被打破，重新拆分的成本极高，所以在两个层面各钉一道：
+/// 项目文件层（有没有声明引用）和程序集元数据层（运行时实际引用了哪些程序集）。
+/// 只看项目文件是不够的——传递依赖不会出现在项目文件里。
+/// </para>
 /// </remarks>
 public sealed class CorePurityTests
 {
@@ -30,7 +32,7 @@ public sealed class CorePurityTests
             name => name.StartsWith("System", StringComparison.Ordinal)
                 || name == "netstandard"
                 || name == "mscorlib",
-            "Core 只允许引用 BCL");
+            "核心程序集只允许引用基础类库，多出一个第三方程序集就意味着它不再能独立复用");
     }
 
     [Fact]
@@ -42,6 +44,7 @@ public sealed class CorePurityTests
             .Select(a => a.Name ?? string.Empty)
             .ToArray();
 
+        // 反向依赖意味着分层被打破，而且会形成循环，将来无法单独编译或复用核心层。
         referenced.Should().NotContain(name => name.StartsWith("DuetDiagram.", StringComparison.Ordinal));
     }
 
@@ -51,7 +54,7 @@ public sealed class CorePurityTests
     {
         var projectFile = FindCoreProjectFile();
 
-        projectFile.Should().NotBeNull("测试必须能从仓库根目录找到 DuetDiagram.Core.csproj");
+        projectFile.Should().NotBeNull("测试必须能从仓库根目录找到核心项目文件");
 
         var content = File.ReadAllText(projectFile!);
 
@@ -59,6 +62,7 @@ public sealed class CorePurityTests
         content.Should().NotContain("<ProjectReference");
     }
 
+    /// <summary>从测试程序集所在目录逐级上溯，找到核心项目文件。</summary>
     private static string? FindCoreProjectFile()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

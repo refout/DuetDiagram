@@ -1,12 +1,13 @@
 namespace DuetDiagram.Core.Commands;
 
 /// <summary>
-/// 结构化错误。
+/// 结构化错误：一个错误码加一段可选说明。
 /// </summary>
 /// <remarks>
-/// 方案 §4.4 定义 <c>Payload</c> 为「可选对象」。本轮用 <c>string?</c>（承载 id / 字段名等），
-/// 保证 AOT 源生成下无需多态注册；需要富载荷时改为注册的 <c>CommandErrorPayload</c> 联合类型。
-/// AGENTS.md 约定 9：Payload 不携带异常类型名。
+/// <see cref="Payload"/> 只承载标识、字段名这类短字符串。
+/// 有一条硬规矩：**绝不把异常类型名写进来**。
+/// 原因是审计日志会长期保留并可能被外部读到，异常类型名会暴露内部实现细节，
+/// 攻击者能据此推断代码结构。类型名只写进应用日志（诊断出口），审计日志里永远是干净的。
 /// </remarks>
 public sealed record CommandError
 {

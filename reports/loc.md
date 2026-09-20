@@ -5,11 +5,12 @@
 
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
-| DuetDiagram.AotSmokeTest | 1 | 95 | 72 | 8 | 15 |
-| DuetDiagram.Core | 37 | 2424 | 1657 | 307 | 460 |
-| DuetDiagram.Core.Tests | 13 | 1734 | 1350 | 61 | 323 |
-| tools | 1 | 207 | 155 | 9 | 43 |
-| **合计** | **52** | **4460** | **3234** | **385** | **841** |
+| DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
+| DuetDiagram.App | 5 | 402 | 250 | 90 | 62 |
+| DuetDiagram.Core | 37 | 3102 | 1656 | 953 | 493 |
+| DuetDiagram.Core.Tests | 13 | 1925 | 1363 | 217 | 345 |
+| tools | 4 | 824 | 552 | 138 | 134 |
+| **合计** | **60** | **6357** | **3893** | **1415** | **1049** |
 
 ## 明细
 
@@ -18,6 +19,16 @@
 | 文件 | 代码 |
 |---|---:|
 | Program.cs | 72 |
+
+### DuetDiagram.App
+
+| 文件 | 代码 |
+|---|---:|
+| App.axaml.cs | 16 |
+| DiagramPreview.cs | 128 |
+| MainWindow.axaml.cs | 11 |
+| Program.cs | 20 |
+| SelfTest.cs | 75 |
 
 ### DuetDiagram.Core
 
@@ -32,7 +43,7 @@
 | VersionCheckRequest.cs | 6 |
 | AddNodeCommand.cs | 77 |
 | ConnectEdgeCommand.cs | 82 |
-| RemoveNodeCommand.cs | 127 |
+| RemoveNodeCommand.cs | 126 |
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
@@ -67,7 +78,7 @@
 |---|---:|
 | AtomicityTests.cs | 126 |
 | BroadcasterTests.cs | 89 |
-| CommandBusTests.cs | 229 |
+| CommandBusTests.cs | 242 |
 | CorePurityTests.cs | 57 |
 | Harness.cs | 73 |
 | MementoRegistrationTests.cs | 66 |
@@ -84,4 +95,7 @@
 | 文件 | 代码 |
 |---|---:|
 | Program.cs | 155 |
+| ApiDump.cs | 58 |
+| Probe.cs | 326 |
+| Program.cs | 13 |
 

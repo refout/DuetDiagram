@@ -3,10 +3,14 @@ using System.Text;
 namespace DuetDiagram.Tools.LocCounter;
 
 /// <summary>
-/// 统计仓库内 C# 代码行数并生成 reports/loc.md。
-/// 方案 §12 要求 LOC 由脚本生成、CI 强制一致 —— 因此输出必须是字节稳定的
-/// （不含时间戳、绝对路径、随机顺序）。
+/// 统计仓库内 C# 代码行数并生成报告文件。
 /// </summary>
+/// <remarks>
+/// 输出必须**字节稳定**：同样的代码永远产出同样的文件。因此报告里不含时间戳、
+/// 不含绝对路径、分组与文件都按名称排序。有了这个性质，持续集成才能用
+/// "重新生成后比对是否一致"来判断代码与报告有没有脱节——
+/// 只要有一次输入不稳定，这个判断就会频繁误报，最后没人再当回事。
+/// </remarks>
 internal static class Program
 {
     private static readonly string[] ExcludedDirectories = ["bin", "obj", ".git", "artifacts", "node_modules"];
@@ -87,7 +91,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// 归属到顶层目录（DuetDiagram.Core.AotSmokeTest 这种多级项目名会被还原成项目目录名）。
+    /// 按顶层目录归类。项目目录名是多段时（例如带子模块后缀），仍然归到最外层那一段，
+    /// 这样报告的分组粒度稳定，不会因为新增子目录而多出一堆只有一两个文件的组。
     /// </summary>
     private static string ClassifyProject(string root, string path)
     {

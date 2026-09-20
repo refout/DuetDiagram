@@ -5,7 +5,14 @@ using Xunit;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>P1 判据 #3 / #4：长时间撤销重做不泄漏、不漂移。</summary>
+/// <summary>
+/// 长时间反复撤销重做之后，状态仍然一致、占用仍然有上限。
+/// </summary>
+/// <remarks>
+/// 这类测试的意义不在于"跑一千次能不能通过"，而在于验证容量上限生效之后
+/// 各种计数是否还自洽。上限生效意味着"部分操作会失败"，
+/// 而失败的那部分很容易让计数器与实际状态脱节。
+/// </remarks>
 public sealed class UndoStressTests
 {
     [Fact]
@@ -15,15 +22,18 @@ public sealed class UndoStressTests
         using var harness = new Harness();
 
         const int commands = 600;
+
         for (var i = 0; i < commands; i++)
         {
             harness.AddNode($"n{i}").IsEffectiveSuccess.Should().BeTrue();
         }
 
+        // 命令数超过了撤销栈容量，所以最早的记录已经被挤掉。
         harness.Context.History.UndoCount.Should().Be(HistoryStack.Capacity);
         harness.Document.Version.Should().Be(commands);
 
         var effective = 0;
+
         for (var i = 0; i < 1000; i++)
         {
             if (harness.Bus.Undo().IsEffectiveSuccess)
@@ -32,13 +42,16 @@ public sealed class UndoStressTests
             }
         }
 
+        // 只有容量那么多条真的被撤销，其余都返回"无可撤销"。
         effective.Should().Be(HistoryStack.Capacity);
+
+        // 三个计数必须互相自洽：剩下的节点数、版本推进量、两个栈的大小。
         harness.Document.Nodes.Should().HaveCount(commands - HistoryStack.Capacity);
         harness.Document.Version.Should().Be(commands + HistoryStack.Capacity);
         harness.Context.History.UndoCount.Should().Be(0);
         harness.Context.History.RedoCount.Should().Be(HistoryStack.Capacity);
 
-        // 版本日志是环形缓冲：无论跑多少命令，占用都不增长。
+        // 两份日志都是环形缓冲：跑再多命令，占用都不增长。
         harness.Context.VersionLog.Count.Should().Be(VersionLogLimits.MaxEntries);
         harness.Context.AuditLog.Count.Should().Be(AuditLog.Capacity);
     }
@@ -55,6 +68,8 @@ public sealed class UndoStressTests
         var structural = harness.Document.StructuralHash;
         var visual = harness.Document.VisualHash;
 
+        // 每次重做都会重新捕获快照。如果快照捕获得不对，
+        // 误差会随着循环次数累积，最终表现为内容与最初不一致。
         for (var i = 0; i < 100; i++)
         {
             harness.Bus.Undo().IsEffectiveSuccess.Should().BeTrue();
@@ -63,6 +78,8 @@ public sealed class UndoStressTests
 
         harness.Document.StructuralHash.Should().Be(structural);
         harness.Document.VisualHash.Should().Be(visual);
+
+        // 每次撤销重做各推进一个版本号，总共两百次。
         harness.Document.Version.Should().Be(3 + 200);
         harness.Context.History.UndoCount.Should().Be(3);
     }
@@ -83,6 +100,7 @@ public sealed class UndoStressTests
             harness.Connect($"e{i}", $"n{i}", $"n{i + 1}");
         }
 
+        // 一百个节点加九十九条边，全部撤销之后应当回到完全空白。
         for (var i = 0; i < 199; i++)
         {
             harness.Bus.Undo().IsEffectiveSuccess.Should().BeTrue();

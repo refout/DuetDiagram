@@ -6,9 +6,20 @@ using DuetDiagram.Core.Model;
 namespace DuetDiagram.Core.Tests;
 
 /// <summary>
-/// 部分写入后失败 / 抛异常。用于验证 AGENTS.md 约定 2（Apply 必须原子）。
-/// 通过组合真实的 <see cref="AddNodeCommand"/> 制造半成品，不依赖内部可见性。
+/// 先改文档再失败的命令，用来验证失败时的回滚。
 /// </summary>
+/// <remarks>
+/// <para>
+/// 关键在于它**真的改了文档**：内部先调用一次真实的新增节点命令把节点插进去，
+/// 然后才报告失败或抛异常。这样才能测出总线有没有把半成品清理干净。
+/// 如果造一个"什么都不做直接失败"的假命令，回滚逻辑根本不会被执行到，
+/// 测试会假通过——这正是这类测试最容易自我欺骗的地方。
+/// </para>
+/// <para>
+/// 用组合真实命令的方式制造半成品，而不是直接去改文档的内部集合，
+/// 这样测试不需要任何特权访问，也顺便验证了"命令可以互相组合"这条路是通的。
+/// </para>
+/// </remarks>
 internal sealed class PartialWriteCommand : DiagramCommandBase
 {
     private readonly AddNodeCommand _inner;
@@ -29,7 +40,6 @@ internal sealed class PartialWriteCommand : DiagramCommandBase
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        // 真实的半成品：文档已经被改过，然后才失败。
         _inner.Apply(document);
 
         return _throwAfter
@@ -50,7 +60,7 @@ internal sealed class PartialWriteCommand : DiagramCommandBase
         => _inner.RestoreMemento(document, memento);
 }
 
-/// <summary>Apply 抛异常且未改动文档。</summary>
+/// <summary>直接抛异常且完全没碰文档的命令，用来覆盖"未改动就失败"这条路径。</summary>
 internal sealed class ThrowingCommand : DiagramCommandBase
 {
     public ThrowingCommand()
@@ -77,9 +87,13 @@ internal sealed class ThrowingCommand : DiagramCommandBase
 }
 
 /// <summary>
-/// 违反 AGENTS.md 约定 7：命令内部再触发一次命令。
-/// 用于验证 AsyncLocal 深度检测，包括 Task.Run 中的跨线程传播。
+/// 在命令内部再次发起命令，用于验证嵌套检测。
 /// </summary>
+/// <remarks>
+/// <see cref="DiagramCommandBus.NestedExecuteMessage"/> 描述的两种触发方式都在这里覆盖：
+/// 同线程直接调用，以及另起一个任务调用。后者同样会被拦住，因为执行上下文局部变量
+/// 会沿着任务边界自动传播——这是有意的保守策略，宁可拦住也不能漏。
+/// </remarks>
 internal sealed class NestedExecuteCommand : DiagramCommandBase
 {
     private readonly DiagramCommandBus _bus;
@@ -102,6 +116,7 @@ internal sealed class NestedExecuteCommand : DiagramCommandBase
 
         if (_crossThread)
         {
+            // 同步等待，让异常直接从这一层抛出来，避免被包装成聚合异常而影响断言。
             Task.Run(() => _bus.Execute(command)).GetAwaiter().GetResult();
         }
         else
@@ -125,7 +140,7 @@ internal sealed class NestedExecuteCommand : DiagramCommandBase
     }
 }
 
-/// <summary>Apply 在成功语义下不做任何变更，用于验证 NoOp 不推进版本、不入历史。</summary>
+/// <summary>报告"合法但无事可做"的命令，用来验证空操作不推进版本、不进历史。</summary>
 internal sealed class AlwaysNoOpCommand : DiagramCommandBase
 {
     public AlwaysNoOpCommand()

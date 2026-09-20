@@ -2,15 +2,21 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+
+    <!--
+      开启原生 AOT 编译：把程序连同运行时一起编译成单个原生可执行文件，
+      启动时不需要加载运行时也不需要即时编译。这个项目存在的意义就是持续验证
+      核心层在这条路径上仍然可用——序列化靠编译期生成、类型靠显式标注，
+      任何一处退回反射都会在这里暴露。
+    -->
     <PublishAot>true</PublishAot>
+
+    <!-- 原生可执行文件里没有区域设置数据，去掉全球化支持可以显著减小体积。 -->
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- 不生成堆栈跟踪符号，进一步减小体积；出问题时看退出码和输出即可。 -->
     <StackTraceSupport>false</StackTraceSupport>
   </PropertyGroup>
-
-  <!--
-    P1 判据 #9 / P1-18: Memento 多态序列化在 AOT 下必须能编译并运行。
-    本程序只引用 DuetDiagram.Core，不得引用任何测试或 UI 依赖。
-  -->
 
   <ItemGroup>
     <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />

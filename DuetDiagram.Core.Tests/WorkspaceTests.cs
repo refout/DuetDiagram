@@ -9,7 +9,12 @@ using Xunit;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>P1 判据 #28 / #31：Workspace 与 Context、Broadcaster 的所有权一致。</summary>
+/// <summary>
+/// 工作区与广播器的所有权约定。
+/// </summary>
+/// <remarks>
+/// 这里的错误症状是"某个窗口莫名不再刷新"，看起来完全不像所有权问题，因此值得单独测。
+/// </remarks>
 public sealed class WorkspaceTests
 {
     [Fact]
@@ -33,6 +38,7 @@ public sealed class WorkspaceTests
 
         await workspace.DisposeAsync();
 
+        // 广播器是别人建的，关掉自己的窗口不该把它一起销毁。
         broadcaster.DisposeCount.Should().Be(0);
     }
 
@@ -45,6 +51,8 @@ public sealed class WorkspaceTests
 
         var workspace = new DiagramWorkspace(context);
 
+        // 工作区对外暴露的广播器必须与命令总线用的是同一个实例。
+        // 若各自持有不同的实例，订阅者会收不到任何通知。
         workspace.Broadcaster.Should().BeSameAs(broadcaster);
         workspace.Broadcaster.Should().BeSameAs(context.Broadcaster);
         workspace.Document.Should().BeSameAs(context.Document);
@@ -78,7 +86,7 @@ public sealed class WorkspaceTests
         notification.Version.Should().Be(1);
         notification.DocumentId.Should().Be(left.Document.Id);
 
-        // 两边都释放后，共享的 broadcaster 仍然可用（所有权在宿主手里）。
+        // 两个工作区都关掉之后，共享的广播器仍然可用——它归创建者管。
         await left.DisposeAsync();
         await right.DisposeAsync();
 

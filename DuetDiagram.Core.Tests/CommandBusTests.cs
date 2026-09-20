@@ -8,7 +8,9 @@ using Xunit;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>P1 判据 #3 / #4：撤销重做与版本一致。</summary>
+/// <summary>
+/// 执行、撤销、重做三条路径的版本一致性与记账行为。
+/// </summary>
 public sealed class CommandBusTests
 {
     [Fact]
@@ -36,10 +38,31 @@ public sealed class CommandBusTests
         using var harness = new Harness();
         var expected = harness.Clock.UtcNow;
 
+        // 命令对象在这里构造，时间戳取的是执行那一刻的时钟值。
+        // 测试里两者相同，因为时钟是手动的、不会自己走。
         harness.AddNode("a");
 
         harness.Context.VersionLog.Snapshot()[0].Timestamp.Should().Be(expected);
         harness.Context.AuditLog.All()[0].Timestamp.Should().Be(expected);
+    }
+
+    [Fact]
+    [Trait("Category", "UndoRedoVersion")]
+    public void Timestamp_ignores_whatever_the_caller_declared()
+    {
+        using var harness = new Harness();
+        var expected = harness.Clock.UtcNow;
+
+        // 调用方故意声明一个离谱的时间戳，总线必须覆盖掉它。
+        // 允许调用方决定时间戳意味着审计日志记录的是"构造时刻"而不是"生效时刻"，
+        // 在批量构造、延迟提交的场景下这个差别很大。
+        harness.Bus.Execute(new AddNodeCommand(new NodeDef { Id = "a" })
+            .WithContext(ChangeContext.For(ChangeSource.Human, "tester") with
+            {
+                Timestamp = DateTimeOffset.UnixEpoch,
+            }));
+
+        harness.Context.VersionLog.Snapshot()[0].Timestamp.Should().Be(expected);
     }
 
     [Fact]
@@ -53,6 +76,8 @@ public sealed class CommandBusTests
 
         result.IsEffectiveSuccess.Should().BeTrue();
         harness.Document.Nodes.Should().BeEmpty();
+
+        // 撤销也占一个版本号：它是一个新状态，必须能被对端从版本区间里推算出来。
         harness.Document.Version.Should().Be(2);
         harness.Context.History.UndoCount.Should().Be(0);
         harness.Context.History.RedoCount.Should().Be(1);
@@ -104,6 +129,8 @@ public sealed class CommandBusTests
         harness.Bus.Redo();
         harness.Bus.Redo();
 
+        // 重做必须把内容还原得一模一样，包括顺序和两个哈希。
+        // 哈希对不上说明两次算出来的内容有差异，即使肉眼看起来相同。
         harness.Document.Nodes.Should().Equal(expectedNodes);
         harness.Document.Edges.Should().Equal(expectedEdges);
         harness.Document.StructuralHash.Should().Be(expectedStructuralHash);
@@ -121,6 +148,7 @@ public sealed class CommandBusTests
 
         harness.AddNode("b");
 
+        // 新变更让"接下来会发生什么"的假设失效，继续重做会把文档带到没人预期的状态。
         harness.Context.History.RedoCount.Should().Be(0);
     }
 
@@ -140,6 +168,7 @@ public sealed class CommandBusTests
         redo.IsNoOp.Should().BeTrue();
         redo.Message.Should().Be("无可重做操作");
 
+        // 空操作没有改变任何东西，版本号必须原地不动。
         harness.Document.Version.Should().Be(0);
     }
 
@@ -161,13 +190,17 @@ public sealed class CommandBusTests
         harness.Bus.Execute(new RemoveNodeCommand("b").WithContext(ChangeContext.For(ChangeSource.Human)))
             .IsEffectiveSuccess.Should().BeTrue();
 
+        // 删掉 b 之后，挂在它身上的两条边也必须一起消失。
         harness.Document.Nodes.Select(n => n.Id).Should().Equal("a", "c");
         harness.Document.Edges.Select(e => e.Id).Should().Equal("e3");
 
         harness.Bus.Undo().IsEffectiveSuccess.Should().BeTrue();
 
+        // 还原后的顺序必须与删除前一致：节点按原位插回，三条边也按原索引插回。
         harness.Document.Nodes.Select(n => n.Id).Should().Equal("a", "b", "c");
         harness.Document.Edges.Select(e => e.Id).Should().Equal("e1", "e2", "e3");
+
+        // 两个哈希回到删除前的值，说明内容是真的完整还原了，而不是"看起来差不多"。
         harness.Document.StructuralHash.Should().Be(hashBefore);
         harness.Document.VisualHash.Should().Be(visualBefore);
     }
@@ -186,14 +219,15 @@ public sealed class CommandBusTests
         right.AddNode("n2", "贰");
         right.Connect("e1", "n1", "n2");
 
-        // 同样的连接关系 → 不需要重布局；不同的标签 → 需要重绘。
+        // 连接关系相同、只是文字不同：结构哈希必须相同（不需要重布局），
+        // 视觉哈希必须不同（需要重绘）。这一条直接决定了改文字会不会触发全图重排。
         left.Document.StructuralHash.Should().Be(right.Document.StructuralHash);
         left.Document.VisualHash.Should().NotBe(right.Document.VisualHash);
     }
 
     [Fact]
     [Trait("Category", "McpMode")]
-    public void Mcp_mode_requires_a_version_check_request()
+    public void Version_checked_mode_requires_a_version_declaration()
     {
         using var harness = new Harness(DiagramCommandBusOptions.ForMcp());
 
@@ -207,7 +241,7 @@ public sealed class CommandBusTests
 
     [Fact]
     [Trait("Category", "McpMode")]
-    public void Mcp_mode_accepts_a_matching_version_and_rejects_a_stale_one()
+    public void Version_checked_mode_accepts_a_matching_version_and_rejects_a_stale_one()
     {
         using var harness = new Harness(DiagramCommandBusOptions.ForMcp());
 
@@ -218,19 +252,22 @@ public sealed class CommandBusTests
         accepted.IsEffectiveSuccess.Should().BeTrue();
         harness.Document.Version.Should().Be(1);
 
+        // 调用方仍停留在版本 0，而文档已经是 1，这次写入必须被拒绝而不是静默覆盖。
         var stale = harness.Bus.Execute(
             new AddNodeCommand(new NodeDef { Id = "b" }).WithContext(ChangeContext.For(ChangeSource.Mcp)),
             new VersionCheckRequest { ClientVersion = 0 });
 
         stale.IsSuccess.Should().BeFalse();
         stale.Errors.Should().ContainSingle(e => e.Code == ErrorCodes.VersionConflict);
+
+        // 版本冲突是可以重试的：同步到最新版本之后再发一次就能成功。
         stale.IsRetryable.Should().BeTrue();
         harness.Document.Nodes.Select(n => n.Id).Should().Equal("a");
     }
 
     [Fact]
     [Trait("Category", "McpMode")]
-    public void Mcp_mode_refuses_a_null_broadcaster()
+    public void Version_checked_mode_refuses_a_no_op_broadcaster()
     {
         var context = DiagramCommandBusContext.Create(
             new DiagramDocument("d"),
@@ -240,12 +277,14 @@ public sealed class CommandBusTests
 
         var act = () => new DiagramCommandBus(context);
 
+        // 判据是"是不是那个空实现类型"而不是"是不是空引用"。空实现永远不是空引用，
+        // 只判空引用等于这道防线不存在，后果是另一个进程永远收不到变更且毫无提示。
         act.Should().Throw<ArgumentException>().WithMessage("*real broadcaster*");
     }
 
     [Fact]
     [Trait("Category", "McpMode")]
-    public void Gui_mode_accepts_a_null_broadcaster()
+    public void Single_process_mode_accepts_a_no_op_broadcaster()
     {
         var context = DiagramCommandBusContext.Create(
             new DiagramDocument("d"),
@@ -255,13 +294,14 @@ public sealed class CommandBusTests
 
         using var bus = new DiagramCommandBus(context);
 
+        // 单进程场景没有订阅者，用空实现是合理选择，必须允许。
         bus.Execute(new AddNodeCommand(new NodeDef { Id = "a" }).WithContext(ChangeContext.For(ChangeSource.Human)))
             .IsEffectiveSuccess.Should().BeTrue();
     }
 
     [Fact]
     [Trait("Category", "McpMode")]
-    public void Mcp_mode_never_records_a_rejected_or_conflicting_write()
+    public void Version_checked_mode_never_records_a_conflicting_write()
     {
         using var harness = new Harness(DiagramCommandBusOptions.ForMcp());
 
@@ -276,6 +316,7 @@ public sealed class CommandBusTests
             new AddNodeCommand(new NodeDef { Id = "b" }).WithContext(ChangeContext.For(ChangeSource.Mcp)),
             new VersionCheckRequest { ClientVersion = 0 });
 
+        // 冲突的写入必须完全不留痕迹，否则对端同步回来会看到一段自己没做过的变更。
         harness.Document.Version.Should().Be(versionBefore);
         harness.Context.History.UndoCount.Should().Be(historyBefore);
         harness.Context.VersionLog.Count.Should().Be(versionBefore);

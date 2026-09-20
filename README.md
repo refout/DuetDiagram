@@ -10,18 +10,25 @@ IR 是唯一事实源；GUI 能做的，LLM 通过工具都能做；LLM 能表�
 
 ## 当前状态
 
-Phase 0（依赖验证）尚未开始；**Phase 1 的垂直切片已经落地**，用于先把架构地基钉死：
+Phase 0（依赖验证）进行中，Phase 1 的垂直切片已经落地。
+
+**已经推翻的一项技术选型**：主选布局引擎不支持固定位置，且在有交叉边的图上横向坐标会爆炸
+（20 个节点就能把 116 像素的合理宽度撑到 40803 像素）。取证过程与复现方式见
+`reports/phase0a-mermaider.md`。布局引擎需要改走备选并重新取证。
 
 | 已完成 | 内容 |
 |---|---|
-| IR | `DiagramDocument` + `NodeDef` + `EdgeDef` |
-| 命令总线 | `Execute` / `ExecuteAsync` / `Undo` / `Redo`，门锁 + 嵌套检测 |
+| 仓库地基 | slnx 解决方案、精确版本锁定、契约文档、任务 DAG、LOC 门禁、持续集成 |
+| 核心层 | IR、命令总线（执行 / 撤销 / 重做）、版本日志、审计日志、历史栈、广播器、序列化与双哈希 |
 | 内置命令 | `add-node` / `remove-node` / `connect-edge` |
-| 配套 | 版本日志、审计日志、历史栈、广播器、AOT 安全序列化、结构/视觉哈希 |
-| 测试 | 73 个用例，覆盖往返无损、原子性回滚、撤销重做一致性、diff 边界、AOT 多态注册 |
-| 契约 | `AGENTS.md`、`docs/`、`tasks/`、LOC 门禁、CI |
+| 测试 | 74 个用例，覆盖往返无损、原子性回滚、撤销重做一致性、差异边界、多态注册、依赖边界 |
+| Phase 0a | 依赖版本核实、界面栈自检出图、布局引擎取证 |
 
-**未实现**：Sidecar、布局引擎、Mermaid / DSL、渲染、GUI、LLM、MCP。见 `docs/Architecture.md`。
+**未实现**：布局引擎、Sidecar、Mermaid / DSL、渲染与画布、外部代理接入。
+详见 `docs/Architecture.md`。
+
+**已知阻塞**：原生编译发布需要 Visual Studio 的「使用 C++ 的桌面开发」工作负载，
+本机未安装，因此这项验收尚未关闭。见 `reports/phase0a.md`。
 
 ## 快速开始
 
@@ -35,7 +42,13 @@ dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj
 # 按分类跑
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 
-# 冒烟（CoreCLR 路径；AOT 发布需要 MSVC C++ 工作负载）
+# 界面栈自检：脱屏渲染一帧后退出，用退出码表达结果
+dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png
+
+# 布局引擎约束取证
+dotnet run --project tools/Poc/MermaiderConstraints -c Release
+
+# 原生编译冒烟（需要 C++ 桌面开发工作负载）
 dotnet run --project DuetDiagram.AotSmokeTest -c Release
 
 # LOC 报告
@@ -46,14 +59,16 @@ dotnet run --project tools/LocCounter -- --root .
 
 ```
 DuetDiagram.slnx            解决方案（slnx 格式）
-Directory.Build.props       公共编译属性（net10.0 / 警告即错误 / AOT 分析器）
+Directory.Build.props       公共编译属性（net10.0 / 警告即错误 / 裁剪与原生编译分析器）
 Directory.Packages.props    精确版本锁定（禁止通配）
 global.json                 固定 SDK + 启用 Microsoft.Testing.Platform
 AGENTS.md                   Agent 契约：13 条不可违反的约束 + 已知差异
 docs/                       架构、IR Schema、错误码、命令清单
+reports/                    阶段验证结论与取证数据（含布局引擎缺陷的复现说明）
 tasks/                      面向 coding agent 的任务 YAML 与 DAG
 tools/LocCounter            LOC 统计（不进 sln）
-.github/workflows/ci.yml    编译 / 测试 / 契约门禁 / AOT
+tools/Poc/                  依赖验证脚手架（不进 sln）
+.github/workflows/ci.yml    编译 / 测试 / 契约门禁 / 原生发布
 ```
 
 ## 给 Agent 的入口

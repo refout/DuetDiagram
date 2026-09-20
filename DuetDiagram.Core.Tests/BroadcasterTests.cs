@@ -6,7 +6,9 @@ using Xunit;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>P1 判据 #24 / #32：有界 Channel、订阅者隔离、非阻塞。</summary>
+/// <summary>
+/// 广播器的三项硬要求：写入不阻塞、订阅者互不影响、关闭有上限。
+/// </summary>
 public sealed class BroadcasterTests
 {
     private static ChangeNotification Notification(int version) => new()
@@ -23,6 +25,8 @@ public sealed class BroadcasterTests
     public async Task Enqueue_never_blocks_the_caller()
     {
         await using var broadcaster = new InProcessBroadcaster();
+
+        // 订阅者每条睡 1 毫秒，等于每秒最多消费一千条。
         using var subscription = broadcaster.Subscribe(_ => Thread.Sleep(1));
 
         var stopwatch = Stopwatch.StartNew();
@@ -34,8 +38,8 @@ public sealed class BroadcasterTests
 
         stopwatch.Stop();
 
-        // 订阅者按 1ms/条 消费，同步分发 2 万条要 20 秒以上；
-        // 有界 Channel + DropOldest 必须让生产者立刻返回。
+        // 两万条按订阅者的速度要二十秒以上。写入方必须在毫秒级返回：
+        // 它站在命令执行的路径上，被拖住等于冻结整个编辑操作。
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5));
     }
 
@@ -51,6 +55,7 @@ public sealed class BroadcasterTests
 
         broadcaster.Enqueue(Notification(1));
 
+        // 第一个订阅者抛异常不能阻止第二个收到通知，也不能让后台投递循环结束。
         delivered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken).Should().BeTrue();
     }
 
@@ -77,6 +82,8 @@ public sealed class BroadcasterTests
         broadcaster.Enqueue(Notification(2));
         await Task.Delay(200, TestContext.Current.CancellationToken);
 
+        // 退订之后不能再收到任何投递。界面窗口关闭后回调还打到已销毁的控件上，
+        // 是这类订阅机制最典型的崩溃来源。
         received.Should().Be(1);
     }
 
@@ -92,16 +99,19 @@ public sealed class BroadcasterTests
         await broadcaster.DisposeAsync();
         stopwatch.Stop();
 
+        // 关闭有等待上限，不能让一个卡住的订阅者把关闭流程无限拖住。
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
     }
 
     [Fact]
     [Trait("Category", "Broadcaster")]
-    public void Null_broadcaster_is_inert()
+    public void No_op_broadcaster_is_inert()
     {
         var broadcaster = NullChangeBroadcaster.Instance;
 
         broadcaster.Enqueue(Notification(1));
+
+        // 订阅了也不该收到任何东西——它存在的意义就是让调用方省掉空值判断。
         using var subscription = broadcaster.Subscribe(_ => throw new InvalidOperationException("must never run"));
 
         broadcaster.DisposeAsync().IsCompletedSuccessfully.Should().BeTrue();
@@ -111,7 +121,8 @@ public sealed class BroadcasterTests
     [Trait("Category", "Broadcaster")]
     public void Channel_capacity_is_bounded()
     {
-        // AGENTS.md 约定 12：容量必须是 1024，且不得改成无界。
+        // 有界容量是"内存占用可预测"的唯一保证。改成无界之后，
+        // 一个不消费的订阅者就能把内存吃光，而且症状是缓慢增长、极难定位。
         InProcessBroadcaster.ChannelCapacity.Should().Be(1024);
     }
 }

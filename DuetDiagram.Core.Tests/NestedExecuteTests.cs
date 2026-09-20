@@ -7,7 +7,7 @@ using Xunit;
 namespace DuetDiagram.Core.Tests;
 
 /// <summary>
-/// P1 判据 #10 / #11 / #33：嵌套 Execute 检测与异步并发。
+/// 命令内部不得再发起命令，以及并发执行时的串行化保证。
 /// </summary>
 public sealed class NestedExecuteTests
 {
@@ -30,8 +30,9 @@ public sealed class NestedExecuteTests
     {
         using var harness = new Harness();
 
-        // AsyncLocal 会流入 Task.Run —— 这是**有意**的保守行为：
-        // 宁可误报，也不允许命令在命令内部重入（AGENTS.md 约定 7）。
+        // 执行上下文局部变量会沿着任务边界自动传递，所以另起线程同样会被判定为嵌套。
+        // 这是有意的保守策略：命令内部重入几乎没有正当理由，
+        // 而漏检会让门锁自我等待、整个进程卡死，代价远大于偶尔误报。
         var act = () => harness.Bus.Execute(
             new NestedExecuteCommand(harness.Bus, new NodeDef { Id = "inner" }, crossThread: true));
 
@@ -48,7 +49,7 @@ public sealed class NestedExecuteTests
         var act = () => harness.Bus.Execute(new ThrowingCommand());
         act.Should().Throw<InvalidOperationException>();
 
-        // 门锁与深度都必须已经释放，否则后续所有命令都会失败。
+        // 门锁与深度必须在异常路径上同样被释放。漏掉任何一个，之后所有命令都会永久失败。
         harness.AddNode("a").IsEffectiveSuccess.Should().BeTrue();
         harness.Bus.Undo().IsEffectiveSuccess.Should().BeTrue();
         harness.Bus.Redo().IsEffectiveSuccess.Should().BeTrue();
@@ -72,7 +73,8 @@ public sealed class NestedExecuteTests
     [Trait("Category", "NestedExecute")]
     public async Task Concurrent_async_commands_serialise_without_losing_a_version()
     {
-        // 200 条命令同时抢门锁：版本递增、哈希更新、历史入栈必须在锁内串行完成。
+        // 200 条命令同时抢门锁。版本递增、哈希重算、历史入栈必须在锁内串行完成，
+        // 任何一处漏在锁外都会表现为版本号与实际内容数量对不上。
         using var harness = new Harness();
 
         var tasks = Enumerable.Range(0, 200).Select(i => Task.Run(async () =>
@@ -86,6 +88,8 @@ public sealed class NestedExecuteTests
         harness.Document.Nodes.Should().HaveCount(200);
         harness.Document.Version.Should().Be(200);
         harness.Context.History.UndoCount.Should().Be(200);
+
+        // 版本日志有容量上限，跑再多命令占用也不会增长。
         harness.Context.VersionLog.Count.Should().Be(100);
     }
 
@@ -103,6 +107,8 @@ public sealed class NestedExecuteTests
             cancellationToken: cts.Token);
 
         await act.Should().ThrowAsync<OperationCanceledException>();
+
+        // 取消发生在拿锁之前，所以命令根本没被执行，文档必须完全没有被碰过。
         harness.Document.Nodes.Should().BeEmpty();
         harness.Document.Version.Should().Be(0);
     }

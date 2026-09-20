@@ -13,11 +13,14 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 |---|---|---|
 | `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化 | 垂直切片已落地 |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
-| `DuetDiagram.AotSmokeTest` | AOT 冒烟（多态 Memento + IR 往返） | 已落地 |
+| `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
+| `DuetDiagram.App` | 界面主程序 | 技术栈验证脚手架，含自检模式 |
 | `docs/` | 架构、IR Schema、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
+| `reports/` | 阶段验证结论与取证数据 | 已落地 |
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
-| `DuetDiagram.Mermaid` / `.Layout` / `.Llm` / `.Mcp` / `.Render` / `.App` | 后续 Phase | 未创建 |
+| `tools/Poc/*` | 依赖验证脚手架（不进 sln，结论固化后可删） | 已落地 |
+| `DuetDiagram.Mermaid` / `.Layout` / `.Llm` / `.Mcp` / `.Render` | 后续 Phase | 未创建 |
 | `tools/CompareHarness` | DSL vs Mermaid 对比测试客户端（不进 sln） | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
@@ -92,9 +95,15 @@ dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 
-# AOT 冒烟（需要 VS「使用 C++ 的桌面开发」工作负载，见 docs/Architecture.md）
+# 界面栈自检（脱屏渲染一帧后退出，用退出码表达结果）
+dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png
+
+# 原生编译冒烟（需要 VS「使用 C++ 的桌面开发」工作负载，见 reports/phase0a.md）
 dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
 ./DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe
+
+# 布局引擎约束取证
+dotnet run --project tools/Poc/MermaiderConstraints -c Release
 
 # LOC 一致性
 dotnet run --project tools/LocCounter -- --root . --check
@@ -104,7 +113,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 
 `RoundTrip`、`Atomicity`、`UndoRedoVersion`、`DiffBoundary`、`MementoRegistration`、
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
-`UndoStress`、`Workspace`、`McpMode`
+`UndoStress`、`Workspace`、`McpMode`、`CorePurity`
 
 ## 新增一个命令的检查清单
 

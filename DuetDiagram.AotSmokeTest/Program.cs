@@ -9,9 +9,18 @@ using DuetDiagram.Core.Workspace;
 namespace DuetDiagram.AotSmokeTest;
 
 /// <summary>
-/// P1 判据 #9 / P1-18：Memento 在 AOT 下必须能编译、序列化、反序列化并还原文档。
-/// 本程序不做花哨输出，退出码 0 即为通过，供 CI 直接断言。
+/// 原生 AOT 下的端到端冒烟。
 /// </summary>
+/// <remarks>
+/// <para>
+/// 走一遍完整的编辑流程：建文档、连总线、增删改、撤销重做、序列化往返。
+/// 这些动作覆盖了所有可能被裁剪或依赖反射的地方——尤其是多态逆变更快照的反序列化，
+/// 它是这条路径上最脆弱的一环：标签漏标一个，普通运行完全正常，原生发布后才失败。
+/// </para>
+/// <para>
+/// 不做任何格式化输出，只用退出码表达结果，方便持续集成直接断言。
+/// </para>
+/// </remarks>
 internal static class Program
 {
     private static async Task<int> Main()
@@ -51,12 +60,12 @@ internal static class Program
         Assert(document.Version == 4, "version after 4 commands");
         Assert(document.Nodes.Count == 3 && document.Edges.Count == 1, "document content");
 
-        // IR 往返无损（AOT 路径：源生成，无反射）
+        // 文档往返：验证编译期生成的读写代码覆盖了全部字段。
         var json = DiagramSerializer.SerializeFull(document);
         var restored = DiagramSerializer.DeserializeFull(json);
         Assert(DiagramSerializer.Normalize(restored) == json, "IR round trip");
 
-        // 多态 Memento 往返：每一种派生类型都必须能被 AOT 反序列化
+        // 多态快照往返：每一种派生类型都必须能被原生编译后的代码正确还原。
         var mementos = new CommandMemento[]
         {
             new AddNodeMemento { Node = start, Index = 0, AffectedIds = ["start"] },
@@ -71,13 +80,13 @@ internal static class Program
             Assert(roundTripped.GetType() == memento.GetType(), $"memento type {memento.GetType().Name}");
         }
 
-        // 撤销 / 重做在 AOT 下走通
+        // 撤销重做
         Assert(workspace.CommandBus.Undo().IsEffectiveSuccess, "undo");
         Assert(document.Edges.Count == 0, "edge removed by undo");
         Assert(workspace.CommandBus.Redo().IsEffectiveSuccess, "redo");
         Assert(document.Edges.Count == 1, "edge restored by redo");
 
-        // 删除节点连带删除边，再撤销还原
+        // 删节点连带删边，再撤销还原
         var removed = workspace.CommandBus.Execute(new RemoveNodeCommand("check").WithContext(Context(ChangeSource.Human)));
         Assert(removed.IsEffectiveSuccess && document.Nodes.Count == 2 && document.Edges.Count == 0, "cascade remove");
         Assert(workspace.CommandBus.Undo().IsEffectiveSuccess && document.Nodes.Count == 3 && document.Edges.Count == 1, "restore cascade");

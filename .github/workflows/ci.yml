@@ -51,9 +51,10 @@ jobs:
       - name: LOC 一致性
         run: dotnet run --project tools/LocCounter -c ${{ env.CONFIGURATION }} -- --root "$PWD" --check
 
-  aot:
-    name: AOT 发布 + 冒烟
-    # 原生链接需要 MSVC 工具链，只有 windows runner 具备
+  app-and-aot:
+    name: 界面栈自检 + 原生发布
+    # 两项都放在 Windows 上：界面自检要初始化窗口平台，原生链接要 MSVC 工具链，
+    # 这两样只有 Windows 运行器具备。
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,18 +63,37 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # P1 判据 #9 / #21：Memento 在 AOT 下编译并运行
-      - name: Publish AOT
+      - name: 构建界面程序
+        run: dotnet build DuetDiagram.App/DuetDiagram.App.csproj -c ${{ env.CONFIGURATION }}
+
+      # 脱屏渲染一帧后退出，用退出码表达结果；同时产出可人工核对的证据图。
+      - name: 界面栈自检
+        run: |
+          $output = dotnet run --project DuetDiagram.App -c ${{ env.CONFIGURATION }} --no-build -- --selftest --out reports/ci-selftest.png
+          $output | Write-Host
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path "reports/ci-selftest.png")) {
+            Write-Error "自检没有产出位图"
+            exit 1
+          }
+        shell: pwsh
+
+      # 多态快照必须在原生编译后仍能反序列化，这一步同时覆盖核心层与冒烟程序。
+      - name: 原生发布
         run: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c ${{ env.CONFIGURATION }}
 
-      - name: 运行冒烟程序
+      - name: 运行原生冒烟程序
         run: |
           $exe = "DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe"
           $output = & $exe
           Write-Host $output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($output -notmatch "AOT smoke test: PASS") {
-            Write-Error "冒烟程序未报告 PASS"
+            Write-Error "冒烟程序未报告通过"
             exit 1
           }
         shell: pwsh
+
+      # 界面程序的原生发布：这是技术选型能否成立的关键一项，由带 C++ 工具链的运行器负责。
+      - name: 原生发布界面程序
+        run: dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c ${{ env.CONFIGURATION }}

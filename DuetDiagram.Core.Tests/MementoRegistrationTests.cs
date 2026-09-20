@@ -10,9 +10,19 @@ using Xunit;
 namespace DuetDiagram.Core.Tests;
 
 /// <summary>
-/// P1 判据 #12：所有 Memento 派生类型必须注册多态序列化。
-/// 漏注册在 AOT 下是**运行时**失败，因此这里用反射把它提前成编译期后的第一道门禁。
+/// 多态类型的注册完整性。
 /// </summary>
+/// <remarks>
+/// <para>
+/// 漏注册多态子类型的失败方式很隐蔽：编译通过，单机运行也通过，
+/// 只有 AOT 发布之后第一次反序列化那个类型才会炸。也就是说它在开发阶段完全不可见。
+/// </para>
+/// <para>
+/// 这里用反射把程序集里的具体子类型全部枚举出来，跟已标注的集合做全等比较，
+/// 把"运行时才发现"提前成"改完代码立刻发现"。
+/// 全等而不是"包含"是有意的：多标注一个不存在的类型同样是错误。
+/// </para>
+/// </remarks>
 public sealed class MementoRegistrationTests
 {
     [Fact]
@@ -31,7 +41,7 @@ public sealed class MementoRegistrationTests
             .ToArray();
 
         concrete.Should().NotBeEmpty();
-        registered.Should().Equal(concrete, "新增 Memento 必须同时补 [JsonDerivedType]，否则 AOT 下反序列化会失败");
+        registered.Should().Equal(concrete, "每个具体的 memento 都必须在基类上标注多态标签，否则 AOT 下反序列化会失败");
     }
 
     [Fact]
@@ -43,6 +53,7 @@ public sealed class MementoRegistrationTests
             .Select(a => a.TypeDiscriminator as string)
             .ToArray();
 
+        // 标签重复会让两个类型解析成同一个，写入时无法区分；为空则退化成非法 JSON 键。
         discriminators.Should().OnlyHaveUniqueItems();
         discriminators.Should().AllSatisfy(d => d.Should().NotBeNullOrEmpty());
     }
@@ -76,6 +87,7 @@ public sealed class MementoRegistrationTests
             Index = 0,
         });
 
+        // 载荷自带类型标记。少了它，接收端只能靠猜字段组合来还原类型。
         json.Should().Contain("\"$memento\":\"add-node\"");
     }
 }

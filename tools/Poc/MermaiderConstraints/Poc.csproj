@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Poc.MermaiderConstraints</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    一次性的依赖验证脚手架：确认候选的布局引擎能不能满足我们的约束需求。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件；
+    结论固化下来之后这个项目就可以删掉。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Mermaider" />
+    <PackageReference Include="Sugiyama" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DuetDiagram.App</RootNamespace>
+
+    <!--
+      界面框架用编译期绑定而不是运行时反射解析界面标记，
+      这样才能在裁剪与原生编译之后仍然找到界面元素。
+    -->
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+    <!--
+      开启原生编译。界面框架本身对这条路径有支持，但真实可行性正是本项目要验证的内容：
+      任何一处退回运行时反射的用法都会在发布阶段或首次运行暴露出来。
+    -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
+  </ItemGroup>
+
+</Project>

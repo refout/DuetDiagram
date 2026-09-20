@@ -3,30 +3,53 @@ using DuetDiagram.Core.Logging;
 namespace DuetDiagram.Core.Commands;
 
 /// <summary>
-/// 命令执行结果。8 个字段（方案 §4.4）。
+/// 命令执行结果。调用方只看这个对象就能决定下一步做什么：
+/// 要不要刷新界面、要不要重跑布局、要不要把错误报给用户。
 /// </summary>
+/// <remarks>
+/// <para>
+/// 两个布尔标志 <see cref="StructuralChanged"/> 与 <see cref="VisualChanged"/> 是刻意分开的，
+/// 因为它们对应两种代价完全不同的后续动作：结构变了要重新求解布局，
+/// 只是样式变了则沿用现有坐标重绘即可。合成一个"变了"标志会让每次改颜色都触发重布局。
+/// </para>
+/// <para>
+/// <see cref="IsNoOp"/> 用于表达"命令合法、但没什么可做"这种情况，
+/// 例如在空的撤销栈上执行撤销。它算成功（<see cref="IsSuccess"/> 为真），
+/// 但不推进版本、不进历史、不广播——所以真正需要触发副作用的判断要用
+/// <see cref="IsEffectiveSuccess"/>，而不是 <see cref="IsSuccess"/>。
+/// </para>
+/// </remarks>
 public sealed record CommandResult
 {
     public bool IsSuccess { get; init; }
 
+    /// <summary>合法但没有实际变更。调用方通常只在状态栏给一句灰色提示，不弹窗。</summary>
     public bool IsNoOp { get; init; }
 
     public string? Message { get; init; }
 
     public CommandError[] Errors { get; init; } = [];
 
+    /// <summary>本次变更涉及的元素标识。</summary>
     public string[] AffectedIds { get; init; } = [];
 
+    /// <summary>字段级变更明细。</summary>
     public FieldChange[] FieldChanges { get; init; } = [];
 
+    /// <summary>连接关系发生变化，需要重新求解布局。</summary>
     public bool StructuralChanged { get; init; }
 
+    /// <summary>外观发生变化，需要重绘。结构变化时它必然也是真。</summary>
     public bool VisualChanged { get; init; }
 
-    /// <summary>成功且非空操作。只有它为真才应触发重布局 / 重绘 / 广播。</summary>
+    /// <summary>成功且真的产生了变更。只有它为真才应触发版本推进、历史入栈、布局重算与广播。</summary>
     public bool IsEffectiveSuccess => IsSuccess && !IsNoOp;
 
-    /// <summary>错误码可重试。</summary>
+    /// <summary>
+    /// 换个时间点或换个版本重试同一个请求可能成功。
+    /// 版本冲突是典型的"先同步再重试"，限流是典型的"等一会儿再重试"，
+    /// 其余错误（校验失败、内部错误）重试没有意义。
+    /// </summary>
     public bool IsRetryable => Errors.Any(e =>
         string.Equals(e.Code, ErrorCodes.VersionConflict, StringComparison.Ordinal) ||
         string.Equals(e.Code, ErrorCodes.McpRateLimited, StringComparison.Ordinal));
@@ -62,8 +85,14 @@ public sealed record CommandResult
     };
 
     /// <summary>
-    /// 按 <see cref="DiffResult"/> 类型分发冲突结果（方案 §4.4）。
+    /// 由差异类型推导冲突错误码。
     /// </summary>
+    /// <remarks>
+    /// 差异计算已经判断出"调用方声称的版本比当前版本还新"时给出参数错误，
+    /// 其余情况一律按并发冲突处理。两者对调用方的含义不同：
+    /// 参数错误说明请求本身有问题，重试不会好；并发冲突说明只要先同步再重试就能成功。
+    /// 混淆这两者会让调用方陷入无意义的重试循环。
+    /// </remarks>
     public static CommandResult Conflict(DiffResult diff) => diff switch
     {
         InvalidDiff => Fail(CommandError.Of(ErrorCodes.InvalidExpectedVersion)),

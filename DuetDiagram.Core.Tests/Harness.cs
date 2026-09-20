@@ -9,7 +9,20 @@ using DuetDiagram.Core.Time;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>固定测试台。时钟是手动的，因此所有断言可复现。</summary>
+/// <summary>
+/// 测试用的固定环境：一份文档、一条总线、一个可控时钟、一个可读的诊断出口。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 时钟是手动推进的，所以"审计日志里的时间戳等于某个具体时刻"这类断言可以写成精确相等，
+/// 而不是一个范围判断。凡是涉及时间或会话的测试都应该从这里拿环境，避免各自搭一套。
+/// </para>
+/// <para>
+/// 广播器的归属由构造参数决定：不传就自己建一个并在释放时一并销毁，
+/// 传入的则由调用方负责——这与被测代码里的所有权约定保持一致，
+/// 否则测试本身会掩盖掉所有权写错的问题。
+/// </para>
+/// </remarks>
 internal sealed class Harness : IDisposable
 {
     private readonly bool _ownsBroadcaster;
@@ -52,7 +65,10 @@ internal sealed class Harness : IDisposable
 
     public DiagramCommandBus Bus { get; }
 
-    /// <summary>规范化 JSON —— P1 判据 #7 的原子性比较基准。</summary>
+    /// <summary>
+    /// 当前的完整序列化结果，用来判断"文档有没有被改脏"。
+    /// 写成快照比较而不是逐字段比较，是因为任何一处漏比都会让这类断言失效。
+    /// </summary>
     public string Snapshot() => DiagramSerializer.Normalize(Document);
 
     public CommandResult AddNode(string id, string label = "", NodeShape shape = NodeShape.Rect, ChangeSource source = ChangeSource.Human)
@@ -74,7 +90,9 @@ internal sealed class Harness : IDisposable
     }
 }
 
-/// <summary>记录 DisposeAsync 次数的广播器，用于验证 Workspace 的所有权语义。</summary>
+/// <summary>
+/// 记录释放次数的广播器，用来验证工作区有没有在共享场景下错误地销毁别人的广播器。
+/// </summary>
 internal sealed class TrackingBroadcaster : IChangeBroadcaster
 {
     public int DisposeCount { get; private set; }

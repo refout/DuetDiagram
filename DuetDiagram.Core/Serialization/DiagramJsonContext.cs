@@ -7,11 +7,20 @@ using DuetDiagram.Core.Model;
 namespace DuetDiagram.Core.Serialization;
 
 /// <summary>
-/// AOT 源生成上下文。所有需要序列化的类型都必须在此登记，否则 AOT 发布会失败。
+/// 编译期生成的序列化上下文。所有需要进出的类型都必须在这里登记。
 /// </summary>
 /// <remarks>
-/// 多项式类型（<see cref="CommandMemento"/>、<see cref="DiffResult"/>）通过基类上的
-/// <c>[JsonDerivedType]</c> 注册派生记录；登记缺失由 MementoRegistration 测试拦截。
+/// <para>
+/// 漏登记不会在编译时报错，而是等到运行时第一次序列化那个类型才失败——
+/// 在 AOT 发布之后才暴露。所以有两道防线：一是这个清单要跟着类型走，
+/// 二是测试用反射枚举程序集里的具体类型跟已登记的多态子类型做全等比较。
+/// </para>
+/// <para>
+/// 选项里的三项各有原因：属性名用小驼峰是为了让产出的 JSON 符合常见约定，
+/// 便于外部直接阅读和手写；枚举写成名字而不是序号，是为了让文件在版本演进、
+/// 枚举成员顺序调整之后仍然能被正确解析；忽略空值是为了让文件体积小一些，
+/// 而且缺省值本来就不需要写出来。
+/// </para>
 /// </remarks>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

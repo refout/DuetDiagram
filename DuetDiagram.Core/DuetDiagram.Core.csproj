@@ -5,10 +5,10 @@
   </PropertyGroup>
 
   <!--
-    P1 判据 #1: DuetDiagram.Core 仅依赖 BCL。
-    本文件不得出现任何 NuGet 包引用或项目引用。
-    门禁 1: CI 用 grep 扫本文件（因此注释里也不要写出那两个标签名）。
-    门禁 2: CorePurityTests.Core_references_only_the_base_class_library 扫程序集引用表。
+    这个项目必须只依赖 .NET 基础类库，不得出现任何包引用或项目引用。
+    原因是它要能被任何宿主引用而不带入额外负担，也要能被裁剪和 AOT 编译。
+    一旦引入包引用，这些能力都会被拖累，而重新拆分的成本极高。
+    两道门禁：CI 直接扫描本文件的引用标签；测试从程序集引用表反向确认。
   -->
 
 </Project>

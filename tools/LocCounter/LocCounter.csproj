@@ -9,9 +9,8 @@
   </PropertyGroup>
 
   <!--
-    LOC 统计脚本（方案 §12 / P1-15）。
-    刻意不进 DuetDiagram.slnx：它是构建工具，不是产品的一部分。
-    用法：dotnet run 加 project 参数指向 tools/LocCounter。
+    代码行数统计工具。用命令行运行，加上 project 参数指向 tools/LocCounter。
+    它是构建期工具，不属于产品，因此不进解决方案文件。
   -->
 
 </Project>

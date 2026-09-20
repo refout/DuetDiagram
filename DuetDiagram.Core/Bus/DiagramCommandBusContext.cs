@@ -9,12 +9,17 @@ using DuetDiagram.Core.Time;
 namespace DuetDiagram.Core.Bus;
 
 /// <summary>
-/// 命令总线的全部依赖。
+/// 命令总线的全部外部依赖，集中成一个对象。
 /// </summary>
 /// <remarks>
-/// 方案 §4.9 列出 11 项依赖。本轮垂直切片实现 8 项；
-/// <c>Sidecar</c> / <c>Layout</c> / <c>Renderer</c> 未实现（见 AGENTS.md「与方案的已知差异」），
-/// 因此「结构变更触发重布局，否则重绘」这步目前由 <c>CommandResult</c> 的两个布尔标志外化给宿主。
+/// <para>
+/// 把它们打包是有实际好处的：总线的构造函数只需一个参数，
+/// 而共享这些依赖的多个总线（例如同一个界面进程里几个窗口共用一份日志与广播器）可以共用同一个上下文。
+/// </para>
+/// <para>
+/// 可空的那几项都是"可选的横切关注点"，缺省时用无操作实现兜底：
+/// 时钟缺省读系统时间，诊断出口缺省丢弃消息。这样最小用例只需要提供文档、会话、广播器和选项。
+/// </para>
 /// </remarks>
 public sealed record DiagramCommandBusContext
 {
@@ -26,6 +31,7 @@ public sealed record DiagramCommandBusContext
 
     public required AuditLog AuditLog { get; init; }
 
+    /// <summary>当前操作主体。命令上下文里没声明会话时，总线从这里取值兜底。</summary>
     public required ISessionProvider Session { get; init; }
 
     public required IChangeBroadcaster Broadcaster { get; init; }
@@ -36,6 +42,10 @@ public sealed record DiagramCommandBusContext
 
     public IDiagnosticsSink Diagnostics { get; init; } = NullDiagnosticsSink.Instance;
 
+    /// <summary>
+    /// 组装上下文。日志类依赖可以显式传入，这样多个总线就能共用同一份历史与日志，
+    /// 不传则各自新建一份。
+    /// </summary>
     public static DiagramCommandBusContext Create(
         DiagramDocument document,
         ISessionProvider session,

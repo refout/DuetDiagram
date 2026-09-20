@@ -9,7 +9,14 @@ using Xunit;
 
 namespace DuetDiagram.Core.Tests;
 
-/// <summary>P1 判据 #2：IR 往返无损。</summary>
+/// <summary>
+/// IR 与各类载荷的序列化往返。
+/// </summary>
+/// <remarks>
+/// 断言方式是"序列化结果逐字符相同"而不是逐字段比较。
+/// 逐字段比较需要为每个类型写一遍比较逻辑，漏掉任何一个字段都会让往返损失悄悄溜过去；
+/// 而序列化结果是一次性的整体表示，只要它相同，就没有任何字段被丢失或改写。
+/// </remarks>
 public sealed class RoundTripTests
 {
     [Fact]
@@ -35,7 +42,7 @@ public sealed class RoundTripTests
         restored.Nodes.Should().Equal(harness.Document.Nodes);
         restored.Edges.Should().Equal(harness.Document.Edges);
 
-        // 规范化 JSON 逐字节一致，才能作为原子性比较的基准（P1 判据 #7）。
+        // 再序列化一次必须完全一样。这条断言才是往返无损的真正证据。
         DiagramSerializer.Normalize(restored).Should().Be(json);
     }
 
@@ -45,6 +52,8 @@ public sealed class RoundTripTests
     {
         using var harness = new Harness();
         harness.AddNode("a");
+
+        // 走一遍"加了再删"，让文档里留下非零的版本号和哈希，覆盖"空集合但状态不为零"的边界。
         harness.Bus.Execute(new RemoveNodeCommand("a").WithContext(ChangeContext.For(ChangeSource.Human)));
 
         var json = DiagramSerializer.SerializeFull(harness.Document);
@@ -72,8 +81,11 @@ public sealed class RoundTripTests
             var json = DiagramSerializer.SerializeMemento(memento);
             var restored = DiagramSerializer.DeserializeMemento(json);
 
-            // record 的数组字段是引用比较，所以用规范化 JSON 断言往返无损。
+            // 类型必须精确还原。若多态标签缺失或写错，这里会退化成基类实例，
+            // 后续按具体类型做强制转换时就会抛异常——那正是要提前拦住的失败。
             restored.GetType().Should().Be(memento.GetType());
+
+            // 记录类型里的数组字段是引用比较，所以用再序列化的结果做等价判断。
             DiagramSerializer.SerializeMemento(restored).Should().Be(json);
         }
     }

@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <!--
-      xunit.v3 走 Microsoft.Testing.Platform：.NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标，
-      因此不引入 Microsoft.NET.Test.Sdk / xunit.runner.visualstudio。
-      MTP 模式的启用开关在仓库根的 global.json 的 test.runner 段，不在本文件。
+      测试程序集以可执行文件形式构建：测试框架自带 Microsoft.Testing.Platform 运行器，
+      由它生成入口点并负责发现与执行用例，不需要额外的适配层。
     -->
     <OutputType>Exe</OutputType>
+    <!-- 测试程序集不发布，无需参与裁剪与 AOT 分析，关掉可以少掉大量无关告警。 -->
     <IsAotCompatible>false</IsAotCompatible>
     <EnableAotAnalyzer>false</EnableAotAnalyzer>
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>

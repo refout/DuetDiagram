@@ -1,0 +1,52 @@
+id: P0-03
+title: 布局引擎约束支持验证
+phase: 0a
+status: done
+depends_on: [P0-01]
+estimated_loc: 250
+files:
+  create:
+    - tools/Poc/MermaiderConstraints/Poc.csproj
+    - tools/Poc/MermaiderConstraints/Program.cs
+    - tools/Poc/MermaiderConstraints/ApiDump.cs
+    - tools/Poc/MermaiderConstraints/Probe.cs
+    - reports/phase0a-mermaider.md
+  modify:
+    - Directory.Packages.props
+acceptance:
+  - command: dotnet run --project tools/Poc/MermaiderConstraints -c Release
+    expect: 退出码 0，逐项打印约束支持结论与证据
+constraints:
+  - PoC 项目不进解决方案文件
+  - 必须同时验证"约束被尊重"与"约束被忽略时的表现"
+  - 结论必须能回答布局接口要暴露哪些字段
+context:
+  - 布局引擎是主选方案的核心依赖，不成立就要改走备选
+  - 需要支持的约束包括固定位置、同层、层内顺序、对齐、相对位置
+result:
+  verdict: red
+  supported:
+    - 确定性：同一输入两次计算结果完全一致
+    - 方向：四个方向产生四种互不相同的排布
+    - 间距：节点间距与层间距都实际生效
+    - 同层约束：成对形式可用
+    - 复合分组：支持嵌套，子节点落在分组框内
+    - 无交叉图的耗时：1000 节点长链 21 毫秒，多层图 43 毫秒
+  not_supported:
+    - 固定位置：节点输入类型只有标识与尺寸，没有任何坐标或固定标记
+    - 层内顺序 / 对齐 / 相对位置：图输入与选项里都没有对应入口
+    - 有交叉图的横向坐标：出现交叉边时坐标爆炸，20 节点即超标 59 倍
+  critical_defect:
+    minimal_repro: 两列十层完全二分串联，20 节点 36 边
+    expected_span_px: 116
+    actual_span_px: 40803
+    at_1000_nodes_px: 2769089088
+    note: 缺陷在完全合法的输入上触发，校验层拦不住，只能靠布局后修正，而修正等于自己实现坐标分配
+  evidence:
+    - 接口清单由运行时反射导出，非阅读文档推断
+    - 约束是否生效由前后坐标对比判定
+    - 坐标合理性由"横向散布与同层节点数 × 列距"的比例判定
+  followups:
+    - 向引擎上游提交最小复现
+    - 布局接口设计不得迁就当前引擎，输入必须包含固定位置
+    - 坐标合理性作为长期回归断言

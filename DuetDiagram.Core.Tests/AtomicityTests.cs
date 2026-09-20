@@ -8,9 +8,18 @@ using Xunit;
 namespace DuetDiagram.Core.Tests;
 
 /// <summary>
-/// P1 判据 #6 / #7：每个命令必须原子。
-/// 起点是「命令总线在失败时必须恢复文档」这一条，而不是「命令写得小心」。
+/// 失败必须整体回滚。
 /// </summary>
+/// <remarks>
+/// <para>
+/// 这里断言的是命令总线的兜底能力，而不是"命令实现写得很小心"。
+/// 两者都要有，但只有后者的话，任何一个命令作者的疏漏都会变成一次静默的数据损坏。
+/// </para>
+/// <para>
+/// 判断"有没有被改脏"统一用完整序列化结果做比较。
+/// 只检查集合元素个数是不够的——顺序、标签、哈希字段都可能被改动而数量不变。
+/// </para>
+/// </remarks>
 public sealed class AtomicityTests
 {
     [Theory]
@@ -30,6 +39,7 @@ public sealed class AtomicityTests
             new PartialWriteCommand(new NodeDef { Id = "b" }, throwAfterPartialWrite)
                 .WithContext(ChangeContext.For(ChangeSource.Llm, "llm-1")));
 
+        // 两种失败方式都必须回滚：返回失败结果，和直接把异常抛出来。
         if (throwAfterPartialWrite)
         {
             act.Should().Throw<InvalidOperationException>();
@@ -39,13 +49,12 @@ public sealed class AtomicityTests
             act().IsSuccess.Should().BeFalse();
         }
 
-        // 文档必须逐字节回到调用前
         harness.Snapshot().Should().Be(before);
         harness.Document.Version.Should().Be(versionBefore);
         harness.Document.StructuralHash.Should().Be(hashBefore);
         harness.Document.Nodes.Should().HaveCount(1);
 
-        // 历史与版本日志都不得记录失败的操作
+        // 失败的尝试不能留下任何痕迹：版本日志、撤销栈、重做栈都不该变。
         harness.Context.History.UndoCount.Should().Be(1);
         harness.Context.History.RedoCount.Should().Be(0);
         harness.Context.VersionLog.Count.Should().Be(1);
@@ -56,7 +65,8 @@ public sealed class AtomicityTests
 
         if (throwAfterPartialWrite)
         {
-            // AGENTS.md 约定 9：异常类型名只写应用日志，绝不进 AuditLog 的 Payload。
+            // 异常那条路径看不到异常对象，所以记录里不该有任何细节；只有命令自己主动返回
+            // 失败时才允许带说明。这条断言防止将来有人顺手把异常类型名写进审计记录。
             audit[^1].Errors!.Single().Payload.Should().BeNull();
         }
     }
@@ -67,6 +77,8 @@ public sealed class AtomicityTests
     {
         using var harness = new Harness();
         harness.AddNode("a");
+
+        // 自环是合法结构，用它覆盖"边引用自身节点"这个容易被校验误伤的边界。
         harness.Connect("e1", "a", "a");
 
         var before = harness.Snapshot();
@@ -89,25 +101,23 @@ public sealed class AtomicityTests
         var before = harness.Snapshot();
         var context = ChangeContext.For(ChangeSource.Human, "tester");
 
-        // DUPLICATE_ID
         harness.Bus.Execute(new AddNodeCommand(new NodeDef { Id = "a" }).WithContext(context))
             .Errors.Should().ContainSingle(e => e.Code == ErrorCodes.DuplicateId);
 
-        // NODE_MISSING
         harness.Bus.Execute(new RemoveNodeCommand("ghost").WithContext(context))
             .Errors.Should().ContainSingle(e => e.Code == ErrorCodes.NodeMissing);
 
-        // EDGE_TARGET_MISSING
         harness.Bus.Execute(new ConnectEdgeCommand(new EdgeDef { Id = "e1", From = "a", To = "ghost" }).WithContext(context))
             .Errors.Should().ContainSingle(e => e.Code == ErrorCodes.EdgeTargetMissing);
 
-        // EDGE_SOURCE_MISSING 与 DUPLICATE_ID 可以同时命中，所以用一个不冲突的 id 单独断言
         harness.Bus.Execute(new ConnectEdgeCommand(new EdgeDef { Id = "e2", From = "ghost", To = "a" }).WithContext(context))
             .Errors.Should().ContainSingle(e => e.Code == ErrorCodes.EdgeSourceMissing);
 
         harness.Snapshot().Should().Be(before);
         harness.Document.Version.Should().Be(1);
         harness.Context.VersionLog.Count.Should().Be(1);
+
+        // 被拒绝的尝试仍然要留审计痕迹，否则"为什么我的操作没生效"将无从追查。
         harness.Context.AuditLog.All().Count(e => e.Kind == AuditKind.Rejected).Should().Be(4);
     }
 
@@ -123,6 +133,8 @@ public sealed class AtomicityTests
                 .WithContext(ChangeContext.For(ChangeSource.Llm)));
 
         result.IsSuccess.Should().BeFalse();
+
+        // 两个端点都缺失时要一次报全。只报一个会让调用方改一处试一次，来回好几轮。
         result.Errors.Select(e => e.Code)
             .Should().BeEquivalentTo([ErrorCodes.EdgeSourceMissing, ErrorCodes.EdgeTargetMissing]);
     }
@@ -143,6 +155,7 @@ public sealed class AtomicityTests
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("*Nested Execute is not allowed*");
 
+        // 内层被拦住之后，外层命令也失败了，所以外层同样不能留下痕迹。
         harness.Snapshot().Should().Be(before);
         harness.Document.Nodes.Should().HaveCount(1);
         harness.Context.AuditLog.All()[^1].Kind.Should().Be(AuditKind.Failed);
@@ -160,6 +173,9 @@ public sealed class AtomicityTests
 
         result.IsSuccess.Should().BeTrue();
         result.IsNoOp.Should().BeTrue();
+
+        // 这个组合很关键：算成功，但不算"有效成功"。
+        // 界面提示要用前者（不弹错误），触发副作用要用后者（不刷新、不入栈）。
         result.IsEffectiveSuccess.Should().BeFalse();
 
         harness.Document.Version.Should().Be(versionBefore);

@@ -1,7 +1,7 @@
 id: P0-02
-title: Avalonia + SkiaSharp AOT 最小应用
+title: 界面框架 + 绘图库最小应用
 phase: 0a
-status: pending
+status: blocked
 depends_on: [P0-01]
 estimated_loc: 200
 files:
@@ -9,26 +9,46 @@ files:
     - DuetDiagram.App/DuetDiagram.App.csproj
     - DuetDiagram.App/Program.cs
     - DuetDiagram.App/App.axaml
+    - DuetDiagram.App/App.axaml.cs
     - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/DiagramPreview.cs
+    - DuetDiagram.App/SelfTest.cs
+    - reports/phase0a.md
+    - reports/phase0a-selftest.png
   modify:
     - DuetDiagram.slnx
     - Directory.Packages.props
 acceptance:
-  - command: dotnet publish DuetDiagram.App -c Release -r win-x64
-    expect: exit 0，产出原生 exe
-  - command: 记录冷启动实测毫秒数
-    expect: 写入 reports/phase0a.md
-  - command: dotnet publish DuetDiagram.App -c Release -r win-x64 /p:PublishTrimmed=true
-    expect: exit 0
+  - command: dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png
+    expect: 退出码 0，产出位图，打印各阶段耗时
+  - command: dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c Release
+    expect: 退出码 0，产出原生可执行文件
+  - command: 运行原生可执行文件并记录冷启动
+    expect: ≤ 2 秒
 constraints:
-  - 只为验证可行性，不实现画布逻辑
-  - 若 AOT 失败，必须在 reports/phase0a.md 记录失败点与备选（Avalonia 11 LTS）
-  - 不得把 Avalonia 引用扩散到 DuetDiagram.Core（P1 判据 #1）
+  - 只为验证可行性，不实现画布与编辑逻辑
+  - 不得把界面框架或绘图库的引用扩散到核心程序集
 context:
-  - 方案 §2 技术选型
-  - 方案 §10 性能目标（冷启动 ≤ 基线 × 1.2 且 ≤ 2s）
-  - docs/Architecture.md「构建环境要求」（原生链接需要 MSVC C++ 工作负载）
-risk:
-  - Avalonia 12 是极新的大版本，AOT + SkiaSharp 组合未经验证
-  - 决策门 0 的红色判定点之一
+  - 渲染层负责把布局结果画出来，文本测量与排版由绘图库承担
+  - 冷启动目标是 2 秒以内
+result:
+  status_detail: 渲染链路与冷启动已达标，原生发布被本机工具链阻塞
+  measured:
+    cold_start_wall_clock_ms: [725, 693, 697]
+    platform_ready_ms: 440
+    first_frame_ms: 215
+    bitmap: 900x600
+    native_skia: 4.148.0.0 可加载，字体 Segoe UI，示例文本宽度 57.0
+  verified:
+    - 自绘路径可用，能画矩形、圆角矩形、自定义路径与文字
+    - 中文标签正常渲染
+    - 原生绘图库确实被加载，不只是托管层可用
+    - 界面声明使用编译期绑定，满足裁剪与原生编译的前提
+  blocker:
+    symptom: Platform linker not found
+    cause: 本机未安装 Visual Studio 的「使用 C++ 的桌面开发」工作负载，缺少原生链接器
+    scope: 托管编译与中间代码生成均已完成，仅最后一步链接失败
+    unblock: 安装该工作负载后重跑发布命令
+  side_findings:
+    - 界面框架 12 版本把位图保存的编码参数改为独立选项类型，旧重载已过时

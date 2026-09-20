@@ -6,11 +6,12 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
-| DuetDiagram.App | 5 | 402 | 250 | 90 | 62 |
+| DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
+| DuetDiagram.Benchmarks | 3 | 228 | 134 | 60 | 34 |
 | DuetDiagram.Core | 37 | 3102 | 1656 | 953 | 493 |
 | DuetDiagram.Core.Tests | 13 | 1925 | 1363 | 217 | 345 |
-| tools | 24 | 4116 | 2693 | 773 | 650 |
-| **合计** | **80** | **9649** | **6034** | **2050** | **1565** |
+| tools | 30 | 4822 | 3174 | 880 | 768 |
+| **合计** | **90** | **10743** | **6751** | **2243** | **1749** |
 
 ## 明细
 
@@ -26,9 +27,18 @@
 |---|---:|
 | App.axaml.cs | 16 |
 | DiagramPreview.cs | 128 |
+| FrameBenchmark.cs | 88 |
 | MainWindow.axaml.cs | 11 |
-| Program.cs | 20 |
+| Program.cs | 34 |
 | SelfTest.cs | 75 |
+
+### DuetDiagram.Benchmarks
+
+| 文件 | 代码 |
+|---|---:|
+| Benchmarks.cs | 73 |
+| Program.cs | 9 |
+| TestGraphs.cs | 52 |
 
 ### DuetDiagram.Core
 
@@ -94,6 +104,9 @@
 
 | 文件 | 代码 |
 |---|---:|
+| Generator.cs | 143 |
+| Program.cs | 69 |
+| Support.cs | 86 |
 | Program.cs | 155 |
 | ApiDump.cs | 58 |
 | CheckRunner.cs | 246 |
@@ -118,4 +131,7 @@
 | RecordingReadStream.cs | 49 |
 | Roundtrips.cs | 206 |
 | ServerHost.cs | 150 |
+| ApiDump.cs | 59 |
+| Checks.cs | 91 |
+| Program.cs | 33 |
 

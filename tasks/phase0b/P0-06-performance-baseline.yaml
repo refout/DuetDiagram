@@ -1,0 +1,56 @@
+id: P0-06
+title: 性能基线
+phase: 0b
+status: done
+depends_on: [P0-02, P0-04]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj
+    - DuetDiagram.Benchmarks/Program.cs
+    - DuetDiagram.Benchmarks/TestGraphs.cs
+    - DuetDiagram.Benchmarks/Benchmarks.cs
+    - DuetDiagram.App/FrameBenchmark.cs
+    - reports/phase0b-baseline.md
+  modify:
+    - DuetDiagram.slnx
+    - DuetDiagram.App/Program.cs
+    - Directory.Packages.props
+acceptance:
+  - command: dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
+    expect: 退出码 0，布局、序列化、哈希逐项给出统计结果
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 60
+    expect: 给出单帧耗时与可达到的帧率
+  - command: 逐项与 Phase 1 目标对照
+    expect: 全部达标且余量记录在案
+constraints:
+  - 关键路径用统计方法测，不用秒表单次计时
+  - 作业长度必须足够，短作业的误差棒比均值还大，数字不可用
+  - 布局只测引擎本身，不含自建的约束补齐逻辑——否则会把当前实现细节固化进验收目标
+  - 图形形状必须固定，否则基线不可比
+context:
+  - Phase 1 及以后的验收目标以本基线为基准，允许退化为一点二倍
+  - 原生编译版无法在本机发布，基线只能是框架依赖版的
+result:
+  baseline:
+    cold_start_ms: "857（5 次实测 794 ~ 1029）"
+    layout_100_nodes_ms: 0.52
+    layout_1000_nodes_ms: 11.8
+    layout_input_build_ms: 0.63
+    frames_per_second_1000_rects: 134.6
+    structural_hash_1000_ms: 0.18
+    visual_hash_1000_ms: 0.35
+    serialize_full_1000_ms: 0.43
+    deserialize_full_1000_ms: 1.52
+  targets_check:
+    verdict: 全部达标
+    headroom: 除冷启动为二点三倍外，其余余量都在四点五倍以上
+  findings:
+    allocation: 千节点布局每次分配十兆字节，是序列化的三十倍；性能优化应当优先压分配而不是压耗时
+    job_length: 同一份基准短作业给出十四点九毫秒、中作业给出十一点八毫秒，差两成半；短作业不可用
+    cold_start_variance: 冷启动在不同时段可差三成，只能看量级
+    fps_scope: 测的是光栅化耗时而非真实窗口的合成帧率，引用时须说明口径
+  not_verified:
+    - 原生编译后的性能
+    - 真实窗口的合成帧率
+    - 千节点以上的规模

@@ -3,4 +3,5 @@
   <Project Path="DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj" />
   <Project Path="DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj" />
   <Project Path="DuetDiagram.App/DuetDiagram.App.csproj" />
+  <Project Path="DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj" />
 </Solution>

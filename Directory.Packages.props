@@ -60,6 +60,8 @@
     -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+    <!-- 性能测量。关键路径用统计方法测，不靠单次计时的秒表读数据。 -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
   </ItemGroup>
 
   <ItemGroup Label="Test stack">

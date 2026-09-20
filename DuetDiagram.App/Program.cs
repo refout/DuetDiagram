@@ -20,8 +20,27 @@ internal static class Program
             return SelfTest.Run(args);
         }
 
+        if (args.Contains(FrameBenchmarkSwitch, StringComparer.Ordinal))
+        {
+            return FrameBenchmark.Run(
+                ReadInt(args, "--rectangles", 1000),
+                ReadInt(args, "--frames", 60));
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
+    }
+
+    /// <summary>进入帧率测量模式的开关。</summary>
+    public const string FrameBenchmarkSwitch = "--benchmark-frames";
+
+    private static int ReadInt(string[] args, string name, int fallback)
+    {
+        var index = Array.IndexOf(args, name);
+
+        return index >= 0 && index + 1 < args.Length && int.TryParse(args[index + 1], out var value)
+            ? value
+            : fallback;
     }
 
     /// <summary>

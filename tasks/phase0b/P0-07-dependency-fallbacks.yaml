@@ -1,0 +1,31 @@
+id: P0-07
+title: 依赖备选方案评估
+phase: 0b
+status: done
+depends_on: [P0-02, P0-03, P0-04, P0-05]
+estimated_loc: 200
+files:
+  create:
+    - docs/Dependency-Fallbacks.md
+  modify: []
+acceptance:
+  - command: 核对每个关键依赖的备选是否真实存在
+    expect: 全部可在源上解析到稳定版本
+  - command: 逐项记录切换代价与触发条件
+    expect: 写进 docs/Dependency-Fallbacks.md
+constraints:
+  - 只列名字没有意义，必须写清触发条件与切换代价
+  - 备选是否被实际验证过要如实标注，不能把"版本存在"写成"可用"
+context:
+  - 方案要求每个关键依赖至少一个备选
+  - 风险登记册里"依赖不可用"是中等概率、高影响的一项
+result:
+  verdict: 全部依赖备选已登记，两个许可风险与一个验证缺口被识别出来
+  summary:
+    verified_fallbacks: 布局引擎与模型集成两项的备选被实际验证过
+    named_only: 其余备选仅确认版本存在
+    not_replaceable: 绘图库不是可独立替换的层，它的可用性绑定在界面框架上
+  risks:
+    license_assertions: 断言库升到八版本需要商业授权，现已锁在七版本
+    license_pdf: PDF 导出候选采用双许可，选用前需确认
+    verification_gap: Mermaid 方言兼容性完全没数据，而其风险是中等概率、高影响；一旦覆盖不足会动到导入导出整条链路

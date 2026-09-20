@@ -1,30 +1,68 @@
 id: P0-05
-title: ModelContextProtocol 传输验证与 initialize 自定义字段
+title: MCP 传输与自定义会话字段验证
 phase: 0a
-status: pending
+status: done
 depends_on: [P0-01]
-estimated_loc: 300
+estimated_loc: 700
 files:
   create:
     - tools/Poc/McpTransport/Poc.csproj
     - tools/Poc/McpTransport/Program.cs
+    - tools/Poc/McpTransport/ServerHost.cs
+    - tools/Poc/McpTransport/DiagramTools.cs
+    - tools/Poc/McpTransport/Roundtrips.cs
+    - tools/Poc/McpTransport/HttpRoundtrip.cs
+    - tools/Poc/McpTransport/RecordingReadStream.cs
+    - tools/Poc/McpTransport/ApiDump.cs
     - reports/phase0a-mcp.md
-  modify: []
+  modify:
+    - Directory.Packages.props
 acceptance:
-  - command: 手动跑 stdio 传输的 client/server 回环
-    expect: initialize + tools/list + tools/call 全部返回
-  - command: 手动跑 HTTP long-polling
-    expect: 同上，且 30s 超时返回空响应而非挂死
-  - command: initialize 请求携带 clientState（documentId / hasVersion / structuralHash），响应返回 clientStateAck
-    expect: accepted 与 reason 字段可达
+  - command: dotnet run --project tools/Poc/McpTransport -c Release
+    expect: 退出码 0，三条传输各九项检查全部通过
+  - command: 父子进程标准输入输出的握手、工具发现与调用
+    expect: 全部通过
+  - command: 网络传输的握手、工具发现与调用
+    expect: 全部通过
+  - command: 自定义会话字段双向传递
+    expect: 全部通过
 constraints:
-  - PoC 项目不进 DuetDiagram.slnx
-  - 结论必须回答「clientState / clientStateAck 这两个自定义字段能否通过 SDK 传递」，
-    不能则按方案 §6.3 的降级路径：命令层共用 + 工具定义各自维护
-  - long-polling 超时必须用 linked CTS + 先完成者胜出，不得用 Task.WhenAny 泄漏任务
+  - PoC 项目不进解决方案文件
+  - 结论必须回答自定义会话字段能否通过协议传递，不能则给出降级路径
+  - 不能只靠读文档判断字段位置，必须抓到传输上的原始内容
+  - 抓包口径要覆盖会话建立那一次交互，那一次不经过业务消息过滤器
 context:
-  - 方案 §7.1 传输
-  - 方案 §7.3 会话初始化与 clientState
-  - 方案 §13.3 P0-05
-risk:
-  - MCP 规范不对齐 → 决策门 0 转黄
+  - 外部代理通过协议接入，服务端是本软件，客户端是各种代理
+  - 需要三种传输：本地子进程、网络长连接、网络短请求
+  - 会话状态要能让服务端判断对端停在哪个版本
+result:
+  verdict: 三条传输全部可用，自定义字段双向可用，但通道与方案设想不同
+  transports:
+    - 内存流对：九项通过
+    - 父子进程标准输入输出：九项通过
+    - 网络传输：九项通过
+  findings:
+    session_method:
+      observed: 协议版本 2026-07-28，会话建立请求是 server/discover
+      impact: 方案围绕 initialize 写的握手设计需改名；按方法名分支会静默失效
+    custom_field_channel:
+      workable: 能力声明的扩展位，两端都能按类型读到
+      not_workable: 客户端选项里的初始化元数据设置完全不上线，因为没有 initialize 请求可挂
+      bonus: 扩展位随每一条请求携带，天然抗断线重连与服务端换实例
+      pitfall: 扩展位的值往返后可能是 JSON 节点也可能是字符串，读取要两种都认
+    stateless_service_injection:
+      observed: 无状态网络传输下工具无法注入服务，参数被当作必须由调用方提供的工具参数
+      symptom: 客户端只看到调用出错，真因只在服务端日志里
+      handling: 会话状态作为显式参数传入，不依赖服务端保存上下文
+    stdio_logging:
+      observed: 标准输入输出下控制台日志必须改道标准错误，否则污染协议流
+      symptom: 表现为解析错误而不是超时，容易误判成消息格式问题
+  not_verified:
+    - 长连接断线重连
+    - 服务端主动推送
+    - 认证、授权与速率限制
+    - 技能扩展
+    - 多客户端并发写入
+    - 跨机器网络传输
+  followups:
+    - 方案里关于长轮询超时自建的设计已被协议实现取代，该风险项消解

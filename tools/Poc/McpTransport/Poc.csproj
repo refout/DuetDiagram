@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Poc.McpTransport</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    一次性验证脚手架：确认官方协议实现能不能支撑我们需要的三种传输与自定义会话字段。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件；结论固化之后即可删除。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+
+  <!--
+    HTTP 传输的服务端由网络框架承载，它同时提供了宿主与日志的实现，
+    因此不需要再单独引入这两个包（单独引入会被判为冗余引用）。
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

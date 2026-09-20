@@ -9,8 +9,8 @@
 | DuetDiagram.App | 5 | 402 | 250 | 90 | 62 |
 | DuetDiagram.Core | 37 | 3102 | 1656 | 953 | 493 |
 | DuetDiagram.Core.Tests | 13 | 1925 | 1363 | 217 | 345 |
-| tools | 17 | 3005 | 1995 | 546 | 464 |
-| **合计** | **73** | **8538** | **5336** | **1823** | **1379** |
+| tools | 24 | 4116 | 2693 | 773 | 650 |
+| **合计** | **80** | **9649** | **6034** | **2050** | **1565** |
 
 ## 明细
 
@@ -111,4 +111,11 @@
 | Program.cs | 10 |
 | RowReflow.cs | 79 |
 | SameRankContraction.cs | 131 |
+| ApiDump.cs | 58 |
+| DiagramTools.cs | 116 |
+| HttpRoundtrip.cs | 47 |
+| Program.cs | 72 |
+| RecordingReadStream.cs | 49 |
+| Roundtrips.cs | 206 |
+| ServerHost.cs | 150 |
 

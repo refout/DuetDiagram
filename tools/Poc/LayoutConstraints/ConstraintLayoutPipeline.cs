@@ -63,8 +63,18 @@ internal static class ConstraintLayoutPipeline
             .ToHashSet(StringComparer.Ordinal);
 
         var reflowWatch = Stopwatch.StartNew();
-        var reflow = RowReflow.Apply(restored, anchored);
+        var reflow = RowReflow.Apply(restored, anchored, options.RanksAreVertical);
         reflowWatch.Stop();
+
+        // 折线必须跟着重算。引擎给的是按旧坐标画的线，节点被移动之后那些线就指向了旧位置。
+        var routingWatch = Stopwatch.StartNew();
+        var routed = EdgeRouter.Route(
+            reflow.Nodes,
+            graph.Edges,
+            options.RanksAreVertical,
+            out var endpointFailures,
+            out var crossingEdges);
+        routingWatch.Stop();
 
         // 重叠统计放在计时之外：它是验证手段而不是算法的一部分，
         // 而且是两两比较的平方复杂度，算进去会让让位看起来比实际慢两个数量级。
@@ -79,14 +89,18 @@ internal static class ConstraintLayoutPipeline
             residualOverlaps,
             reflow.ReflowedCount,
             overlappingAnchors,
+            routed.Length,
+            endpointFailures,
+            crossingEdges,
             contractionWatch.Elapsed,
             engineWatch.Elapsed,
             restorationWatch.Elapsed,
-            reflowWatch.Elapsed);
+            reflowWatch.Elapsed,
+            routingWatch.Elapsed);
 
         var width = reflow.Nodes.Max(n => n.Right);
         var height = reflow.Nodes.Max(n => n.Bottom);
 
-        return new LayoutOutcome(reflow.Nodes, width, height, diagnostics);
+        return new LayoutOutcome(reflow.Nodes, routed, width, height, diagnostics);
     }
 }

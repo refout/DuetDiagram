@@ -24,6 +24,8 @@ internal static class InvariantChecks
         SameRankGroupStaysTogether();
         SameRankWithAnchors();
         ContradictoryAnchorsAreReported();
+        EdgeRoutingAfterReflow();
+        AllDirections();
         Scale();
 
         Console.WriteLine();
@@ -32,6 +34,133 @@ internal static class InvariantChecks
             : $"有 {_failures} 项不变量未通过");
 
         return _failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>
+    /// 边的折线在节点被移动之后必须重算。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这里刻意让固定节点把自由节点挤开，制造出"节点确实动过"的局面。
+    /// 不动的话，折线重算与否看不出区别，测试会假通过。
+    /// </para>
+    /// <para>
+    /// 断言分两档：端点在不在节点边界上是硬保证（错了就是渲染时一眼能看出的破图），
+    /// 折线有没有穿过别的节点是质量指标，因为拐点要让开被固定节点占住的空隙，
+    /// 空隙被占满时无路可走，只能如实报出而不是假装绕开。
+    /// </para>
+    /// </remarks>
+    private static void EdgeRoutingAfterReflow()
+    {
+        const int breadth = 6;
+
+        var nodes = new List<ConstraintNode>();
+        var edges = new List<ConstraintEdge>();
+
+        for (var layer = 0; layer < 4; layer++)
+        {
+            for (var index = 0; index < breadth; index++)
+            {
+                // 第三层整体钉到第一层的条带上，制造大面积碰撞，逼每一层都发生让位。
+                var anchor = layer == 2 ? new Anchor(index * 116, 40) : null;
+                nodes.Add(new ConstraintNode($"n{layer}-{index}", 80, 40, anchor));
+            }
+        }
+
+        for (var layer = 0; layer < 3; layer++)
+        {
+            for (var index = 0; index < breadth; index++)
+            {
+                edges.Add(new ConstraintEdge($"n{layer}-{index}", $"n{layer + 1}-{index}"));
+            }
+        }
+
+        var graph = new ConstraintGraph("让位之后重算折线", [.. nodes], [.. edges], []);
+        var outcome = ConstraintLayoutPipeline.Compute(graph, ConstraintOptions.Default);
+
+        Section(graph.Name);
+        Check("确实发生了让位", outcome.Diagnostics.ReflowedNodes > 0, $"让位 {outcome.Diagnostics.ReflowedNodes} 个节点");
+        Check("边数守恒", outcome.Edges.Length == graph.Edges.Length, $"期望 {graph.Edges.Length}，实际 {outcome.Edges.Length}");
+        Check("端点在节点边界上", outcome.Diagnostics.EndpointFailures == 0, $"失败 {outcome.Diagnostics.EndpointFailures} 条");
+        Check("锚点偏差为零", outcome.Diagnostics.MaxAnchorDeviation == 0, $"偏差 {outcome.Diagnostics.MaxAnchorDeviation}");
+        Check("无残留重叠", outcome.Diagnostics.ResidualOverlaps == 0, $"残留 {outcome.Diagnostics.ResidualOverlaps}");
+
+        Console.WriteLine($"    折线穿过其它节点的边 {outcome.Diagnostics.EdgesCrossingNodes} 条（共 {outcome.Edges.Length} 条）");
+        ReportTiming(outcome);
+    }
+
+    /// <summary>
+    /// 四个方向都要能用。
+    /// </summary>
+    /// <remarks>
+    /// 层内让位的推挤方向随布局方向改变：上下方向的布局里层是上下叠的，往横向推；
+    /// 左右方向的布局里层是左右并排的，往纵向推。推错轴会把节点推出它所在的层，
+    /// 分层结构当场就散了，而这种情况在上下一维的测试里完全看不出来。
+    /// 所以每个方向都用同一个"锚点压在自由节点上"的构造各跑一遍。
+    /// </remarks>
+    private static void AllDirections()
+    {
+        ConstraintEdge[] edges =
+        [
+            new ConstraintEdge("a", "b"),
+            new ConstraintEdge("a", "c"),
+            new ConstraintEdge("b", "d"),
+            new ConstraintEdge("c", "d"),
+            new ConstraintEdge("a", "e"),
+        ];
+
+        static ConstraintNode[] Nodes(Anchor? anchorOnE) =>
+        [
+            new ConstraintNode("a", 80, 40),
+            new ConstraintNode("b", 80, 40),
+            new ConstraintNode("c", 80, 40),
+            new ConstraintNode("d", 80, 40),
+            new ConstraintNode("e", 80, 40, anchorOnE),
+        ];
+
+        foreach (var direction in new[] { "TD", "BT", "LR", "RL" })
+        {
+            var options = ConstraintOptions.Default with { Direction = direction };
+
+            // 先量出 a 的自然位置，再把 e 精确钉上去，保证碰撞是构造出来的而不是碰巧的。
+            var baseline = ConstraintLayoutPipeline.Compute(
+                new ConstraintGraph($"方向 {direction} 量取基准", Nodes(null), edges, []),
+                options);
+
+            var target = baseline.Find("a")!;
+
+            var outcome = ConstraintLayoutPipeline.Compute(
+                new ConstraintGraph($"方向 {direction}", Nodes(new Anchor(target.X, target.Y)), edges, []),
+                options);
+
+            var a = outcome.Find("a")!;
+            var e = outcome.Find("e")!;
+
+            Section($"方向 {direction}（层沿{(options.RanksAreVertical ? "纵" : "横")}向排列）");
+            Check("锚点偏差为零", outcome.Diagnostics.MaxAnchorDeviation == 0, $"偏差 {outcome.Diagnostics.MaxAnchorDeviation}");
+            Check("无残留重叠", outcome.Diagnostics.ResidualOverlaps == 0, $"残留 {outcome.Diagnostics.ResidualOverlaps}");
+            Check("让位确实介入过", outcome.Diagnostics.ReflowedNodes > 0, $"让位 {outcome.Diagnostics.ReflowedNodes} 个节点");
+            Check("端点在节点边界上", outcome.Diagnostics.EndpointFailures == 0, $"失败 {outcome.Diagnostics.EndpointFailures} 条");
+
+            // 让位方向必须与分层方向垂直：上下布局里横向让，左右布局里纵向让。
+            var movedAlongRankAxis = options.RanksAreVertical
+                ? Math.Abs(a.Y - target.Y) > 0.5
+                : Math.Abs(a.X - target.X) > 0.5;
+
+            Check(
+                "让位垂直于分层方向",
+                !movedAlongRankAxis,
+                options.RanksAreVertical
+                    ? $"a 的纵向位移 {(a.Y - target.Y):0.##}（应为 0）"
+                    : $"a 的横向位移 {(a.X - target.X):0.##}（应为 0）");
+
+            Check(
+                "被挤的节点离开了原位",
+                options.RanksAreVertical ? Math.Abs(a.X - target.X) > 0.5 : Math.Abs(a.Y - target.Y) > 0.5,
+                $"由 ({target.X:0.##}, {target.Y:0.##}) 移到 ({a.X:0.##}, {a.Y:0.##})");
+
+            Console.WriteLine($"    e 固定在 ({e.X:0.##}, {e.Y:0.##})，与目标一致={Math.Abs(e.X - target.X) < 0.01 && Math.Abs(e.Y - target.Y) < 0.01}");
+        }
     }
 
     /// <summary>不设任何约束时，补齐流程不应改变引擎的结果。</summary>
@@ -344,12 +473,17 @@ internal static class InvariantChecks
             setupCost < ConstraintLayoutPipeline.ReflowBudget,
             $"补齐合计 {setupCost.TotalMilliseconds:0.0} ms，预算 {ConstraintLayoutPipeline.ReflowBudget.TotalMilliseconds:0} ms");
 
+        Check("边数守恒", outcome.Edges.Length == graph.Edges.Length, $"期望 {graph.Edges.Length}，实际 {outcome.Edges.Length}");
+        Check("端点在节点边界上", outcome.Diagnostics.EndpointFailures == 0, $"失败 {outcome.Diagnostics.EndpointFailures} 条");
+
         Console.WriteLine($"    总耗时（三次）：{string.Join(" / ", runs.Select(r => $"{r.Total:0.0} ms"))}");
         Console.WriteLine($"    最后一次：收缩 {outcome.Diagnostics.ContractionTime.TotalMilliseconds:0.00} ms / " +
                           $"引擎 {outcome.Diagnostics.EngineTime.TotalMilliseconds:0.0} ms / " +
                           $"展开回填 {outcome.Diagnostics.RestorationTime.TotalMilliseconds:0.00} ms / " +
-                          $"行内让位 {outcome.Diagnostics.ReflowTime.TotalMilliseconds:0.00} ms");
+                          $"行内让位 {outcome.Diagnostics.ReflowTime.TotalMilliseconds:0.00} ms / " +
+                          $"折线重算 {outcome.Diagnostics.RoutingTime.TotalMilliseconds:0.00} ms");
         Console.WriteLine($"    被让位的自由节点 {outcome.Diagnostics.ReflowedNodes}");
+        Console.WriteLine($"    折线穿过其它节点的边 {outcome.Diagnostics.EdgesCrossingNodes} / {outcome.Edges.Length}");
     }
     private static void Section(string name)
     {
@@ -365,7 +499,8 @@ internal static class InvariantChecks
             $"    收缩 {diagnostics.ContractionTime.TotalMilliseconds:0.00} ms / " +
             $"引擎 {diagnostics.EngineTime.TotalMilliseconds:0.0} ms / " +
             $"展开回填 {diagnostics.RestorationTime.TotalMilliseconds:0.00} ms / " +
-            $"行内让位 {diagnostics.ReflowTime.TotalMilliseconds:0.00} ms（让位 {diagnostics.ReflowedNodes} 个节点）");
+            $"行内让位 {diagnostics.ReflowTime.TotalMilliseconds:0.00} ms（让位 {diagnostics.ReflowedNodes} 个节点）/ " +
+            $"折线重算 {diagnostics.RoutingTime.TotalMilliseconds:0.00} ms");
     }
 
     private static void Check(string name, bool passed, string detail)

@@ -55,6 +55,20 @@ flowchart TD
 
 子图可以嵌套。跨子图的连线直接写在子图之外。
 
+## 样式
+
+```
+flowchart TD
+    A[节点一] --> B[节点二]
+    style A fill:#ffcccc,stroke:#cc0000,stroke-width:2px
+    classDef danger fill:#ffcccc,stroke:#cc0000
+    class B danger
+    linkStyle 0 stroke:#ff0000,stroke-width:2px
+```
+
+`style` 逐个节点设置，`classDef` 定义可复用的样式类再用 `class` 套用，
+`linkStyle` 按连线的出现序号设置。
+
 ## 完整示例
 
 ```
@@ -65,6 +79,9 @@ flowchart TD
     error --> input
     check -->|成功| home[进入首页]
     home --> done([结束])
+
+    style error fill:#ffcccc,stroke:#cc0000
+    style home fill:#ccffcc,stroke:#00cc00
 ```
 
 ## 注意事项

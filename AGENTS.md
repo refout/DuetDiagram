@@ -13,17 +13,24 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 |---|---|---|
 | `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化 | 垂直切片已落地 |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
+| `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 已落地 |
+| `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
 | `DuetDiagram.App` | 界面主程序 | 技术栈验证脚手架，含自检模式 |
+| `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
 | `reports/` | 阶段验证结论与取证数据 | 已落地 |
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
-| `tools/Poc/*` | 依赖验证脚手架（不进 sln，结论固化后可删） | 已落地 |
-| `DuetDiagram.Mermaid` / `.Layout` / `.Llm` / `.Mcp` / `.Render` | 后续 Phase | 未创建 |
-| `tools/CompareHarness` | DSL vs Mermaid 对比测试客户端（不进 sln） | 未创建 |
+| `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
+| `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
+| `tools/CompareHarness` | 对比测试语料生成（不进 sln） | 已落地 |
+| `DuetDiagram.Mermaid` / `.Llm` / `.Mcp` / `.Render` | 后续 Phase | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
+
+**依赖验证脚手架用完即删。** 结论固化进正式工程与文档之后，留着两份实现迟早会分叉——
+分叉之后测试仍然全绿，而那份脚手架已经不能反映真实行为了。
 
 ## 不可违反的约束
 
@@ -91,19 +98,29 @@ dotnet build DuetDiagram.slnx -c Release
 
 # 全量测试
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj
+dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
 
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
+
+# 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
+dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
 # 界面栈自检（脱屏渲染一帧后退出，用退出码表达结果）
 dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png
+
+# 界面帧率测量
+dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 60
 
 # 原生编译冒烟（需要 VS「使用 C++ 的桌面开发」工作负载，见 reports/phase0a.md）
 dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
 ./DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe
 
-# 布局引擎约束取证
+# 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release
+dotnet run --project tools/Poc/McpTransport -c Release
+dotnet run --project tools/Poc/SharedTools -c Release
 
 # LOC 一致性
 dotnet run --project tools/LocCounter -- --root . --check
@@ -115,7 +132,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`
 
 ## 新增一个命令的检查清单
 

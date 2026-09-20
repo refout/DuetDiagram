@@ -10,8 +10,10 @@
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
 | DuetDiagram.Core | 55 | 6308 | 3374 | 1967 | 967 |
 | DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
-| tools | 30 | 4822 | 3174 | 880 | 768 |
-| **合计** | **115** | **15803** | **9847** | **3430** | **2526** |
+| DuetDiagram.Layout | 10 | 1471 | 852 | 425 | 194 |
+| DuetDiagram.Layout.Tests | 3 | 554 | 419 | 45 | 90 |
+| tools | 21 | 3213 | 2153 | 528 | 532 |
+| **合计** | **119** | **16219** | **10097** | **3548** | **2574** |
 
 ## 明细
 
@@ -125,6 +127,29 @@
 | VersionLogTests.cs | 177 |
 | WorkspaceTests.cs | 94 |
 
+### DuetDiagram.Layout
+
+| 文件 | 代码 |
+|---|---:|
+| ConstraintLayoutEngine.cs | 94 |
+| AnchorRestorer.cs | 35 |
+| EdgeRouter.cs | 240 |
+| EngineAdapter.cs | 41 |
+| NodeGrid.cs | 70 |
+| RowReflow.cs | 82 |
+| SameRankContraction.cs | 144 |
+| LayoutModels.cs | 29 |
+| LayoutRequestFactory.cs | 51 |
+| LayoutResult.cs | 66 |
+
+### DuetDiagram.Layout.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| Graphs.cs | 53 |
+| LayoutRequestFactoryTests.cs | 152 |
+| LayoutTests.cs | 214 |
+
 ### tools
 
 | 文件 | 代码 |
@@ -140,15 +165,6 @@
 | LayoutModels.cs | 41 |
 | Program.cs | 36 |
 | SugiyamaCandidate.cs | 85 |
-| AnchorRestore.cs | 35 |
-| ConstraintLayoutPipeline.cs | 57 |
-| DagreEngine.cs | 40 |
-| EdgeRouter.cs | 241 |
-| InvariantChecks.cs | 364 |
-| LayoutModels.cs | 64 |
-| Program.cs | 10 |
-| RowReflow.cs | 79 |
-| SameRankContraction.cs | 131 |
 | ApiDump.cs | 58 |
 | DiagramTools.cs | 116 |
 | HttpRoundtrip.cs | 47 |

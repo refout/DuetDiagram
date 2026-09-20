@@ -185,7 +185,8 @@
 
 ## 验证结果
 
-验证程序：`tools/Poc/LayoutConstraints`，命令行运行即复现全部结论。
+**本文件记录的是方案与推导过程。** 实现在 `DuetDiagram.Layout`，不变量测试在 `DuetDiagram.Layout.Tests`——
+当初用于验证的脚手架已删除，避免两份实现分叉。
 
 | 用例 | 结果 |
 |---|---|

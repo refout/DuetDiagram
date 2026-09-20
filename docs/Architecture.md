@@ -74,7 +74,7 @@ dotnet run --project tools/Poc/LayoutCandidates -c Release
 缺口不补，用户的所有调整都会在下一次重排时丢失。
 
 **补齐方案已经定下来并验证过**，完整设计、不变量与实测数据见 `docs/Layout-Constraints.md`，
-验证程序是 `tools/Poc/LayoutConstraints`（命令行运行即复现）。要点：
+结论已固化进正式工程：实现在 `DuetDiagram.Layout`，不变量测试在 `DuetDiagram.Layout.Tests`。要点：
 
 - 无重叠是算法的必然结果，不是收敛目标。层内让位一次线性扫描精确可解。
 - 同层组按展开后的总尺寸申报超节点，展开因此是纯局部操作，既不溢出也不挤压邻居。

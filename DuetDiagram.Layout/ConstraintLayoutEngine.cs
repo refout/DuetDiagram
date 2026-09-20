@@ -31,6 +31,14 @@ namespace DuetDiagram.Layout;
 /// </remarks>
 public sealed class ConstraintLayoutEngine
 {
+    /// <summary>求解一次布局。</summary>
+    public LayoutResult Layout(LayoutRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return Layout(request.Nodes, request.Edges, request.Options);
+    }
+
     /// <summary>
     /// 求解一次布局。
     /// </summary>

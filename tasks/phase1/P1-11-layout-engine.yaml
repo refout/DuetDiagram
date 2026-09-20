@@ -1,0 +1,65 @@
+id: P1-11
+title: 基础布局引擎封装
+phase: 1
+status: done
+depends_on: [P1-01, P0-10]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Layout/DuetDiagram.Layout.csproj
+    - DuetDiagram.Layout/LayoutModels.cs
+    - DuetDiagram.Layout/LayoutResult.cs
+    - DuetDiagram.Layout/LayoutRequestFactory.cs
+    - DuetDiagram.Layout/ConstraintLayoutEngine.cs
+    - DuetDiagram.Layout/Internal/SameRankContraction.cs
+    - DuetDiagram.Layout/Internal/EngineAdapter.cs
+    - DuetDiagram.Layout/Internal/AnchorRestorer.cs
+    - DuetDiagram.Layout/Internal/RowReflow.cs
+    - DuetDiagram.Layout/Internal/NodeGrid.cs
+    - DuetDiagram.Layout/Internal/EdgeRouter.cs
+    - DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
+    - DuetDiagram.Layout.Tests/Graphs.cs
+    - DuetDiagram.Layout.Tests/LayoutTests.cs
+    - DuetDiagram.Layout.Tests/LayoutRequestFactoryTests.cs
+  delete:
+    - tools/Poc/LayoutConstraints/**
+  modify:
+    - DuetDiagram.slnx
+    - AGENTS.md
+    - docs/Architecture.md
+    - docs/Layout-Constraints.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
+    expect: 全通过
+constraints:
+  - Core 只依赖基础类库，布局引擎不能进 Core
+  - 固定坐标是唯一的硬保证，偏差必须精确为零
+  - 约束补齐不在引擎内部做，引擎只看到合法的分层图
+context:
+  - Phase 0a 已用脚手架证明方案可行，本任务把它落进正式工程
+  - 尺寸取决于字体与文本，IR 里没有也不该有
+result:
+  verdict: 完成
+  delivered:
+    project: 新建布局工程，引用 Core 与第三方引擎
+    input_output: 输入输出分成两组类型，输入没有坐标、输出一定有
+    pipeline: 收缩、引擎、展开、回填、让位、折线重算六步
+    ports: 端口接到路由，端点落在端口上
+    adapter: 从文档造布局输入，尺寸由调用方测量
+    diagnostics: 分阶段计时，并给出是否满足全部硬保证的判据
+  design_decisions:
+    separate_project: Core 只依赖基础类库，而布局要依赖第三方引擎，因此只能是 Core 之外的第一块
+    two_type_sets: 输入输出合成一个类型的话，输入上会挂着一对无意义的坐标，忘了初始化就变成「读取上次残留的位置」
+    measure_from_caller: 尺寸取决于字体、字号与文本长度，布局不自己猜
+    no_owner_filter: 归属方决定的是冲突时听谁的，而冲突已在进布局之前处理掉
+    reflow_gap_shared: 让位用的间距必须与收缩申报超节点尺寸时的那个值相同
+  fixed:
+    hardcoded_gap: 收缩按配置间距预留组内空间，让位却用硬编码间距；两者相等纯属巧合（缺省值刚好相同），一旦不一致同层组成员会被推出自己预留的空间
+    missing_member: 同层组展开时遇到已删除的成员会抛异常，改为跳过
+  findings:
+    port_limitation: 端口已接入路由，但端口所在边若背对目标，折线会绕得难看。真正的端口感知布线要按端口方向规划通道，那是独立的一块工作
+    poc_retired: 验证脚手架已删除。留着两份实现迟早会分叉，分叉之后测试仍然全绿而那两份已经不反映真实行为
+  not_verified:
+    - 降级与路径预算属 P1-12
+    - 组合的层级布局尚未实现，父子关系只做透传
+    - 端口感知的通道规划未做

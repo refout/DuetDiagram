@@ -168,7 +168,7 @@ C++ 工具链加 Windows SDK 装完通常需要 5 到 7 GB（含下载缓存峰�
 dotnet run --project tools/Poc/LayoutCandidates -c Release
 
 # P0-10：布局约束补齐方案
-dotnet run --project tools/Poc/LayoutConstraints -c Release
+dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
 
 # P0-05：三条传输的完整验证
 dotnet run --project tools/Poc/McpTransport -c Release

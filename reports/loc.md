@@ -8,10 +8,10 @@
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
-| DuetDiagram.Core | 47 | 4733 | 2546 | 1443 | 744 |
+| DuetDiagram.Core | 47 | 4922 | 2661 | 1497 | 764 |
 | DuetDiagram.Core.Tests | 13 | 1932 | 1370 | 217 | 345 |
 | tools | 30 | 4822 | 3174 | 880 | 768 |
-| **合计** | **100** | **12391** | **7658** | **2733** | **2000** |
+| **合计** | **100** | **12580** | **7773** | **2787** | **2020** |
 
 ## 明细
 
@@ -86,7 +86,7 @@
 | Palette.cs | 29 |
 | Styles.cs | 53 |
 | SupportingDefs.cs | 62 |
-| DiagramHashing.cs | 57 |
+| DiagramHashing.cs | 172 |
 | DiagramJsonContext.cs | 58 |
 | DiagramSerializer.cs | 54 |
 | ITimeProvider.cs | 22 |

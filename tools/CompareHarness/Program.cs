@@ -30,7 +30,8 @@ internal static class Program
             ReadOption(args, "--secrets") ?? Options.DefaultSecretsPath,
             ReadOption(args, "--out") ?? Options.DefaultOutputRoot,
             int.TryParse(ReadOption(args, "--parallel"), out var parallelism) ? parallelism : 3,
-            args.Contains("--force", StringComparer.Ordinal));
+            args.Contains("--force", StringComparer.Ordinal),
+            (ReadOption(args, "--only") ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
         using var cancellation = new CancellationTokenSource();
 
@@ -69,6 +70,7 @@ internal static class Program
         Console.WriteLine("  --secrets <路径>        凭据文件，默认 secrets/bigmodel.local.json");
         Console.WriteLine("  --out <目录>            结果目录，默认 reports/raw");
         Console.WriteLine("  --parallel <数量>       并发请求数，默认 3");
+        Console.WriteLine("  --only <标识,...>       只跑指定的提示词，用于冒烟与补跑");
         Console.WriteLine("  --force                 覆盖已有结果，默认跳过");
         Console.WriteLine();
         Console.WriteLine("凭据文件不会被提交，格式：");

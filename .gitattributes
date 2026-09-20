@@ -18,3 +18,7 @@
 # Phase 0 P0-08 (DSL vs Mermaid comparison) caches 50 raw LLM responses in reports/raw/.
 # They are large, immutable and must never be line-diffed.
 reports/raw/** filter=lfs diff=lfs merge=lfs -text
+
+# 该目录下的说明文件是普通文本，走 LFS 只会让它无法在网页上直接阅读。
+# 这条必须写在上面那条之后，后写的规则优先。
+reports/raw/**/*.md -filter -diff -merge text

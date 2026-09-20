@@ -1,27 +1,64 @@
 id: P0-08
-title: LLM 客户端生成 50 prompt 对比测试语料
+title: 对比测试语料生成
 phase: 0a
-status: pending
+status: done
 depends_on: []
 estimated_loc: 350
 files:
   create:
     - tools/CompareHarness/Harness.csproj
     - tools/CompareHarness/Program.cs
+    - tools/CompareHarness/Support.cs
+    - tools/CompareHarness/Generator.cs
     - tools/CompareHarness/prompts.json
-    - reports/raw/.gitkeep
+    - tools/CompareHarness/arms/a-bare.md
+    - tools/CompareHarness/arms/b-documented.md
+    - tools/CompareHarness/arms/c-dsl.md
+    - docs/Compare-Criteria.md
+    - docs/DSL-Syntax.md
+    - reports/raw/README.md
+    - reports/raw/**（语料，走 LFS）
   modify:
+    - Directory.Packages.props
     - .gitattributes
 acceptance:
-  - command: dotnet run --project tools/CompareHarness
-    expect: 50 个 prompt 的原始响应全部落到 reports/raw/
-  - command: git lfs ls-files
-    expect: reports/raw/ 下的文件走 LFS
+  - command: dotnet run --project tools/CompareHarness -c Release -- generate
+    expect: 三组各 50 条全部落盘，逐条幂等
+  - command: reports/raw 下的文件走 LFS
+    expect: 已确认
 constraints:
-  - 用 HttpClient 直接调用，**不使用** Microsoft.Extensions.AI
-  - 项目不进 DuetDiagram.slnx
-  - 测试集固定：20 简单 / 20 中等 / 10 复杂，结果缓存后不再重新生成
+  - 用网络客户端直接调用，不引入模型集成库
+  - 项目不进解决方案文件
+  - 测试集固定：20 简单 / 20 中等 / 10 复杂，结果冻结后不再重新生成
   - 预算上限 30 美元
+  - 凭据绝不入仓库
 context:
-  - 方案 §15.3 DSL vs Mermaid 对比测试
-  - 方案 §13.4 P0-08
+  - DSL 去留由决策门 1 判定，需要两组可比的原始响应
+  - 模型输出不确定，两侧必须同时间、同模型状态下产生
+result:
+  verdict: 语料已冻结
+  model: GLM-5.3-Flash
+  generated_at: 2026-09-20
+  corpus:
+    arms: 3
+    prompts: 50
+    responses: 150
+    size_mb: 3.5
+    tokens: 318000
+  design_change:
+    problem: 方案原本是两组对照，但 DSL 组必须配语法文档而 Mermaid 组不给，
+    consequence: 比的会是"有文档"对"没文档"而不是"DSL 对 Mermaid"
+    fix: 改为三组，判读时 DSL 与"Mermaid 加等量文档"比
+  prerequisites_added:
+    dsl_syntax: 方案把 DSL 语法放在 Phase 1、语料生成放在 Phase 0a，按排期生成时语法还不存在，因此语法前移
+    scoring_criteria: 四个阈值原本没有计算口径，不先定死会在评分阶段发现算不出来
+  findings:
+    forced_reasoning: 该模型强制思考，推理 token 占完成量的八成以上，成本估算不能按普通模型口径
+    timeout: 复杂条目单次调用可达数分钟，默认五分钟上限不够，已放宽到二十分钟
+    outage_not_model: 基线组有一条连续超时两次，第三次只用了 81 秒就跑通，说明前两次是服务端偶发停滞而非模型真的算那么久；当时的第一个推断（提示词缺参考导致模型反复斟酌）被第三次结果否定
+    doc_cost: 带文档的两组提示 token 是基线的五到六倍，那部分就是语法文档本身；模型训练数据里没有这套语法，每次调用都要重新告诉它，这是 DSL 的真实成本之一
+    fence_variance: 同一条提示词要求"不要围栏之外的文字"，基线组包了代码围栏而 DSL 组没包；解析时必须先剥围栏，否则会把格式差异误算成解析失败
+    leakage: 已抽检的 DSL 组条目中零条退回 Mermaid 语法，且多条主动使用了只有本 DSL 支持的布局约束
+  not_verified:
+    - 语料的评分要等 Phase 1 的解析器，本次只生成不评分
+    - 冻结与评分之间的间隔越长，模型换版本的可能性越大，结论时效性会下降

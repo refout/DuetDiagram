@@ -25,8 +25,17 @@ internal static class Generator
 {
     private const string EndpointSuffix = "/chat/completions";
 
-    /// <summary>单次请求最多等多久。推理模型耗时长，给足余量。</summary>
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromMinutes(5);
+    /// <summary>
+    /// 单次请求最多等多久。
+    /// </summary>
+    /// <remarks>
+    /// 这个模型强制思考，复杂任务上推理过程能占几百个 token，耗时远超普通模型。
+    /// 正常情况下复杂条目在一到三分钟之间，但个别条目会超过十分钟，
+    /// 原因未能确定——可能是推理特别长，也可能是服务端偶发停滞。
+    /// 上限设在二十分钟：够长到不会误杀正常的慢响应，又不至于让一次卡死拖垮整批。
+    /// 超时不算接口错误，重试没有意义，只能靠把上限调够。
+    /// </remarks>
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromMinutes(20);
 
     /// <summary>遇到限流时的退避基数，逐次翻倍。</summary>
     private static readonly TimeSpan RetryBaseDelay = TimeSpan.FromSeconds(5);
@@ -59,12 +68,15 @@ internal static class Generator
         var jobs = (
             from arm in arms
             from prompt in prompts
+            where options.Selects(prompt)
             where options.Force || !File.Exists(ResultPath(options.OutputRoot, arm.Id, prompt.Id))
             select (Arm: arm, Prompt: prompt)).ToArray();
 
+        var selected = prompts.Count(p => options.Selects(p));
+
         Console.WriteLine($"模型 {credentials.Model}");
-        Console.WriteLine($"提示词 {prompts.Count} 条，组 {arms.Count} 个，待生成 {jobs.Length} 条"
-            + $"（已完成 {prompts.Count * arms.Count - jobs.Length} 条，跳过）");
+        Console.WriteLine($"提示词 {selected} 条，组 {arms.Count} 个，待生成 {jobs.Length} 条"
+            + $"（已完成 {selected * arms.Count - jobs.Length} 条，跳过）");
         Console.WriteLine();
 
         if (jobs.Length == 0)

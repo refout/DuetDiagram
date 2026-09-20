@@ -111,7 +111,8 @@ internal sealed record Options(
     string SecretsPath,
     string OutputRoot,
     int Parallelism,
-    bool Force)
+    bool Force,
+    string[] Only)
 {
     public const string DefaultPromptsPath = "tools/CompareHarness/prompts.json";
 
@@ -120,4 +121,8 @@ internal sealed record Options(
     public const string DefaultSecretsPath = "secrets/bigmodel.local.json";
 
     public const string DefaultOutputRoot = "reports/raw";
+
+    /// <summary>是否选中这条提示词。没指定筛选时全部选中。</summary>
+    public bool Selects(Prompt prompt) =>
+        Only.Length == 0 || Only.Contains(prompt.Id, StringComparer.OrdinalIgnoreCase);
 }

@@ -1,0 +1,56 @@
+id: P1-06
+title: Sidecar 拆分与完整性
+phase: 1
+status: done
+depends_on: [P1-01]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Core/Sidecar/SidecarPaths.cs
+    - DuetDiagram.Core/Sidecar/LayoutSidecar.cs
+    - DuetDiagram.Core/Sidecar/UserSidecar.cs
+    - DuetDiagram.Core/Sidecar/SidecarStore.cs
+    - docs/Sidecar.md
+  modify:
+    - DuetDiagram.Core/Model/CollectionEquality.cs
+    - docs/IR-Schema.md
+  test:
+    - DuetDiagram.Core.Tests/SidecarTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Sidecar"
+    expect: 全通过
+constraints:
+  - 按「丢了会怎样」拆文件，不按内容类别拆
+  - 缓存过期不是错误，处置是静默重算
+  - 人工产物的孤儿条目要报告而不是丢弃
+  - 标识比较区分大小写，与 IR 一致
+context:
+  - 方案 §4.3 规定三个文件与文档同名同目录
+  - 人工产物不可丢，布局结果可重算，两者的失败处置完全不同
+result:
+  verdict: 完成
+  delivered:
+    paths: 三个文件的命名与备份名的时间戳格式
+    layout_cache: 内容模型与基于结构哈希的有效性判据
+    user_artifact: 固定位置、固定折线、自定义端口三样内容
+    status: 加载状态四态，与内容分开
+    integrity: 哈希不符、文档不符、解析失败三种失效的区分
+    orphans: 指向不存在元素的条目如实报告
+    atomic_write: 先写临时文件再改名
+  design_decisions:
+    split_by_loss: 按「丢了会怎样」拆文件而不是按内容类别——布局可重算、人工产物不可丢，两者处置完全不同
+    stale_not_error: 缓存过期是正常情况，当成错误弹窗会让每次正常编辑都伴随一次弹窗
+    stale_vs_foreign: 哈希不符与文档标识不符要分开：前者正常，后者说明文件被错放了
+    orphans_reported: 孤儿条目如实报告而不丢弃，节点可能只是被临时删掉，撤销回来仍有意义
+    atomic_write: 先写临时文件再改名，人工产物丢不起，不能出现半截内容
+    parse_vs_io: 解析失败转为不可用状态，读写异常照常抛出——后者是环境问题，吞掉会变成更难查的「保存没生效」
+  fixed:
+    record_equality_again: Sidecar 的记录同样带集合成员，自动相等性对集合用引用比较，内容相同会被判为不等。这是 IR 那边踩过的同一个陷阱
+    backup_suffix: 备份名原先剥掉整个 .user.json 后缀，光看名字分不出它是人工产物的备份
+  findings:
+    label_does_not_stale: 改标签只影响外观哈希，不会让布局缓存失效——坐标仍然有效。这在测试里被我写错过一次
+    case_sensitive: 标识不区分大小写的话，一个节点的固定位置会跑到另一个身上，而这个错位不会有任何提示
+  deferred:
+    - 备份与恢复属 P1-07
+    - .dsl 的内容读写属 P1-16
+    - 自定义端口已能存取，尚未接到布局与路由

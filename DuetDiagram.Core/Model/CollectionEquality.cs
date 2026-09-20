@@ -110,4 +110,54 @@ internal static class CollectionEquality
 
         return combined;
     }
+
+    /// <summary>
+    /// 值是列表的字典的比较。
+    /// </summary>
+    /// <remarks>
+    /// 普通字典比较会把列表值按引用比，于是内容相同的两份映射被判为不等。
+    /// 这个形状在 Sidecar 里出现两次（固定折线、自定义端口），单列一个方法比每处各写一遍稳。
+    /// </remarks>
+    public static bool MapOfLists<T>(
+        IReadOnlyDictionary<string, IReadOnlyList<T>>? left,
+        IReadOnlyDictionary<string, IReadOnlyList<T>>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null || left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var (key, value) in left)
+        {
+            if (!right.TryGetValue(key, out var other) || !List(value, other))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc cref="MapOfLists{T}"/>
+    public static int MapOfListsHash<T>(IReadOnlyDictionary<string, IReadOnlyList<T>>? source)
+    {
+        if (source is null)
+        {
+            return 0;
+        }
+
+        var combined = 0;
+
+        foreach (var (key, value) in source)
+        {
+            combined ^= HashCode.Combine(key, ListHash(value));
+        }
+
+        return combined;
+    }
 }

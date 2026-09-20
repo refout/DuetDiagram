@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Tools.CompareHarness</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    对比测试的语料生成器。用命令行运行，加上 generate 参数。
+    它直接用网络客户端调用模型接口，不引入任何模型集成库——这一步要的是"原样拿到响应"，
+    中间多一层封装只会让"记录下来的到底是不是模型的原话"变得可疑。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件。
+  -->
+
+</Project>

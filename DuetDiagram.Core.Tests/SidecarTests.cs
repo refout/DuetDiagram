@@ -396,29 +396,4 @@ public sealed class SidecarTests
         Version = document.Version,
     };
 
-    /// <summary>每个用例一个独立目录，用完即删。</summary>
-    private sealed class TempDirectory : IDisposable
-    {
-        public TempDirectory()
-        {
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"duet-sidecar-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(Path);
-        }
-
-        public string Path { get; }
-
-        public string File(string name) => System.IO.Path.Combine(Path, name);
-
-        public void Dispose()
-        {
-            try
-            {
-                Directory.Delete(Path, recursive: true);
-            }
-            catch (IOException)
-            {
-                // 清理失败不影响用例结论，留给系统临时目录自己收拾。
-            }
-        }
-    }
 }

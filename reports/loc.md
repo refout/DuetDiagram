@@ -8,10 +8,10 @@
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
-| DuetDiagram.Core | 54 | 6056 | 3242 | 1883 | 931 |
-| DuetDiagram.Core.Tests | 18 | 3420 | 2494 | 351 | 575 |
+| DuetDiagram.Core | 55 | 6308 | 3374 | 1967 | 967 |
+| DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
 | tools | 30 | 4822 | 3174 | 880 | 768 |
-| **合计** | **112** | **15202** | **9478** | **3307** | **2417** |
+| **合计** | **115** | **15803** | **9847** | **3430** | **2526** |
 
 ## 明细
 
@@ -93,6 +93,7 @@
 | DiagramJsonContext.cs | 58 |
 | DiagramSerializer.cs | 54 |
 | LayoutSidecar.cs | 44 |
+| SidecarBackup.cs | 132 |
 | SidecarPaths.cs | 55 |
 | SidecarStore.cs | 117 |
 | UserSidecar.cs | 48 |
@@ -115,7 +116,9 @@
 | NestedExecuteTests.cs | 81 |
 | RoundTripTests.cs | 122 |
 | SessionIdResolutionTests.cs | 57 |
-| SidecarTests.cs | 314 |
+| SidecarBackupTests.cs | 235 |
+| SidecarTests.cs | 294 |
+| TempDirectory.cs | 22 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |
 | ValidatorTests.cs | 175 |

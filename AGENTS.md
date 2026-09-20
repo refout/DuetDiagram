@@ -115,7 +115,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、
-`ConflictPolicy`、`FieldMetadata`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`
 
 ## 新增一个命令的检查清单
 

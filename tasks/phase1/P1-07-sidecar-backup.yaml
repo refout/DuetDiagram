@@ -1,0 +1,45 @@
+id: P1-07
+title: Sidecar 备份与恢复
+phase: 1
+status: done
+depends_on: [P1-06]
+estimated_loc: 200
+files:
+  create:
+    - DuetDiagram.Core/Sidecar/SidecarBackup.cs
+    - DuetDiagram.Core.Tests/TempDirectory.cs
+  modify:
+    - docs/Sidecar.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/SidecarBackupTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=SidecarBackup"
+    expect: 全通过
+constraints:
+  - 只有人工产物需要备份，布局缓存可重算
+  - 保存顺序必须是先备份、再写入、最后清理
+  - 时间戳用世界时间
+context:
+  - 方案 §4.3 规定备份按时间戳命名，保留最近 10 个或 30 天
+  - 清理时机为启动时、保存时、每小时定时
+result:
+  verdict: 完成
+  delivered:
+    backup_on_save: 带备份的保存，顺序为先备份再写入后清理
+    retention: 两个上限各自生效的保留策略
+    list_and_restore: 列表按文件名排序不解内容，恢复时再校验
+    restore_validation: 恢复出的内容按当前文档校验并报告孤儿
+  design_decisions:
+    intersection_not_union: 方案写的「10 个或 30 天」有歧义，取交集。理由是存储要有上界——并集在一天内改一百次时会保留全部一百份，而那正是最需要收敛的场合
+    timestamp_meaning: 备份名的时间戳是做备份的时刻，不是被备份内容的写入时刻。第三天做的备份按第三天命名，如实记录副本是什么时候留下的
+    skip_corrupt: 现有内容解析不了时不产生备份。没有可恢复的东西，放进列表只会让用户在恢复对话框里选到一个同样打不开的文件
+    order_matters: 先备份再写入。反过来备份下来的是刚写进去的新内容，等于没有备份
+    list_cheap: 列表只按文件名排序，不为排序去解析每一份内容；能不能用交给恢复那一步判断
+    host_schedules: 每小时那次清理由宿主排，Core 里没有调度器也不该有
+  findings:
+    only_user_needs_backup: 布局缓存可以重算，给它备份等于给一个能随时重建的东西留副本
+    backup_timestamp_confusion: 时间戳的含义在写测试时被我按「内容写入时刻」算过一遍，与实现不符。实现是对的，含义值得写进文档
+  not_verified:
+    - 恢复对话框的界面部分属 Phase 2
+    - 每小时定时清理的实际调度未验证，Core 只提供操作

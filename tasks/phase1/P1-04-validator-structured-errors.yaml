@@ -1,0 +1,44 @@
+id: P1-04
+title: 校验器与结构化错误
+phase: 1
+status: done
+depends_on: [P1-01]
+estimated_loc: 300
+files:
+  create:
+    - DuetDiagram.Core/Model/ValidationIssue.cs
+  modify:
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - docs/Error-Codes.md
+  test:
+    - DuetDiagram.Core.Tests/ValidatorTests.cs
+    - DuetDiagram.Core.Tests/IrFixtures.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 全通过
+  - command: 断言每条校验问题都带修复建议
+    expect: 全通过
+constraints:
+  - 校验只报告不修改，处置方式由调用方决定
+  - 错误码必须取自 ErrorCodes 常量，不得在调用处写裸字符串
+  - 每条问题都必须给出修复建议
+context:
+  - 命令层在写入前挡住大部分非法状态，但加载外部文件与接收同步结果不经过命令层
+  - 方案要求校验工具返回「结构化错误 + 修复建议」
+result:
+  verdict: 完成
+  delivered:
+    codes: 补齐校验器需要的五个码，与既有码共用同一张表
+    checks: 标识唯一、边两端、端口、成员归属、父级、成环、标签与动作引用
+    suggestions: 每条问题都带一句可怎么修的建议
+    layering: 校验结果与线上形状分成两个类型，提供单向转换
+  fixed:
+    code_drift: P1-01 里自造的码名与既有 ErrorCodes 冲突（自造了 ID_DUPLICATE、EDGE_TO_MISSING 等），本次全部对齐；测试也改为引用常量而非裸字符串
+    group_cycle: 成环检查原本缺失
+  findings:
+    cycle_reporting: 环上的每一个组合都报一条，界面按标识高亮时才能把整个环标出来；只报一个用户还得自己顺着找
+    both_ends: 边的两端各自报一条，只报一条的话修完一头才会发现另一头也有问题
+    suggestion_needed: 只说哪里错不说怎么改，等于把问题原样丢回给用户；对模型尤其如此，只会收到「标识重复」的模型只能猜
+  deferred:
+    - 修复建议目前是给人看的一句话，不是可直接执行的修补指令；做成机器可执行的形态要等校验工具对外暴露时再定

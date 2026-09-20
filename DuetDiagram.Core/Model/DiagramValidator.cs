@@ -1,7 +1,6 @@
-namespace DuetDiagram.Core.Model;
+using DuetDiagram.Core.Commands;
 
-/// <summary>一条校验问题。</summary>
-public sealed record ValidationIssue(string Code, string Message, string? RelatedId = null);
+namespace DuetDiagram.Core.Model;
 
 /// <summary>
 /// 文档一致性校验。
@@ -16,6 +15,11 @@ public sealed record ValidationIssue(string Code, string Message, string? Relate
 /// 校验只报告不修改。发现问题时由调用方决定是拒绝加载、丢弃问题部分，还是照常打开并提示——
 /// 这三种处置在不同场景下都合理，校验器不该替调用方做这个决定。
 /// </para>
+/// <para>
+/// **每条问题都必须给出修复建议。** 只说哪里错、不说怎么改，等于把问题原样丢回给用户。
+/// 这一点对模型同样重要：一个能听懂"该动哪里"的模型可以自己修好，
+/// 而只收到"标识重复"的模型只能猜。
+/// </para>
 /// </remarks>
 public static class DiagramValidator
 {
@@ -28,6 +32,7 @@ public static class DiagramValidator
         CheckIdUniqueness(document, issues);
         CheckEdgeEndpoints(document, issues);
         CheckCompositeMembership(document, issues);
+        CheckCompositeCycles(document, issues);
         CheckReferences(document, issues);
 
         return issues;
@@ -44,10 +49,13 @@ public static class DiagramValidator
             {
                 if (seen.TryGetValue(definition.Id, out var previous))
                 {
-                    issues.Add(new ValidationIssue(
-                        "ID_DUPLICATE",
-                        $"标识 {definition.Id} 同时出现在 {previous} 与 {kind} 中。九个集合共用一个命名空间。",
-                        definition.Id));
+                    issues.Add(new ValidationIssue
+                    {
+                        Code = ErrorCodes.DuplicateId,
+                        Message = $"标识 {definition.Id} 同时出现在{previous}与{kind}中。九个集合共用一个命名空间。",
+                        RelatedId = definition.Id,
+                        Suggestion = "给其中一个改名，或删除不再需要的那个定义。",
+                    });
                 }
                 else
                 {
@@ -73,18 +81,24 @@ public static class DiagramValidator
         {
             if (document.FindNode(edge.From) is null)
             {
-                issues.Add(new ValidationIssue(
-                    "EDGE_FROM_MISSING",
-                    $"边 {edge.Id} 的起点 {edge.From} 不存在。",
-                    edge.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.EdgeSourceMissing,
+                    Message = $"边 {edge.Id} 的起点 {edge.From} 不存在。",
+                    RelatedId = edge.Id,
+                    Suggestion = $"创建节点 {edge.From}，或把边 {edge.Id} 的起点改成已有节点。",
+                });
             }
 
             if (document.FindNode(edge.To) is null)
             {
-                issues.Add(new ValidationIssue(
-                    "EDGE_TO_MISSING",
-                    $"边 {edge.Id} 的终点 {edge.To} 不存在。",
-                    edge.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.EdgeTargetMissing,
+                    Message = $"边 {edge.Id} 的终点 {edge.To} 不存在。",
+                    RelatedId = edge.Id,
+                    Suggestion = $"创建节点 {edge.To}，或把边 {edge.Id} 的终点改成已有节点。",
+                });
             }
 
             CheckPort(document, issues, edge.Id, edge.From, edge.FromPort, "起点");
@@ -115,10 +129,13 @@ public static class DiagramValidator
 
         if (node.FindPort(portName) is null)
         {
-            issues.Add(new ValidationIssue(
-                "EDGE_PORT_MISSING",
-                $"边 {edgeId} 的{end}指定了端口 {portName}，但节点 {nodeId} 上没有这个端口。",
-                edgeId));
+            issues.Add(new ValidationIssue
+            {
+                Code = ErrorCodes.EdgePortMissing,
+                Message = $"边 {edgeId} 的{end}指定了端口 {portName}，但节点 {nodeId} 上没有这个端口。",
+                RelatedId = edgeId,
+                Suggestion = $"在节点 {nodeId} 上补上端口 {portName}，或把边改为不指定端口由引擎自动选边。",
+            });
         }
     }
 
@@ -127,7 +144,7 @@ public static class DiagramValidator
     /// </summary>
     /// <remarks>
     /// 这两处表达的是同一件事。方案对两者都有要求，但两份数据天然可能不一致，
-    /// 约定以组合的成员列表为准、节点的父级是冗余索引。不一致时必须报出来——
+    /// 约定以组合的成员列表为准、成员的父级是冗余索引。不一致时必须报出来——
     /// 放任不管的话，布局按其中一处算、渲染按另一处画，症状会表现为"节点画在了错误的框里"。
     /// </remarks>
     private static void CheckCompositeMembership(DiagramDocument document, List<ValidationIssue> issues)
@@ -138,10 +155,13 @@ public static class DiagramValidator
         {
             if (composite.Parent is not null && !composites.ContainsKey(composite.Parent))
             {
-                issues.Add(new ValidationIssue(
-                    "COMPOSITE_PARENT_MISSING",
-                    $"组合 {composite.Id} 的外层 {composite.Parent} 不存在。",
-                    composite.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.ParentMissing,
+                    Message = $"组合 {composite.Id} 的外层 {composite.Parent} 不存在。",
+                    RelatedId = composite.Id,
+                    Suggestion = $"创建组合 {composite.Parent}，或清空 {composite.Id} 的外层字段。",
+                });
             }
 
             foreach (var memberId in composite.Members)
@@ -152,11 +172,10 @@ public static class DiagramValidator
                 {
                     if (!string.Equals(node.Parent, composite.Id, StringComparison.Ordinal))
                     {
-                        issues.Add(new ValidationIssue(
-                            "MEMBERSHIP_MISMATCH",
-                            $"节点 {memberId} 是组合 {composite.Id} 的成员，但它的父级写的是 {node.Parent ?? "空"}。"
-                            + "约定以成员列表为准。",
-                            memberId));
+                        issues.Add(Mismatch(
+                            $"{memberId}（节点）",
+                            composite.Id,
+                            node.Parent));
                     }
 
                     continue;
@@ -166,23 +185,26 @@ public static class DiagramValidator
                 {
                     if (!string.Equals(nested.Parent, composite.Id, StringComparison.Ordinal))
                     {
-                        issues.Add(new ValidationIssue(
-                            "MEMBERSHIP_MISMATCH",
-                            $"组合 {memberId} 是组合 {composite.Id} 的成员，但它的外层写的是 {nested.Parent ?? "空"}。",
-                            memberId));
+                        issues.Add(Mismatch(
+                            $"{memberId}（组合）",
+                            composite.Id,
+                            nested.Parent));
                     }
 
                     continue;
                 }
 
-                issues.Add(new ValidationIssue(
-                    "MEMBER_MISSING",
-                    $"组合 {composite.Id} 的成员 {memberId} 既不是节点也不是组合。",
-                    composite.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.GroupMemberMissing,
+                    Message = $"组合 {composite.Id} 的成员 {memberId} 既不是节点也不是组合。",
+                    RelatedId = composite.Id,
+                    Suggestion = $"创建 {memberId}，或把它从组合 {composite.Id} 的成员列表里移除。",
+                });
             }
         }
 
-        // 反向检查：节点的父级指向了组合，但它不在那个组合的成员列表里。
+        // 反向检查：成员的父级指向了组合，但它不在那个组合的成员列表里。
         foreach (var node in document.Nodes)
         {
             if (node.Parent is null)
@@ -192,20 +214,73 @@ public static class DiagramValidator
 
             if (!composites.TryGetValue(node.Parent, out var parent))
             {
-                issues.Add(new ValidationIssue(
-                    "NODE_PARENT_MISSING",
-                    $"节点 {node.Id} 的父级 {node.Parent} 不是已定义的组合。",
-                    node.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.ParentMissing,
+                    Message = $"节点 {node.Id} 的父级 {node.Parent} 不是已定义的组合。",
+                    RelatedId = node.Id,
+                    Suggestion = $"创建组合 {node.Parent}，或清空节点 {node.Id} 的父级字段。",
+                });
 
                 continue;
             }
 
             if (!parent.Members.Contains(node.Id, StringComparer.Ordinal))
             {
-                issues.Add(new ValidationIssue(
-                    "MEMBERSHIP_MISMATCH",
-                    $"节点 {node.Id} 的父级是组合 {node.Parent}，但该组合的成员列表里没有它。",
-                    node.Id));
+                issues.Add(Mismatch($"{node.Id}（节点）", node.Parent, node.Parent));
+            }
+        }
+    }
+
+    private static ValidationIssue Mismatch(string member, string compositeId, string? declaredParent) => new()
+    {
+        Code = ErrorCodes.MembershipMismatch,
+
+        // 两处不一致时把双方都写出来，看的人才知道该信哪个、该改哪个。
+        Message = $"{member} 是组合 {compositeId} 的成员，但它记录的父级是 {declaredParent ?? "空"}。"
+                  + "约定以组合的成员列表为准。",
+        RelatedId = member,
+        Suggestion = $"把父级字段改成 {compositeId}，或把该标识从组合 {compositeId} 的成员列表里移除。",
+    };
+
+    /// <summary>
+    /// 组合的归属关系不能成环。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 成环会让"向上找容器"这类遍历永远走不到头。这类问题在写入时不容易发现——
+    /// 单独看每一步都是合法的父子关系，只有连起来才成环。
+    /// </para>
+    /// <para>
+    /// 环上的**每一个**组合都会报一条，而不是只报一条。界面按标识高亮时，
+    /// 这样能把整个环都标出来；只报一个的话用户还得自己顺着找。
+    /// </para>
+    /// </remarks>
+    private static void CheckCompositeCycles(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        var composites = document.Composites.ToDictionary(c => c.Id, StringComparer.Ordinal);
+
+        foreach (var start in document.Composites)
+        {
+            var visited = new HashSet<string>(StringComparer.Ordinal) { start.Id };
+            var current = start.Parent;
+
+            while (current is not null)
+            {
+                if (!visited.Add(current))
+                {
+                    issues.Add(new ValidationIssue
+                    {
+                        Code = ErrorCodes.GroupCycle,
+                        Message = $"组合 {start.Id} 的归属关系成环，经由 {current} 回到了自己。",
+                        RelatedId = start.Id,
+                        Suggestion = $"断开 {start.Id} 与 {current} 之间的归属关系，或把其中一个改为顶层组合。",
+                    });
+
+                    break;
+                }
+
+                current = composites.TryGetValue(current, out var composite) ? composite.Parent : null;
             }
         }
     }
@@ -217,10 +292,13 @@ public static class DiagramValidator
         {
             foreach (var member in tag.Members.Where(m => !document.IsIdTaken(m, except: null)))
             {
-                issues.Add(new ValidationIssue(
-                    "TAG_MEMBER_MISSING",
-                    $"标签 {tag.Id} 的成员 {member} 不存在。",
-                    tag.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.TagMemberMissing,
+                    Message = $"标签 {tag.Id} 的成员 {member} 不存在。",
+                    RelatedId = tag.Id,
+                    Suggestion = $"创建 {member}，或把它从标签 {tag.Id} 的成员列表里移除。",
+                });
             }
         }
 
@@ -228,10 +306,13 @@ public static class DiagramValidator
         {
             if (action.Target is not null && !document.IsIdTaken(action.Target, except: null))
             {
-                issues.Add(new ValidationIssue(
-                    "ACTION_TARGET_MISSING",
-                    $"动作 {action.Id} 的目标 {action.Target} 不存在。",
-                    action.Id));
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.ActionTargetMissing,
+                    Message = $"动作 {action.Id} 的目标 {action.Target} 不存在。",
+                    RelatedId = action.Id,
+                    Suggestion = $"创建 {action.Target}，或清空动作 {action.Id} 的目标。",
+                });
             }
         }
     }

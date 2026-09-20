@@ -54,4 +54,25 @@ public static class ErrorCodes
 
     /// <summary>标识为空或全是空白字符。</summary>
     public const string InvalidId = "INVALID_ID";
+
+    // ---- 整体校验器使用的码 ----
+    //
+    // 上面那些由命令的前置检查产生，下面这些由加载文件、接收同步结果时的整体校验产生。
+    // 分成两段是因为两者的使用场合不同：前者在写入前挡，后者在外部内容进来时挡。
+    // 命名风格一致，外部代理不需要区分来源就能按同一张表处理。
+
+    /// <summary>边指定的端口在该节点上不存在。</summary>
+    public const string EdgePortMissing = "EDGE_PORT_MISSING";
+
+    /// <summary>组合的成员列表与成员的父级字段互相矛盾。</summary>
+    public const string MembershipMismatch = "MEMBERSHIP_MISMATCH";
+
+    /// <summary>节点或组合的父级指向了一个不存在的组合。</summary>
+    public const string ParentMissing = "PARENT_MISSING";
+
+    /// <summary>标签的成员不存在。</summary>
+    public const string TagMemberMissing = "TAG_MEMBER_MISSING";
+
+    /// <summary>动作的目标不存在。</summary>
+    public const string ActionTargetMissing = "ACTION_TARGET_MISSING";
 }

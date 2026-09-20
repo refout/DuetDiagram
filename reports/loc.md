@@ -8,10 +8,10 @@
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
-| DuetDiagram.Core | 47 | 4933 | 2663 | 1505 | 765 |
-| DuetDiagram.Core.Tests | 14 | 2522 | 1831 | 269 | 422 |
+| DuetDiagram.Core | 48 | 5076 | 2734 | 1558 | 784 |
+| DuetDiagram.Core.Tests | 16 | 2701 | 1957 | 291 | 453 |
 | tools | 30 | 4822 | 3174 | 880 | 768 |
-| **合计** | **101** | **13181** | **8236** | **2847** | **2098** |
+| **合计** | **104** | **13503** | **8433** | **2922** | **2148** |
 
 ## 明细
 
@@ -60,7 +60,7 @@
 | CommandMemento.cs | 29 |
 | CommandResult.cs | 48 |
 | DiagramCommandBase.cs | 35 |
-| ErrorCodes.cs | 19 |
+| ErrorCodes.cs | 24 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -77,7 +77,7 @@
 | DefinitionCollection.cs | 36 |
 | DiagramDocument.cs | 221 |
 | DiagramEnums.cs | 99 |
-| DiagramValidator.cs | 182 |
+| DiagramValidator.cs | 238 |
 | EdgeDef.cs | 14 |
 | IDefinition.cs | 5 |
 | LayoutHints.cs | 91 |
@@ -86,6 +86,7 @@
 | Palette.cs | 29 |
 | Styles.cs | 53 |
 | SupportingDefs.cs | 62 |
+| ValidationIssue.cs | 10 |
 | DiagramHashing.cs | 172 |
 | DiagramJsonContext.cs | 58 |
 | DiagramSerializer.cs | 54 |
@@ -101,13 +102,15 @@
 | CommandBusTests.cs | 242 |
 | CorePurityTests.cs | 57 |
 | Harness.cs | 73 |
-| IrExtensionTests.cs | 461 |
+| IrExtensionTests.cs | 194 |
+| IrFixtures.cs | 218 |
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
 | RoundTripTests.cs | 122 |
 | SessionIdResolutionTests.cs | 57 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |
+| ValidatorTests.cs | 175 |
 | VersionLogTests.cs | 177 |
 | WorkspaceTests.cs | 94 |
 

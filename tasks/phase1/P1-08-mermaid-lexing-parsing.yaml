@@ -1,0 +1,65 @@
+id: P1-08
+title: Mermaid 词法与语法
+phase: 1
+status: in_progress
+depends_on: [P1-01]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Mermaid/DuetDiagram.Mermaid.csproj
+    - DuetDiagram.Mermaid/Lexing/MermaidToken.cs
+    - DuetDiagram.Mermaid/Lexing/MermaidLexer.cs
+    - DuetDiagram.Mermaid/Lexing/MermaidSource.cs
+    - DuetDiagram.Mermaid/Lexing/MermaidDiagramKind.cs
+    - DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj
+    - DuetDiagram.Mermaid.Tests/Corpus.cs
+    - DuetDiagram.Mermaid.Tests/LexerTests.cs
+    - DuetDiagram.Mermaid.Tests/CorpusLexingTests.cs
+  modify:
+    - DuetDiagram.slnx
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidLexing"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidCorpus"
+    expect: 全通过
+constraints:
+  - 解析器要自己写，选型表里没有任何 Mermaid 解析库
+  - 行是有意义的记号，不能当空白吞掉
+  - 定界符之内是自由文本，不按标识切分
+context:
+  - 方案原来的 Mermaider 是布局库而不是解析器，已在 Phase 0a 换掉
+  - 方案说「50 官方示例」但没有出处，实际采用冻结语料
+result:
+  verdict: 词法层完成，语法层待做
+  pushed_forward: 语料来源
+  corpus_decision:
+    rejected: 方案说的「50 官方示例」没有出处，且官方示例是手写的、干净得不真实
+    adopted: Phase 0a 冻结的一百份模型响应（两个 Mermaid 组各五十条）
+    reason: 它们正是解析器必须能吃下的东西——模型在真实提示词下的产出
+    mechanism: 语料缺席时测试显著失败而不是静默跳过
+  corpus_composition:
+    flowchart: 97
+    stateDiagram: 2
+    sequenceDiagram: 1
+    note: 状态图与状态机提示词对应，是模型的合理选择；时序图是「下单全链路」选了时序，IR 里没有对应类型
+  delivered:
+    kinds: 图类型识别，并区分「IR 表达不了」与「还没做」
+    lexer: 行有意义、标签自由文本、指令行自由尾部、左向连线、隐形连线
+    source: 剥代码围栏
+    tests: 词法用例加语料回归
+  design_decisions:
+    line_significant: 换行是有意义的记号。吞掉之后语句边界只能靠猜，紧凑写法与错误写法无法区分
+    label_opaque: 定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，按标识切会让它们全变成「不认识的东西」
+    free_tail_directives: 样式与类指令的尾部是属性列表而不是若干标识，整段收成一个记号
+    left_arrow_prefix: 左向连线按「尖括号前缀」统一处理，比逐种列举可靠
+    unknown_not_fatal: 不认识的字符产出记号而不抛异常，宽松模式要靠它定位坏在哪
+    allowed_not_forbidden: 标识字符按「允许什么」定义。按「不允许什么」定义的话，乱入的字符会悄悄变成节点名
+  findings:
+    corpus_mixed_kinds: 语料里混着状态图与时序图。没有这一步识别，时序图会被当流程图解析，然后在无关的位置报一个与真正原因无关的错
+    hyphens: 连字符既是连线的一部分又是标识的合法字符，按「遇到就连字符就切」会把 my-node-1 切碎
+    br_tags: 标签里的换行标记是最常见的写法，尖括号与斜杠在那里只是普通字符
+  not_verified:
+    - 语法分析尚未实现
+    - 状态图的解析未实现，IR 里有对应类型
+    - 时序图不可表达，导入时应当明确拒绝而不是误解析

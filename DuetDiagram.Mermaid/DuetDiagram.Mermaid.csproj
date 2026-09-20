@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Mermaid</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Mermaid 的导入导出。方案的技术选型里**没有任何 Mermaid 解析库**——
+    当时列在「布局引擎（主）」那一行的 Mermaider 是布局库，不是解析器，
+    而它已经在 Phase 0a 被验证不合格并换成了 Dagre。
+    因此这里的词法与语法是自己写的。
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

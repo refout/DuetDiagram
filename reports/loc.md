@@ -12,10 +12,12 @@
 | DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
+| DuetDiagram.Mermaid | 4 | 701 | 379 | 216 | 106 |
+| DuetDiagram.Mermaid.Tests | 3 | 642 | 455 | 79 | 108 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
 | tools | 21 | 3213 | 2153 | 528 | 532 |
-| **合计** | **130** | **18333** | **11386** | **3995** | **2952** |
+| **合计** | **137** | **19676** | **12220** | **4290** | **3166** |
 
 ## 明细
 
@@ -158,6 +160,23 @@
 | Graphs.cs | 53 |
 | LayoutRequestFactoryTests.cs | 154 |
 | LayoutTests.cs | 216 |
+
+### DuetDiagram.Mermaid
+
+| 文件 | 代码 |
+|---|---:|
+| MermaidDiagramKind.cs | 45 |
+| MermaidLexer.cs | 273 |
+| MermaidSource.cs | 23 |
+| MermaidToken.cs | 38 |
+
+### DuetDiagram.Mermaid.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| Corpus.cs | 53 |
+| CorpusLexingTests.cs | 118 |
+| LexerTests.cs | 284 |
 
 ### DuetDiagram.Render
 

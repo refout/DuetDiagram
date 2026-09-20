@@ -27,7 +27,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
 | `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
 | `tools/CompareHarness` | 对比测试语料生成（不进 sln） | 已落地 |
-| `DuetDiagram.Mermaid` / `.Llm` / `.Mcp` | 后续 Phase | 未创建 |
+| `DuetDiagram.Llm` / `.Mcp` | 后续 Phase | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
 
@@ -136,7 +136,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`MermaidLexing`、`MermaidCorpus`
 
 ## 新增一个命令的检查清单
 

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Poc.LayoutConstraints</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    一次性验证脚手架：把布局引擎不支持的两项约束用引擎之外的方式补齐，
+    并用可计算的不变量检验补齐结果是否可靠。它是调查工具而不是产品的一部分，
+    因此不进解决方案文件；结论固化之后即可删除。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Mostlylucid.Dagre" />
+  </ItemGroup>
+
+</Project>

@@ -9,8 +9,8 @@
 | DuetDiagram.App | 5 | 402 | 250 | 90 | 62 |
 | DuetDiagram.Core | 37 | 3102 | 1656 | 953 | 493 |
 | DuetDiagram.Core.Tests | 13 | 1925 | 1363 | 217 | 345 |
-| tools | 8 | 1396 | 974 | 194 | 228 |
-| **合计** | **64** | **6929** | **4315** | **1471** | **1143** |
+| tools | 16 | 2412 | 1621 | 413 | 378 |
+| **合计** | **72** | **7945** | **4962** | **1690** | **1293** |
 
 ## 明细
 
@@ -102,4 +102,12 @@
 | LayoutModels.cs | 41 |
 | Program.cs | 36 |
 | SugiyamaCandidate.cs | 85 |
+| AnchorRestore.cs | 35 |
+| ConstraintLayoutPipeline.cs | 45 |
+| DagreEngine.cs | 40 |
+| InvariantChecks.cs | 275 |
+| LayoutModels.cs | 44 |
+| Program.cs | 10 |
+| RowReflow.cs | 67 |
+| SameRankContraction.cs | 131 |
 

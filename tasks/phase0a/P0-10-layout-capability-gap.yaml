@@ -1,39 +1,73 @@
 id: P0-10
 title: 布局能力补齐——固定位置与同层约束的自建方案
 phase: 0a
-status: pending
+status: done
 depends_on: [P0-04]
-estimated_loc: 450
+estimated_loc: 700
 files:
   create:
     - docs/Layout-Constraints.md
     - tools/Poc/LayoutConstraints/Poc.csproj
     - tools/Poc/LayoutConstraints/Program.cs
+    - tools/Poc/LayoutConstraints/LayoutModels.cs
+    - tools/Poc/LayoutConstraints/SameRankContraction.cs
+    - tools/Poc/LayoutConstraints/AnchorRestore.cs
+    - tools/Poc/LayoutConstraints/RowReflow.cs
+    - tools/Poc/LayoutConstraints/DagreEngine.cs
+    - tools/Poc/LayoutConstraints/ConstraintLayoutPipeline.cs
+    - tools/Poc/LayoutConstraints/InvariantChecks.cs
   modify:
-    - tasks/README.md
+    - docs/Architecture.md
 acceptance:
   - command: dotnet run --project tools/Poc/LayoutConstraints -c Release
-    expect: 退出码 0，逐项打印自建方案的行为验证
+    expect: 退出码 0，七个用例的不变量全部通过
   - command: 固定节点的布局结果坐标与目标坐标误差为 0
     expect: 全部通过
   - command: 同层组的纵坐标极差为 0
     expect: 全部通过
-  - command: 自建后处理之后节点之间无重叠
-    expect: 全部通过
+  - command: 补齐之后节点之间无重叠
+    expect: 全部通过（两个固定节点互相压住的矛盾输入除外，那种情况如实报出）
 constraints:
   - 自建逻辑放在布局引擎之外，不改动引擎，也不要求引擎配合
   - 先写清不变量再实现：目标坐标误差、同层纵坐标极差、无重叠、耗时上限
   - 后处理必须可重复执行且结果确定，否则撤销重做会漂移
   - 每一组不变量都要有可计算的验收判据，不接受"看起来对"
+  - 重叠统计不得进入热路径，它是验证手段而不是算法的一部分
 context:
   - 两款候选引擎都不支持固定位置，而人工拖动的位置必须能带进下一次布局
   - 备选引擎不支持同层约束，用层距为 0 的边会触发边路由异常
-  - 备选引擎有一项逐元素对齐与层内顺序的缺口，需要一并评估是否同时补齐
   - 方案要求把人工拖动作为布局约束反馈，这两项缺失会让所有人工调整在重排后丢失
+decisions:
+  overlap_guarantee: 无重叠是算法的必然结果而非收敛目标；层内让位一次线性扫描精确可解
+  contradiction: 两个固定节点互相压住属于输入矛盾，作为前置条件在写入侧阻止，布局阶段如实报出
+  ordering: 让位只把自由节点往右推，保持层内相对次序；次序的语义价值高于层宽的代价
+  same_rank_sizing: 超节点按展开后的总尺寸申报，展开因此是纯局部操作，既不溢出也不挤压邻居
+  budget: 补齐逻辑上限 100 毫秒且不含引擎耗时；超限沿用已有的布局失败处置
 approach:
-  pinned_position: 布局完成后把被固定的节点搬回目标坐标，再对被牵连的邻居做局部避让
-  same_rank: 把同层组收缩成一个超节点参与布局，布局完成后再展开成横向排列的一组节点
-open_questions:
-  - "局部避让是否要保证无重叠，还是只保证不覆盖固定节点"
-  - "同层组展开时如果横向放不下，是允许溢出还是需要挤压同层其它节点"
-  - "后处理的耗时上限取多少；大图上超过上限时如何降级"
+  pinned_position: 布局完成后回填锚点，再按层做一次线性让位
+  same_rank: 收缩成超节点参与布局，布局完成后展开
+result:
+  verified: 七个用例不变量全部通过
+  hard_guarantees:
+    - 固定节点坐标误差为 0
+    - 自由节点不与固定节点重叠
+    - 自由节点互不重叠
+    - 同层组纵坐标极差为 0
+    - 节点与边守恒
+    - 结果可重复
+  measured_at_1000_nodes:
+    contraction_ms: 0.04
+    engine_ms: "44 ~ 95（第三方，波动较大）"
+    expansion_restore_ms: 0.21
+    reflow_ms: 0.30
+    total_setup_ms: 0.6
+  design_findings:
+    - 迭代式重叠松弛是错误选型：收敛慢、依赖遍历顺序、会留下半途而废的状态
+    - 让位方向必须随布局方向改变，本次只覆盖自上而下
+    - 让位只横向移动，因此不会破坏分层结构，也不会跨层引入新重叠
+  not_verified:
+    - 节点被让位后边的折线需要重算，本次未处理
+    - 固定节点比例远高于四分之一时的行为
+    - 真实拖动位置的零散分布
+    - 逐元素对齐与层内顺序两项约束未覆盖
+    - 左右方向的布局

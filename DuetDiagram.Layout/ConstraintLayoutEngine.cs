@@ -29,27 +29,39 @@ namespace DuetDiagram.Layout;
 /// 唯一真正无解的情形是两个固定节点互相压住——那是输入本身矛盾，只能如实报出来。
 /// </para>
 /// </remarks>
-public sealed class ConstraintLayoutEngine
+public sealed class ConstraintLayoutEngine : ILayoutEngine
 {
     /// <summary>求解一次布局。</summary>
-    public LayoutResult Layout(LayoutRequest request)
+    public EngineLayoutResult Layout(LayoutRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return Layout(request.Nodes, request.Edges, request.Options);
+        return Layout(request.Nodes, request.Edges, request.Options, cancellationToken);
     }
 
     /// <summary>
     /// 求解一次布局。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 输入为空时返回空结果而不是抛异常：空图是一个合法状态（用户刚新建文档），
     /// 让调用方为此写一个分支没有意义。
+    /// </para>
+    /// <para>
+    /// 取消令牌在**每个阶段之间**检查。阶段内部不再细分检查点：
+    /// 每个阶段本身是毫秒级的，而每个节点都检查一次会把令牌检查的开销
+    /// 摊进算法本身的耗时里，得不偿失。代价是超时可能比预算多出一个阶段的时长。
+    /// </para>
+    /// <para>
+    /// 引擎调用那一阶段**无法被取消**——它是第三方的同步调用，不看我们的令牌。
+    /// 这一阶段的超时只能由调用方从外面兜（见协调器）。
+    /// </para>
     /// </remarks>
-    public LayoutResult Layout(
+    public EngineLayoutResult Layout(
         IReadOnlyList<LayoutNode> nodes,
         IReadOnlyList<LayoutEdge> edges,
-        LayoutOptions? options = null)
+        LayoutOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(edges);
@@ -60,13 +72,15 @@ public sealed class ConstraintLayoutEngine
 
         if (nodeArray.Length == 0)
         {
-            return new LayoutResult(
+            return new EngineLayoutResult(
                 [],
                 [],
                 0,
                 0,
                 new LayoutDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, default, default, default, default, default));
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var contractionWatch = Stopwatch.StartNew();
         var contraction = SameRankContraction.Contract(
@@ -76,9 +90,13 @@ public sealed class ConstraintLayoutEngine
             effective.NodeSpacing);
         contractionWatch.Stop();
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var engineWatch = Stopwatch.StartNew();
         var placed = EngineAdapter.Compute(contraction.Graph, effective);
         engineWatch.Stop();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var restorationWatch = Stopwatch.StartNew();
         var expanded = SameRankContraction.Expand(placed, contraction.Expansions, nodeArray);
@@ -90,9 +108,13 @@ public sealed class ConstraintLayoutEngine
             .Select(n => n.Id)
             .ToHashSet(StringComparer.Ordinal);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var reflowWatch = Stopwatch.StartNew();
         var reflow = RowReflow.Apply(restored, anchored, effective.RanksAreVertical, effective.NodeSpacing);
         reflowWatch.Stop();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         // 折线必须跟着重算。引擎给的是按旧坐标画的线，节点被移动之后那些线就指向了旧位置。
         var routingWatch = Stopwatch.StartNew();
@@ -127,7 +149,7 @@ public sealed class ConstraintLayoutEngine
             reflowWatch.Elapsed,
             routingWatch.Elapsed);
 
-        return new LayoutResult(
+        return new EngineLayoutResult(
             reflow.Nodes,
             routed,
             reflow.Nodes.Max(n => n.Right),

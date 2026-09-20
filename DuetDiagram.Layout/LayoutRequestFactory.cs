@@ -26,6 +26,10 @@ public sealed record LayoutRequest(
 /// 固定坐标来自人工产物的那份映射，不从 IR 读：坐标属于渲染结果，
 /// 存进 IR 会让同一份语义在不同机器上产生不同的文档内容。
 /// </para>
+/// <para>
+/// 产出的是**任务**而不是请求：任务里带着带归属方的约束，协调器要靠归属方决定降级时丢什么。
+/// 直接调引擎时用 <see cref="LayoutJob.ToRequest"/> 转成请求。
+/// </para>
 /// </remarks>
 public static class LayoutRequestFactory
 {
@@ -40,7 +44,7 @@ public static class LayoutRequestFactory
     /// 同一个节点在这次调用里量出 80 宽、下次量出 96 宽，布局结果会随之跳动，
     /// 而表现是"图会自己变形"，很难与其它原因区分开。
     /// </remarks>
-    public static LayoutRequest FromDocument(
+    public static LayoutJob FromDocument(
         DiagramDocument document,
         Func<NodeDef, Size> measure,
         IReadOnlyDictionary<string, LayoutPoint>? pinnedNodes = null)
@@ -69,29 +73,8 @@ public static class LayoutRequestFactory
             .Select(edge => new LayoutEdge(edge.Id, edge.From, edge.To, edge.FromPort, edge.ToPort))
             .ToArray();
 
-        var hints = document.Layout;
-
-        return new LayoutRequest(
-            nodes,
-            edges,
-            new LayoutOptions(
-                document.Direction,
-                hints.NodeSpacing,
-                hints.LayerSpacing,
-                SameRankGroups(hints)));
+        return new LayoutJob(nodes, edges, document.Direction, document.Layout);
     }
-
-    /// <summary>
-    /// 收集同层组。
-    /// </summary>
-    /// <remarks>
-    /// 不带归属方过滤：归属方决定的是冲突时听谁的，而冲突已经在进布局之前处理掉了。
-    /// 到了这一层，留下的每一条约束都应当被执行。
-    /// </remarks>
-    private static IReadOnlyList<IReadOnlyList<string>> SameRankGroups(LayoutHints hints) =>
-    [
-        .. hints.SameRank.Select(c => c.Value.Nodes),
-    ];
 
     private static IReadOnlyList<LayoutPort>? Ports(NodeDef node) =>
         node.Ports.Count == 0

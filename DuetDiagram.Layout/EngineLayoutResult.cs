@@ -113,7 +113,7 @@ public sealed record LayoutDiagnostics(
 }
 
 /// <summary>布局结果。</summary>
-public sealed record LayoutResult(
+public sealed record EngineLayoutResult(
     PlacedNode[] Nodes,
     RoutedEdge[] Edges,
     double Width,

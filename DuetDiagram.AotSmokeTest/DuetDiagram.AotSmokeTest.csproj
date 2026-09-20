@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StackTraceSupport>false</StackTraceSupport>
+  </PropertyGroup>
+
+  <!--
+    P1 判据 #9 / P1-18: Memento 多态序列化在 AOT 下必须能编译并运行。
+    本程序只引用 DuetDiagram.Core，不得引用任何测试或 UI 依赖。
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

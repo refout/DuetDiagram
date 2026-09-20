@@ -1,0 +1,39 @@
+id: P0-01
+title: NuGet 版本核查与精确锁定
+phase: 0a
+status: done
+depends_on: []
+estimated_loc: 60
+files:
+  create:
+    - Directory.Packages.props
+    - Directory.Build.props
+    - nuget.config
+    - global.json
+acceptance:
+  - command: grep -E 'Version="[^"]*[*]' Directory.Packages.props
+    expect: 无输出（不得出现通配版本）
+  - command: dotnet restore DuetDiagram.slnx
+    expect: exit 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: exit 0，0 警告
+constraints:
+  - 方案 §2 的六个主选依赖必须逐个核实真实存在，不得凭方案文字直接写版本号
+  - Phase 0a 未用到的包不得提前写入 Directory.Packages.props
+context:
+  - 方案 §2 技术选型与版本锁定
+  - 方案 §13.3 P0-01
+result:
+  verified_on: 2026-09-20
+  feed: https://nuget.azure.cn/v3/index.json
+  packages:
+    - { name: Avalonia, version: 12.1.2, exists: true }
+    - { name: SkiaSharp, version: 4.148.0, exists: true, note: stable }
+    - { name: Microsoft.Extensions.AI, version: 10.7.0, exists: true }
+    - { name: ModelContextProtocol, version: 2.2.0, exists: true }
+    - { name: Mermaider, version: 0.12.2, exists: true, latest: 0.13.1 }
+    - { name: Mostlylucid.Dagre, version: 2.0.1, exists: true }
+  deviations:
+    - 本机仅有 .NET SDK 10.0.303，TargetFramework 定为 net10.0
+    - 测试栈改用 xunit.v3 4.0.1 + Microsoft.Testing.Platform（.NET 10 SDK 起 dotnet test 不再支持 VSTest）
+    - FluentAssertions 锁 7.2.2（8.x 起为商业许可）而非方案所述的任意版本

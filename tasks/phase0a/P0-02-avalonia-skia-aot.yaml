@@ -1,0 +1,34 @@
+id: P0-02
+title: Avalonia + SkiaSharp AOT 最小应用
+phase: 0a
+status: pending
+depends_on: [P0-01]
+estimated_loc: 200
+files:
+  create:
+    - DuetDiagram.App/DuetDiagram.App.csproj
+    - DuetDiagram.App/Program.cs
+    - DuetDiagram.App/App.axaml
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+  modify:
+    - DuetDiagram.slnx
+    - Directory.Packages.props
+acceptance:
+  - command: dotnet publish DuetDiagram.App -c Release -r win-x64
+    expect: exit 0，产出原生 exe
+  - command: 记录冷启动实测毫秒数
+    expect: 写入 reports/phase0a.md
+  - command: dotnet publish DuetDiagram.App -c Release -r win-x64 /p:PublishTrimmed=true
+    expect: exit 0
+constraints:
+  - 只为验证可行性，不实现画布逻辑
+  - 若 AOT 失败，必须在 reports/phase0a.md 记录失败点与备选（Avalonia 11 LTS）
+  - 不得把 Avalonia 引用扩散到 DuetDiagram.Core（P1 判据 #1）
+context:
+  - 方案 §2 技术选型
+  - 方案 §10 性能目标（冷启动 ≤ 基线 × 1.2 且 ≤ 2s）
+  - docs/Architecture.md「构建环境要求」（原生链接需要 MSVC C++ 工作负载）
+risk:
+  - Avalonia 12 是极新的大版本，AOT + SkiaSharp 组合未经验证
+  - 决策门 0 的红色判定点之一

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      xunit.v3 走 Microsoft.Testing.Platform：.NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标，
+      因此不引入 Microsoft.NET.Test.Sdk / xunit.runner.visualstudio。
+      MTP 模式的启用开关在仓库根的 global.json 的 test.runner 段，不在本文件。
+    -->
+    <OutputType>Exe</OutputType>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

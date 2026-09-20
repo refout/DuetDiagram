@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.slnx  text
+*.cs    text diff=csharp
+*.csproj text
+*.props text
+*.targets text
+*.md    text
+*.yml   text
+*.yaml  text
+*.json  text
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.skp binary
+
+# Phase 0 P0-08 (DSL vs Mermaid comparison) caches 50 raw LLM responses in reports/raw/.
+# They are large, immutable and must never be line-diffed.
+reports/raw/** filter=lfs diff=lfs merge=lfs -text

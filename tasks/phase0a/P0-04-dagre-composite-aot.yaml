@@ -1,0 +1,24 @@
+id: P0-04
+title: Mostlylucid.Dagre 复合图支持与 AOT 验证
+phase: 0a
+status: pending
+depends_on: [P0-01]
+estimated_loc: 250
+files:
+  create:
+    - tools/Poc/DagreComposite/Poc.csproj
+    - tools/Poc/DagreComposite/Program.cs
+    - reports/phase0a-dagre.md
+  modify: []
+acceptance:
+  - command: dotnet run --project tools/Poc/DagreComposite
+    expect: exit 0，嵌套分组的层序与边界正确
+  - command: dotnet publish tools/Poc/DagreComposite -c Release -r win-x64
+    expect: exit 0
+constraints:
+  - PoC 项目不进 DuetDiagram.slnx
+  - 结论必须回答「复合图能否作为 DuetDiagram.Layout 的主选」，以及 P0-03 失败时能否顶上
+context:
+  - 方案 §2 备选列
+  - 方案 §4.1 CompositeDef（GroupDef / LaneDef / SubflowDef / ComboDef）
+  - 方案 §13.3 P0-04

@@ -1,0 +1,23 @@
+id: P0-09
+title: MEAI 与 MCP 共用同一份工具定义 PoC
+phase: 0a
+status: pending
+depends_on: [P0-01]
+estimated_loc: 300
+files:
+  create:
+    - tools/Poc/SharedTools/Poc.csproj
+    - tools/Poc/SharedTools/Program.cs
+    - reports/phase0a-shared-tools.md
+  modify: []
+acceptance:
+  - command: dotnet run --project tools/Poc/SharedTools
+    expect: 一个 ToolDescriptor 同时产出 AIFunction 与 McpServerTool，且参数 schema 一致
+constraints:
+  - PoC 项目不进 DuetDiagram.slnx
+  - 结论必须回答方案 §6.3 的问题：ToolRegistry 能否同时供 MEAI 与 MCP。
+    不能则明确降级为「命令层共用 + 工具定义各自维护」，并把结论写进 docs/Architecture.md
+context:
+  - 方案 §6.1 八个粗粒度工具
+  - 方案 §6.3 工具定义共用
+  - 方案 §13.3 P0-09

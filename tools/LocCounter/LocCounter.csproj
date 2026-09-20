@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Tools.LocCounter</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    LOC 统计脚本（方案 §12 / P1-15）。
+    刻意不进 DuetDiagram.slnx：它是构建工具，不是产品的一部分。
+    用法：dotnet run 加 project 参数指向 tools/LocCounter。
+  -->
+
+</Project>

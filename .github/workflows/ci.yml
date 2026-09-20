@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  CONFIGURATION: Release
+
+jobs:
+  build-and-test:
+    name: 编译 + 测试 + 契约门禁
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore DuetDiagram.slnx
+
+      - name: Build（警告即错误）
+        run: dotnet build DuetDiagram.slnx -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Test
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+
+      # P1 判据 #1：DuetDiagram.Core 仅依赖 BCL
+      - name: Core 引用门禁（csproj 层）
+        run: |
+          if grep -qE '<(Package|Project)Reference' DuetDiagram.Core/DuetDiagram.Core.csproj; then
+            echo "::error file=DuetDiagram.Core/DuetDiagram.Core.csproj::Core 不得引用任何包或项目"
+            exit 1
+          fi
+
+      # P1 判据 #1：程序集引用表层（覆盖传递依赖）
+      - name: Core 引用门禁（程序集层）
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=CorePurity"
+
+      # P1 判据 #12：Memento 多态注册完整
+      - name: Memento 注册门禁
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MementoRegistration"
+
+      # P1 判据 #22：LOC 一致
+      - name: LOC 一致性
+        run: dotnet run --project tools/LocCounter -c ${{ env.CONFIGURATION }} -- --root "$PWD" --check
+
+  aot:
+    name: AOT 发布 + 冒烟
+    # 原生链接需要 MSVC 工具链，只有 windows runner 具备
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # P1 判据 #9 / #21：Memento 在 AOT 下编译并运行
+      - name: Publish AOT
+        run: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c ${{ env.CONFIGURATION }}
+
+      - name: 运行冒烟程序
+        run: |
+          $exe = "DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe"
+          $output = & $exe
+          Write-Host $output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($output -notmatch "AOT smoke test: PASS") {
+            Write-Error "冒烟程序未报告 PASS"
+            exit 1
+          }
+        shell: pwsh

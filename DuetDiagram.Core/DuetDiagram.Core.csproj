@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Core</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    P1 判据 #1: DuetDiagram.Core 仅依赖 BCL。
+    本文件不得出现任何 NuGet 包引用或项目引用。
+    门禁 1: CI 用 grep 扫本文件（因此注释里也不要写出那两个标签名）。
+    门禁 2: CorePurityTests.Core_references_only_the_base_class_library 扫程序集引用表。
+  -->
+
+</Project>

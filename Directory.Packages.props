@@ -1,0 +1,35 @@
+<Project>
+
+  <!--
+    方案 2. 技术选型 — 版本锁定：全部精确版本，不允许通配。
+    Phase 0 P0-01 验收：本文件不得出现 '*' 或区间版本。
+
+    已核实（2026-09-20，nuget.azure.cn）：
+      Avalonia                12.1.2   exists
+      SkiaSharp               4.148.0  exists (stable)
+      Microsoft.Extensions.AI 10.7.0   exists
+      ModelContextProtocol    2.2.0    exists
+      Mermaider               0.12.2   exists
+      Mostlylucid.Dagre       2.0.1    exists
+
+    尚未引入的包（按 Phase 引入时再登记，禁止提前加）：
+      Avalonia / SkiaSharp / Microsoft.Extensions.AI / ModelContextProtocol
+      Mermaider / Mostlylucid.Dagre  → Phase 0a P0-02 / P0-03 / P0-04 / P0-05
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Test stack">
+    <!-- xunit.v3 自带 Microsoft.Testing.Platform runner，无需 VSTest 桥接包。 -->
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <!--
+      FluentAssertions 8.x 起改为商业许可（Xceed）。7.2.2 是最后一个 Apache-2.0 版本，
+      公开 API 与 8.x 基本一致，升级只需改版本号。若确定已购授权可改为 8.11.0。
+    -->
+    <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+  </ItemGroup>
+
+</Project>

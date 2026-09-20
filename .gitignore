@@ -1,0 +1,40 @@
+## Build output
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+*.userprefs
+
+## IDE
+.vs/
+.idea/
+.vscode/
+*.DotSettings.user
+
+## Test / coverage
+TestResults/
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+
+## BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
+## Rider / VS build caches
+*.nupkg
+*.snupkg
+
+## Local secrets and machine state
+secrets/
+*.local.json
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## NuGet
+packages/
+.packages/

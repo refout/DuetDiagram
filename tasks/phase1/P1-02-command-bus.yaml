@@ -1,0 +1,62 @@
+id: P1-02
+title: 命令总线 + 撤销重做 + 版本日志 + 审计日志 + 历史栈 + 会话提供者 + 版本检查 + 广播器 + 上下文
+phase: 1
+status: done
+depends_on: [P1-01]
+estimated_loc: 800
+files:
+  create:
+    - DuetDiagram.Core/Commands/IDiagramCommand.cs
+    - DuetDiagram.Core/Commands/DiagramCommandBase.cs
+    - DuetDiagram.Core/Commands/CommandResult.cs
+    - DuetDiagram.Core/Commands/CommandError.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.Core/Commands/ValidationResult.cs
+    - DuetDiagram.Core/Commands/FieldChange.cs
+    - DuetDiagram.Core/Commands/ChangeContext.cs
+    - DuetDiagram.Core/Commands/ChangeSource.cs
+    - DuetDiagram.Core/Commands/ISessionProvider.cs
+    - DuetDiagram.Core/Commands/SessionIds.cs
+    - DuetDiagram.Core/Logging/VersionLog.cs
+    - DuetDiagram.Core/Logging/VersionEntry.cs
+    - DuetDiagram.Core/Logging/DiffResult.cs
+    - DuetDiagram.Core/Logging/AuditLog.cs
+    - DuetDiagram.Core/History/HistoryStack.cs
+    - DuetDiagram.Core/Broadcasting/IChangeBroadcaster.cs
+    - DuetDiagram.Core/Broadcasting/InProcessBroadcaster.cs
+    - DuetDiagram.Core/Broadcasting/NullChangeBroadcaster.cs
+    - DuetDiagram.Core/Bus/DiagramCommandBus.cs
+    - DuetDiagram.Core/Bus/DiagramCommandBusContext.cs
+    - DuetDiagram.Core/Bus/DiagramCommandBusOptions.cs
+    - DuetDiagram.Core/Bus/VersionCheckRequest.cs
+    - DuetDiagram.Core/Time/ITimeProvider.cs
+    - DuetDiagram.Core/Diagnostics/IDiagnosticsSink.cs
+    - DuetDiagram.Core/Workspace/DiagramWorkspace.cs
+  modify: []
+  test:
+    - DuetDiagram.Core.Tests/CommandBusTests.cs
+    - DuetDiagram.Core.Tests/VersionLogTests.cs
+    - DuetDiagram.Core.Tests/AtomicityTests.cs
+    - DuetDiagram.Core.Tests/NestedExecuteTests.cs
+    - DuetDiagram.Core.Tests/BroadcasterTests.cs
+    - DuetDiagram.Core.Tests/SessionIdResolutionTests.cs
+    - DuetDiagram.Core.Tests/UndoStressTests.cs
+    - DuetDiagram.Core.Tests/WorkspaceTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj
+    expect: 全通过
+  - command: dotnet test ... -- --filter-trait "Category=DiffBoundary"
+    expect: BuildDiff 的 8 条边界全部覆盖
+constraints:
+  - Apply 失败必须整体回滚，Execute 与 Redo 一视同仁（约定 2）
+  - Timestamp 只由总线填充（约定 4）
+  - 命令内部不得异步调用 Execute（约定 7）
+  - NullChangeBroadcaster 判据用 is 而非 null（约定 10）
+  - 有界 Channel 1024 / DropOldest（约定 12）
+  - DisposeAsync 等待分发任务，超时 2 秒且超时不释放 CTS（约定 13）
+result:
+  landed: true
+  deviations:
+    - Context 依赖从 11 项降为 8 项（未实现 Sidecar / Layout / Renderer）
+    - 未提供 IDiagramCommand.Undo，由 RestoreMemento 承担
+    - BuildDiff 的调用方在 Undo/Redo 路径上复用 Memento 的 AffectedIds / InverseChanges

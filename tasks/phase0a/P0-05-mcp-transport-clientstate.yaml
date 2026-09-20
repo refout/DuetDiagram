@@ -1,0 +1,30 @@
+id: P0-05
+title: ModelContextProtocol 传输验证与 initialize 自定义字段
+phase: 0a
+status: pending
+depends_on: [P0-01]
+estimated_loc: 300
+files:
+  create:
+    - tools/Poc/McpTransport/Poc.csproj
+    - tools/Poc/McpTransport/Program.cs
+    - reports/phase0a-mcp.md
+  modify: []
+acceptance:
+  - command: 手动跑 stdio 传输的 client/server 回环
+    expect: initialize + tools/list + tools/call 全部返回
+  - command: 手动跑 HTTP long-polling
+    expect: 同上，且 30s 超时返回空响应而非挂死
+  - command: initialize 请求携带 clientState（documentId / hasVersion / structuralHash），响应返回 clientStateAck
+    expect: accepted 与 reason 字段可达
+constraints:
+  - PoC 项目不进 DuetDiagram.slnx
+  - 结论必须回答「clientState / clientStateAck 这两个自定义字段能否通过 SDK 传递」，
+    不能则按方案 §6.3 的降级路径：命令层共用 + 工具定义各自维护
+  - long-polling 超时必须用 linked CTS + 先完成者胜出，不得用 Task.WhenAny 泄漏任务
+context:
+  - 方案 §7.1 传输
+  - 方案 §7.3 会话初始化与 clientState
+  - 方案 §13.3 P0-05
+risk:
+  - MCP 规范不对齐 → 决策门 0 转黄

@@ -1,0 +1,36 @@
+id: P1-01
+title: IR 与 JSON 序列化
+phase: 1
+status: done
+depends_on: [P0-01]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Core/Model/DiagramDocument.cs
+    - DuetDiagram.Core/Model/NodeDef.cs
+    - DuetDiagram.Core/Model/EdgeDef.cs
+    - DuetDiagram.Core/Model/DiagramEnums.cs
+    - DuetDiagram.Core/Serialization/DiagramJsonContext.cs
+    - DuetDiagram.Core/Serialization/DiagramSerializer.cs
+    - DuetDiagram.Core/Serialization/DiagramHashing.cs
+  modify: []
+  test:
+    - DuetDiagram.Core.Tests/RoundTripTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=RoundTrip"
+    expect: 全通过
+  - command: 断言 DiagramSerializer.Normalize(Deserialize(Serialize(doc))) == Serialize(doc)
+    expect: 逐字节一致
+constraints:
+  - 集合对外只读，修改只能通过命令（AGENTS.md 约定 1）
+  - 哈希 Phase 1 一律全量（约定 6）
+  - 序列化必须走源生成，AOT 安全，不得使用反射式 JsonSerializer
+result:
+  landed: true
+  notes:
+    - DiagramDocument 的反序列化构造函数参数类型必须与属性类型完全一致（IReadOnlyList<T>），
+      放宽成 List<T> 会被 System.Text.Json 以 "constructor parameter must bind to an object property" 拒绝
+  deferred:
+    - 九个集合中的 Pages / Layers / Composites / Tags / Actions / Fonts / TextPresets
+    - Palette / Layout / Canvas 三个子对象
+    - 快照三方法 TakeFullSnapshot / RestoreFromSnapshot / ApplySnapshot

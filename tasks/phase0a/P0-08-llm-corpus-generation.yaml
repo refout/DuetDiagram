@@ -1,0 +1,27 @@
+id: P0-08
+title: LLM 客户端生成 50 prompt 对比测试语料
+phase: 0a
+status: pending
+depends_on: []
+estimated_loc: 350
+files:
+  create:
+    - tools/CompareHarness/Harness.csproj
+    - tools/CompareHarness/Program.cs
+    - tools/CompareHarness/prompts.json
+    - reports/raw/.gitkeep
+  modify:
+    - .gitattributes
+acceptance:
+  - command: dotnet run --project tools/CompareHarness
+    expect: 50 个 prompt 的原始响应全部落到 reports/raw/
+  - command: git lfs ls-files
+    expect: reports/raw/ 下的文件走 LFS
+constraints:
+  - 用 HttpClient 直接调用，**不使用** Microsoft.Extensions.AI
+  - 项目不进 DuetDiagram.slnx
+  - 测试集固定：20 简单 / 20 中等 / 10 复杂，结果缓存后不再重新生成
+  - 预算上限 30 美元
+context:
+  - 方案 §15.3 DSL vs Mermaid 对比测试
+  - 方案 §13.4 P0-08

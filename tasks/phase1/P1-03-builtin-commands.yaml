@@ -1,0 +1,36 @@
+id: P1-03
+title: 内置命令 + 原子性测试 + Memento 注册
+phase: 1
+status: done
+depends_on: [P1-02]
+estimated_loc: 650
+files:
+  create:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ConnectEdgeCommand.cs
+  modify: []
+  test:
+    - DuetDiagram.Core.Tests/MementoRegistrationTests.cs
+    - DuetDiagram.Core.Tests/TestCommands.cs
+    - DuetDiagram.Core.Tests/Harness.cs
+acceptance:
+  - command: dotnet test ... -- --filter-trait "Category=MementoRegistration"
+    expect: 程序集内全部具体 Memento 与 [JsonDerivedType] 注册集合一致
+  - command: dotnet test ... -- --filter-trait "Category=Atomicity"
+    expect: 全通过
+constraints:
+  - Memento 用抽象基类 + 派生密封记录，禁止 object（约定 5）
+  - CaptureMemento 与 Apply 对同一文档必须给出一致的索引
+  - RestoreCore 必须能还原边顺序
+scope_note: |
+  方案称「40+ 命令」。本任务只交付 3 条代表性命令，把命令契约、
+  原子性回滚、多态 Memento 注册这三条地基验证透。
+  其余命令按分组拆成后续任务，清单见 docs/Command-List.md。
+result:
+  landed: true
+  remaining_groups:
+    - 节点：update-node-label / move-node-layer / set-node-shape / reorder-node
+    - 边：disconnect-edge / set-edge-label / set-edge-route / reconnect-edge / add-edge-waypoints
+    - 样式 / 布局 / 组合 / 图层 / 页面 / 调色板 / 标签 / 动作 / 文档

@@ -1,0 +1,57 @@
+id: P1-12
+title: 四级降级、路径预算、级别唯一性与尝试记录
+phase: 1
+status: done
+depends_on: [P1-11]
+estimated_loc: 300
+files:
+  create:
+    - DuetDiagram.Layout/Fallback.cs
+    - DuetDiagram.Layout/FallbackPlan.cs
+    - DuetDiagram.Layout/ILayoutEngine.cs
+    - DuetDiagram.Layout/LayoutCoordinator.cs
+    - DuetDiagram.Layout/LayoutBudgets.cs
+    - DuetDiagram.Layout.Tests/FallbackTests.cs
+  modify:
+    - DuetDiagram.Layout/EngineLayoutResult.cs
+    - DuetDiagram.Layout/ConstraintLayoutEngine.cs
+    - DuetDiagram.Layout/LayoutRequestFactory.cs
+    - DuetDiagram.Layout.Tests/LayoutTests.cs
+    - DuetDiagram.Layout.Tests/LayoutRequestFactoryTests.cs
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=LayoutFallback"
+    expect: 全通过
+constraints:
+  - 引擎不得感知降级级别
+  - 引擎返回类型与协调器返回类型分离
+  - 级别在计划中不得重复
+  - 固定位置一直保留到最后一级之前
+context:
+  - 方案 §5.2 规定四级降级、四个预算与保留项矩阵
+  - 方案 §10 要求级别唯一性与引擎返回类型分离
+result:
+  verdict: 完成
+  delivered:
+    types: 级别、计划、尝试记录、失败载荷、失败异常
+    interface_split: 引擎返回不含级别的结果，协调器包装出带级别与尝试的结果
+    matrix: 保留项矩阵逐级丢掉约束的归属方
+    coordinator: 按计划逐级尝试，第一个在预算内成功的即结果
+    budgets: 四个场景的路径预算
+    conflict_log: 降级时记录丢掉了什么
+  design_decisions:
+    engine_blind: 引擎不得感知降级级别。它内部若长出「这是降级输入就少做点什么」的分支，同一个级别组合在不同路径上会走出不同算法
+    downgrade_is_input: 降级退化成一次纯函数式的输入变换，没有额外的代码路径需要验证
+    unique_levels: 重复的级别要么白花时间（都超时）要么预算形同虚设（第一次就成功），构造时拒绝而不是等它表现成「偶尔特别慢」
+    drop_by_owner: 逐级丢的是约束的归属方而不是种类。人定的比模型定的更值得保留——人看到图变样会立刻发觉
+    pins_last: 固定位置是唯一由人直接给出的坐标，也是唯一丢了用户立刻会发觉的东西，保留到最后一级之前
+    hard_timeout: 超时用带时限的等待判定，不靠引擎自己看令牌。引擎调用是第三方同步调用，不会为了配合我们的预算而变得可中断；靠协作式取消的话，一个跑十分钟的引擎调用会把四级预算一起吞掉
+    abandoned_is_safe: 被放弃的那一次仍在跑，但引擎是纯函数，不碰共享状态也不改文档；取消令牌让它在下个阶段边界停下
+    no_time_provider: 不注入时间提供者。预算约束的是真实流逝的时间，用可手动推进的时钟来算会让超时变成虚构事件，而真实超时行为反而没被验证过
+    min_budget: 剩余时间不足一个下限就不再开新的一级，否则最后一级几乎必然超时，那条记录会让人误以为引擎有问题
+  findings:
+    zero_budget: 拖动过程中不调用布局，用零预算让它显式失败，而不是悄悄用一个很短的预算草草算一个结果
+    skip_dropllm: 没有模型提出的约束时该级输入与上一级完全相同，跳过它
+  not_verified:
+    - 保留项矩阵里的「微调」一项尚未实现（对应的功能本身还没有）
+    - 层内次序、对齐、相对位置三类约束尚未接进引擎，矩阵里它们只按数量记录

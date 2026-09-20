@@ -10,10 +10,10 @@
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
 | DuetDiagram.Core | 55 | 6308 | 3374 | 1967 | 967 |
 | DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
-| DuetDiagram.Layout | 10 | 1471 | 852 | 425 | 194 |
-| DuetDiagram.Layout.Tests | 3 | 554 | 419 | 45 | 90 |
+| DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
+| DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
 | tools | 21 | 3213 | 2153 | 528 | 532 |
-| **合计** | **119** | **16219** | **10097** | **3548** | **2574** |
+| **合计** | **125** | **17196** | **10646** | **3809** | **2741** |
 
 ## 明细
 
@@ -131,24 +131,30 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ConstraintLayoutEngine.cs | 94 |
+| ConstraintLayoutEngine.cs | 100 |
+| EngineLayoutResult.cs | 66 |
+| Fallback.cs | 78 |
+| FallbackPlan.cs | 81 |
+| ILayoutEngine.cs | 5 |
 | AnchorRestorer.cs | 35 |
 | EdgeRouter.cs | 240 |
 | EngineAdapter.cs | 41 |
 | NodeGrid.cs | 70 |
 | RowReflow.cs | 82 |
 | SameRankContraction.cs | 144 |
+| LayoutBudgets.cs | 21 |
+| LayoutCoordinator.cs | 103 |
 | LayoutModels.cs | 29 |
-| LayoutRequestFactory.cs | 51 |
-| LayoutResult.cs | 66 |
+| LayoutRequestFactory.cs | 39 |
 
 ### DuetDiagram.Layout.Tests
 
 | 文件 | 代码 |
 |---|---:|
+| FallbackTests.cs | 263 |
 | Graphs.cs | 53 |
-| LayoutRequestFactoryTests.cs | 152 |
-| LayoutTests.cs | 214 |
+| LayoutRequestFactoryTests.cs | 154 |
+| LayoutTests.cs | 216 |
 
 ### tools
 

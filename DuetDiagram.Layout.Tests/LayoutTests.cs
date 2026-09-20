@@ -16,13 +16,17 @@ public sealed class LayoutTests
 {
     private static readonly ConstraintLayoutEngine Engine = new();
 
+    /// <summary>跑一次布局。取消令牌走测试上下文的，让用例可被整体取消。</summary>
+    private static EngineLayoutResult Compute(LayoutRequest request) =>
+        Engine.Layout(request, TestContext.Current.CancellationToken);
+
     // ---- 基础 ----
 
     [Fact]
     [Trait("Category", "Layout")]
     public void A_plain_diamond_has_no_overlaps_and_all_nodes_placed()
     {
-        var result = Engine.Layout(Graphs.Diamond());
+        var result = Compute(Graphs.Diamond());
 
         result.Nodes.Should().HaveCount(4);
         result.Diagnostics.ResidualOverlaps.Should().Be(0);
@@ -36,7 +40,7 @@ public sealed class LayoutTests
     public void Empty_input_returns_an_empty_result()
     {
         // 空图是合法状态（用户刚新建文档），不该抛异常让调用方多写一个分支。
-        var result = Engine.Layout([], []);
+        var result = Compute(new LayoutRequest([], [], new LayoutOptions()));
 
         result.Nodes.Should().BeEmpty();
         result.Edges.Should().BeEmpty();
@@ -52,7 +56,7 @@ public sealed class LayoutTests
     {
         var request = Graphs.Diamond(extra: [Graphs.Node("pinned", 500, 300)]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         var pinned = result.Find("pinned")!;
         pinned.X.Should().Be(500);
@@ -68,11 +72,11 @@ public sealed class LayoutTests
     public void A_pinned_node_pushes_free_nodes_aside()
     {
         // 把固定节点钉在另一个节点的位置上，制造必然的碰撞。
-        var baseline = Engine.Layout(Graphs.Diamond());
+        var baseline = Compute(Graphs.Diamond());
         var target = baseline.Find("left")!;
 
         var request = Graphs.Diamond(extra: [Graphs.Node("pinned", target.X, target.Y)]);
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Find("pinned")!.X.Should().Be(target.X, "固定坐标一个像素都不能偏");
         result.Find("pinned")!.Y.Should().Be(target.Y);
@@ -95,7 +99,7 @@ public sealed class LayoutTests
             Graphs.Node("b", 310, 210),
         ]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Diagnostics.OverlappingAnchors.Should().BeGreaterThan(0);
         result.Find("a")!.X.Should().Be(300);
@@ -110,7 +114,7 @@ public sealed class LayoutTests
     {
         var request = Graphs.Diamond(sameRank: [new[] { "left", "right" }]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Find("left")!.Y.Should().Be(result.Find("right")!.Y);
         result.Diagnostics.ResidualOverlaps.Should().Be(0);
@@ -124,7 +128,7 @@ public sealed class LayoutTests
         // 尺寸申报算错的话，成员会横着压到邻居身上。
         var request = Graphs.Diamond(sameRank: [new[] { "left", "right" }]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Find("left")!.Overlaps(result.Find("right")!).Should().BeFalse();
         result.Find("left")!.Right.Should().BeLessThanOrEqualTo(result.Find("right")!.X);
@@ -138,7 +142,7 @@ public sealed class LayoutTests
             extra: [Graphs.Node("pinned", 700, 100)],
             sameRank: [new[] { "left", "right" }]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Find("left")!.Y.Should().Be(result.Find("right")!.Y);
         result.Find("pinned")!.X.Should().Be(700);
@@ -160,7 +164,7 @@ public sealed class LayoutTests
             direction,
             extra: [Graphs.Node("pinned", 400, 250)]);
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Find("pinned")!.X.Should().Be(400);
         result.Find("pinned")!.Y.Should().Be(250);
@@ -178,10 +182,10 @@ public sealed class LayoutTests
     {
         // 推错轴会把节点推出它所在的层，分层结构当场就散，
         // 而这种情况在只有上下方向的用例里完全看不出来。
-        var baseline = Engine.Layout(Graphs.Diamond(direction));
+        var baseline = Compute(Graphs.Diamond(direction));
         var target = baseline.Find("left")!;
 
-        var moved = Engine.Layout(Graphs.Diamond(
+        var moved = Compute(Graphs.Diamond(
             direction,
             extra: [Graphs.Node("pinned", target.X, target.Y)]));
 
@@ -207,7 +211,7 @@ public sealed class LayoutTests
     [Trait("Category", "Layout")]
     public void Edge_endpoints_land_on_node_boundaries()
     {
-        var result = Engine.Layout(Graphs.Diamond());
+        var result = Compute(Graphs.Diamond());
 
         result.Diagnostics.EndpointFailures.Should().Be(0);
 
@@ -235,7 +239,7 @@ public sealed class LayoutTests
             [new LayoutEdge("e1", "a", "b", FromPort: "out")],
             new LayoutOptions());
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         var a = result.Find("a")!;
         var expected = a.PortAnchor(ports[0]);
@@ -254,7 +258,7 @@ public sealed class LayoutTests
             [new LayoutEdge("e1", "a", "b", FromPort: "根本没这个端口")],
             new LayoutOptions());
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Nodes.Should().HaveCount(2);
         result.Diagnostics.EndpointFailures.Should().Be(0);
@@ -270,7 +274,7 @@ public sealed class LayoutTests
             [new LayoutEdge("e1", "a", "查无此节点")],
             new LayoutOptions());
 
-        var result = Engine.Layout(request);
+        var result = Compute(request);
 
         result.Nodes.Should().HaveCount(1);
         result.Diagnostics.EndpointFailures.Should().Be(1);
@@ -282,7 +286,7 @@ public sealed class LayoutTests
     [Trait("Category", "Layout")]
     public void Thousand_nodes_complete_within_the_budget()
     {
-        var result = Engine.Layout(Graphs.Layered(depth: 20, breadth: 50));
+        var result = Compute(Graphs.Layered(depth: 20, breadth: 50));
 
         result.Nodes.Should().HaveCount(1000);
         result.Edges.Should().HaveCount(950);

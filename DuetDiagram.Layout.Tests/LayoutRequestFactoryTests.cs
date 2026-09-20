@@ -16,6 +16,10 @@ public sealed class LayoutRequestFactoryTests
 {
     private static readonly ConstraintLayoutEngine Engine = new();
 
+    /// <summary>跑一次布局。取消令牌走测试上下文的，让用例可被整体取消。</summary>
+    private static EngineLayoutResult Compute(LayoutJob job) =>
+        Engine.Layout(job.ToRequest(), TestContext.Current.CancellationToken);
+
     [Fact]
     [Trait("Category", "Layout")]
     public void Nodes_are_measured_and_ports_carried()
@@ -97,10 +101,10 @@ public sealed class LayoutRequestFactoryTests
 
         var request = LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40));
 
-        request.Options.Direction.Should().Be(Direction.LR);
-        request.Options.NodeSpacing.Should().Be(55);
-        request.Options.LayerSpacing.Should().Be(99);
-        request.Options.SameRankGroups.Should().ContainSingle()
+        request.ToRequest().Options.Direction.Should().Be(Direction.LR);
+        request.ToRequest().Options.NodeSpacing.Should().Be(55);
+        request.ToRequest().Options.LayerSpacing.Should().Be(99);
+        request.ToRequest().Options.SameRankGroups.Should().ContainSingle()
             .Which.Should().Equal("a", "b");
     }
 
@@ -126,7 +130,7 @@ public sealed class LayoutRequestFactoryTests
             layout: hints);
 
         LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40))
-            .Options.SameRankGroups.Should().ContainSingle();
+            .ToRequest().Options.SameRankGroups.Should().ContainSingle();
     }
 
     [Fact]
@@ -153,7 +157,7 @@ public sealed class LayoutRequestFactoryTests
             ],
             layout: hints);
 
-        var result = Engine.Layout(LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40)));
+        var result = Compute(LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40)));
 
         result.Nodes.Should().HaveCount(3);
         result.Find("a")!.Y.Should().Be(result.Find("b")!.Y, "同层约束来自文档");

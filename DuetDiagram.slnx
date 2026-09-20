@@ -3,6 +3,8 @@
   <Project Path="DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj" />
   <Project Path="DuetDiagram.Layout/DuetDiagram.Layout.csproj" />
   <Project Path="DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj" />
+  <Project Path="DuetDiagram.Render/DuetDiagram.Render.csproj" />
+  <Project Path="DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj" />
   <Project Path="DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj" />
   <Project Path="DuetDiagram.App/DuetDiagram.App.csproj" />
   <Project Path="DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj" />

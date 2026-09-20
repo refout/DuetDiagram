@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Render</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    渲染与导出。当前只有视口索引这一块。
+    暂不引用 Core：空间索引是纯几何，与 IR 无关，多一个引用只会让这一层以后更难单独测试。
+    等到真正画图时再按需引入。
+  -->
+
+</Project>

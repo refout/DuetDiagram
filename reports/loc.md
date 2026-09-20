@@ -7,13 +7,15 @@
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
-| DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
+| DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
 | DuetDiagram.Core | 55 | 6308 | 3374 | 1967 | 967 |
 | DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
+| DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
+| DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
 | tools | 21 | 3213 | 2153 | 528 | 532 |
-| **合计** | **125** | **17196** | **10646** | **3809** | **2741** |
+| **合计** | **130** | **18191** | **11278** | **3974** | **2939** |
 
 ## 明细
 
@@ -40,6 +42,7 @@
 |---|---:|
 | Benchmarks.cs | 73 |
 | Program.cs | 9 |
+| QuadTreeBenchmarks.cs | 45 |
 | TestGraphs.cs | 62 |
 
 ### DuetDiagram.Core
@@ -155,6 +158,20 @@
 | Graphs.cs | 53 |
 | LayoutRequestFactoryTests.cs | 154 |
 | LayoutTests.cs | 216 |
+
+### DuetDiagram.Render
+
+| 文件 | 代码 |
+|---|---:|
+| QuadTree.cs | 260 |
+| SpatialRect.cs | 28 |
+| ViewportCulling.cs | 8 |
+
+### DuetDiagram.Render.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| QuadTreeTests.cs | 291 |
 
 ### tools
 

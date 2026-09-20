@@ -1,0 +1,62 @@
+id: P1-13
+title: 四叉树视口索引
+phase: 1
+status: done
+depends_on: [P1-01]
+estimated_loc: 300
+files:
+  create:
+    - DuetDiagram.Render/DuetDiagram.Render.csproj
+    - DuetDiagram.Render/SpatialRect.cs
+    - DuetDiagram.Render/QuadTree.cs
+    - DuetDiagram.Render/ViewportCulling.cs
+    - DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj
+    - DuetDiagram.Render.Tests/QuadTreeTests.cs
+    - DuetDiagram.Benchmarks/QuadTreeBenchmarks.cs
+  modify:
+    - DuetDiagram.slnx
+    - DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj
+    - AGENTS.md
+    - reports/phase0b-baseline.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=QuadTree"
+    expect: 全通过
+  - command: dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*QuadTreeBenchmarks*" --job medium
+    expect: 单次查询低于一毫秒
+constraints:
+  - 跨边界对象必须两侧都能查到
+  - 深度必须封顶，退化输入的最坏情况有界
+  - 查询不产生分配
+context:
+  - 方案的工程结构把渲染与导出的封装放在这个工程里
+  - 方案要求的指标是千节点查询低于一毫秒、增删按深度、跨边界正确
+result:
+  verdict: 完成
+  delivered:
+    project: 新建渲染工程，暂不引用 Core
+    rect: 轴对齐矩形，用值类型避免每个矩形一次分配
+    quadtree: 插入、删除、查询、清空、按内容建树
+    query: 缓冲区复用版本与便捷版本
+    policy: 预取边距与虚拟化阈值的落脚处
+    collapse: 子节点全空时收回，避免反复增删之后空壳只增不减
+  measured:
+    query_ns: 305
+    requirement_ns: 1000000
+    build_us: 191.6
+    insert_1000_us: 223.4
+    query_allocation: 零
+    culling_ratio: 视口覆盖四十分之一时剔除率高于八成
+  design_decisions:
+    store_at_smallest_containing: 跨界的对象存在能完整容纳它的最小节点上。塞进其中一个子象限的话，另一半的查询就找不到它，表现是「拖动时某些元素一半画出来一半没有」
+    depth_capped: 深度封顶保证退化输入有界。全部元素落在同一点上时，不封顶会一直细分下去
+    touch_is_intersecting: 相接算相交。视口裁剪宁可多画一个贴边的元素也不能漏画，漏画的表现是边缘元素一闪一闪
+    update_not_duplicate: 同一标识重复放入按更新处理。留副本的话那些副本永远被返回，而它们指向的元素早就挪走了
+    collapse_on_remove: 删除时收回空子节点。不做的话反复增删之后树里积下大量空壳，每次查询都要多走几层
+    policy_has_a_home: 预取边距与虚拟化阈值是产品行为而不是实现细节，给它们明确的落脚处而不是散落成魔数
+    buffer_reuse: 查询写进调用方给的缓冲区。视口查询每帧发生，每次新建列表会让垃圾回收成为固定开销
+  findings:
+    perf_headroom: 查询三百纳秒，方案要求一毫秒，余量三千倍。真正要盯的是剔除率而不是耗时
+    build_allocation: 建树与插入各分配约四百字节每节点。若将来频繁重建成瓶颈，优化方向是复用节点对象
+  not_verified:
+    - 真实渲染中的剔除效果未验证，渲染层本身尚未实现
+    - 动态阈值切换时的模式过渡未做（方案要求在切换前预计算绘制列表）

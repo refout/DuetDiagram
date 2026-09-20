@@ -38,3 +38,6 @@ Desktop.ini
 ## NuGet
 packages/
 .packages/
+
+# 编辑器插件的本地统计产物。与 reports/loc.md 重复，不该进仓库。
+.VSCodeCounter/

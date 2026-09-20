@@ -2,21 +2,18 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>DuetDiagram.Benchmarks</RootNamespace>
-
-    <!-- 基准测量工具不发布，也不参与裁剪与原生编译分析。 -->
     <IsAotCompatible>false</IsAotCompatible>
     <EnableAotAnalyzer>false</EnableAotAnalyzer>
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" />
-    <PackageReference Include="Mostlylucid.Dagre" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="FluentAssertions" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
     <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
   </ItemGroup>
 

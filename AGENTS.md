@@ -15,6 +15,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
+| `DuetDiagram.Render` | 渲染与导出（当前只有视口索引） | Phase 1 P1-13 已落地 |
+| `DuetDiagram.Render.Tests` | 空间索引测试 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
 | `DuetDiagram.App` | 界面主程序 | 技术栈验证脚手架，含自检模式 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
@@ -25,7 +27,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
 | `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
 | `tools/CompareHarness` | 对比测试语料生成（不进 sln） | 已落地 |
-| `DuetDiagram.Mermaid` / `.Llm` / `.Mcp` / `.Render` | 后续 Phase | 未创建 |
+| `DuetDiagram.Mermaid` / `.Llm` / `.Mcp` | 后续 Phase | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
 
@@ -99,10 +101,12 @@ dotnet build DuetDiagram.slnx -c Release
 # 全量测试
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj
 
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=QuadTree"
 
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
@@ -132,7 +136,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`
 
 ## 新增一个命令的检查清单
 

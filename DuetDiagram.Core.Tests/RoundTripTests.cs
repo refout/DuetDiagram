@@ -67,7 +67,14 @@ public sealed class RoundTripTests
     public void Every_memento_kind_round_trips_to_its_concrete_type()
     {
         var node = new NodeDef { Id = "n1", Label = "标签", Shape = NodeShape.Hexagon };
-        var edge = new EdgeDef { Id = "e1", From = "n1", To = "n2", Label = "是", Line = LineStyle.Dashed };
+        var edge = new EdgeDef
+        {
+            Id = "e1",
+            From = "n1",
+            To = "n2",
+            Label = "是",
+            Style = new EdgeStyle { Line = LineStyle.Dashed },
+        };
 
         CommandMemento[] mementos =
         [

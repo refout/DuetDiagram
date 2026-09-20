@@ -80,7 +80,17 @@ internal static class TestGraphs
             version: edges.Count,
             structuralHash: "bench-structural",
             visualHash: "bench-visual",
-            nodes,
-            edges);
+            pages: null,
+            layers: null,
+            nodes: nodes,
+            edges: edges,
+            composites: null,
+            tags: null,
+            actions: null,
+            fonts: null,
+            textPresets: null,
+            palette: null,
+            layout: null,
+            canvas: null);
     }
 }

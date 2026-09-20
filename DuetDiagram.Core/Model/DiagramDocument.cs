@@ -3,19 +3,111 @@ using System.Text.Json.Serialization;
 namespace DuetDiagram.Core.Model;
 
 /// <summary>
+/// 一份完整快照。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 快照是**深拷贝**：所有集合都用数组承接，子对象是不可变记录，
+/// 因此拿到快照之后原文档怎么改都不会影响它。这一点是它可用的前提——
+/// 如果快照里存的是原集合的引用，那它就只是一张迟早会变的"当时的视图"。
+/// </para>
+/// <para>
+/// 用显式记录而不是序列化后的字符串：字符串形式省事，但每次取样都要走一遍序列化，
+/// 而快照最常见的用途恰恰是在频繁的检查点上。显式记录没有这个开销，
+/// 代价是字段要跟着模型一起改——这个代价由编译器帮我们盯着，不会漏。
+/// </para>
+/// </remarks>
+public sealed record DiagramSnapshot(
+    string Id,
+    DiagramKind Kind,
+    Direction Direction,
+    int Version,
+    string StructuralHash,
+    string VisualHash,
+    IReadOnlyList<PageDef> Pages,
+    IReadOnlyList<LayerDef> Layers,
+    IReadOnlyList<NodeDef> Nodes,
+    IReadOnlyList<EdgeDef> Edges,
+    IReadOnlyList<CompositeDef> Composites,
+    IReadOnlyList<TagDef> Tags,
+    IReadOnlyList<ActionDef> Actions,
+    IReadOnlyList<FontDef> Fonts,
+    IReadOnlyList<TextStylePreset> TextPresets,
+    Palette Palette,
+    LayoutHints Layout,
+    CanvasSettings Canvas)
+{
+    /// <summary>
+    /// 结构化相等。
+    /// </summary>
+    /// <remarks>
+    /// 必须重写：九个集合成员都是集合，记录自动生成的相等性对它们用引用比较，
+    /// 会让"两份内容相同的快照"被判为不等。
+    /// </remarks>
+    public bool Equals(DiagramSnapshot? other) =>
+        other is not null
+        && string.Equals(Id, other.Id, StringComparison.Ordinal)
+        && Kind == other.Kind
+        && Direction == other.Direction
+        && Version == other.Version
+        && string.Equals(StructuralHash, other.StructuralHash, StringComparison.Ordinal)
+        && string.Equals(VisualHash, other.VisualHash, StringComparison.Ordinal)
+        && CollectionEquality.List(Pages, other.Pages)
+        && CollectionEquality.List(Layers, other.Layers)
+        && CollectionEquality.List(Nodes, other.Nodes)
+        && CollectionEquality.List(Edges, other.Edges)
+        && CollectionEquality.List(Composites, other.Composites)
+        && CollectionEquality.List(Tags, other.Tags)
+        && CollectionEquality.List(Actions, other.Actions)
+        && CollectionEquality.List(Fonts, other.Fonts)
+        && CollectionEquality.List(TextPresets, other.TextPresets)
+        && Equals(Palette, other.Palette)
+        && Equals(Layout, other.Layout)
+        && Equals(Canvas, other.Canvas);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+
+        hash.Add(Id, StringComparer.Ordinal);
+        hash.Add(Kind);
+        hash.Add(Direction);
+        hash.Add(Version);
+        hash.Add(StructuralHash, StringComparer.Ordinal);
+        hash.Add(VisualHash, StringComparer.Ordinal);
+        hash.Add(CollectionEquality.ListHash(Pages));
+        hash.Add(CollectionEquality.ListHash(Layers));
+        hash.Add(CollectionEquality.ListHash(Nodes));
+        hash.Add(CollectionEquality.ListHash(Edges));
+        hash.Add(CollectionEquality.ListHash(Composites));
+        hash.Add(CollectionEquality.ListHash(Tags));
+        hash.Add(CollectionEquality.ListHash(Actions));
+        hash.Add(CollectionEquality.ListHash(Fonts));
+        hash.Add(CollectionEquality.ListHash(TextPresets));
+        hash.Add(Palette);
+        hash.Add(Layout);
+        hash.Add(Canvas);
+
+        return hash.ToHashCode();
+    }
+}
+
+/// <summary>
 /// 图的根对象，也是整个系统唯一的事实源：所有入口（界面、AI 助手、外部代理、导入器）
 /// 最终都只能改这个对象，没有任何旁路。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 不变式一：<see cref="Nodes"/> 与 <see cref="Edges"/> 对外只读。
-/// 内部虽然用 <see cref="List{T}"/> 持有，但只以 <see cref="IReadOnlyList{T}"/> 暴露给外部程序集，
-/// 写入通道只留给同程序集里的命令实现。这样任何调用方都无法绕过命令层直接改结构。
+/// 不变式一：九个集合对外只读，修改只能通过命令。
+/// 它们全部由 <see cref="DefinitionCollection{T}"/> 承载，只以 <see cref="IReadOnlyList{T}"/>
+/// 暴露给外部程序集，写入通道只留给同程序集里的命令实现。
+/// 这样任何调用方都无法绕过命令层直接改结构。
 /// </para>
 /// <para>
 /// 不变式二：<see cref="Version"/>、<see cref="StructuralHash"/>、<see cref="VisualHash"/>
 /// 的 setter 是 <c>internal</c>。它们由命令总线在命令成功之后统一推进，
 /// 命令自身无法改写版本号，因此"版本号与实际内容脱节"这类问题在类型层面就不可能发生。
+/// 三个子对象的 setter 同样如此——它们也会影响序列化与哈希。
 /// </para>
 /// <para>
 /// 版本号的语义是"状态序列号"而不是"变更次数"：撤销与重做同样会让它 +1。
@@ -24,8 +116,15 @@ namespace DuetDiagram.Core.Model;
 /// </remarks>
 public sealed class DiagramDocument
 {
-    private readonly List<NodeDef> _nodes = [];
-    private readonly List<EdgeDef> _edges = [];
+    private readonly DefinitionCollection<PageDef> _pages = new();
+    private readonly DefinitionCollection<LayerDef> _layers = new();
+    private readonly DefinitionCollection<NodeDef> _nodes = new();
+    private readonly DefinitionCollection<EdgeDef> _edges = new();
+    private readonly DefinitionCollection<CompositeDef> _composites = new();
+    private readonly DefinitionCollection<TagDef> _tags = new();
+    private readonly DefinitionCollection<ActionDef> _actions = new();
+    private readonly DefinitionCollection<FontDef> _fonts = new();
+    private readonly DefinitionCollection<TextStylePreset> _textPresets = new();
 
     /// <summary>新建一个空文档。<see cref="Version"/> 从 0 开始，首次成功变更后变为 1。</summary>
     public DiagramDocument(
@@ -43,10 +142,17 @@ public sealed class DiagramDocument
     /// 反序列化专用构造。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 每个参数都必须与同名属性的类型**完全一致**，否则序列化器会在读取时报
     /// "constructor parameter must bind to an object property" 并拒绝整个类型。
     /// 特别是集合参数要写成 <see cref="IReadOnlyList{T}"/>，不能图省事写成 <see cref="List{T}"/>——
     /// 属性是只读接口类型，参数放宽成可变类型就匹配不上了。
+    /// </para>
+    /// <para>
+    /// 集合参数一律可空。旧版本的 JSON 里没有这些字段，反序列化时它们会是空引用，
+    /// 按空集合处理即可——这样旧文件仍然打得开，而不是因为缺了新字段就整个读不出来。
+    /// 这正是"首行版本声明可选、解析器记提示但不报错"那条约定在数据层的对应做法。
+    /// </para>
     /// </remarks>
     [JsonConstructor]
     public DiagramDocument(
@@ -56,18 +162,37 @@ public sealed class DiagramDocument
         int version,
         string structuralHash,
         string visualHash,
-        IReadOnlyList<NodeDef> nodes,
-        IReadOnlyList<EdgeDef> edges)
+        IReadOnlyList<PageDef>? pages,
+        IReadOnlyList<LayerDef>? layers,
+        IReadOnlyList<NodeDef>? nodes,
+        IReadOnlyList<EdgeDef>? edges,
+        IReadOnlyList<CompositeDef>? composites,
+        IReadOnlyList<TagDef>? tags,
+        IReadOnlyList<ActionDef>? actions,
+        IReadOnlyList<FontDef>? fonts,
+        IReadOnlyList<TextStylePreset>? textPresets,
+        Palette? palette,
+        LayoutHints? layout,
+        CanvasSettings? canvas)
         : this(id, kind, direction)
     {
-        ArgumentNullException.ThrowIfNull(nodes);
-        ArgumentNullException.ThrowIfNull(edges);
-
         Version = version;
         StructuralHash = structuralHash;
         VisualHash = visualHash;
-        _nodes.AddRange(nodes);
-        _edges.AddRange(edges);
+
+        _pages.Replace(pages);
+        _layers.Replace(layers);
+        _nodes.Replace(nodes);
+        _edges.Replace(edges);
+        _composites.Replace(composites);
+        _tags.Replace(tags);
+        _actions.Replace(actions);
+        _fonts.Replace(fonts);
+        _textPresets.Replace(textPresets);
+
+        Palette = palette ?? new Palette();
+        Layout = layout ?? LayoutHintsDefaults.Create();
+        Canvas = canvas ?? new CanvasSettings();
     }
 
     public string Id { get; }
@@ -84,9 +209,13 @@ public sealed class DiagramDocument
     public int Version { get; internal set; }
 
     /// <summary>
-    /// 结构哈希，覆盖"谁和谁相连"以及父子归属关系。
-    /// 它只回答一个问题：连接关系变了吗？变了才需要重新跑布局。
+    /// 结构哈希，回答"要不要重新求解布局"。
     /// </summary>
+    /// <remarks>
+    /// 它的判据不是"图形形状变了吗"，而是"现有坐标还有效吗"。因此除了连接关系与父子归属，
+    /// 它还覆盖端口、布局提示与字体——这三者都不改变图形拓扑，却都会让已算出的坐标失效。
+    /// 名称保留为"结构"是历史原因，读的时候按"要不要重排"来理解。
+    /// </remarks>
     public string StructuralHash { get; internal set; } = string.Empty;
 
     /// <summary>
@@ -95,29 +224,181 @@ public sealed class DiagramDocument
     /// </summary>
     public string VisualHash { get; internal set; } = string.Empty;
 
+    // ---- 九个集合 ----
+
+    /// <summary>页面集合。顺序有意义。</summary>
+    public IReadOnlyList<PageDef> Pages => _pages.ReadOnly;
+
+    /// <summary>图层集合。顺序有意义：排列次序决定叠放次序。</summary>
+    public IReadOnlyList<LayerDef> Layers => _layers.ReadOnly;
+
     /// <summary>节点集合。顺序有意义：节点在集合中的位置就是它的层内次序依据。</summary>
-    public IReadOnlyList<NodeDef> Nodes => _nodes;
+    public IReadOnlyList<NodeDef> Nodes => _nodes.ReadOnly;
 
     /// <summary>边集合。顺序有意义：删除节点后撤销时按原索引插回，才能还原成删除前的样子。</summary>
-    public IReadOnlyList<EdgeDef> Edges => _edges;
+    public IReadOnlyList<EdgeDef> Edges => _edges.ReadOnly;
 
-    /// <summary>仅命令实现可用的可变视图。命令在同一程序集内，所以用 internal 而不是公开。</summary>
-    internal List<NodeDef> MutableNodes => _nodes;
+    /// <summary>组合集合。顺序有意义：泳道成员的先后就是条带顺序。</summary>
+    public IReadOnlyList<CompositeDef> Composites => _composites.ReadOnly;
 
-    /// <inheritdoc cref="MutableNodes"/>
-    internal List<EdgeDef> MutableEdges => _edges;
+    /// <summary>标签集合。</summary>
+    public IReadOnlyList<TagDef> Tags => _tags.ReadOnly;
 
-    internal bool HasNode(string id) => _nodes.Any(n => string.Equals(n.Id, id, StringComparison.Ordinal));
+    /// <summary>动作集合。不进任何哈希——它只影响交互，不影响外观与布局。</summary>
+    public IReadOnlyList<ActionDef> Actions => _actions.ReadOnly;
 
-    internal bool HasEdge(string id) => _edges.Any(e => string.Equals(e.Id, id, StringComparison.Ordinal));
+    /// <summary>字体集合。计入结构哈希——字体变化会改变标签宽度，进而改变布局。</summary>
+    public IReadOnlyList<FontDef> Fonts => _fonts.ReadOnly;
 
-    internal NodeDef? FindNode(string id) =>
-        _nodes.FirstOrDefault(n => string.Equals(n.Id, id, StringComparison.Ordinal));
+    /// <summary>文本样式预设集合。</summary>
+    public IReadOnlyList<TextStylePreset> TextPresets => _textPresets.ReadOnly;
 
-    internal EdgeDef? FindEdge(string id) =>
-        _edges.FirstOrDefault(e => string.Equals(e.Id, id, StringComparison.Ordinal));
+    // ---- 三个子对象 ----
 
-    internal int IndexOfNode(string id) => _nodes.FindIndex(n => string.Equals(n.Id, id, StringComparison.Ordinal));
+    /// <summary>调色板。计入视觉哈希。</summary>
+    public Palette Palette { get; internal set; } = new();
 
-    internal int IndexOfEdge(string id) => _edges.FindIndex(e => string.Equals(e.Id, id, StringComparison.Ordinal));
+    /// <summary>布局提示。计入结构哈希——改了间距就必须重排。</summary>
+    public LayoutHints Layout { get; internal set; } = LayoutHintsDefaults.Create();
+
+    /// <summary>画布设置。计入视觉哈希。</summary>
+    public CanvasSettings Canvas { get; internal set; } = new();
+
+    // ---- 快照 ----
+
+    /// <summary>
+    /// 取一份完整快照。
+    /// </summary>
+    /// <remarks>
+    /// 深拷贝：所有集合复制成新数组，子对象本身是不可变记录，因此快照取到之后不会被打扰。
+    /// 版本号与两个哈希一并带走，这样快照能回答"这份内容是哪个版本、对应什么结构"。
+    /// </remarks>
+    public DiagramSnapshot TakeFullSnapshot() => new(
+        Id,
+        Kind,
+        Direction,
+        Version,
+        StructuralHash,
+        VisualHash,
+        [.. _pages.ReadOnly],
+        [.. _layers.ReadOnly],
+        [.. _nodes.ReadOnly],
+        [.. _edges.ReadOnly],
+        [.. _composites.ReadOnly],
+        [.. _tags.ReadOnly],
+        [.. _actions.ReadOnly],
+        [.. _fonts.ReadOnly],
+        [.. _textPresets.ReadOnly],
+        Palette,
+        Layout,
+        Canvas);
+
+    /// <summary>
+    /// 用快照整体替换文档内容。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 版本号与哈希一并恢复，而不是留给命令总线推进。原因是这个方法的用途是
+    /// "把文档退回某个已知状态"，版本号如果被重新推进，退回去的那份内容就再也无法
+    /// 与历史上的版本号对上，增量同步会失去参照。
+    /// </para>
+    /// <para>
+    /// 文档标识不参与替换。跨文档套用快照会得到一个自相矛盾的对象：
+    /// 标识是甲的，内容是乙的。要打开另一份文档应当新建实例——
+    /// 这与"历史栈清空只用于同一文档重新加载"是同一条约定的两面。
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">快照来自另一份文档。</exception>
+    public void RestoreFromSnapshot(DiagramSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        if (!string.Equals(snapshot.Id, Id, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"快照属于文档 {snapshot.Id}，不能套用到 {Id} 上。打开另一份文档应当新建实例。",
+                nameof(snapshot));
+        }
+
+        Kind = snapshot.Kind;
+        Direction = snapshot.Direction;
+        Version = snapshot.Version;
+        StructuralHash = snapshot.StructuralHash;
+        VisualHash = snapshot.VisualHash;
+
+        _pages.Replace(snapshot.Pages);
+        _layers.Replace(snapshot.Layers);
+        _nodes.Replace(snapshot.Nodes);
+        _edges.Replace(snapshot.Edges);
+        _composites.Replace(snapshot.Composites);
+        _tags.Replace(snapshot.Tags);
+        _actions.Replace(snapshot.Actions);
+        _fonts.Replace(snapshot.Fonts);
+        _textPresets.Replace(snapshot.TextPresets);
+
+        Palette = snapshot.Palette;
+        Layout = snapshot.Layout;
+        Canvas = snapshot.Canvas;
+    }
+
+    // ---- 仅命令实现可用的可变视图 ----
+
+    internal List<PageDef> MutablePages => _pages.Mutable;
+
+    internal List<LayerDef> MutableLayers => _layers.Mutable;
+
+    internal List<NodeDef> MutableNodes => _nodes.Mutable;
+
+    internal List<EdgeDef> MutableEdges => _edges.Mutable;
+
+    internal List<CompositeDef> MutableComposites => _composites.Mutable;
+
+    internal List<TagDef> MutableTags => _tags.Mutable;
+
+    internal List<ActionDef> MutableActions => _actions.Mutable;
+
+    internal List<FontDef> MutableFonts => _fonts.Mutable;
+
+    internal List<TextStylePreset> MutableTextPresets => _textPresets.Mutable;
+
+    // ---- 查找 ----
+
+    internal bool HasNode(string id) => _nodes.Has(id);
+
+    internal bool HasEdge(string id) => _edges.Has(id);
+
+    internal NodeDef? FindNode(string id) => _nodes.Find(id);
+
+    internal EdgeDef? FindEdge(string id) => _edges.Find(id);
+
+    internal int IndexOfNode(string id) => _nodes.IndexOf(id);
+
+    internal int IndexOfEdge(string id) => _edges.IndexOf(id);
+
+    /// <summary>
+    /// 标识在九个集合中是否已被占用。
+    /// </summary>
+    /// <remarks>
+    /// 九个集合共用一个命名空间：成员列表里的标识不区分它是节点还是组合，
+    /// 引用关系（边的两端、标签的成员、动作的目标）也都不带类型前缀。
+    /// 因此新增任何定义之前都要用这个整体检查，而不是只查自己那一个集合。
+    /// </remarks>
+    internal bool IsIdTaken(string id, IDefinition? except = null) =>
+        IsTaken(_pages, id, except)
+        || IsTaken(_layers, id, except)
+        || IsTaken(_nodes, id, except)
+        || IsTaken(_edges, id, except)
+        || IsTaken(_composites, id, except)
+        || IsTaken(_tags, id, except)
+        || IsTaken(_actions, id, except)
+        || IsTaken(_fonts, id, except)
+        || IsTaken(_textPresets, id, except);
+
+    private static bool IsTaken<T>(DefinitionCollection<T> collection, string id, IDefinition? except)
+        where T : IDefinition
+    {
+        var found = collection.Find(id);
+
+        return found is not null && !ReferenceEquals(found, except);
+    }
 }

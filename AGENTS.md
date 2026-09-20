@@ -103,7 +103,7 @@ dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Relea
 ./DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe
 
 # 布局引擎约束取证
-dotnet run --project tools/Poc/MermaiderConstraints -c Release
+dotnet run --project tools/Poc/LayoutCandidates -c Release
 
 # LOC 一致性
 dotnet run --project tools/LocCounter -- --root . --check

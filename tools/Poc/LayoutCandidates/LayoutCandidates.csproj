@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Poc.LayoutCandidates</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    一次性依赖验证脚手架：用同一套判据对比候选布局引擎。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件；结论固化后即可删除。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Sugiyama" />
+    <PackageReference Include="Mostlylucid.Dagre" />
+  </ItemGroup>
+
+</Project>

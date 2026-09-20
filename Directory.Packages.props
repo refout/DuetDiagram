@@ -15,7 +15,9 @@
 
     仍待引入的包（用到时再登记，不要提前加）：
       Microsoft.Extensions.AI / ModelContextProtocol → 外部代理接入阶段
-      Mostlylucid.Dagre                              → 布局引擎改走备选时
+
+    注意：布局引擎最终采用 Mostlylucid.Dagre 而不是 Mermaider 依赖的 Sugiyama，
+    理由与并排数据见 reports/phase0a-layout.md。
   -->
 
   <PropertyGroup>
@@ -37,6 +39,9 @@
     <!-- Mermaid 渲染器，以及它依赖的分层图布局引擎（单独成包，可以脱离 Mermaid 独立使用）。 -->
     <PackageVersion Include="Mermaider" Version="0.12.2" />
     <PackageVersion Include="Sugiyama" Version="0.12.2" />
+
+    <!-- 备选布局引擎：分层布局的另一个实现，自述对原生编译友好且支持复合图。 -->
+    <PackageVersion Include="Mostlylucid.Dagre" Version="2.0.1" />
   </ItemGroup>
 
   <ItemGroup Label="Test stack">

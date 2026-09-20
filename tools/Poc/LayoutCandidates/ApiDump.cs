@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DuetDiagram.Poc.MermaiderConstraints;
+namespace DuetDiagram.Poc.LayoutCandidates;
 
 /// <summary>
 /// 把候选库的公开接口原样打印出来。

@@ -2,8 +2,11 @@
 
 - 验证对象：`Sugiyama` **0.12.2**（`Mermaider` 0.12.2 的布局依赖，独立包，零依赖，目标框架 net10.0）
 - 验证时间：2026-09-20
-- 验证程序：`tools/Poc/MermaiderConstraints`（命令行运行该工程即复现全部结论）
-- 结论：**主选不成立。布局引擎必须改走备选，或由我们自己补一层后处理。**
+- 结论：**主选不成立。**
+- 后续：备选引擎的并排对比见 `phase0a-layout.md`，本文件的结论在其中被复用为对照基线。
+
+> 本报告是当时的取证记录。验证程序已升级为多候选并排对比的 `tools/Poc/LayoutCandidates`，
+> 复现命令见文末。
 
 ## 一句话结论
 
@@ -63,7 +66,8 @@
 ### 复现方式
 
 ```bash
-dotnet run --project tools/Poc/MermaiderConstraints -c Release
+# 两个候选引擎跑同一套判据，本报告中的 Sugiyama 数据是其中的对照基线
+dotnet run --project tools/Poc/LayoutCandidates -c Release
 ```
 
 ## 不受影响的能力

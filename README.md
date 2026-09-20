@@ -12,9 +12,10 @@ IR 是唯一事实源；GUI 能做的，LLM 通过工具都能做；LLM 能表�
 
 Phase 0（依赖验证）进行中，Phase 1 的垂直切片已经落地。
 
-**已经推翻的一项技术选型**：主选布局引擎不支持固定位置，且在有交叉边的图上横向坐标会爆炸
-（20 个节点就能把 116 像素的合理宽度撑到 40803 像素）。取证过程与复现方式见
-`reports/phase0a-mermaider.md`。布局引擎需要改走备选并重新取证。
+**技术选型里被推翻的一项**：主选布局引擎不支持固定位置，且在有交叉边的图上横向坐标会爆炸
+（20 个节点就能把 116 像素的合理宽度撑到 40803 像素）。改走备选之后，
+备选引擎的坐标有界、性能达标，但**固定位置与同层约束两款引擎都不支持**，
+必须由我们自建。取证全过程与复现方式见 `reports/phase0a-layout.md`。
 
 | 已完成 | 内容 |
 |---|---|
@@ -22,9 +23,9 @@ Phase 0（依赖验证）进行中，Phase 1 的垂直切片已经落地。
 | 核心层 | IR、命令总线（执行 / 撤销 / 重做）、版本日志、审计日志、历史栈、广播器、序列化与双哈希 |
 | 内置命令 | `add-node` / `remove-node` / `connect-edge` |
 | 测试 | 74 个用例，覆盖往返无损、原子性回滚、撤销重做一致性、差异边界、多态注册、依赖边界 |
-| Phase 0a | 依赖版本核实、界面栈自检出图、布局引擎取证 |
+| Phase 0a | 依赖版本核实、界面栈自检出图、两款布局引擎的并排取证与选型 |
 
-**未实现**：布局引擎、Sidecar、Mermaid / DSL、渲染与画布、外部代理接入。
+**未实现**：布局引擎封装、Sidecar、Mermaid / DSL、渲染与画布、外部代理接入。
 详见 `docs/Architecture.md`。
 
 **已知阻塞**：原生编译发布需要 Visual Studio 的「使用 C++ 的桌面开发」工作负载，
@@ -45,8 +46,8 @@ dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --
 # 界面栈自检：脱屏渲染一帧后退出，用退出码表达结果
 dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png
 
-# 布局引擎约束取证
-dotnet run --project tools/Poc/MermaiderConstraints -c Release
+# 布局引擎约束取证（两款候选跑同一套判据）
+dotnet run --project tools/Poc/LayoutCandidates -c Release
 
 # 原生编译冒烟（需要 C++ 桌面开发工作负载）
 dotnet run --project DuetDiagram.AotSmokeTest -c Release

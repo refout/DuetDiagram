@@ -1,0 +1,61 @@
+id: P0-04
+title: 备选布局引擎对比与选型
+phase: 0a
+status: done
+depends_on: [P0-01, P0-03]
+estimated_loc: 550
+files:
+  create:
+    - tools/Poc/LayoutCandidates/LayoutCandidates.csproj
+    - tools/Poc/LayoutCandidates/LayoutModels.cs
+    - tools/Poc/LayoutCandidates/GraphShapes.cs
+    - tools/Poc/LayoutCandidates/CheckRunner.cs
+    - tools/Poc/LayoutCandidates/DagreCandidate.cs
+    - tools/Poc/LayoutCandidates/SugiyamaCandidate.cs
+    - tools/Poc/LayoutCandidates/ApiDump.cs
+    - tools/Poc/LayoutCandidates/Program.cs
+    - reports/phase0a-layout.md
+  remove:
+    - tools/Poc/MermaiderConstraints
+  modify:
+    - Directory.Packages.props
+acceptance:
+  - command: dotnet run --project tools/Poc/LayoutCandidates -c Release
+    expect: 退出码 0，两个候选打印完全相同的判据项
+  - command: dotnet run --project tools/Poc/LayoutCandidates -c Release -- --perf
+    expect: 打印三个入口的规模与耗时
+constraints:
+  - PoC 项目不进解决方案文件
+  - 两个候选必须跑同一套判据，否则结论不可比
+  - 判断"支持某项约束"必须以行为为准，不能只看接口里有没有同名字段
+  - 已固化的结论取代旧的 PoC，旧脚手架删除而不是并行维护
+context:
+  - 主选引擎已判定不成立，需要备选顶上
+  - 需要支持的约束包括固定位置、同层、层内顺序、对齐、相对位置
+  - 方案目标为 100 节点不超过 50 毫秒、1000 节点不超过 1000 毫秒
+result:
+  verdict: 改用备选
+  chosen: Mostlylucid.Dagre 2.0.1 的索引式布局入口
+  evidence:
+    coordinates_bounded:
+      dagre: 无交叉 1044、带交叉 1044（加交叉后宽度不变）
+      sugiyama: 无交叉 1152、带交叉 330248（放大 287 倍）
+    performance:
+      dagre_default_entry: 长链 1000 为 653.8 ms，多层 1000 节点为 1204.1 ms
+      dagre_indexed_entry: 长链 1000 为 50.4 ms，多层 1000 节点为 277.8 ms
+      sugiyama: 长链 1000 为 23.9 ms，多层 1000 节点为 46.4 ms（但横向散布 27.7 亿）
+    trim_and_aot_analyzers: 两个引擎包告警为 0，仅我们自己的反射工具产生 4 条告警
+  gaps_both_candidates:
+    pinned_position:
+      sugiyama: 输入类型没有坐标字段
+      dagre: 有坐标字段但写进去会被覆盖，属于输出而非输入
+    same_rank:
+      sugiyama: 支持
+      dagre: 两条路径都不可用，一条边路由抛异常，一条以参数异常终止
+  doc_mismatch:
+    - 备选引擎说明文件里的命名空间与构造函数签名都与实际接口不符
+    - 非复合模式下布局主流程会抛异常，必须传复合模式才能跑完最简单的图形
+  followups:
+    - 固定位置与同层约束必须自建，见 P0-10
+    - 同层约束第二种尝试的失败原因未定位
+    - 原生编译链接与本机工具链是同一个阻塞

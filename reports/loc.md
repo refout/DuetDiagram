@@ -9,8 +9,8 @@
 | DuetDiagram.App | 5 | 402 | 250 | 90 | 62 |
 | DuetDiagram.Core | 37 | 3102 | 1656 | 953 | 493 |
 | DuetDiagram.Core.Tests | 13 | 1925 | 1363 | 217 | 345 |
-| tools | 4 | 824 | 552 | 138 | 134 |
-| **合计** | **60** | **6357** | **3893** | **1415** | **1049** |
+| tools | 8 | 1396 | 974 | 194 | 228 |
+| **合计** | **64** | **6929** | **4315** | **1471** | **1143** |
 
 ## 明细
 
@@ -96,6 +96,10 @@
 |---|---:|
 | Program.cs | 155 |
 | ApiDump.cs | 58 |
-| Probe.cs | 326 |
-| Program.cs | 13 |
+| CheckRunner.cs | 246 |
+| DagreCandidate.cs | 258 |
+| GraphShapes.cs | 95 |
+| LayoutModels.cs | 41 |
+| Program.cs | 36 |
+| SugiyamaCandidate.cs | 85 |
 

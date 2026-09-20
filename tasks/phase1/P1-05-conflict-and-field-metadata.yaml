@@ -1,0 +1,54 @@
+id: P1-05
+title: 冲突策略与字段元数据
+phase: 1
+status: done
+depends_on: [P1-03, P1-04]
+estimated_loc: 250
+files:
+  create:
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Model/ChangeConflict.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandResult.cs
+    - DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ConnectEdgeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveNodeCommand.cs
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/ConflictTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=ConflictPolicy"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=FieldMetadata"
+    expect: 全通过
+constraints:
+  - 冲突判定只做判定不做合并，写回必须走命令层
+  - 字段名必须取自登记表，不得在调用处写裸字符串
+  - 同名不同义（作用域不一致）的登记表在装载时直接拒绝
+context:
+  - 方案 §7.4 的差异返回策略已实现，本次不动
+  - 方案要求并发冲突时界面弹可视化差异对话框
+result:
+  verdict: 完成
+  delivered:
+    diff_carrying: 冲突结果携带算出的差异
+    merge_rules: 两组变更能否自动合并的判定规则
+    field_registry: 字段名的唯一来源，含作用域与整体性标记
+  fixed:
+    diff_discarded: CommandResult.Conflict 原先收下差异参数却只用它选错误码，差异内容被丢掉——界面拿不到东西可展示，而计算差异（可能含全量序列化）的代价白付
+    literal_field_names: 命令里的字段名是裸字符串，与错误码曾经出现的问题同源
+    no_field_coverage: 没有任何测试断言过字段变更，因此改名静默通过
+  design_decisions:
+    element_prefix: 元素级字段名加 @ 前缀。不加的话 layer 有两种读法（图层元素被增删 / 节点的图层字段改了），靠标识也分不出来
+    scope_consistency: 字段作用域与哈希口径是同一件事的两面，登记表拒绝同名不同义
+    unknown_not_guessed: 未登记的字段返回未知而不是猜一个作用域，猜错的后果是"改了图没重排"这类极难定位的问题
+    judgement_only: 判定只做判定，合并写回文档必须走命令层，否则会绕过版本推进、历史入栈与广播
+  findings:
+    atomic_fields: 成员列表这类字段的值是一个整体，两边各加一个成员无法在不丢失意图的前提下合并，因此标记为整体性
+    premise_conflict: 一侧增删元素、另一侧修改该元素，看着像改了不同地方，实际前提互斥，必须判为冲突
+  deferred:
+    - 实际合并（把两边变更写回文档）尚未实现，需要先有字段级的写入命令
+  not_verified:
+    - 文档软锁（方案 §7.5 的第二层）未实现，属 Phase 3
+    - 权限分级与图层级权限未实现，属 Phase 3

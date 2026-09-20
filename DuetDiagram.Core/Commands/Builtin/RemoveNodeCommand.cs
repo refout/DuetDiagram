@@ -69,7 +69,7 @@ public sealed class RemoveNodeCommand : DiagramCommandBase
             new()
             {
                 ElementId = _nodeId,
-                Field = "node",
+                Field = FieldNames.NodeElement,
                 OldValue = null,
                 NewValue = null,
                 Kind = ChangeKind.Removed,
@@ -79,7 +79,7 @@ public sealed class RemoveNodeCommand : DiagramCommandBase
         changes.AddRange(removedEdges.Select(id => new FieldChange
         {
             ElementId = id,
-            Field = "edge",
+            Field = FieldNames.EdgeElement,
             OldValue = null,
             NewValue = null,
             Kind = ChangeKind.Removed,
@@ -123,7 +123,7 @@ public sealed class RemoveNodeCommand : DiagramCommandBase
             new()
             {
                 ElementId = _nodeId,
-                Field = "node",
+                Field = FieldNames.NodeElement,
                 OldValue = null,
                 NewValue = node.Label,
                 Kind = ChangeKind.Added,
@@ -133,7 +133,7 @@ public sealed class RemoveNodeCommand : DiagramCommandBase
         inverse.AddRange(placements.Select(p => new FieldChange
         {
             ElementId = p.Edge.Id,
-            Field = "edge",
+            Field = FieldNames.EdgeElement,
             OldValue = null,
             NewValue = p.Edge.Label,
             Kind = ChangeKind.Added,

@@ -67,7 +67,7 @@ public sealed class ConnectEdgeCommand : DiagramCommandBase
                 new FieldChange
                 {
                     ElementId = _edge.Id,
-                    Field = "edge",
+                    Field = FieldNames.EdgeElement,
                     OldValue = null,
                     NewValue = $"{_edge.From}->{_edge.To}",
                     Kind = ChangeKind.Added,
@@ -91,7 +91,7 @@ public sealed class ConnectEdgeCommand : DiagramCommandBase
             new FieldChange
             {
                 ElementId = _edge.Id,
-                Field = "edge",
+                Field = FieldNames.EdgeElement,
                 OldValue = $"{_edge.From}->{_edge.To}",
                 NewValue = null,
                 Kind = ChangeKind.Removed,

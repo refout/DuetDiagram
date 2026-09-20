@@ -62,7 +62,7 @@ public sealed class AddNodeCommand : DiagramCommandBase
                 new FieldChange
                 {
                     ElementId = _node.Id,
-                    Field = "node",
+                    Field = FieldNames.NodeElement,
                     OldValue = null,
                     NewValue = _node.Label,
                     Kind = ChangeKind.Added,
@@ -86,7 +86,7 @@ public sealed class AddNodeCommand : DiagramCommandBase
             new FieldChange
             {
                 ElementId = _node.Id,
-                Field = "node",
+                Field = FieldNames.NodeElement,
                 OldValue = _node.Label,
                 NewValue = null,
                 Kind = ChangeKind.Removed,

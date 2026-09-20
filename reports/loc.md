@@ -8,10 +8,10 @@
 | DuetDiagram.AotSmokeTest | 1 | 104 | 72 | 17 | 15 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 3 | 238 | 144 | 60 | 34 |
-| DuetDiagram.Core | 48 | 5076 | 2734 | 1558 | 784 |
-| DuetDiagram.Core.Tests | 16 | 2701 | 1957 | 291 | 453 |
+| DuetDiagram.Core | 50 | 5465 | 2944 | 1687 | 834 |
+| DuetDiagram.Core.Tests | 17 | 2996 | 2180 | 319 | 497 |
 | tools | 30 | 4822 | 3174 | 880 | 768 |
-| **合计** | **104** | **13503** | **8433** | **2922** | **2148** |
+| **合计** | **107** | **14187** | **8866** | **3079** | **2242** |
 
 ## 明细
 
@@ -58,7 +58,7 @@
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
 | CommandMemento.cs | 29 |
-| CommandResult.cs | 48 |
+| CommandResult.cs | 58 |
 | DiagramCommandBase.cs | 35 |
 | ErrorCodes.cs | 24 |
 | FieldChange.cs | 17 |
@@ -72,6 +72,7 @@
 | DiffResult.cs | 27 |
 | VersionEntry.cs | 23 |
 | VersionLog.cs | 93 |
+| ChangeConflict.cs | 72 |
 | CollectionEquality.cs | 70 |
 | Composites.cs | 45 |
 | DefinitionCollection.cs | 36 |
@@ -79,6 +80,7 @@
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 238 |
 | EdgeDef.cs | 14 |
+| FieldRegistry.cs | 128 |
 | IDefinition.cs | 5 |
 | LayoutHints.cs | 91 |
 | NodeDef.cs | 59 |
@@ -100,6 +102,7 @@
 | AtomicityTests.cs | 126 |
 | BroadcasterTests.cs | 89 |
 | CommandBusTests.cs | 242 |
+| ConflictTests.cs | 223 |
 | CorePurityTests.cs | 57 |
 | Harness.cs | 73 |
 | IrExtensionTests.cs | 194 |

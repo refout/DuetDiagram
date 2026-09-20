@@ -42,6 +42,21 @@ public sealed record CommandResult
     /// <summary>外观发生变化，需要重绘。结构变化时它必然也是真。</summary>
     public bool VisualChanged { get; init; }
 
+    /// <summary>
+    /// 版本冲突时算出的差异。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 冲突之外的情况一律为空。冲突时必须带上——界面的处理方式是"弹可视化差异对话框"
+    /// （见方案 §9.6），拿不到差异就只能给用户一句"版本冲突"，而用户无从知道冲突在哪。
+    /// </para>
+    /// <para>
+    /// 更重要的是：差异是按需计算的，走到这一步时可能已经把整份文档序列化过了。
+    /// 算完丢掉，等于每次冲突都白付一次全量序列化的代价。
+    /// </para>
+    /// </remarks>
+    public DiffResult? Diff { get; init; }
+
     /// <summary>成功且真的产生了变更。只有它为真才应触发版本推进、历史入栈、布局重算与广播。</summary>
     public bool IsEffectiveSuccess => IsSuccess && !IsNoOp;
 
@@ -85,17 +100,33 @@ public sealed record CommandResult
     };
 
     /// <summary>
-    /// 由差异类型推导冲突错误码。
+    /// 由差异类型推导冲突错误码，并把差异一并带上。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 差异计算已经判断出"调用方声称的版本比当前版本还新"时给出参数错误，
     /// 其余情况一律按并发冲突处理。两者对调用方的含义不同：
     /// 参数错误说明请求本身有问题，重试不会好；并发冲突说明只要先同步再重试就能成功。
     /// 混淆这两者会让调用方陷入无意义的重试循环。
+    /// </para>
+    /// <para>
+    /// 差异必须随结果返回。调用方拿到 <see cref="Diff"/> 才能知道"我落后了哪些内容"，
+    /// 进而决定是自己追平还是让用户处理。
+    /// </para>
     /// </remarks>
-    public static CommandResult Conflict(DiffResult diff) => diff switch
+    public static CommandResult Conflict(DiffResult diff)
     {
-        InvalidDiff => Fail(CommandError.Of(ErrorCodes.InvalidExpectedVersion)),
-        _ => Fail(CommandError.Of(ErrorCodes.VersionConflict)),
-    };
+        ArgumentNullException.ThrowIfNull(diff);
+
+        return new CommandResult
+        {
+            Diff = diff,
+            Errors =
+            [
+                diff is InvalidDiff
+                    ? CommandError.Of(ErrorCodes.InvalidExpectedVersion)
+                    : CommandError.Of(ErrorCodes.VersionConflict),
+            ],
+        };
+    }
 }

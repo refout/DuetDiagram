@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace DuetDiagram.Core.Model;
 
 /// <summary>
@@ -17,9 +19,18 @@ namespace DuetDiagram.Core.Model;
 internal sealed class DefinitionCollection<T> where T : IDefinition
 {
     private readonly List<T> _items = [];
+    private ReadOnlyCollection<T>? _readOnly;
 
-    /// <summary>对外暴露的只读视图。外部程序集拿不到写入通道。</summary>
-    public IReadOnlyList<T> ReadOnly => _items;
+    /// <summary>
+    /// 对外暴露的只读视图。外部程序集拿不到写入通道。
+    /// </summary>
+    /// <remarks>
+    /// 包一层真正的只读集合，而不是直接把内部列表当接口返回。
+    /// 后者只是编译期契约：运行时那个对象仍然是可变列表，强制转换就能绕过去。
+    /// 这条约束是本项目的硬约定之一，值得在运行时也守住，代价只是一个包装对象。
+    /// 包装对象缓存起来，重复读取不会反复分配。
+    /// </remarks>
+    public IReadOnlyList<T> ReadOnly => _readOnly ??= new ReadOnlyCollection<T>(_items);
 
     /// <summary>仅命令实现可用的可变视图。命令在同一程序集内，所以用 internal。</summary>
     public List<T> Mutable => _items;

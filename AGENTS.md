@@ -113,7 +113,8 @@ dotnet run --project tools/LocCounter -- --root . --check
 
 `RoundTrip`、`Atomicity`、`UndoRedoVersion`、`DiffBoundary`、`MementoRegistration`、
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
-`UndoStress`、`Workspace`、`McpMode`、`CorePurity`
+`UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
+`IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`
 
 ## 新增一个命令的检查清单
 

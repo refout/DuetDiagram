@@ -82,10 +82,14 @@ open_questions:
       `Composites` 被整个忽略，`LayoutNode.Parent` 只是透传——"把端点落到组合边界上"没有落点。
       在那之前，布局遇到组合端点必须在降级报告里如实记录，**不许静默丢边**。
     evidence: |
-      冻结语料里 8 份文件这么写（`a-bare` 3 份、`b-documented` 4 份、`c-dsl` 1 份，
+      冻结语料里 **7 份** Mermaid 文件这么写（`a-bare` 3 份、`b-documented` 4 份，
       见 `reports/compare-blind/parse-report.md` 的"端点是分组的边"一列）。
       `ODS -- "清洗" --> DWD` 是 Mermaid 表达"这一层流向那一层"的常见写法，
       而 IR 现在会报 EDGE_SOURCE_MISSING。
+
+      那一列一共数出 8 条，多出来的一条在 `c-dsl`，**不是子图端点**：模型把泳道与
+      其中一个节点都叫 `pay`，而那一列的判据只是"端点标识与某个分组标识相同"。
+      它属 P1-17 的 `group-and-node-share-a-name`。本任务只认那 7 条。
   - id: pipe-label-quotes
     question: 竖线定界的边标签要不要剥外层引号？
     detail: |

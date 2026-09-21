@@ -136,6 +136,38 @@ public sealed class ParserTests
         chart.Links.Single().Label.Should().Be("是");
     }
 
+    [Fact]
+    [Trait("Category", "MermaidParsing")]
+    public void A_quoted_edge_label_between_pipes_loses_its_quotes()
+    {
+        // 引号是定界符，不是标签的一部分——含逗号、括号这类会打断语法的字符时才必须加。
+        // Mermaid 自己是这么做的：它的词法在遇到引号时切进字符串状态，
+        // 引号之间的内容单独作为 STR 返回，而和它们之间的引号被丢弃。
+        // 不剥的话图上会显示两个多余的引号，而那种偏差只有肉眼能发现。
+        var chart = MermaidParser.Parse("flowchart TD\nA -->|\"已处理\"| B");
+
+        chart.Links.Single().Label.Should().Be("已处理");
+    }
+
+    [Fact]
+    [Trait("Category", "MermaidParsing")]
+    public void A_quoted_edge_label_between_links_loses_its_quotes()
+    {
+        var chart = MermaidParser.Parse("flowchart TD\nA -- \"已处理\" --> B");
+
+        chart.Links.Single().Label.Should().Be("已处理");
+    }
+
+    [Fact]
+    [Trait("Category", "MermaidParsing")]
+    public void Quotes_inside_a_quoted_edge_label_are_kept()
+    {
+        // 只剥最外层那一对。里面的引号是内容，剥掉就改了用户的文字。
+        var chart = MermaidParser.Parse("flowchart TD\nA -->|\"他说\"\"你好\"\"\"| B");
+
+        chart.Links.Single().Label.Should().Be("他说\"\"你好\"\"");
+    }
+
     [Theory]
     [Trait("Category", "MermaidParsing")]
     [InlineData("A --> B", ArrowStyle.Arrow, LineStyle.Solid)]

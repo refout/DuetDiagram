@@ -15,11 +15,11 @@
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 954 | 710 | 59 | 185 |
 | DuetDiagram.Mermaid | 6 | 1488 | 886 | 366 | 236 |
-| DuetDiagram.Mermaid.Tests | 5 | 1428 | 1045 | 147 | 236 |
+| DuetDiagram.Mermaid.Tests | 5 | 1460 | 1066 | 152 | 242 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
 | tools | 24 | 4270 | 2876 | 708 | 686 |
-| **合计** | **162** | **27790** | **17609** | **5723** | **4458** |
+| **合计** | **162** | **27822** | **17630** | **5728** | **4464** |
 
 ## 明细
 
@@ -210,7 +210,7 @@
 | CorpusLexingTests.cs | 118 |
 | CorpusParsingTests.cs | 194 |
 | LexerTests.cs | 294 |
-| ParserTests.cs | 386 |
+| ParserTests.cs | 407 |
 
 ### DuetDiagram.Render
 

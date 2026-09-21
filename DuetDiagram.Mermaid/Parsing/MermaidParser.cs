@@ -580,7 +580,7 @@ public static class MermaidParser
             {
                 cursor.Next();
 
-                var label = cursor.Peek().Kind == MermaidTokenKind.Text ? cursor.Next().Text : null;
+                var label = cursor.Peek().Kind == MermaidTokenKind.Text ? Unquote(cursor.Next().Text) : null;
 
                 if (cursor.Peek().Kind == MermaidTokenKind.Pipe)
                 {
@@ -606,7 +606,7 @@ public static class MermaidParser
                     var second = cursor.Next();
                     var (secondArrow, secondLine) = StyleOf(second);
 
-                    return (secondArrow, secondLine, string.Join(' ', between).Trim());
+                    return (secondArrow, secondLine, Unquote(string.Join(' ', between)));
                 }
 
                 cursor.Position = saved;

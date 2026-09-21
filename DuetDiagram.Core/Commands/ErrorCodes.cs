@@ -67,6 +67,12 @@ public static class ErrorCodes
     /// <summary>边的一端是组合，却指定了端口。组合没有端口。</summary>
     public const string EdgePortOnComposite = "EDGE_PORT_ON_COMPOSITE";
 
+    /// <summary>布局约束引用的节点不存在。</summary>
+    public const string LayoutNodeMissing = "LAYOUT_NODE_MISSING";
+
+    /// <summary>层内次序引用的边不存在，或者不是主语节点的出边。</summary>
+    public const string LayoutOrderEdgeMissing = "LAYOUT_ORDER_EDGE_MISSING";
+
     /// <summary>组合的成员列表与成员的父级字段互相矛盾。</summary>
     public const string MembershipMismatch = "MEMBERSHIP_MISMATCH";
 

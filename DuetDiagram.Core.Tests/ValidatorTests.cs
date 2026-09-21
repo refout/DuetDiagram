@@ -317,6 +317,93 @@ public sealed class ValidatorTests
 
     [Fact]
     [Trait("Category", "IrValidator")]
+    public void A_layout_constraint_pointing_at_a_missing_node_is_reported()
+    {
+        // 四类约束此前完全没校验过。约束指向不存在的节点时不报错，
+        // 布局层把它当"没有这条约束"忽略掉，症状是"布局没按我写的来"——
+        // 而用户无从知道是那个名字写错了。外部输入里这种错很容易出现：
+        // 名字是模型写出来的，没有任何编译期检查。
+        var document = IrFixtures.WithLayout(
+            IrFixtures.Base(),
+            new LayoutHints
+            {
+                SameRank = [Constraint(new SameRankConstraint(["a", "查无此节点"]), ConstraintOwner.Llm)],
+            });
+
+        var issues = DiagramValidator.Validate(document);
+
+        issues.Should().ContainSingle(i => i.Code == ErrorCodes.LayoutNodeMissing)
+            .Which.RelatedId.Should().Be("查无此节点");
+    }
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void An_order_entry_that_is_not_an_outgoing_edge_is_reported()
+    {
+        // 两层判据：边得存在，而且得是主语节点的出边。
+        // 指向别的边时约束照样生效，只是排的不是它想排的那些——那比"引用不存在"更难看出来。
+        var document = IrFixtures.WithLayout(
+            IrFixtures.WithEdge(
+                IrFixtures.Base(),
+                new EdgeDef { Id = "e1", From = "b", To = "a" }),
+            new LayoutHints
+            {
+                Order =
+                [
+                    Constraint(new OrderConstraint("a", ["e1"]), ConstraintOwner.Llm),
+                    Constraint(new OrderConstraint("a", ["查无此边"]), ConstraintOwner.Llm),
+                ],
+            });
+
+        var issues = DiagramValidator.Validate(document).Where(i => i.Code == ErrorCodes.LayoutOrderEdgeMissing).ToArray();
+
+        issues.Should().HaveCount(2);
+        issues.Select(i => i.Message).Should().Contain(m => m.Contains("查无此边"));
+        issues.Select(i => i.Message).Should().Contain(m => m.Contains("起点是 b"));
+    }
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void A_composite_local_layout_names_the_composite_it_belongs_to()
+    {
+        // 组合内部的提示用同一套判据，但文案要带上组合标识——
+        // 否则用户看到一条约束报错，不知道是文档级那条还是某个分组里那条。
+        var document = IrFixtures.WithComposite(
+            IrFixtures.Base(),
+            new GroupDef
+            {
+                Id = "g1",
+                Members = ["a"],
+                LocalLayout = new LayoutHints
+                {
+                    Align = [Constraint(new AlignConstraint(["查无此节点"]), ConstraintOwner.Human)],
+                },
+            });
+
+        DiagramValidator.Validate(document)
+            .Should().ContainSingle(i => i.Code == ErrorCodes.LayoutNodeMissing)
+            .Which.Message.Should().Contain("组合 g1");
+    }
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Layout_hints_that_refer_to_real_things_are_accepted()
+    {
+        // 夹具里那份提示指向的节点与出边都真实存在，所以它不该产出任何布局相关问题。
+        // 没有这一条的话，上面前几条可以被"永远报错"满足。
+        var document = IrFixtures.Populated();
+
+        var codes = DiagramValidator.Validate(document).Select(i => i.Code).ToArray();
+
+        codes.Should().NotContain(ErrorCodes.LayoutNodeMissing);
+        codes.Should().NotContain(ErrorCodes.LayoutOrderEdgeMissing);
+    }
+
+    private static Constraint<T> Constraint<T>(T value, ConstraintOwner owner) where T : notnull =>
+        new(value, owner, DateTimeOffset.UnixEpoch);
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
     public void Validator_does_not_modify_the_document()
     {
         // 只报告不修改。发现问题时由调用方决定是拒绝加载、丢弃问题部分，还是照常打开并提示——

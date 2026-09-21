@@ -248,6 +248,8 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 | `EDGE_SOURCE_MISSING` / `EDGE_TARGET_MISSING` | 边的端点（节点或组合）不存在 |
 | `EDGE_PORT_MISSING` | 边指定的端口在节点上不存在 |
 | `EDGE_PORT_ON_COMPOSITE` | 端点落在组合上，却指定了端口 |
+| `LAYOUT_NODE_MISSING` | 布局约束引用的节点不存在 |
+| `LAYOUT_ORDER_EDGE_MISSING` | 层内次序引用的边不存在，或不是主语节点的出边 |
 | `PARENT_MISSING` | 节点或组合的父级不是已定义的组合 |
 | `MEMBERSHIP_MISMATCH` | 成员列表与父级不一致 |
 | `GROUP_MEMBER_MISSING` | 组合的成员既不是节点也不是组合 |

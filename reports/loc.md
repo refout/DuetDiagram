@@ -8,8 +8,8 @@
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 5 | 414 | 252 | 100 | 62 |
-| DuetDiagram.Core | 55 | 6500 | 3452 | 2059 | 989 |
-| DuetDiagram.Core.Tests | 22 | 4127 | 2952 | 456 | 719 |
+| DuetDiagram.Core | 55 | 6597 | 3517 | 2078 | 1002 |
+| DuetDiagram.Core.Tests | 22 | 4214 | 3017 | 466 | 731 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.Layout | 16 | 2288 | 1225 | 764 | 299 |
@@ -19,7 +19,7 @@
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
 | tools | 24 | 4270 | 2876 | 708 | 686 |
-| **合计** | **174** | **30703** | **19447** | **6347** | **4909** |
+| **合计** | **174** | **30887** | **19577** | **6376** | **4934** |
 
 ## 明细
 
@@ -70,7 +70,7 @@
 | CommandMemento.cs | 29 |
 | CommandResult.cs | 58 |
 | DiagramCommandBase.cs | 35 |
-| ErrorCodes.cs | 27 |
+| ErrorCodes.cs | 29 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -88,7 +88,7 @@
 | DefinitionCollection.cs | 36 |
 | DiagramDocument.cs | 275 |
 | DiagramEnums.cs | 99 |
-| DiagramValidator.cs | 249 |
+| DiagramValidator.cs | 312 |
 | EdgeDef.cs | 14 |
 | FieldRegistry.cs | 132 |
 | IDefinition.cs | 5 |
@@ -133,7 +133,7 @@
 | TempDirectory.cs | 22 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |
-| ValidatorTests.cs | 227 |
+| ValidatorTests.cs | 292 |
 | VersionLogTests.cs | 177 |
 | WorkspaceTests.cs | 94 |
 

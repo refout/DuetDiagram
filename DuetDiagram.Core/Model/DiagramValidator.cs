@@ -34,6 +34,7 @@ public static class DiagramValidator
         CheckCompositeMembership(document, issues);
         CheckCompositeCycles(document, issues);
         CheckReferences(document, issues);
+        CheckLayoutHints(document, issues);
 
         return issues;
     }
@@ -321,6 +322,96 @@ public static class DiagramValidator
     }
 
     /// <summary>标签成员与动作目标必须指向存在的定义。</summary>
+    /// <summary>
+    /// 布局提示里引用的节点与出边必须存在。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 四类约束此前完全没校验过：约束指向一个不存在的节点时不会有任何报错，
+    /// 布局层把它当作"没有这条约束"忽略掉，症状是"布局没按我写的来"——
+    /// 而用户无从知道是那个名字写错了。外部输入里这种错很容易出现：
+    /// 名字是模型写出来的，没有任何编译期检查。
+    /// </para>
+    /// <para>
+    /// 组合内部的布局提示（<c>LocalLayout</c>）用同一套判据，只是报出来的文案里带上组合标识——
+    /// 否则用户看到一条约束报错却不知道是文档级那条还是某个分组里那条。
+    /// </para>
+    /// </remarks>
+    private static void CheckLayoutHints(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        CheckHints(document, document.Layout, owner: null, issues);
+
+        foreach (var composite in document.Composites.Where(c => c.LocalLayout is not null))
+        {
+            CheckHints(document, composite.LocalLayout!, composite.Id, issues);
+        }
+    }
+
+    private static void CheckHints(
+        DiagramDocument document,
+        LayoutHints hints,
+        string? owner,
+        List<ValidationIssue> issues)
+    {
+        var where = owner is null ? string.Empty : $"组合 {owner} 的";
+
+        void CheckNodes(string kind, IEnumerable<string> ids)
+        {
+            foreach (var id in ids.Where(id => !document.HasNode(id)))
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.LayoutNodeMissing,
+                    Message = $"{where}{kind}约束引用的节点 {id} 不存在。",
+                    RelatedId = id,
+                    Suggestion = $"创建节点 {id}，或把它从这条{kind}约束里去掉。",
+                });
+            }
+        }
+
+        foreach (var constraint in hints.SameRank)
+        {
+            CheckNodes("同层", constraint.Value.Nodes);
+        }
+
+        foreach (var constraint in hints.Align)
+        {
+            CheckNodes("对齐", constraint.Value.Nodes);
+        }
+
+        foreach (var constraint in hints.Place)
+        {
+            CheckNodes("相对位置", [constraint.Value.NodeId, constraint.Value.RelativeTo]);
+        }
+
+        foreach (var constraint in hints.Order)
+        {
+            CheckNodes("层内次序", [constraint.Value.NodeId]);
+
+            foreach (var edgeId in constraint.Value.Order)
+            {
+                // 次序项应当是主语节点的出边。指向别的边时约束照样生效，
+                // 只是排的不是它想排的那些——那比"引用不存在"更难看出来，所以也要报。
+                var edge = document.FindEdge(edgeId);
+
+                var reason = edge is null
+                    ? $"边 {edgeId} 不存在"
+                    : $"边 {edgeId} 的起点是 {edge.From}，不是 {constraint.Value.NodeId}";
+
+                if (edge is null || !string.Equals(edge.From, constraint.Value.NodeId, StringComparison.Ordinal))
+                {
+                    issues.Add(new ValidationIssue
+                    {
+                        Code = ErrorCodes.LayoutOrderEdgeMissing,
+                        Message = $"{where}层内次序把 {edgeId} 排了进去，但它不是节点 {constraint.Value.NodeId} 的出边：{reason}。",
+                        RelatedId = constraint.Value.NodeId,
+                        Suggestion = $"把 {edgeId} 从这条次序里去掉，或改用 {constraint.Value.NodeId} 的一条出边。",
+                    });
+                }
+            }
+        }
+    }
+
     private static void CheckReferences(DiagramDocument document, List<ValidationIssue> issues)
     {
         foreach (var tag in document.Tags)

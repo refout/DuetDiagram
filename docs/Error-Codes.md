@@ -47,6 +47,8 @@
 | `PARENT_MISSING` | 校验失败 | 节点或组合的父级指向不存在的组合 | 提示「是否创建？」 |
 | `TAG_MEMBER_MISSING` | 校验失败 | 标签的成员不存在 | 高亮该标签 |
 | `ACTION_TARGET_MISSING` | 校验失败 | 动作的目标不存在 | 高亮该动作 |
+| `LAYOUT_NODE_MISSING` | 校验失败 | 四类布局约束引用的节点不存在 | 高亮该约束 |
+| `LAYOUT_ORDER_EDGE_MISSING` | 校验失败 | 层内次序引用的边不存在，或不是主语节点的出边 | 高亮该约束 |
 
 `DUPLICATE_ID`、`EDGE_SOURCE_MISSING`、`EDGE_TARGET_MISSING`、`GROUP_MEMBER_MISSING`、
 `GROUP_CYCLE` 五个码两处都用，含义相同。

@@ -5,9 +5,20 @@
   </PropertyGroup>
 
   <!--
-    渲染与导出。当前只有视口索引这一块。
-    暂不引用 Core：空间索引是纯几何，与 IR 无关，多一个引用只会让这一层以后更难单独测试。
-    等到真正画图时再按需引入。
+    渲染层：空间索引、视口剔除、绘制列表与文本度量。
+    绘制列表本身是纯数据（不含界面框架类型、不含绘图库类型），
+    引用 Core 与 Layout 是因为要把 IR 与布局结果翻译成绘制指令；
+    引用 SkiaSharp 只为了量文本——节点尺寸由标签量出来，而那一步需要真实字体。
+    画布控件不在这里，见 AGENTS.md 的差异表。
   -->
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Layout\DuetDiagram.Layout.csproj" />
+  </ItemGroup>
 
 </Project>

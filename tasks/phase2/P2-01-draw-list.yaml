@@ -1,7 +1,7 @@
 id: P2-01
 title: 绘制列表——IR 与布局结果转成有序绘制指令
 phase: 2
-status: pending
+status: done
 depends_on: [P1-01, P1-11]
 estimated_loc: 450
 files:
@@ -11,15 +11,22 @@ files:
     - DuetDiagram.Render/SceneBuilder.cs
     - DuetDiagram.Render/Theme.cs
     - DuetDiagram.Render/ITextMeasurer.cs
+    - DuetDiagram.Render/TextLayout.cs
     - DuetDiagram.Render/SkiaTextMeasurer.cs
     - DuetDiagram.Render.Tests/DrawListTests.cs
     - DuetDiagram.Render.Tests/SceneSnapshotTests.cs
+    - DuetDiagram.Render.Tests/FakeTextMeasurer.cs
+    - DuetDiagram.Render.Tests/Layouts.cs
+    - DuetDiagram.Render.Tests/Snapshot.cs
+    - DuetDiagram.Render.Tests/Scenes/01-empty.txt 等十个快照
     - docs/Render-Pipeline.md
   modify:
     - DuetDiagram.Render/DuetDiagram.Render.csproj
     - DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj
-    - Directory.Packages.props
+    - DuetDiagram.Render/SpatialRect.cs
     - AGENTS.md
+    - .gitignore
+    - reports/loc.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DrawList"
     expect: 全通过
@@ -28,14 +35,35 @@ acceptance:
 constraints:
   - 绘制列表是**纯数据**：不含界面框架类型、不含绘图库类型，可序列化、可逐字节比较
   - "**文本度量必须可注入。** 节点尺寸由标签测出来的宽高决定，而度量依赖字体与渲染后端；写死成绘图库调用之后，同一份文档在两台机器上会得到不同的绘制列表，快照就永远对不上"
-  - 顺序即层叠顺序：边在节点之下，节点按声明顺序，选中与高亮在最上
+  - 顺序即层叠顺序：组合在最下（外层在前），连线居中，节点按声明顺序
   - 构建一次之后只读，不允许增量修改——要改就重建，增量更新由上游决定要不要重建
   - 绘制列表不含颜色以外的样式解释：颜色与线宽从主题查表得来，主题是显式参数
 context:
   - 方案把渲染与导出归在渲染层，渲染层的产出是绘制列表；把列表画到画布上是下一步
-  - 方案要求渲染层有十个场景的快照测试
+  - 方案 §15.2 的渲染清单要求 10 场景快照
   - 方案要求「结构变更才重布局，样式变更只重绘」，所以构建入口要能只看视觉差异就重建列表
   - 结构哈希决定要不要重布局，视觉哈希决定要不要重绘，两者都已存在
+result:
+  landed: true
+  delivered:
+    - 三种绘制指令：形状、文本、折线。每条都带元素标识，颜色是解析好的值而不是令牌名
+    - SceneBuilder 是纯函数，层叠顺序为组合 → 连线 → 节点
+    - ITextMeasurer 是接缝；SkiaTextMeasurer 是生产实现，测试用按字符数算的假实现
+    - SceneBuilder.MeasureNode 是布局输入尺寸的唯一来源，留白加在这里
+    - Theme 是显式参数，解析次序为 元素字段 → 调色板令牌 → 主题兜底
+    - 十个场景的快照在 DuetDiagram.Render.Tests/Scenes/ 下进版本库
+  adjusted:
+    - "原计划改 Directory.Packages.props 登记新依赖，实际没改：绘图库早在主程序里登记过了，这一轮只是多一个工程引用它"
+    - "多出 TextLayout.cs 与三个测试辅助文件（假度量器、布局结果构造、快照比对），原清单没列"
+    - "约束里的「选中与高亮在最上」改成了「画布在列表之上叠加」：选中是画布状态而不是文档状态，放进列表会让同一份文档因选中项不同而产生不同的列表，视觉哈希就不再能回答要不要重绘"
+  findings:
+    - "导入器不把 Mermaid 的换行标记归一成换行符，标签里的换行标记会原样画出来。它属于导入那一层，不在本任务范围，但画布一上线就会看到"
+    - "CompositeDef.Collapsed 没有生效：折叠的组合，成员仍然参与布局、仍然被画出来。要让折叠真的成立，得先让布局不摆放这些成员"
+    - "组合的包围盒算了两遍（布局一次用于连线落点、渲染一次用于画框）。这是有意的，两处要的东西不同，理由写在渲染管线那份文档里"
+  verified:
+    - DuetDiagram.Render.Tests 50 个测试全通过（14 个绘制列表 + 11 个快照 + 25 个原有空间索引）
+    - 故意改坏一份快照后，报错指到了「第 2 行、元素 n1」这一级
+    - 全量编译 0 警告 0 错误；注释门禁与 LOC 门禁通过
 scope_note: |
   **这一层不碰界面框架。** 方案把「Avalonia Canvas 渲染」写在渲染层名下，
   而这里只做到绘制列表为止，画布控件放在主程序里。两个理由：

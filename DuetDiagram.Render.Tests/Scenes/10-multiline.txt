@@ -1,0 +1,7 @@
+canvas 140×354.5 background=#ffffff
+shape n1 Rect (40, 120, 60×76.7) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (57.4, 130, 25.2×18.9) "第一行" color=#161d26 font=Inter/14/Normal
+text n1 (57.4, 167.8, 25.2×18.9) "第三行" color=#161d26 font=Inter/14/Normal
+shape n2 Rect (40, 256.7, 60×57.8) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n2 (81.856, 256.7, 18.144×18.9) "靠右" color=#161d26 font=Inter/14/Bold
+text n2 (81.856, 275.6, 18.144×18.9) "加粗" color=#161d26 font=Inter/14/Bold

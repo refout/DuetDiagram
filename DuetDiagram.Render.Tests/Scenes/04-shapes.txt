@@ -1,0 +1,17 @@
+canvas 221.2×751.2 background=#ffffff
+shape n1 Rect (40, 120, 65.6×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (56, 130, 33.6×18.9) "Rect" color=#161d26 font=Inter/14/Normal
+shape n2 Rounded (40, 198.9, 90.8×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=8 opacity=1
+text n2 (56, 208.9, 58.8×18.9) "Rounded" color=#161d26 font=Inter/14/Normal
+shape n3 Stadium (40, 277.8, 90.8×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=8 opacity=1
+text n3 (56, 287.8, 58.8×18.9) "Stadium" color=#161d26 font=Inter/14/Normal
+shape n4 Diamond (40, 356.7, 90.8×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n4 (56, 366.7, 58.8×18.9) "Diamond" color=#161d26 font=Inter/14/Normal
+shape n5 Circle (40, 435.6, 82.4×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n5 (56, 445.6, 50.4×18.9) "Circle" color=#161d26 font=Inter/14/Normal
+shape n6 Hexagon (40, 514.5, 90.8×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n6 (56, 524.5, 58.8×18.9) "Hexagon" color=#161d26 font=Inter/14/Normal
+shape n7 Parallelogram (40, 593.4, 141.2×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n7 (56, 603.4, 109.2×18.9) "Parallelogram" color=#161d26 font=Inter/14/Normal
+shape n8 Cylinder (40, 672.3, 99.2×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n8 (56, 682.3, 67.2×18.9) "Cylinder" color=#161d26 font=Inter/14/Normal

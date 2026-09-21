@@ -64,7 +64,7 @@ P0-08 LLM 客户端（从 Day 1 并行，不阻塞）
 
 当前（2026-09-21）：Phase 0a / 0b 除 P0-02 标 `blocked` 外全部 `done`；
 Phase 1 除 P1-14 外全部 `done`——P1-01 ~ P1-13、P1-15 ~ P1-18 已落地。
-Phase 2 的 13 个任务文件已产出（`tasks/phase2/`），状态全为 `pending`。
+Phase 2 已开工：P2-01 落地，P2-02 ~ P2-13 待做。
 
 **P1-14 的装置全齐了，缺的是人。** `tools/CompareHarness` 七条命令
 （`generate` / `listings` / `semantic` / `score` / `verify` / `sample` / `agreement`）

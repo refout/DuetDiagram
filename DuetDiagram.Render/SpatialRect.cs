@@ -53,5 +53,6 @@ public readonly record struct SpatialRect(double X, double Y, double Width, doub
     public static SpatialRect FromCorners(double x0, double y0, double x1, double y1) =>
         new(Math.Min(x0, x1), Math.Min(y0, y1), Math.Abs(x1 - x0), Math.Abs(y1 - y0));
 
-    public override string ToString() => $"({X:0.##}, {Y:0.##}, {Width:0.##}×{Height:0.##})";
+    public override string ToString() =>
+        $"({Numbers.Format(X)}, {Numbers.Format(Y)}, {Numbers.Format(Width)}×{Numbers.Format(Height)})";
 }

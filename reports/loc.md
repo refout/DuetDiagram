@@ -16,10 +16,10 @@
 | DuetDiagram.Layout.Tests | 4 | 1040 | 773 | 71 | 196 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
-| DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
+| DuetDiagram.Render | 10 | 1794 | 996 | 521 | 277 |
+| DuetDiagram.Render.Tests | 6 | 1310 | 928 | 131 | 251 |
 | tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **184** | **34085** | **21813** | **6869** | **5403** |
+| **合计** | **196** | **36249** | **23134** | **7377** | **5738** |
 
 ## 明细
 
@@ -228,15 +228,27 @@
 
 | 文件 | 代码 |
 |---|---:|
+| DrawCommand.cs | 80 |
+| DrawList.cs | 43 |
+| ITextMeasurer.cs | 6 |
 | QuadTree.cs | 260 |
-| SpatialRect.cs | 28 |
+| SceneBuilder.cs | 371 |
+| SkiaTextMeasurer.cs | 70 |
+| SpatialRect.cs | 29 |
+| TextLayout.cs | 22 |
+| Theme.cs | 107 |
 | ViewportCulling.cs | 8 |
 
 ### DuetDiagram.Render.Tests
 
 | 文件 | 代码 |
 |---|---:|
+| DrawListTests.cs | 237 |
+| FakeTextMeasurer.cs | 17 |
+| Layouts.cs | 59 |
 | QuadTreeTests.cs | 307 |
+| SceneSnapshotTests.cs | 251 |
+| Snapshot.cs | 57 |
 
 ### tools
 

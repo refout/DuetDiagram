@@ -19,6 +19,10 @@ TestResults/
 coverage*.json
 coverage*.xml
 
+# 快照比对失败时留下的实际结果。它是给人看的中间产物，不是期望值——
+# 核对过之后要么改代码、要么把它提升成正式的 .txt，不要把它提交进来。
+*.received.txt
+
 ## BenchmarkDotNet
 BenchmarkDotNet.Artifacts/
 

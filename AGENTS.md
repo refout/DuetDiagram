@@ -15,8 +15,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 渲染与导出（当前只有视口索引） | Phase 1 P1-13 已落地 |
-| `DuetDiagram.Render.Tests` | 空间索引测试 | 已落地 |
+| `DuetDiagram.Render` | 绘制列表、文本度量、视口索引与剔除 | Phase 2 P2-01 已落地（画布控件在主程序） |
+| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照 | 已落地 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
@@ -24,7 +24,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
 | `DuetDiagram.App` | 界面主程序 | 技术栈验证脚手架，含自检模式 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
-| `docs/` | 架构、IR Schema、错误码、命令清单 | 已落地 |
+| `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
 | `reports/` | 阶段验证结论与取证数据 | 已落地 |
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
@@ -180,6 +180,12 @@ dotnet run --project tools/CompareHarness -c Release -- sample
 # 算出 agreement.md 并列出分歧。没有评分文件时不生成报告。
 dotnet run --project tools/CompareHarness -c Release -- agreement
 
+# 绘制列表：指令构造、主题解析、标签排版、层叠顺序
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DrawList"
+
+# 十个场景的绘制列表快照。红了先判断变化是不是有意的，别顺手把 .received.txt 盖上去。
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SceneSnapshot"
+
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release
 dotnet run --project tools/Poc/McpTransport -c Release
@@ -195,7 +201,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`DrawList`、`SceneSnapshot`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 
@@ -227,6 +233,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 | 项目结构树 | 多一个 `DuetDiagram.Dsl` / `.Dsl.Tests` | 树里有 `Diagram.Compare.Tests` 与 P1-16/P1-17 两条任务，却没有承载它们的工程；命名按仓库约定加前缀，与 `DuetDiagram.Mermaid` 对称 |
 | 项目结构树 | Phase 2 起多一个 `DuetDiagram.E2E.Tests` | 树里有这个工程，但 Phase 0a 的界面栈自检是用主程序自己的 `--selftest` 开关做的——那时只有一帧要验，起一个测试工程不值。开始有交互要验（缩放、平移、点选）之后，再用命令行开关表达就得给主程序加一堆只为测试存在的参数 |
 | §三 整体架构 / §九 GUI 设计：渲染层 | 「Avalonia Canvas 渲染」**不进** `DuetDiagram.Render` | 渲染层只做到**绘制列表**为止（纯数据、可逐字节比较、文本度量可注入），画布控件放在主程序。带上窗口与面板之后快照测试就不再是「同一份输入永远同一份输出」——测试得起一个无头界面进程。而 §15.1 的端到端测试本来就单列了一层，用界面框架的无头模式，那是另一件事，不该和绘制列表的回归混在一起 |
+| §15.1 快照测试的工具 | 用仓库里的冻结文本加一段比对代码，没有引入测试分层表里列的那个快照库 | 那个库不在 §2 的技术选型表里，而这里要的东西只有两样：逐字节可比、差异能定位到元素。一份规范文本加一段比对就够了，多一个依赖反而多一处会随版本变的行为。绘制列表的快照在 `DuetDiagram.Render.Tests/Scenes/`，比对代码在 `Snapshot.cs` |
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |

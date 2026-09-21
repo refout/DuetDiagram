@@ -1,0 +1,9 @@
+canvas 154×317.8 background=#ffffff
+shape outer Rounded (4, 78, 146×235.8) fill=#e9eef5 stroke=#93a0b0 weight=1.5 border=Solid radius=8 opacity=1
+text outer (68.6, 80.55, 16.8×18.9) "外层" color=#161d26 font=Inter/14/Normal
+shape inner Rounded (22, 196.9, 110×98.9) fill=#e9eef5 stroke=#93a0b0 weight=1.5 border=Solid radius=8 opacity=1
+text inner (68.6, 199.45, 16.8×18.9) "内层" color=#161d26 font=Inter/14/Normal
+shape n1 Rect (40, 120, 74×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (56, 130, 42×18.9) "外层的节点" color=#161d26 font=Inter/14/Normal
+shape n2 Rect (40, 238.9, 74×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n2 (56, 248.9, 42×18.9) "内层的节点" color=#161d26 font=Inter/14/Normal

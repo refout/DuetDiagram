@@ -1,0 +1,7 @@
+canvas 154×356.7 background=#ffffff
+shape n1 Rect (40, 120, 60×38.9) fill=#dbeafe stroke=#2563eb weight=1.5 border=Solid radius=0 opacity=1
+text n1 (61.6, 130, 16.8×18.9) "正常" color=#1e3a8a font=Inter/14/Normal
+shape n2 Rect (40, 198.9, 60×38.9) fill=#fee2e2 stroke=#dc2626 weight=1.5 border=Solid radius=0 opacity=1
+text n2 (57.4, 208.9, 25.2×18.9) "出错了" color=#7f1d1d font=Inter/14/Normal
+shape n3 Rect (40, 277.8, 74×38.9) fill=#123456 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n3 (56, 287.8, 42×18.9) "写死的颜色" color=#ffffff font=Inter/14/Normal

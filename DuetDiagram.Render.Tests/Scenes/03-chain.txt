@@ -1,0 +1,9 @@
+canvas 145.6×356.7 background=#ffffff
+polyline e1 color=#5b6675 weight=1.5 line=Solid arrow=Arrow points=[(70, 158.9) (70, 178.9) (72.8, 178.9) (72.8, 198.9)]
+polyline e2 color=#5b6675 weight=1.5 line=Solid arrow=Arrow points=[(72.8, 237.8) (72.8, 257.8) (70, 257.8) (70, 277.8)]
+shape n1 Rect (40, 120, 60×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (61.6, 130, 16.8×18.9) "开始" color=#161d26 font=Inter/14/Normal
+shape n2 Rect (40, 198.9, 65.6×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n2 (56, 208.9, 33.6×18.9) "处理数据" color=#161d26 font=Inter/14/Normal
+shape n3 Rect (40, 277.8, 60×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n3 (61.6, 287.8, 16.8×18.9) "结束" color=#161d26 font=Inter/14/Normal

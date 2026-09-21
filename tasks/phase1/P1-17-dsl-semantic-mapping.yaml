@@ -1,0 +1,70 @@
+id: P1-17
+title: DSL 语义映射
+phase: 1
+status: pending
+depends_on: [P1-16]
+estimated_loc: 300
+files:
+  create:
+    - DuetDiagram.Dsl/Mapping/DslMapper.cs
+    - DuetDiagram.Dsl/Mapping/MappingOptions.cs
+    - DuetDiagram.Dsl/Mapping/MappingReport.cs
+    - DuetDiagram.Dsl.Tests/MapperTests.cs
+    - DuetDiagram.Dsl.Tests/LayoutIntentTests.cs
+  modify:
+    - AGENTS.md
+    - docs/DSL-Syntax.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslMapping"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslLayoutIntent"
+    expect: 全通过；五类布局意图逐条落到 IR 的对应约束
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 映射产物通过 DiagramValidator 且零问题
+constraints:
+  - 映射产物必须通过 DiagramValidator 零问题（与 P1-09 同一条：校验器就是给不经过命令层的外部输入准备的）
+  - 五类布局意图必须逐条落到 IR 的 LayoutHints 上：same-rank / order / align / place。pin 见 open_questions
+  - 约束要带**归属方**。模型写出来的意图标 Llm，人工写回的要标 Human——冲突时听谁的由归属方决定，标错了这条机制就失效
+  - 子图映射为 CompositeDef 的派生类型，members 为准、parent 是冗余索引，两者必须一致
+  - 分组块内的节点自动归属该分组；**边不受分组影响**，可以引用任何节点包括跨组的
+  - 映射产出新的文档实例，不就地修改已有文档（约定 11）
+context:
+  - docs/DSL-Syntax.md
+  - docs/IR-Schema.md（九个集合、CompositeDef 派生、LayoutHints 的四个约束列表）
+  - docs/Sidecar.md（固定位置住在 user.json 的理由）
+  - DuetDiagram.Core/Model/LayoutHints.cs
+  - DuetDiagram.Core/Sidecar/UserSidecar.cs
+  - tasks/phase1/P1-09-mermaid-import.yaml（同一形状的任务，可复用它的结论）
+scope_note: |
+  P1-09 与 P1-17 是同一件事的两个方向：把外部文本映射成 IR。
+  P1-09 的 open_questions 里有两条（版本号与哈希怎么定、未映射片段存哪里）在这里同样存在，
+  不要各答一遍——先看 P1-09 怎么定的，一致地沿用。
+open_questions:
+  - id: where-pin-lives
+    question: pin（固定坐标）映射到哪里？
+    detail: |
+      这是 DSL 最有分量的特性之一（docs/DSL-Syntax.md 把它列为「Mermaid 表达不了」的五项之一，
+      而它们正是「人工拖动作为约束反馈」的基础）。但它现在**没有明确的落点**：
+
+        - IR 的 LayoutHints 只有四个约束列表：sameRank / order / align / place，
+          而 PlaceConstraint(NodeId, RelativeTo, Relation) 是**相对**位置，没有绝对坐标。
+        - IR 的 NodeDef 完全没有坐标字段。
+        - 布局引擎的输入 LayoutNode.Pinned 接受绝对坐标，注释写着它是「唯一的硬保证」。
+        - UserSidecar.PinnedNodes 是固定位置的实际存放处，docs/Sidecar.md 把它归为
+          「人工产物、重算不出来」的不可丢数据。
+
+      于是 pin 有两个候选落点，而且会互相冗余：
+        1. 进 IR 的 LayoutHints —— 要新增一种绝对位置约束，属于 IR 契约变更
+        2. 进 UserSidecar.PinnedNodes —— 不改 IR，但「DSL 是唯一事实源」这句话就要打折扣，
+           因为同一份 pin 同时存在于 .dsl 与 .user.json 两个文件里
+
+      需要先定：DSL 里的 pin 是**权威**（加载时写入 user.json），
+      还是只是 user.json 的一份可读镜像（以 user.json 为准）。
+      这决定了「用户手改 .dsl 里的坐标」和「GUI 拖动后写回 .user.json」谁覆盖谁。
+  - id: constraint-ownership
+    question: 约束的归属方怎么判？
+    detail: |
+      ConstraintOwner 取 Auto / Llm / Human，决定冲突时听谁的。
+      同一份 DSL 文本可能由模型生成，也可能由人手工写回（pin 的注释就写着「人工拖动后写回这里」）。
+      解析器分不清两者。是调用方通过 MappingOptions 声明，还是按指令类型推断
+      （pin 一律算 Human、其余算 Llm）？后者简单但会在人手工写 same-rank 时标错。

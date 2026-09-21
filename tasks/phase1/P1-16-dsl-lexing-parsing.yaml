@@ -1,0 +1,71 @@
+id: P1-16
+title: DSL 词法与语法
+phase: 1
+status: pending
+depends_on: [P1-01]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Dsl/DuetDiagram.Dsl.csproj
+    - DuetDiagram.Dsl/Lexing/DslToken.cs
+    - DuetDiagram.Dsl/Lexing/DslLexer.cs
+    - DuetDiagram.Dsl/Parsing/DslAst.cs
+    - DuetDiagram.Dsl/Parsing/DslParser.cs
+    - DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj
+    - DuetDiagram.Dsl.Tests/LexerTests.cs
+    - DuetDiagram.Dsl.Tests/ParserTests.cs
+  modify:
+    - DuetDiagram.slnx
+    - AGENTS.md
+acceptance:
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: exit 0，0 警告
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslParsing"
+    expect: 全通过
+  - command: dotnet run --project tools/LocCounter -c Release -- --root . --check
+    expect: 一致
+constraints:
+  - 行式：每行一个声明，没有跨行表达式。缩进只为了可读，边界由 end 决定
+  - 标识与显示文本分离：标识是 ASCII 短名，显示文本可以是任何语言
+  - 未声明即隐式创建：节点首次被引用时自动出现，不要求声明顺序
+  - 与 Mermaid 解析器同一套口径——认不出来的内容记成诊断，不抛异常。两份解析器对坏输入的处理方式必须一致，否则对比测试量到的是口径差异而不是格式差异
+  - Dsl 工程可以引用 Core，但 Core 永远不反向依赖它（Core 只依赖 BCL，有 CI 门禁）
+  - 解析结果里的集合按首次出现顺序排列。顺序是层内次序的依据，用集合会让同一份输入两次解析出不同的图
+context:
+  - docs/DSL-Syntax.md（完整语法规格，本任务的实现依据）
+  - docs/Compare-Criteria.md（下游消费者，口径决定解析器要产出什么）
+  - tasks/phase1/P1-08-mermaid-lexing-parsing.yaml（同样的分层与诊断口径）
+  - tasks/phase0a/P0-08-llm-corpus-generation.yaml（语料的 DSL 组是按这份语法生成的）
+scope_note: |
+  方案的项目结构树里**没有 DSL 工程**——只有 Core / Mermaid / Layout / Llm / Mcp /
+  Render / App / AotSmokeTest 与各测试工程。但 P1-16 / P1-17 两条任务确实存在，
+  且树里有 `Diagram.Compare.Tests`。缺的这一块由本任务补上，命名按仓库约定加
+  `DuetDiagram.` 前缀，与 `DuetDiagram.Mermaid` 对称。
+
+  另：方案把 DSL 语法放在 Phase 1，语料生成放在 Phase 0a。按排期生成语料时语法
+  还不存在，因此语法在 P0-08 里被前移起草（docs/DSL-Syntax.md 就是那次产出）。
+  本任务是把那份规格**实现**出来，不是重新设计。
+open_questions:
+  - id: attribute-value-quoting
+    question: 属性值里出现空格时怎么办？
+    detail: |
+      现约定是「显示文本与 desc 必须加引号，属性值不加引号」。
+      但 `desc="这是一段说明"` 里可以带空格，而 `shape="rounded rect"` 这种
+      带空格的属性值没有定义。词法层要先知道这个，否则切分规则定不下来。
+  - id: escaping
+    question: 显示文本里的引号与换行怎么转义？
+    detail: |
+      `label "他说\"好\""` 还是 `label '他说"好"'`？换行是写成 \n 还是不允许？
+      规格里没定，而它直接决定词法层的字符串扫描怎么写。
+  - id: units
+    question: pin 的坐标要不要支持百分比或单位？
+    detail: |
+      当前是无单位数字。若以后要支持百分比（相对画布），词法层现在就得预留，
+      否则改起来要动整个数值记号的定义。
+  - id: error-recovery-granularity
+    question: 一行解析失败时，是跳过该行继续，还是整份拒绝？
+    detail: |
+      docs/DSL-Syntax.md 的「待定」里列了这一条，但它与对比测试直接相关：
+      解析错误率的分子是「解析器拒绝的数量」，而「拒绝」的定义取决于这个粒度。
+      口径不定，P1-14 的第一个指标就算不出来。
+      倾向与 Mermaid 侧一致（跳过坏行、记诊断、继续），但那要先确认。

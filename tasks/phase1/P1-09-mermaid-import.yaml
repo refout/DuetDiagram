@@ -28,7 +28,10 @@ constraints:
   - 导入产物必须通过 DiagramValidator 零问题。校验器的注释写明它就是给「不经过命令层的外部输入」准备的，导入正是那个场景——命令层的防线在这里一点都用不上
   - Mermaid 工程不得获得对文档的可变访问。Core 的 MutableNodes 等是 internal，导入只能走公开路径
   - 标识在九个集合之间共用命名空间，节点与复合节点不能同名
-  - 子图映射为 CompositeDef 的派生类型，成员关系以 members 为准，NodeDef.parent 是冗余索引，两者必须一致（见 docs/IR-Schema.md）
+  - 子图映射为 CompositeDef 的派生类型。成员关系以 CompositeDef.members 为准，
+    NodeDef.parent 与 CompositeDef.parent 都是冗余索引，三者必须一致（见 docs/IR-Schema.md）
+  - "**members 里既有节点也有子组合**，且引用不带类型前缀：校验器先按节点解析成员，
+    解析不到再按组合解析。嵌套子图因此要作为成员写进外层组合的 members，而不是只靠 parent"
   - 导入产出新的文档实例，不就地修改已有文档（约定 11：打开新文档必须新建 DiagramDocument + DiagramCommandBus）
   - 认不出来的内容进导入报告，不抛异常——这是 P1-08 已经定下的口径，导入层要接着走
 context:
@@ -59,7 +62,10 @@ open_questions:
     options:
       - 给复合节点建一个代表节点作为边端点。图上会多出一个方块，需要决定它长什么样
       - 丢掉这条边，在导入报告里如实记成「表达不了」。信息丢失但不污染图
-      - 放宽 IR：允许边端点是复合节点。要改 Core、校验器与线格式，是契约变更
+      - 放宽 IR：允许边端点是复合节点。**线格式不用改**——EdgeDef.from/to 本来就是
+        字符串，成员的引用也不带类型前缀，所以数据层已经容得下它。要改的是校验器的
+        端点解析（CheckEdgeEndpoints 现在只用 FindNode）与布局把端点落到组合边界上。
+        比看上去便宜，但它是 IR 契约变更，仍应显式决定
     recommendation: |
       这是 IR 契约问题，不该在导入层猜。建议先做决定再写映射，
       否则这七份文件会以某种「看起来导入成功了」的方式坏掉——而那种坏法最难发现。

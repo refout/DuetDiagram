@@ -25,7 +25,10 @@ constraints:
   - 映射产物必须通过 DiagramValidator 零问题（与 P1-09 同一条：校验器就是给不经过命令层的外部输入准备的）
   - 五类布局意图必须逐条落到 IR 的 LayoutHints 上：same-rank / order / align / place。pin 见 open_questions
   - 约束要带**归属方**。模型写出来的意图标 Llm，人工写回的要标 Human——冲突时听谁的由归属方决定，标错了这条机制就失效
-  - 子图映射为 CompositeDef 的派生类型，members 为准、parent 是冗余索引，两者必须一致
+  - 子图映射为 CompositeDef 的派生类型。成员关系以 CompositeDef.members 为准，
+    NodeDef.parent 与 CompositeDef.parent 都是冗余索引，三者必须一致
+  - "**members 里既有节点也有子组合**，引用不带类型前缀。嵌套分组要作为成员写进外层
+    组合的 members，而不是只靠 parent（见 DiagramValidator.CheckCompositeMembership）"
   - 分组块内的节点自动归属该分组；**边不受分组影响**，可以引用任何节点包括跨组的
   - 映射产出新的文档实例，不就地修改已有文档（约定 11）
 context:

@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Sidecar;
 using DuetDiagram.Core.Time;
 using DuetDiagram.Dsl.Mapping;
 using DuetDiagram.Dsl.Parsing;
@@ -378,6 +379,101 @@ public sealed class LayoutIntentTests
         }
 
         silent.Should().BeEmpty();
+    }
+
+    // ---- pin 与 sidecar ----
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void Pin_lands_in_the_sidecar()
+    {
+        var result = Map("""
+            a "甲"
+            b "乙"
+            pin a at 640, 320
+            pin b at -10, 12.5
+            """);
+
+        result.Sidecar.PinnedNodes.Should().HaveCount(2);
+        result.Sidecar.PinnedNodes["a"].Should().Be(new Anchor(640, 320));
+        result.Sidecar.PinnedNodes["b"].Should().Be(new Anchor(-10, 12.5));
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void The_sidecar_carries_the_document_id()
+    {
+        // 固定位置是按文档归属的：换了文档标识，那份记录就该被当成"文件放错了地方"
+        // 而不是"缓存过期"。两个处置完全不同。
+        var result = DslMapper.Map(
+            DslParser.Parse("pin a at 1, 2"),
+            new MappingOptions { DocumentId = "订单流程" });
+
+        result.Sidecar.DocumentId.Should().Be("订单流程");
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void No_pin_gives_an_empty_but_identified_sidecar()
+    {
+        var result = Map("a -> b");
+
+        result.Sidecar.PinnedNodes.Should().BeEmpty();
+        result.Sidecar.DocumentId.Should().Be("dsl");
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void The_last_pin_of_a_node_wins()
+    {
+        // 逐行读下来的直觉就是后面的覆盖前面的，而且这里不存在歧义——
+        // 不像撞名那样两边的身份分不清。
+        var result = Map("pin a at 1, 2\npin a at 3, 4");
+
+        result.Sidecar.PinnedNodes["a"].Should().Be(new Anchor(3, 4));
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void Merging_does_not_overwrite_an_existing_pin()
+    {
+        // 人工产物不该被文本里的值覆盖：模型重生成一次文本是常事，
+        // 而用户每次拖动都会白做。这是决策 C 的那条规则。
+        var existing = new UserSidecar
+        {
+            DocumentId = "dsl",
+            PinnedNodes = new Dictionary<string, Anchor>(StringComparer.Ordinal)
+            {
+                ["a"] = new Anchor(100, 100),
+            },
+        };
+
+        var fromText = Map("pin a at 1, 2\npin b at 3, 4").Sidecar;
+
+        var merged = SidecarMerge.Fill(existing, fromText);
+
+        merged.PinnedNodes["a"].Should().Be(new Anchor(100, 100), "人工拖过的位置不该被文本盖掉");
+        merged.PinnedNodes["b"].Should().Be(new Anchor(3, 4), "文本补上 sidecar 里没有的那部分");
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void Merging_keeps_the_existing_document_id()
+    {
+        var existing = new UserSidecar { DocumentId = "原来的" };
+        var fromText = Map("pin a at 1, 2").Sidecar;
+
+        SidecarMerge.Fill(existing, fromText).DocumentId.Should().Be("原来的");
+    }
+
+    [Fact]
+    [Trait("Category", "DslLayoutIntent")]
+    public void Merging_into_a_missing_sidecar_takes_the_text_id()
+    {
+        var merged = SidecarMerge.Fill(new UserSidecar(), Map("pin a at 1, 2").Sidecar);
+
+        merged.DocumentId.Should().Be("dsl");
+        merged.PinnedNodes["a"].Should().Be(new Anchor(1, 2));
     }
 
     private static MappingResult Map(string source) =>

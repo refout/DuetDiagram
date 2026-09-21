@@ -10,8 +10,8 @@
 | DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
 | DuetDiagram.Core | 55 | 6478 | 3430 | 2072 | 976 |
 | DuetDiagram.Core.Tests | 21 | 3937 | 2819 | 442 | 676 |
-| DuetDiagram.Dsl | 8 | 2436 | 1469 | 609 | 358 |
-| DuetDiagram.Dsl.Tests | 7 | 2200 | 1593 | 257 | 350 |
+| DuetDiagram.Dsl | 9 | 2535 | 1503 | 666 | 366 |
+| DuetDiagram.Dsl.Tests | 7 | 2296 | 1665 | 264 | 367 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
 | DuetDiagram.Mermaid | 6 | 1487 | 886 | 365 | 236 |
@@ -19,7 +19,7 @@
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
 | tools | 24 | 4268 | 2876 | 706 | 686 |
-| **合计** | **160** | **27261** | **17230** | **5716** | **4315** |
+| **合计** | **161** | **27456** | **17336** | **5780** | **4340** |
 
 ## 明细
 
@@ -142,9 +142,10 @@
 | DslLexer.cs | 228 |
 | DslSource.cs | 23 |
 | DslToken.cs | 26 |
-| DslMapper.cs | 345 |
+| DslMapper.cs | 358 |
 | MappingOptions.cs | 10 |
-| MappingReport.cs | 12 |
+| MappingReport.cs | 13 |
+| SidecarMerge.cs | 20 |
 | DslAst.cs | 68 |
 | DslParser.cs | 757 |
 
@@ -155,7 +156,7 @@
 | AstProjection.cs | 25 |
 | Corpus.cs | 45 |
 | CorpusParsingTests.cs | 203 |
-| LayoutIntentTests.cs | 281 |
+| LayoutIntentTests.cs | 353 |
 | LexerTests.cs | 193 |
 | MapperTests.cs | 350 |
 | ParserTests.cs | 496 |

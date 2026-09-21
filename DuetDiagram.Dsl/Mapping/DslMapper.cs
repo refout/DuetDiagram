@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Sidecar;
 using DuetDiagram.Dsl.Parsing;
 
 namespace DuetDiagram.Dsl.Mapping;
@@ -115,7 +116,43 @@ public static class DslMapper
 
             var report = new MappingReport(_source.Diagnostics, _renames, _created, _unresolved);
 
-            return new MappingResult(document, report);
+            return new MappingResult(document, Pins(), report);
+        }
+
+        /// <summary>
+        /// <c>pin</c> 落到 sidecar 的固定位置上。
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// **不进 IR。** <see cref="LayoutHints"/> 的四个列表都是相对约束，
+        /// 没有绝对坐标；而布局输入本来就从 sidecar 收固定坐标
+        /// （<c>LayoutRequestFactory.FromDocument</c> 的第三个参数），注释写着
+        /// "坐标属于渲染结果，存进 IR 会让同一份语义在不同机器上产生不同的文档内容"。
+        /// </para>
+        /// <para>
+        /// **这里只产出"文本里写了什么"，不管它和已有记录谁说了算。**
+        /// 那个判定发生在加载时：sidecar 里已有的记录是人工产物，
+        /// 不该被文本里的值覆盖，文本只补它没有的那部分。
+        /// 映射层拿不到已有的 sidecar，所以那条规则由 <see cref="SidecarMerge.Fill"/> 承担。
+        /// </para>
+        /// <para>
+        /// 同一个节点被 <c>pin</c> 多次时取最后一条。逐行读下来的直觉就是后面的覆盖前面的，
+        /// 而且这不产生歧义——不像撞名那样两边的身份分不清。
+        /// </para>
+        /// </remarks>
+        private UserSidecar Pins()
+        {
+            var pinned = new Dictionary<string, Anchor>(StringComparer.Ordinal);
+
+            foreach (var intent in _source.Layout)
+            {
+                if (intent.Kind == DslLayoutIntentKind.Pin)
+                {
+                    pinned[intent.Subject!] = new Anchor(intent.X!.Value, intent.Y!.Value);
+                }
+            }
+
+            return new UserSidecar { DocumentId = _options.DocumentId, PinnedNodes = pinned };
         }
 
         // ---- 撞名 ----

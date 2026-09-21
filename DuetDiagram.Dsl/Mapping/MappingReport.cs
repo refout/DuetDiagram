@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Sidecar;
 using DuetDiagram.Dsl.Parsing;
 
 namespace DuetDiagram.Dsl.Mapping;
@@ -74,6 +75,12 @@ public sealed record MappingReport(
 /// <summary>
 /// 映射产物。
 /// </summary>
+/// <remarks>
+/// 是**两件套**：文档加 sidecar。DSL 里有一类意图（<c>pin</c>）落不到 IR 上——
+/// 绝对坐标在 <see cref="LayoutHints"/> 里没有位置，而布局输入本来就从 sidecar
+/// 收固定坐标。硬塞进 IR 会让"同一份语义在不同机器上产出不同的文档内容"。
+/// </remarks>
 /// <param name="Document">产出文档。版本号为 0，两个哈希已算好。</param>
+/// <param name="Sidecar">这份文本里的固定位置。没有 <c>pin</c> 时是一份空的。</param>
 /// <param name="Report">这次映射做了什么。</param>
-public sealed record MappingResult(DiagramDocument Document, MappingReport Report);
+public sealed record MappingResult(DiagramDocument Document, UserSidecar Sidecar, MappingReport Report);

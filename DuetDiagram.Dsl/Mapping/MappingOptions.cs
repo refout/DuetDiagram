@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Time;
 
 namespace DuetDiagram.Dsl.Mapping;
 
@@ -34,4 +35,33 @@ public sealed record MappingOptions
     /// 默认配色会被算进视觉哈希，于是换个主题就变成了"文档内容变了"。
     /// </remarks>
     public Palette? Palette { get; init; }
+
+    /// <summary>
+    /// 布局意图的归属方。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **由调用方声明，不按指令类型推断。** 同一份 DSL 文本可能由模型生成，
+    /// 也可能由人手工写回，解析器分不清两者——语法上它们一模一样。
+    /// </para>
+    /// <para>
+    /// 曾经考虑过"pin 一律算 Human、其余算 Llm"这种推断，看起来省事，
+    /// 但人在手工写 <c>same-rank</c> 时就会被标错，而标错的代价是
+    /// 人工设定的约束被下一次自动重排冲掉——用户每次微调都会白做。
+    /// 归属方这条机制的意义全在"标对了才生效"，宁可让调用方多传一个参数。
+    /// </para>
+    /// <para>
+    /// 缺省是 <see cref="ConstraintOwner.Llm"/>，因为 DSL 的主要来源是模型。
+    /// </para>
+    /// </remarks>
+    public ConstraintOwner Owner { get; init; } = ConstraintOwner.Llm;
+
+    /// <summary>
+    /// 时间来源，用来给约束打创建时间。
+    /// </summary>
+    /// <remarks>
+    /// 不直接读系统时钟：创建时间虽然不进哈希，但它出现在约束记录里，
+    /// 而测试要能断言"映射两次得到同一份产物"。注入之后这条断言才成立。
+    /// </remarks>
+    public ITimeProvider Time { get; init; } = SystemTimeProvider.Instance;
 }

@@ -55,6 +55,7 @@ public static class DslMapper
 
         private readonly List<MappingRename> _renames = [];
         private readonly List<CreatedNode> _created = [];
+        private readonly List<UnresolvedIntent> _unresolved = [];
 
         public Session(DslDocument source, MappingOptions options)
         {
@@ -92,12 +93,15 @@ public static class DslMapper
             var implicitNodes = CollectImplicitNodes();
             var edgeIds = AssignEdgeIds();
 
-            var nodes = MapNodes(implicitNodes);
+            var nodes = MapNodes(implicitNodes.Ids);
             var composites = MapComposites();
             var edges = MapEdges(edgeIds);
 
             _created.AddRange(
-                implicitNodes.Select(created => new CreatedNode(created.Id, edgeIds[created.EdgeIndex])));
+                implicitNodes.FromEdges.Select(created => new CreatedNode(created.Id, $"边 {edgeIds[created.EdgeIndex]}")));
+
+            _created.AddRange(
+                implicitNodes.FromIntents.Select(created => new CreatedNode(created.Id, created.Intent)));
 
             var document = DiagramDocument.CreateFromContent(
                 _options.DocumentId,
@@ -107,9 +111,9 @@ public static class DslMapper
                 edges: edges,
                 composites: composites,
                 palette: _options.Palette,
-                layout: LayoutHints());
+                layout: LayoutHints(edgeIds));
 
-            var report = new MappingReport(_source.Diagnostics, _renames, _created);
+            var report = new MappingReport(_source.Diagnostics, _renames, _created, _unresolved);
 
             return new MappingResult(document, report);
         }
@@ -192,41 +196,86 @@ public static class DslMapper
         /// 端点指向的是已声明的容器时不补节点：那是一条连到分组上的边
         /// （<c>ODS --&gt; DWD</c> 那种写法），IR 容得下它。补了反而会撞名。
         /// </para>
+        /// <para>
+        /// **布局意图里的引用也算引用。** 规格的设计原则写着"未声明即隐式创建：
+        /// 节点在首次被引用时自动出现"，而 <c>pin fail at 640, 320</c> 里的
+        /// <c>fail</c> 就是一次引用——不补的话那条约束会指向一个不存在的节点，
+        /// 而校验器目前不检查布局约束的节点引用（见 P1-17 的 findings），
+        /// 于是它会一路安静地传下去。
+        /// </para>
+        /// <para>
+        /// **例外是 <c>order</c> 的次序项。** 那些名字指的是主语节点的出边终点，
+        /// 不是新节点；补出来只会多一个谁也不连的方块。
+        /// </para>
         /// </remarks>
-        private List<(string Id, int EdgeIndex)> CollectImplicitNodes()
+        private (List<string> Ids, List<(string Id, int EdgeIndex)> FromEdges, List<(string Id, string Intent)> FromIntents)
+            CollectImplicitNodes()
         {
             var declaredNodes = _source.Nodes.Select(n => n.Id).ToHashSet(StringComparer.Ordinal);
             var declaredGroups = _source.Groups.Select(g => Mapped(g.Id)!).ToHashSet(StringComparer.Ordinal);
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            var created = new List<(string Id, int EdgeIndex)>();
+
+            var ids = new List<string>();
+            var fromEdges = new List<(string Id, int EdgeIndex)>();
+            var fromIntents = new List<(string Id, string Intent)>();
+
+            void Consider(string endpoint, Action<string> record)
+            {
+                if (declaredNodes.Contains(endpoint) || declaredGroups.Contains(endpoint) || !seen.Add(endpoint))
+                {
+                    return;
+                }
+
+                ids.Add(endpoint);
+                record(endpoint);
+            }
 
             for (var index = 0; index < _source.Edges.Count; index++)
             {
-                var edge = _source.Edges[index];
+                var edgeIndex = index;
 
-                foreach (var endpoint in (string[])[edge.From, edge.To])
+                foreach (var endpoint in (string[])[_source.Edges[index].From, _source.Edges[index].To])
                 {
-                    if (declaredNodes.Contains(endpoint)
-                        || declaredGroups.Contains(endpoint)
-                        || !seen.Add(endpoint))
-                    {
-                        continue;
-                    }
+                    Consider(endpoint, id => fromEdges.Add((id, edgeIndex)));
+                }
+            }
 
-                    created.Add((endpoint, index));
+            foreach (var intent in _source.Layout)
+            {
+                var text = IntentText(intent);
+
+                foreach (var reference in NodeReferences(intent))
+                {
+                    Consider(reference, id => fromIntents.Add((id, text)));
                 }
             }
 
             // 先占住名字，后面给边发标识时要让开它们——两者共用一个命名空间。
-            foreach (var (id, _) in created)
-            {
-                _taken.Add(id);
-            }
+            _taken.UnionWith(ids);
 
-            return created;
+            return (ids, fromEdges, fromIntents);
         }
 
-        private List<NodeDef> MapNodes(IReadOnlyList<(string Id, int EdgeIndex)> implicitNodes)
+        /// <summary>
+        /// 一条布局意图里算作"引用了一个节点"的名字。
+        /// </summary>
+        /// <remarks>
+        /// <c>order</c> 只算主语：它的次序项是出边的终点，不是节点声明。
+        /// 其余四种（含 <c>pin</c>）的主语与列表都是节点引用。
+        /// </remarks>
+        private static IEnumerable<string> NodeReferences(DslLayoutIntent intent)
+        {
+            if (intent.Kind == DslLayoutIntentKind.Order)
+            {
+                return intent.Subject is null ? [] : [intent.Subject];
+            }
+
+            return intent.Subject is null
+                ? intent.Nodes
+                : [intent.Subject, .. intent.Nodes];
+        }
+
+        private List<NodeDef> MapNodes(IReadOnlyList<string> implicitNodes)
         {
             var nodes = new List<NodeDef>(_source.Nodes.Count + implicitNodes.Count);
 
@@ -248,7 +297,7 @@ public static class DslMapper
                 });
             }
 
-            foreach (var (id, _) in implicitNodes)
+            foreach (var id in implicitNodes)
             {
                 nodes.Add(new NodeDef { Id = id, Label = id });
             }
@@ -359,23 +408,155 @@ public static class DslMapper
         // ---- 布局提示 ----
 
         /// <summary>
-        /// 文档级的布局提示。四类约束不在这里（见 P1-17 的后续提交）。
+        /// 把五类布局意图落到 IR 的四类约束上。
         /// </summary>
-        private LayoutHints LayoutHints()
+        /// <remarks>
+        /// <para>
+        /// 四类约束都带归属方与创建时间。归属方由调用方声明（见 <see cref="MappingOptions.Owner"/>），
+        /// 创建时间走注入的时钟——它虽然不进哈希，但会出现在产物里，
+        /// 读系统时钟的话"同一份文本映射两次得到同一份产物"就不成立了。
+        /// </para>
+        /// <para>
+        /// <c>pin</c> 不在这里：<see cref="LayoutHints"/> 的四个列表都是相对约束，
+        /// 没有绝对坐标，而布局输入本来就从 sidecar 收固定坐标。它走另一条路。
+        /// </para>
+        /// </remarks>
+        private LayoutHints LayoutHints(IReadOnlyList<string> edgeIds)
         {
-            if (_source.NodeSpacing is null && _source.LayerSpacing is null)
-            {
-                return LayoutHintsDefaults.Create();
-            }
-
             var defaults = LayoutHintsDefaults.Create();
+            var owner = _options.Owner;
+            var at = _options.Time.UtcNow;
+
+            var sameRank = new List<Constraint<SameRankConstraint>>();
+            var order = new List<Constraint<OrderConstraint>>();
+            var align = new List<Constraint<AlignConstraint>>();
+            var place = new List<Constraint<PlaceConstraint>>();
+
+            foreach (var intent in _source.Layout)
+            {
+                switch (intent.Kind)
+                {
+                    case DslLayoutIntentKind.SameRank:
+                        sameRank.Add(new Constraint<SameRankConstraint>(new SameRankConstraint(intent.Nodes), owner, at));
+                        break;
+
+                    case DslLayoutIntentKind.Align:
+                        align.Add(new Constraint<AlignConstraint>(new AlignConstraint(intent.Nodes), owner, at));
+                        break;
+
+                    case DslLayoutIntentKind.Place:
+                        place.Add(new Constraint<PlaceConstraint>(
+                            new PlaceConstraint(intent.Subject!, intent.Nodes[0], intent.Relation!.Value),
+                            owner,
+                            at));
+                        break;
+
+                    case DslLayoutIntentKind.Order:
+                        var outgoing = ResolveOutgoingEdges(intent, edgeIds);
+
+                        if (outgoing.Count > 0)
+                        {
+                            order.Add(new Constraint<OrderConstraint>(
+                                new OrderConstraint(intent.Subject!, outgoing),
+                                owner,
+                                at));
+                        }
+
+                        break;
+
+                    case DslLayoutIntentKind.Pin:
+                        // 绝对坐标不进 IR，见上面的说明。
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(intent), intent.Kind, "没有登记这个布局意图");
+                }
+            }
 
             return defaults with
             {
                 NodeSpacing = _source.NodeSpacing ?? defaults.NodeSpacing,
                 LayerSpacing = _source.LayerSpacing ?? defaults.LayerSpacing,
+                SameRank = sameRank,
+                Order = order,
+                Align = align,
+                Place = place,
             };
         }
+
+        /// <summary>
+        /// 把 <c>order</c> 的次序项从"目标节点"解析成"出边标识"。
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// **两处对同一个概念的定义不一致，转换在这一层做。**
+        /// DSL 写的是 <c>order check: pass, fail</c>——名字是节点名，人就是这么想的
+        /// （"校验之后先走通过还是先走不通过"）。而 IR 的 <c>OrderConstraint</c>
+        /// 存的是**出边的标识**：它的用途是减少连线的交叉，而交叉是边之间的事，
+        /// 节点标识区分不了平行边（同一个终点可以有多条边）。
+        /// </para>
+        /// <para>
+        /// 一个名字可能对应多条边（平行边）。全部按边在文档里的先后收进来——
+        /// 收一条、丢几条会让约束的表达与文本不符，而且不报错。
+        /// </para>
+        /// <para>
+        /// 找不到那条边时这一项落不了地，记进报告。整个意图一项都落不了地时不产出约束：
+        /// 一条空次序的约束没有意义，而 <c>OrderConstraint</c> 的次序为空会让下游
+        /// 分不清"没有约束"与"约束是空的"。
+        /// </para>
+        /// </remarks>
+        private List<string> ResolveOutgoingEdges(DslLayoutIntent intent, IReadOnlyList<string> edgeIds)
+        {
+            var resolved = new List<string>();
+
+            foreach (var target in intent.Nodes)
+            {
+                var found = false;
+
+                for (var index = 0; index < _source.Edges.Count; index++)
+                {
+                    var edge = _source.Edges[index];
+
+                    if (string.Equals(edge.From, intent.Subject, StringComparison.Ordinal)
+                        && string.Equals(edge.To, target, StringComparison.Ordinal))
+                    {
+                        resolved.Add(edgeIds[index]);
+                        found = true;
+                    }
+                }
+
+                if (!found)
+                {
+                    _unresolved.Add(new UnresolvedIntent(
+                        IntentText(intent),
+                        target,
+                        $"节点 {intent.Subject} 没有通往 {target} 的边，而 order 的次序项指的是出边的终点。"));
+                }
+            }
+
+            return resolved;
+        }
+
+        /// <summary>把一条意图还原成接近原文的样子，用于报告。</summary>
+        private static string IntentText(DslLayoutIntent intent) => intent.Kind switch
+        {
+            DslLayoutIntentKind.SameRank => $"same-rank {string.Join(", ", intent.Nodes)}",
+            DslLayoutIntentKind.Align => $"align {string.Join(", ", intent.Nodes)}",
+            DslLayoutIntentKind.Order => $"order {intent.Subject}: {string.Join(", ", intent.Nodes)}",
+            DslLayoutIntentKind.Place =>
+                $"place {intent.Subject} {RelationText(intent.Relation)} {intent.Nodes[0]}",
+            DslLayoutIntentKind.Pin => $"pin {intent.Subject} at {intent.X}, {intent.Y}",
+            _ => throw new ArgumentOutOfRangeException(nameof(intent), intent.Kind, "没有登记这个布局意图"),
+        };
+
+        private static string RelationText(PlaceRelation? relation) => relation switch
+        {
+            PlaceRelation.RightOf => "right-of",
+            PlaceRelation.LeftOf => "left-of",
+            PlaceRelation.Above => "above",
+            PlaceRelation.Below => "below",
+            _ => "?",
+        };
 
         // ---- 标识生成 ----
 

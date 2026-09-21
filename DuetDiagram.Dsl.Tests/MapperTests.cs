@@ -182,7 +182,7 @@ public sealed class MapperTests
         created.Parent.Should().BeNull();
 
         result.Report.CreatedNodes.Should().ContainSingle()
-            .Which.Should().Be(new CreatedNode("b", "e1"));
+            .Which.Should().Be(new CreatedNode("b", "边 e1"));
     }
 
     [Fact]

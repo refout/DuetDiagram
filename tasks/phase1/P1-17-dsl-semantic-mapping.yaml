@@ -1,7 +1,7 @@
 id: P1-17
 title: DSL 语义映射
 phase: 1
-status: pending
+status: done
 depends_on: [P1-16]
 estimated_loc: 300
 files:
@@ -9,11 +9,13 @@ files:
     - DuetDiagram.Dsl/Mapping/DslMapper.cs
     - DuetDiagram.Dsl/Mapping/MappingOptions.cs
     - DuetDiagram.Dsl/Mapping/MappingReport.cs
+    - DuetDiagram.Dsl/Mapping/SidecarMerge.cs
     - DuetDiagram.Dsl.Tests/MapperTests.cs
     - DuetDiagram.Dsl.Tests/LayoutIntentTests.cs
   modify:
     - AGENTS.md
     - docs/DSL-Syntax.md
+    - docs/IR-Schema.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslMapping"
     expect: 全通过
@@ -42,6 +44,49 @@ scope_note: |
   P1-09 与 P1-17 是同一件事的两个方向：把外部文本映射成 IR。
   P1-09 的 open_questions 里有两条（版本号与哈希怎么定、未映射片段存哪里）在这里同样存在，
   不要各答一遍——先看 P1-09 怎么定的，一致地沿用。
+result:
+  verdict: 语法树到 IR 的映射完成，五十份真实语料的产物全部通过 DiagramValidator 零问题
+  delivered:
+    nodes: 显示文本省略时回退到标识；DSL 写出来的端口标 IsCustom（自动端口会被重算，标错的话用户摆好的端口每次重排都会跑回默认位置）
+    edges: 未命名的边由映射层生成标识；与缺省相同的线型与箭头不写出来
+    composites: group / lane / subflow 落到三种派生类型；成员按父级重推，顺序与语法层一致（先节点、后嵌套分组）
+    implicit_nodes: 边端点与布局意图的引用都补节点，形状矩形、显示文本等于标识、接在集合末尾
+    collisions: 容器让位、节点保留原名、标签不变，改名贯穿父级与成员表
+    layout_intents: same-rank / order / align / place 落到 LayoutHints 的四类约束，带归属方与注入的创建时间
+    pin: 落到 UserSidecar.PinnedNodes，映射产物是「文档 + sidecar」两件套
+    report: Diagnostics / Renames / CreatedNodes / UnresolvedIntents 四份列表，各有出处
+    tests: "DslMapping 28、DslLayoutIntent 26，共 54；Dsl 合计 158"
+  design_decisions:
+    implicit_creation_is_mapping: 语法层如实产出「没写」，补节点是映射层的事（与 P1-16 的两条实现约定一致）
+    order_needs_conversion: order 的次序项从节点名解析成出边标识，落空的记进报告
+    default_style_omitted: 与缺省相同的线型与箭头不写出来，否则同一张图的两种文本会产出不同的 IR
+    owner_is_declared: 归属方由 MappingOptions 声明，不按指令类型推断
+    sidecar_gap_fill: pin 与已有 sidecar 冲突时已有记录不动——Human 赢 Llm
+  beyond_plan:
+    - DuetDiagram.Dsl/Mapping/SidecarMerge.cs：pin 的补缺规则要有落点。放在映射层是因为它拿不到已有的 sidecar
+    - DuetDiagram.Core 的 DiagramDocument.CreateFromContent：外部程序集此前造不出带正确哈希的文档
+  findings:
+    - id: order-means-two-different-things
+      what: |
+        DSL 的 order 写的是节点名（`order check: pass, fail`），IR 的 OrderConstraint 存的是
+        **出边标识**。方案里没有这个概念的出处，两处是各自发明的（DSL 侧 P1-16，IR 侧 P1-01/P1-11）。
+      resolution: |
+        转换放在映射层。依据是 OrderConstraint 的用途——减少连线的交叉——而交叉是边之间的事，
+        节点标识区分不了平行边。
+      risk: |
+        若将来认定 IR 该存节点标识，改动点是 DslMapper.ResolveOutgoingEdges、
+        docs/IR-Schema.md 的布局提示表，以及 IrFixtures 里那条 OrderConstraint 夹具。
+    - id: validator-ignores-layout-hints
+      what: |
+        DiagramValidator 不检查 LayoutHints 里引用的节点是否存在。约束指向不存在的节点时
+        不会有任何报错，只会一路安静地传下去（布局层目前也只按数量统计这几类约束）。
+      impact: |
+        外部输入（DSL / Mermaid）里写错一个名字，用户看到的是「布局没按我写的来」，
+        而不是「这个名字不存在」。这类问题没有出处可查。
+      filed_to: P1-04（校验器结构化错误）
+      mitigation_now: |
+        映射层补节点让绝大多数引用落得实；order 的次序项落空时进 UnresolvedIntents，
+        语料上另有一条用例逐条检查约束指向的节点与出边都真实存在。
 open_questions:
   - id: where-pin-lives
     question: pin（固定坐标）映射到哪里？
@@ -64,6 +109,25 @@ open_questions:
       需要先定：DSL 里的 pin 是**权威**（加载时写入 user.json），
       还是只是 user.json 的一份可读镜像（以 user.json 为准）。
       这决定了「用户手改 .dsl 里的坐标」和「GUI 拖动后写回 .user.json」谁覆盖谁。
+    status: resolved
+    resolution: |
+      **落 UserSidecar.PinnedNodes，不进 IR；冲突时已有记录不动，文本只补它没有的那部分。**
+      2026-09-21 定（决策 C）。
+
+      - 不进 IR：LayoutHints 的四个列表都是相对约束，没有绝对坐标，要进就得改 IR 契约；
+        而 `LayoutRequestFactory.FromDocument` 的第三个参数本来就是从人工产物收固定坐标的，
+        注释写着「坐标属于渲染结果，存进 IR 会让同一份语义在不同机器上产生不同的文档内容」。
+        于是映射产物是「文档 + sidecar」两件套。
+      - 权威方向选「补缺不覆盖」，不是两套规则，是已有归属规则在存储上的投影：
+        `.dsl` 里的 pin 是 Llm，user.json 里的是 Human，Human 赢。
+        docs/Sidecar.md 就是这么定性的——「三样东西的共同点是**人工覆盖了自动结果**」。
+      - 反过来做的两种坏法：文本覆盖 sidecar 时用户每次拖动都会被下一版文本抹掉
+        （模型重生成文本是常事）；把文本里的 pin 也写进 sidecar 时那份文件就不只装
+        人工产物了，而它的备份策略正是建立在「只有人工产物需要备份」上。
+      - 判定放在 `SidecarMerge.Fill` 而不是映射层：映射层拿不到已有的 sidecar，
+        它只如实产出「文本里写了什么」。
+      - 顺带修了 docs/DSL-Syntax.md 里 `pin` 那行的注释「人工拖动后写回这里」——
+        它与 docs/Sidecar.md 矛盾，也与本文件开头「人工不直接接触」矛盾。
   - id: constraint-ownership
     question: 约束的归属方怎么判？
     detail: |
@@ -71,6 +135,19 @@ open_questions:
       同一份 DSL 文本可能由模型生成，也可能由人手工写回（pin 的注释就写着「人工拖动后写回这里」）。
       解析器分不清两者。是调用方通过 MappingOptions 声明，还是按指令类型推断
       （pin 一律算 Human、其余算 Llm）？后者简单但会在人手工写 same-rank 时标错。
+    status: resolved
+    resolution: |
+      **由调用方通过 `MappingOptions.Owner` 声明，缺省 Llm；不按指令类型推断。**
+      2026-09-21 定。
+
+      推断那条看起来省事，但人手工写 same-rank 时就会被标错，而标错的代价是
+      人工设定的约束被下一次自动重排冲掉——用户每次微调都会白做。
+      归属方这条机制的意义全在「标对了才生效」，宁可让调用方多传一个参数。
+
+      另外 `pin` 落 sidecar 之后本来就不带归属方（UserSidecar 没有这个概念），
+      所以这条只管四类约束。创建时间走注入的 `ITimeProvider`——
+      它不进哈希，但会出现在产物里，读系统时钟的话「同一份文本映射两次得到同一份产物」
+      就不成立了。
   - id: group-and-node-share-a-name
     question: 分组与节点同名时怎么办？
     detail: |
@@ -97,6 +174,22 @@ open_questions:
       同名时任何一条边都只能指到节点，组合永远指不到，而且**不报错**——
       解析顺序就是判据，没有第二种读法。所以撞名必须在映射阶段消解掉，
       不能指望运行时的解析顺序替我们兜。
+    status: resolved
+    resolution: |
+      **选第 1 条：容器让位、节点保留原名、标签不动。** 2026-09-21 定。
+      分组改名加种类后缀（`pay` → `pay-lane`，group / lane / subflow 各自的后缀不同），
+      后缀被占时再接序号。
+
+      - 让容器让位而不是节点：节点名出现在边的两端，改名牵动更多引用，
+        而且改错方向时是「连线接错了」，比「框的名字对不上」难发现得多。
+        容器名是给人看的标题，改标识不动标签，视觉上几乎无感。
+      - **改名之后原文里指向这个名字的边仍然指向节点。** 一条边想连节点还是连容器，
+        从文本上分不出来；节点优先与 IR 的端点解析口径一致。改名记录把这件事写下来，
+        于是「容器连不上了」是查得到的。
+      - **成员表按父级重推，不是照抄语法树里那份再改名。** 撞名时成员表里会有两个
+        相同的字符串（一个节点、一个容器），照着改会改错那一个，而且改错了不报错。
+        父级字段只可能指向容器，重推无歧义。
+      - 改名进 `MappingReport.Renames`。
   - id: implicit-node-creation
     question: 边端点未声明时由谁补节点？
     detail: |
@@ -108,3 +201,21 @@ open_questions:
       要定的细节：补出来的节点用什么形状（规格写「矩形」）、显示文本（规格写「等于标识」）、
       插入在集合的哪个位置（P1-16 保证解析结果按首次出现顺序，补的节点应当接在末尾还是插到首次引用处）。
       位置会影响层内次序，不是纯粹的美观问题。
+    status: resolved
+    resolution: |
+      **形状矩形、显示文本等于标识、接在集合末尾。** 2026-09-21 定。
+
+      - **算作引用的是两类：边的两端，以及布局意图里出现的节点名。**
+        后者容易漏——`pin fail at 640, 320` 里的 `fail` 就是一次引用，不补的话那条约束
+        会指向一个不存在的节点，而校验器目前不检查布局约束的节点引用（见本任务的
+        `validator-ignores-layout-hints`），于是它会一路安静地传下去。
+      - **例外是 `order` 的次序项**：那些名字指的是主语节点的出边终点，不是新节点。
+        补出来只会多一个谁也不连的方块。
+      - **接在末尾，边的引用在前、意图的引用在后，各自按首次引用顺序。**
+        「插到首次引用处」做不到：语法树里只有诊断带行号，两个声明记录都没有位置。
+        要做得先给 DslNodeDeclaration 与 DslEdgeDeclaration 都加上位置信息，不值当。
+        代价是补出来的节点在层内次序上排在最后——这是规则，不是意外。
+      - 补出来的节点进 `MappingReport.CreatedNodes`，说明是谁引用的。否则用户会看到
+        「图里凭空多了一个节点」而找不到它是哪来的。
+      - 与 P1-09 的一致性：Mermaid 侧同样由导入层补，规则共用这一套
+        （那边语料恰好总是显式声明，所以那条不变量靠语料满足）。

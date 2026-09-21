@@ -178,9 +178,13 @@ setter 又是 `internal`——外部算得出、赋不进去。Mermaid 导入（
 | 列表 | 值类型 |
 |---|---|
 | `sameRank` | `SameRankConstraint`（节点标识列表） |
-| `order` | `OrderConstraint`（节点标识 + 出边次序） |
+| `order` | `OrderConstraint`（节点标识 + **出边标识**的有序列表） |
 | `align` | `AlignConstraint`（节点标识列表） |
 | `place` | `PlaceConstraint`（节点标识 + 参照物 + 关系） |
+
+`OrderConstraint` 的次序项是**边标识**而不是目标节点标识：它的用途是减少连线的交叉，
+而交叉是边之间的事，节点标识区分不了平行边（同一个终点可以有多条边）。
+DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 的「映射阶段的规则」。
 
 归属方取 `Auto` / `Llm` / `Human`，决定冲突时听谁的。
 `LayoutHintsDefaults` 只提供返回新实例的 `Create()`，**不提供可变单例**。

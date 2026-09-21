@@ -19,8 +19,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Render.Tests` | 空间索引测试 | 已落地 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法与图类型识别 | Phase 1 P1-08 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
-| `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 已落地（词法+语法；语义映射属 P1-17） |
-| `DuetDiagram.Dsl.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
+| `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
+| `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
 | `DuetDiagram.App` | 界面主程序 | 技术栈验证脚手架，含自检模式 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |

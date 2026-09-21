@@ -4,20 +4,18 @@
     方案 2. 技术选型 — 版本锁定：全部精确版本，不允许通配。
     Phase 0 P0-01 验收：本文件不得出现 '*' 或区间版本。
 
-    已核实（2026-09-20，nuget.azure.cn）：本文件里出现的每个版本都真实存在，
-    包括下列主选依赖：
-      Avalonia                12.1.2   exists
-      SkiaSharp               4.148.0  exists (stable)
-      Microsoft.Extensions.AI 10.7.0   exists
-      ModelContextProtocol    2.2.0    exists
-      Mermaider               0.12.2   exists
-      Mostlylucid.Dagre       2.0.1    exists
+    已核实（2026-09-20，nuget.azure.cn）：本文件里出现的每个版本都真实存在。
 
     仍待引入的包（用到时再登记，不要提前加）：
       Microsoft.Extensions.AI / ModelContextProtocol → 外部代理接入阶段
 
     注意：布局引擎最终采用 Mostlylucid.Dagre 而不是 Mermaider 依赖的 Sugiyama，
     理由与并排数据见 reports/phase0a-layout.md。
+
+    **登记项必须有人用。** 这里只登记被工程真正引用的包；
+    验证阶段核实过存在但最终没选上的，删掉登记而不是留着"以防万一"。
+    留着的代价不是占几行，而是让"有哪些依赖"这个问题失去准确答案——
+    我们连 Mermaider 是布局库还是解析器都判断错过一次。
   -->
 
   <PropertyGroup>
@@ -36,12 +34,17 @@
     <PackageVersion Include="SkiaSharp" Version="4.148.0" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="4.148.0" />
 
-    <!-- Mermaid 渲染器，以及它依赖的分层图布局引擎（单独成包，可以脱离 Mermaid 独立使用）。 -->
-    <PackageVersion Include="Mermaider" Version="0.12.2" />
-    <PackageVersion Include="Sugiyama" Version="0.12.2" />
-
-    <!-- 备选布局引擎：分层布局的另一个实现，自述对原生编译友好且支持复合图。 -->
+    <!--
+      备选布局引擎，也是最终选中的那个。它的调用方式有讲究：
+      必须用索引式入口，默认入口在千节点上要慢几十倍，见 docs/Layout-Constraints.md。
+    -->
     <PackageVersion Include="Mostlylucid.Dagre" Version="2.0.1" />
+
+    <!--
+      引擎选型取证用的对照实现。只在 tools/Poc/LayoutCandidates 里引用，
+      不进产品——它当初被否掉的理由见 reports/phase0a-layout.md。
+    -->
+    <PackageVersion Include="Sugiyama" Version="0.12.2" />
 
     <!-- 外部代理接入：官方 MCP 实现，分核心包、宿主集成包与网络框架集成包三层。 -->
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />

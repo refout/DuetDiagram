@@ -36,7 +36,7 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return Layout(request.Nodes, request.Edges, request.Options, cancellationToken);
+        return Layout(request.Nodes, request.Edges, request.Options, request.Groups, cancellationToken);
     }
 
     /// <summary>
@@ -57,16 +57,23 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
     /// 这一阶段的超时只能由调用方从外面兜（见协调器）。
     /// </para>
     /// </remarks>
+    /// <param name="nodes">参与布局的节点。</param>
+    /// <param name="edges">要连的边。</param>
+    /// <param name="options">布局选项。</param>
+    /// <param name="groups">组合与成员。端点在组合上的边靠它算包围盒。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
     public EngineLayoutResult Layout(
         IReadOnlyList<LayoutNode> nodes,
         IReadOnlyList<LayoutEdge> edges,
         LayoutOptions? options = null,
+        IReadOnlyList<LayoutGroup>? groups = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(nodes);
         ArgumentNullException.ThrowIfNull(edges);
 
         var effective = options ?? new LayoutOptions();
+        var groupArray = groups ?? [];
         var nodeArray = nodes as LayoutNode[] ?? [.. nodes];
         var edgeArray = edges as LayoutEdge[] ?? [.. edges];
 
@@ -77,7 +84,7 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
                 [],
                 0,
                 0,
-                new LayoutDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, default, default, default, default, default));
+                new LayoutDiagnostics(0, 0, 0, 0, 0, 0, 0, 0, 0, default, default, default, default, default));
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -117,13 +124,19 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
         cancellationToken.ThrowIfCancellationRequested();
 
         // 折线必须跟着重算。引擎给的是按旧坐标画的线，节点被移动之后那些线就指向了旧位置。
+        // 组合的盒子用**让位之后**的坐标算。用求解后的旧坐标会算出一块偏掉的区域，
+        // 而端点要落在那块区域的边界上，于是线会接到一个空处。
+        var compositeBoxes = CompositeOutline.Compute(groupArray, reflow.Nodes);
+
         var routingWatch = Stopwatch.StartNew();
         var routed = EdgeRouter.Route(
             reflow.Nodes,
             edgeArray,
             CollectPorts(nodeArray),
+            compositeBoxes,
             effective.RanksAreVertical,
             out var endpointFailures,
+            out var unresolvedEndpoints,
             out var crossingEdges);
         routingWatch.Stop();
 
@@ -142,6 +155,7 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
             overlappingAnchors,
             routed.Length,
             endpointFailures,
+            unresolvedEndpoints,
             crossingEdges,
             contractionWatch.Elapsed,
             engineWatch.Elapsed,

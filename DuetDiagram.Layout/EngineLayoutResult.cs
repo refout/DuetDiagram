@@ -86,6 +86,7 @@ public sealed record RoutedEdge(string Id, LayoutPoint[] Points);
 /// <param name="OverlappingAnchors">互相压住的固定节点对数。这是输入矛盾，不是算法问题。</param>
 /// <param name="EdgeCount">边数。</param>
 /// <param name="EndpointFailures">端点没落在边界上的边数。这一项必须为零。</param>
+/// <param name="UnresolvedEndpoints">端点解析不出来的边数。这一项也必须为零。</param>
 /// <param name="EdgesCrossingNodes">折线穿过其它节点的边数。质量指标，见下。</param>
 public sealed record LayoutDiagnostics(
     int AnchorCount,
@@ -95,6 +96,7 @@ public sealed record LayoutDiagnostics(
     int OverlappingAnchors,
     int EdgeCount,
     int EndpointFailures,
+    int UnresolvedEndpoints,
     int EdgesCrossingNodes,
     TimeSpan ContractionTime,
     TimeSpan EngineTime,
@@ -104,12 +106,21 @@ public sealed record LayoutDiagnostics(
 {
     /// <summary>这次布局是否满足全部硬保证。</summary>
     /// <remarks>
-    /// 只覆盖硬保证：固定坐标不偏、没有残留重叠、端点贴合。
+    /// <para>
+    /// 只覆盖硬保证：固定坐标不偏、没有残留重叠、端点贴合、端点都解析得出来。
     /// 折线穿越节点**不在**其中——当锚点把节点拉到别的层时，
     /// 连到它的边必然穿过中间的层，那是锚点语义的后果而不是缺陷。
+    /// </para>
+    /// <para>
+    /// 两个端点计数都要为零，理由不同：没落在边界上说明几何算错了，
+    /// 解析不出来说明输入里有悬空引用。两种都会让线画错，但要去查的地方不一样。
+    /// </para>
     /// </remarks>
     public bool SatisfiesHardGuarantees =>
-        MaxAnchorDeviation <= 0.01 && ResidualOverlaps == 0 && EndpointFailures == 0;
+        MaxAnchorDeviation <= 0.01
+        && ResidualOverlaps == 0
+        && EndpointFailures == 0
+        && UnresolvedEndpoints == 0;
 }
 
 /// <summary>布局结果。</summary>

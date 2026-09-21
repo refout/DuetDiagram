@@ -34,12 +34,37 @@ internal static class EdgeRouter
     /// <summary>从指定端口出来时先往外走这么远，避免线贴着节点边框。</summary>
     private const double PortStub = 12;
 
+    /// <summary>
+    /// 重新算出每条边的折线。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 端点可以是节点，也可以是**组合**——分层架构图里 <c>ODS --&gt; DWD</c> 就是拿分组当端点的。
+    /// 组合的盒子由 <paramref name="compositeBoxes"/> 传进来，它**不进坐标网格**：
+    /// 组合本来就罩着它的成员，把它当成"要绕开的障碍"会让每条穿过这个分组的边都判成压过节点。
+    /// </para>
+    /// <para>
+    /// 两个失败计数分开报，因为处置完全不同：端点落在节点内部或外部，是路由算法出了问题，
+    /// 要去查几何；端点根本解析不出来，是输入里有悬空引用，要去查数据。
+    /// 合成一个数之后调用方只能看到"有 N 条边不对"，而不知道该往哪查。
+    /// </para>
+    /// </remarks>
+    /// <param name="nodes">定好坐标的节点。</param>
+    /// <param name="edges">要路由的边。</param>
+    /// <param name="ports">各节点的端口。</param>
+    /// <param name="compositeBoxes">组合的包围盒。没有组合端点时为空。</param>
+    /// <param name="ranksAreVertical">层是不是沿纵向排列。</param>
+    /// <param name="endpointFailures">端点没落在边界上的边数。</param>
+    /// <param name="unresolvedEndpoints">端点解析不出来的边数。</param>
+    /// <param name="crossingEdges">折线穿过其它节点的边数。</param>
     public static RoutedEdge[] Route(
         PlacedNode[] nodes,
         LayoutEdge[] edges,
         IReadOnlyDictionary<string, IReadOnlyList<LayoutPort>> ports,
+        IReadOnlyDictionary<string, PlacedNode> compositeBoxes,
         bool ranksAreVertical,
         out int endpointFailures,
+        out int unresolvedEndpoints,
         out int crossingEdges)
     {
         var byId = nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
@@ -53,17 +78,23 @@ internal static class EdgeRouter
 
         var routed = new List<RoutedEdge>(edges.Length);
         var failures = 0;
+        var unresolved = 0;
         var crossings = 0;
 
         foreach (var edge in edges)
         {
-            if (!byId.TryGetValue(edge.From, out var source) || !byId.TryGetValue(edge.To, out var target))
+            var source = Resolve(edge.From, byId, compositeBoxes);
+            var target = Resolve(edge.To, byId, compositeBoxes);
+
+            if (source is null || target is null)
             {
-                // 输入引用了不存在的节点。布局照常进行，只是这条边画不出来。
-                failures++;
+                // 输入引用了既不是节点也不是组合的东西。布局照常进行，只是这条边画不出来。
+                unresolved++;
                 continue;
             }
 
+            // 端口只属于节点。端点是组合时不该有端口，真有也找不到——
+            // 校验器会先报 EDGE_PORT_ON_COMPOSITE，这里不必重复判。
             var sourcePort = ResolvePort(edge.From, edge.FromPort, ports);
             var targetPort = ResolvePort(edge.To, edge.ToPort, ports);
 
@@ -87,10 +118,22 @@ internal static class EdgeRouter
         }
 
         endpointFailures = failures;
+        unresolvedEndpoints = unresolved;
         crossingEdges = crossings;
 
         return [.. routed];
     }
+
+    /// <summary>端点解析：先按节点找，找不到再按组合的盒子找。</summary>
+    /// <remarks>
+    /// 顺序与本仓其它地方的端点解析一致（先节点、后组合）：九个集合共用一个标识命名空间，
+    /// 所以同一个标识不会既是节点又是组合，先查哪个都不影响结果——顺序统一只是为了让几处读起来是同一件事。
+    /// </remarks>
+    private static PlacedNode? Resolve(
+        string id,
+        Dictionary<string, PlacedNode> nodes,
+        IReadOnlyDictionary<string, PlacedNode> compositeBoxes) =>
+        nodes.TryGetValue(id, out var node) ? node : compositeBoxes.GetValueOrDefault(id);
 
     /// <summary>层沿纵向排列时的折线：出口在上下边，拐弯在两层之间的空隙里。</summary>
     private static LayoutPoint[] RouteVertical(

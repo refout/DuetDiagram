@@ -12,14 +12,14 @@
 | DuetDiagram.Core.Tests | 22 | 4127 | 2952 | 456 | 719 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
-| DuetDiagram.Layout.Tests | 4 | 954 | 710 | 59 | 185 |
+| DuetDiagram.Layout | 16 | 2288 | 1225 | 764 | 299 |
+| DuetDiagram.Layout.Tests | 4 | 1040 | 773 | 71 | 196 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
 | tools | 24 | 4270 | 2876 | 708 | 686 |
-| **合计** | **173** | **30402** | **19293** | **6231** | **4878** |
+| **合计** | **174** | **30703** | **19447** | **6347** | **4909** |
 
 ## 明细
 
@@ -167,21 +167,22 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ConstraintLayoutEngine.cs | 100 |
-| EngineLayoutResult.cs | 66 |
+| ConstraintLayoutEngine.cs | 106 |
+| EngineLayoutResult.cs | 70 |
 | Fallback.cs | 78 |
-| FallbackPlan.cs | 81 |
+| FallbackPlan.cs | 85 |
 | ILayoutEngine.cs | 5 |
 | AnchorRestorer.cs | 35 |
-| EdgeRouter.cs | 240 |
+| CompositeOutline.cs | 59 |
+| EdgeRouter.cs | 251 |
 | EngineAdapter.cs | 41 |
 | NodeGrid.cs | 70 |
 | RowReflow.cs | 82 |
 | SameRankContraction.cs | 144 |
 | LayoutBudgets.cs | 21 |
 | LayoutCoordinator.cs | 103 |
-| LayoutModels.cs | 29 |
-| LayoutRequestFactory.cs | 39 |
+| LayoutModels.cs | 30 |
+| LayoutRequestFactory.cs | 45 |
 
 ### DuetDiagram.Layout.Tests
 
@@ -189,8 +190,8 @@
 |---|---:|
 | FallbackTests.cs | 275 |
 | Graphs.cs | 53 |
-| LayoutRequestFactoryTests.cs | 154 |
-| LayoutTests.cs | 228 |
+| LayoutRequestFactoryTests.cs | 176 |
+| LayoutTests.cs | 269 |
 
 ### DuetDiagram.Mermaid
 

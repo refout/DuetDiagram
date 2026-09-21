@@ -23,6 +23,16 @@ public sealed record LayoutJob(
     LayoutHints Hints)
 {
     /// <summary>
+    /// 组合与它们的成员。降级时原样带着走。
+    /// </summary>
+    /// <remarks>
+    /// **它不属于任何降级级别要丢的东西。** 降级丢的是约束的归属方，
+    /// 而组合是图的结构——丢掉它，端点在组合上的边会全部画不出来，
+    /// 而那与"少了一条约束"是两回事。
+    /// </remarks>
+    public IReadOnlyList<LayoutGroup> Groups { get; init; } = [];
+
+    /// <summary>
     /// 按最高级别（全部保留）转成引擎输入。
     /// </summary>
     /// <remarks>
@@ -90,7 +100,10 @@ internal static class FallbackPlan
                     job.Direction,
                     keepSpacing ? hints.NodeSpacing : new LayoutOptions().NodeSpacing,
                     keepSpacing ? hints.LayerSpacing : new LayoutOptions().LayerSpacing,
-                    groups)),
+                    groups))
+            {
+                Groups = job.Groups,
+            },
             dropped);
     }
 

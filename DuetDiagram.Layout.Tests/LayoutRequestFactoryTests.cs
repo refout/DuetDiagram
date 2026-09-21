@@ -164,9 +164,37 @@ public sealed class LayoutRequestFactoryTests
         result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
     }
 
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void An_edge_between_two_subgraphs_satisfies_the_hard_guarantees()
+    {
+        // 放宽 IR 让边的端点可以是组合之后，布局这一侧原本跟不上：
+        // 组合整个被忽略，端点落在组合上的边会走到"输入引用了不存在的节点"那条分支，
+        // 于是**一份校验通过的文档，布局仍会报硬保证不满足**。
+        var document = Document(
+            nodes:
+            [
+                new NodeDef { Id = "a", Parent = "ods" },
+                new NodeDef { Id = "b", Parent = "dwd" },
+            ],
+            edges: [new EdgeDef { Id = "e1", From = "ods", To = "dwd" }],
+            composites:
+            [
+                new GroupDef { Id = "ods", Members = ["a"] },
+                new GroupDef { Id = "dwd", Members = ["b"] },
+            ]);
+
+        var result = Compute(LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40)));
+
+        result.Diagnostics.UnresolvedEndpoints.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+        result.Edges.Should().ContainSingle();
+    }
+
     private static DiagramDocument Document(
         IReadOnlyList<NodeDef>? nodes = null,
         IReadOnlyList<EdgeDef>? edges = null,
+        IReadOnlyList<CompositeDef>? composites = null,
         Direction direction = Direction.TB,
         LayoutHints? layout = null) => new(
             "layout-test",
@@ -179,7 +207,7 @@ public sealed class LayoutRequestFactoryTests
             layers: null,
             nodes,
             edges,
-            composites: null,
+            composites,
             tags: null,
             actions: null,
             fonts: null,

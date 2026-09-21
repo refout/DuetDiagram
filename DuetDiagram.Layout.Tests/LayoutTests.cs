@@ -274,9 +274,12 @@ public sealed class LayoutTests
 
     [Fact]
     [Trait("Category", "Layout")]
-    public void An_edge_to_a_missing_node_is_counted_not_fatal()
+    public void An_edge_to_a_missing_node_is_counted_as_unresolved_not_fatal()
     {
-        // 输入引用了不存在的节点。布局照常进行，只是这条边画不出来。
+        // 输入引用了既不是节点也不是组合的东西。布局照常进行，只是这条边画不出来。
+        //
+        // 这一项与"端点没落在边界上"分开计：那一个是几何算错了，要去查路由；
+        // 这一个是有悬空引用，要去查数据。合成一个数之后只知道"有边不对"，不知道该往哪查。
         var request = new LayoutRequest(
             [Graphs.Node("a")],
             [new LayoutEdge("e1", "a", "查无此节点")],
@@ -285,7 +288,62 @@ public sealed class LayoutTests
         var result = Compute(request);
 
         result.Nodes.Should().HaveCount(1);
-        result.Diagnostics.EndpointFailures.Should().Be(1);
+        result.Diagnostics.UnresolvedEndpoints.Should().Be(1);
+        result.Diagnostics.EndpointFailures.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeFalse();
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void An_edge_between_two_subgraphs_is_routed_onto_their_outlines()
+    {
+        // 分层架构图里 `ODS --> DWD` 是拿分组当端点的。组合的盒子由成员算出来，
+        // 边要落在盒子的边界上——落在盒子里说明线从分组身子里钻出来，
+        // 落在外头说明没接上，两种都是渲染时一眼能看出来的错。
+        var request = new LayoutRequest(
+            [Graphs.Node("a"), Graphs.Node("b")],
+            [new LayoutEdge("e1", "ods", "dwd")],
+            new LayoutOptions(Direction.TB))
+        {
+            Groups =
+            [
+                new LayoutGroup("ods", ["a"]),
+                new LayoutGroup("dwd", ["b"]),
+            ],
+        };
+
+        var result = Compute(request);
+
+        result.Diagnostics.UnresolvedEndpoints.Should().Be(0);
+        result.Diagnostics.EndpointFailures.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+
+        var edge = result.Edges.Single();
+        var ods = result.Nodes.Single(n => n.Id == "a");
+        var dwd = result.Nodes.Single(n => n.Id == "b");
+
+        // 折线的两个端点各落在某个成员节点的边上——盒子就是这些节点撑出来的范围。
+        edge.Points[0].X.Should().BeApproximately(ods.CenterX, 0.01);
+        edge.Points[^1].X.Should().BeApproximately(dwd.CenterX, 0.01);
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void An_empty_subgraph_endpoint_is_unresolved()
+    {
+        // 空组合没有范围可言。给一个零尺寸的盒子会让连线落到一个点上，
+        // 那看起来像是布局算错了；不给则如实记为解析不出来。
+        var request = new LayoutRequest(
+            [Graphs.Node("a")],
+            [new LayoutEdge("e1", "a", "空组")],
+            new LayoutOptions())
+        {
+            Groups = [new LayoutGroup("空组", [])],
+        };
+
+        var result = Compute(request);
+
+        result.Diagnostics.UnresolvedEndpoints.Should().Be(1);
     }
 
     #endregion

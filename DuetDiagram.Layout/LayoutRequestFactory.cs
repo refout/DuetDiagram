@@ -12,7 +12,17 @@ namespace DuetDiagram.Layout;
 public sealed record LayoutRequest(
     LayoutNode[] Nodes,
     LayoutEdge[] Edges,
-    LayoutOptions Options);
+    LayoutOptions Options)
+{
+    /// <summary>
+    /// 组合与它们的成员。
+    /// </summary>
+    /// <remarks>
+    /// 端点在组合上的边靠它算包围盒。默认值是空列表而不是空引用：
+    /// "没有组合"与"有组合但没人引用"在路由那里是两回事，而空引用会让两者混在一起。
+    /// </remarks>
+    public IReadOnlyList<LayoutGroup> Groups { get; init; } = [];
+}
 
 /// <summary>
 /// 从文档造布局输入。
@@ -73,7 +83,13 @@ public static class LayoutRequestFactory
             .Select(edge => new LayoutEdge(edge.Id, edge.From, edge.To, edge.FromPort, edge.ToPort))
             .ToArray();
 
-        return new LayoutJob(nodes, edges, document.Direction, document.Layout);
+        // 组合只传结构与成员：包围盒要等求解之后由成员的最终坐标算。
+        // 成员表是权威的那一份，不从节点的父级反推。
+        var groups = document.Composites
+            .Select(composite => new LayoutGroup(composite.Id, composite.Members))
+            .ToArray();
+
+        return new LayoutJob(nodes, edges, document.Direction, document.Layout) { Groups = groups };
     }
 
     private static IReadOnlyList<LayoutPort>? Ports(NodeDef node) =>

@@ -18,6 +18,23 @@ public sealed record LayoutPoint(double X, double Y);
 public sealed record LayoutPort(string Name, PortSide Side, double Offset);
 
 /// <summary>
+/// 一个组合与它的成员。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 布局只需要两样：标识，以及成员是谁。成员表是权威的那一份——
+/// 节点的父级只是便于查询的冗余索引，两份不一致时按成员表算。
+/// </para>
+/// <para>
+/// 组合的**包围盒不在这里**：它由成员的最终坐标算出来，而坐标要等布局求解完才有。
+/// 所以这里给的是结构，盒子在求解之后现算，见 <c>CompositeOutline</c>。
+/// </para>
+/// </remarks>
+/// <param name="Id">组合标识。</param>
+/// <param name="Members">直接成员。可以是节点，也可以是另一个组合。</param>
+public sealed record LayoutGroup(string Id, IReadOnlyList<string> Members);
+
+/// <summary>
 /// 参与布局的一个节点。
 /// </summary>
 /// <remarks>

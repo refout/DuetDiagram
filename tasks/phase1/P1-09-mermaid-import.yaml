@@ -1,0 +1,81 @@
+id: P1-09
+title: Mermaid 导入：抽象语法树到 IR 的映射与宽松模式
+phase: 1
+status: pending
+depends_on: [P1-08]
+estimated_loc: 350
+files:
+  create:
+    - DuetDiagram.Mermaid/Import/MermaidImporter.cs
+    - DuetDiagram.Mermaid/Import/ImportOptions.cs
+    - DuetDiagram.Mermaid/Import/ImportReport.cs
+    - DuetDiagram.Mermaid.Tests/ImporterTests.cs
+    - DuetDiagram.Mermaid.Tests/CorpusImportTests.cs
+    - DuetDiagram.Benchmarks/MermaidBenchmarks.cs
+  modify:
+    - AGENTS.md
+    - docs/IR-Schema.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidImport"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidCorpus"
+    expect: 全通过；97 份流程图全部导入，无致命失败
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 导入产物通过 DiagramValidator 且零问题
+  - command: dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*Mermaid*" --job medium
+    expect: 1000 节点导入（词法 + 语法 + 映射）< 500ms，数字记进 reports/
+constraints:
+  - 导入产物必须通过 DiagramValidator 零问题。校验器的注释写明它就是给「不经过命令层的外部输入」准备的，导入正是那个场景——命令层的防线在这里一点都用不上
+  - Mermaid 工程不得获得对文档的可变访问。Core 的 MutableNodes 等是 internal，导入只能走公开路径
+  - 标识在九个集合之间共用命名空间，节点与复合节点不能同名
+  - 子图映射为 CompositeDef 的派生类型，成员关系以 members 为准，NodeDef.parent 是冗余索引，两者必须一致（见 docs/IR-Schema.md）
+  - 导入产出新的文档实例，不就地修改已有文档（约定 11：打开新文档必须新建 DiagramDocument + DiagramCommandBus）
+  - 认不出来的内容进导入报告，不抛异常——这是 P1-08 已经定下的口径，导入层要接着走
+context:
+  - docs/IR-Schema.md
+  - docs/Error-Codes.md
+  - DuetDiagram.Core/Model/DiagramValidator.cs
+  - tasks/phase1/P1-08-mermaid-lexing-parsing.yaml
+  - reports/raw/README.md
+scope_note: |
+  方案里这一条叫「Mermaid 宽松模式」，250 行，依赖 P1-08。但方案的 Phase 1 清单里
+  **没有单独列「语法树到 IR 的映射」这一步**，而 P1-08 只做到抽象语法树为止。
+  映射不写，导入这条线就没有产出物，P1-10 也没有东西可导出。
+
+  因此本任务 = 映射 + 宽松模式，估行相应上调。这不是范围蔓延，是把方案漏掉的一步补回它该在的位置。
+open_questions:
+  - id: subgraph-as-endpoint
+    question: 子图被当作连线端点时怎么映射？
+    detail: |
+      分层架构图里 `ODS --> DWD` 是拿子图当端点用的，Mermaid 允许，冻结语料里七份文件如此
+      （见 P1-08 的 findings 与 CorpusParsingTests）。IR 现在表达不了这件事，
+      而两条显而易见的退路都被已有不变量堵死：
+
+        1. 边端点必须是节点——DiagramValidator.CheckEdgeEndpoints 用 FindNode 判定，
+           指向复合节点会报 EDGE_SOURCE_MISSING。
+        2. 九个集合共用标识命名空间，同一个标识不能既是节点又是复合节点，
+           所以"同时建同名节点与复合节点"会报重复标识。
+
+    options:
+      - 给复合节点建一个代表节点作为边端点。图上会多出一个方块，需要决定它长什么样
+      - 丢掉这条边，在导入报告里如实记成「表达不了」。信息丢失但不污染图
+      - 放宽 IR：允许边端点是复合节点。要改 Core、校验器与线格式，是契约变更
+    recommendation: |
+      这是 IR 契约问题，不该在导入层猜。建议先做决定再写映射，
+      否则这七份文件会以某种「看起来导入成功了」的方式坏掉——而那种坏法最难发现。
+  - id: version-and-hash
+    question: 导入产出的文档，版本号与哈希怎么定？
+    detail: |
+      公开的构造路径只有两条：新建空文档，以及 [JsonConstructor]（吃全部集合）。
+      后者要求把版本号与哈希一并传入，但哈希要先有文档实例才能算，
+      而哈希的 setter 是 internal——外部算得出、赋不进去。
+      可行的绕法是构造两次（先算哈希、再传进去重建），但那样每次导入要建两个实例。
+      是否值得在 Core 加一个「按内容新建并算好哈希」的入口，需要判断。
+  - id: raw-fragment-home
+    question: 未映射的原始片段保留在哪里？
+    detail: |
+      方案的风险缓解写着「宽松模式 + 原始片段保留」，但没说保留在哪，
+      而这件事直接决定 P1-10 的往返能不能还原。
+      NodeDef.meta 是 IReadOnlyDictionary<string,string> 且不计入哈希，形状上合适；
+      但它挂在节点上，而原始片段可能属于整份文档、某条指令或某个子图。
+      需要先定下存放位置与键名约定，并在 docs/IR-Schema.md 里登记。

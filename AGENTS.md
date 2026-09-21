@@ -230,3 +230,4 @@ dotnet run --project tools/LocCounter -- --root . --check
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |
+| §16 对比测试报告 `reports/compare.md` | 落在 `reports/compare-blind/`，且拆成结论与证据两份 | 一份文件装不下：解析统计、语义拒绝率、检查项可判定性、谓词口径各是一份证据，各有各的复现命令。混在一起之后没人知道哪一段该跟着哪条命令重新生成。另外装置不进 sln（见 `tools/CompareHarness` 那一行），所以它也没有 `Diagram.Compare.Tests` |

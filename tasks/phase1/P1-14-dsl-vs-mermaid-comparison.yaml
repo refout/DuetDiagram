@@ -6,22 +6,26 @@ depends_on: [P0-08, P1-09, P1-10, P1-16, P1-17]
 estimated_loc: 400
 files:
   create:
-    - DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj
-    - DuetDiagram.Compare.Tests/CorpusArms.cs
-    - DuetDiagram.Compare.Tests/ParseRateTests.cs
-    - DuetDiagram.Compare.Tests/BlindingTests.cs
-    - DuetDiagram.Compare.Tests/ScoringTests.cs
-    - reports/compare-blind/（盲评清单，生成物）
-    - reports/phase1-compare.md
+    - tools/CompareHarness/（装置，不进 sln）
+    - reports/compare-blind/（盲评清单与各项证据，生成物）
   modify:
-    - DuetDiagram.slnx
     - AGENTS.md
     - docs/Compare-Criteria.md
 acceptance:
-  - command: dotnet test --project DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj -- --filter-trait "Category=CompareParseRate"
-    expect: 全通过；三组各 50 条的语法拒绝与语义拒绝分开报出
-  - command: dotnet test --project DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj -- --filter-trait "Category=CompareScoring"
-    expect: 全通过；给定人工评分文件时四个指标与判定结论算得出来
+  # 装置不进 sln（理由见 progress.note），所以这里不是 dotnet test，
+  # 而是那几个命令自己。verify 是唯一不需要语料、可以随时进 CI 的一个。
+  - command: dotnet run --project tools/CompareHarness -c Release -- verify
+    expect: 全部通过；谓词求值器自检 + 50 条提示词的 253 个谓词全部读得进来
+  - command: dotnet run --project tools/CompareHarness -c Release -- listings
+    expect: 退出码 0；三组各 50 条的四种解析结局分开报出
+  - command: dotnet run --project tools/CompareHarness -c Release -- semantic
+    expect: 退出码 0；语义拒绝率按组给出，解析整份放弃的那些单列
+  - command: dotnet run --project tools/CompareHarness -c Release -- score
+    expect: 退出码 0；谓词口径的三组数字，且报告开头写明它不能当判定门的答案
+  - command: dotnet run --project tools/CompareHarness -c Release -- sample
+    expect: 退出码 0；60 份清单 + 空白评分模板，每组的分层构成一并打印
+  - command: dotnet run --project tools/CompareHarness -c Release -- agreement
+    expect: 有人工评分时算出一致率并列出分歧；没有评分文件时明确报"还没人交评分"而不是算出一个空数
   - command: dotnet run --project tools/LocCounter -c Release -- --root . --check
     expect: 一致
 constraints:

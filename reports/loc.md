@@ -18,8 +18,8 @@
 | DuetDiagram.Mermaid.Tests | 5 | 1412 | 1029 | 155 | 228 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
-| tools | 21 | 3213 | 2153 | 528 | 532 |
-| **合计** | **151** | **24255** | **15365** | **5006** | **3884** |
+| tools | 24 | 4240 | 2864 | 692 | 684 |
+| **合计** | **154** | **25282** | **16076** | **5170** | **4036** |
 
 ## 明细
 
@@ -222,9 +222,12 @@
 
 | 文件 | 代码 |
 |---|---:|
+| Corpus.cs | 65 |
 | Generator.cs | 143 |
-| Program.cs | 69 |
-| Support.cs | 86 |
+| Listings.cs | 458 |
+| Program.cs | 86 |
+| Structure.cs | 169 |
+| Support.cs | 88 |
 | Program.cs | 155 |
 | ApiDump.cs | 58 |
 | CheckRunner.cs | 246 |

@@ -122,6 +122,12 @@ internal sealed record Options(
 
     public const string DefaultOutputRoot = "reports/raw";
 
+    /// <summary>冻结语料所在处。生成与评分共用同一份，评的就是它。</summary>
+    public const string DefaultCorpusRoot = DefaultOutputRoot;
+
+    /// <summary>盲评清单的输出处。</summary>
+    public const string DefaultListingsRoot = "reports/compare-blind";
+
     /// <summary>是否选中这条提示词。没指定筛选时全部选中。</summary>
     public bool Selects(Prompt prompt) =>
         Only.Length == 0 || Only.Contains(prompt.Id, StringComparer.OrdinalIgnoreCase);

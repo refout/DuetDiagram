@@ -41,3 +41,10 @@ packages/
 
 # 编辑器插件的本地统计产物。与 reports/loc.md 重复，不该进仓库。
 .VSCodeCounter/
+
+# 盲评清单与对照表。由 reports/raw 经 `listings` 命令逐字节可复现，
+# 不是证据而是评分时的工作材料；把 key.json 的副本留在仓库里还会多一份泄露面。
+# 结论留在 reports/compare-blind/parse-report.md，那个进仓库。
+reports/compare-blind/rater.md
+reports/compare-blind/items.json
+reports/compare-blind/key.json

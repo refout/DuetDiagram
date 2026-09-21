@@ -40,6 +40,35 @@ internal static class Graphs
         ],
         new LayoutOptions(direction, SameRankGroups: sameRank));
 
+    /// <summary>
+    /// 一个节点分出三个并列的分支。
+    /// </summary>
+    /// <remarks>
+    /// 三个分支天然落在同一层，所以它同时是"层内次序"与"同层"两类约束的现成素材：
+    /// 层内次序要的正是同一层里几个节点的左右关系，而层内的左右关系只有在这种形状上才看得出来。
+    /// </remarks>
+    /// <param name="direction">主方向。</param>
+    /// <param name="nodes">替换掉默认的四个节点。需要固定坐标或改尺寸时用它。</param>
+    /// <param name="order">层内次序约束，每一组是一批要按给定先后排列的节点。</param>
+    /// <param name="align">对齐约束，每一组是一批要在层内轴上取齐的节点。</param>
+    public static LayoutRequest Fork(
+        Direction direction = Direction.TB,
+        IReadOnlyList<LayoutNode>? nodes = null,
+        IReadOnlyList<IReadOnlyList<string>>? order = null,
+        IReadOnlyList<IReadOnlyList<string>>? align = null)
+    {
+        var members = nodes ?? new LayoutNode[] { Node("p"), Node("a"), Node("b"), Node("c") };
+
+        return new LayoutRequest(
+            [.. members],
+            [
+                new LayoutEdge("e1", "p", "a"),
+                new LayoutEdge("e2", "p", "b"),
+                new LayoutEdge("e3", "p", "c"),
+            ],
+            new LayoutOptions(direction, OrderGroups: order, AlignGroups: align));
+    }
+
     /// <summary>多层图：每层若干并列节点，层间连接同序号节点。</summary>
     public static LayoutRequest Layered(int depth, int breadth, Direction direction = Direction.TB)
     {

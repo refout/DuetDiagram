@@ -94,15 +94,33 @@ public sealed record LayoutEdge(
 /// 应当在调用这一层之前就处理掉——引擎不该关心"这条约束是谁提的"。
 /// </para>
 /// <para>
-/// <see cref="SameRankGroups"/> 里的每一组是一批必须落在同一层的节点。
-/// 归属方已经在这一层之前过滤掉了，传进来的都应当被执行。
+/// 三个约束列表里的标识都已按归属方过滤过，传进来的都应当被执行。
+/// 过滤发生在 <c>FallbackPlan</c>，它拿到的任务里还带着归属方。
+/// </para>
+/// <para>
+/// 列表是**并列**的，不是"哪个优先"：<see cref="SameRankGroups"/> 管分层，
+/// <see cref="OrderGroups"/> 管层内左右次序，<see cref="AlignGroups"/> 管跨层的对齐轴。
+/// 三者作用在不同的自由度上，所以能同时成立；不能同时成立时由求解器如实报出来，
+/// 而不是靠优先级悄悄丢掉一条。
 /// </para>
 /// </remarks>
+/// <param name="Direction">主方向。</param>
+/// <param name="NodeSpacing">同层节点之间的间距。</param>
+/// <param name="LayerSpacing">层与层之间的间距。</param>
+/// <param name="SameRankGroups">每一组是一批必须落在同一层的节点。</param>
+/// <param name="OrderGroups">
+/// 每一组是一批必须按给定次序从左到右排列的节点。
+/// </param>
+/// <param name="AlignGroups">
+/// 每一组是一批必须在垂直于分层方向的那个轴上对齐的节点。
+/// </param>
 public sealed record LayoutOptions(
     Direction Direction = Direction.TB,
     double NodeSpacing = 40,
     double LayerSpacing = 70,
-    IReadOnlyList<IReadOnlyList<string>>? SameRankGroups = null)
+    IReadOnlyList<IReadOnlyList<string>>? SameRankGroups = null,
+    IReadOnlyList<IReadOnlyList<string>>? OrderGroups = null,
+    IReadOnlyList<IReadOnlyList<string>>? AlignGroups = null)
 {
     /// <summary>
     /// 层是不是沿纵向排列的。

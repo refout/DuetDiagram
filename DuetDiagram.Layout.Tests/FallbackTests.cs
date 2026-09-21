@@ -273,6 +273,80 @@ public sealed class FallbackTests
         options.LayerSpacing.Should().Be(defaults.LayerSpacing);
     }
 
+    [Fact]
+    [Trait("Category", "LayoutFallback")]
+    public void Order_constraints_reach_the_engine_as_node_identifiers()
+    {
+        // 层内次序在 IR 里存的是**出边标识**——平行边只能靠边标识区分。求解器比的却是节点坐标。
+        // 少这一次转换的表现是"约束看着进了流水线却毫无效果"：求解器在节点里找不到那几个标识，
+        // 一声不吭地跳过，而调用方拿到的是"我设了但没生效"。
+        var engine = new ScriptedEngine((_, _) => Empty());
+
+        var plan = new LayoutPlan(new LayoutPlanEntry(LayoutFallbackLevel.Full, TimeSpan.FromMilliseconds(300)));
+
+        _ = new LayoutCoordinator(engine, plan).Compute(OrderJob(), TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+        var groups = engine.Requests.Single().Options.OrderGroups!;
+
+        groups.Should().HaveCount(1);
+        groups[0].Should().Equal("b", "c");
+    }
+
+    [Fact]
+    [Trait("Category", "LayoutFallback")]
+    public void Align_constraints_reach_the_engine_unchanged()
+    {
+        // 对齐存的就是节点标识，不需要转换。它仍然要验：转换那一层一旦顺手也去动它，
+        // 结果同样是"约束静默失效"，而两条路径的表现一模一样，查起来分不清是哪一条出的问题。
+        var engine = new ScriptedEngine((_, _) => Empty());
+
+        var plan = new LayoutPlan(new LayoutPlanEntry(LayoutFallbackLevel.Full, TimeSpan.FromMilliseconds(300)));
+
+        _ = new LayoutCoordinator(engine, plan).Compute(OrderJob(), TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+        var groups = engine.Requests.Single().Options.AlignGroups!;
+
+        groups.Should().HaveCount(1);
+        groups[0].Should().Equal("a", "b");
+    }
+
+    [Fact]
+    [Trait("Category", "LayoutFallback")]
+    public void DropAll_drops_order_and_align_along_with_the_rest()
+    {
+        var engine = new ScriptedEngine((_, _) => Empty());
+
+        var plan = new LayoutPlan(new LayoutPlanEntry(LayoutFallbackLevel.DropAll, TimeSpan.FromMilliseconds(300)));
+
+        _ = new LayoutCoordinator(engine, plan).Compute(OrderJob(), TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+        var options = engine.Requests.Single().Options;
+
+        options.SameRankGroups.Should().BeEmpty();
+        options.OrderGroups.Should().BeEmpty();
+        options.AlignGroups.Should().BeEmpty();
+    }
+
+    [Fact]
+    [Trait("Category", "LayoutFallback")]
+    public void DropLlm_drops_the_model_constraints_of_every_kind()
+    {
+        // 四类约束走的是同一段归属方过滤。分开写四遍的话，迟早有一类的归属方判错，
+        // 而那种错表现为"某一类约束的降级行为不一样"，极难与其它原因区分开。
+        var engine = new ScriptedEngine((_, _) => Empty());
+
+        var plan = new LayoutPlan(new LayoutPlanEntry(LayoutFallbackLevel.DropLlm, TimeSpan.FromMilliseconds(300)));
+
+        _ = new LayoutCoordinator(engine, plan).Compute(OrderJob(withLlm: true), TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+
+        var options = engine.Requests.Single().Options;
+
+        options.SameRankGroups.Should().HaveCount(2, "人定的与自动推导的同层约束都留下");
+        options.OrderGroups.Should().HaveCount(1, "模型提的那条丢掉");
+        options.AlignGroups.Should().HaveCount(1);
+        options.OrderGroups[0].Should().Equal("b", "c");
+    }
+
     #endregion
 
     #region 冲突日志
@@ -348,6 +422,48 @@ public sealed class FallbackTests
         return job with
         {
             Nodes = [.. job.Nodes.Select(n => n with { Pinned = new LayoutPoint(100, 200) })],
+        };
+    }
+
+    /// <summary>
+    /// 带层内次序与对齐的任务。
+    /// </summary>
+    /// <remarks>
+    /// 次序约束按 IR 的存法给的是**出边标识**（e1、e2），期望落进引擎的是它们指向的节点（b、c）。
+    /// 这里刻意不给成节点标识，否则"转换有没有做"这件事就验不出来了。
+    /// </remarks>
+    /// <param name="withLlm">再加一组模型提出的次序与对齐，用来验降级只丢模型那一份。</param>
+    private static LayoutJob OrderJob(bool withLlm = false)
+    {
+        var job = Job();
+
+        var order = new List<Constraint<OrderConstraint>>
+        {
+            new(new OrderConstraint("a", ["e1", "e2"]), ConstraintOwner.Human, DateTimeOffset.UnixEpoch),
+        };
+
+        var align = new List<Constraint<AlignConstraint>>
+        {
+            new(new AlignConstraint(["a", "b"]), ConstraintOwner.Human, DateTimeOffset.UnixEpoch),
+        };
+
+        if (withLlm)
+        {
+            order.Add(new Constraint<OrderConstraint>(
+                new OrderConstraint("a", ["e2", "e1"]),
+                ConstraintOwner.Llm,
+                DateTimeOffset.UnixEpoch));
+            align.Add(new Constraint<AlignConstraint>(
+                new AlignConstraint(["b", "c"]),
+                ConstraintOwner.Llm,
+                DateTimeOffset.UnixEpoch));
+        }
+
+        return job with
+        {
+            Nodes = [.. job.Nodes, new LayoutNode("c", 80, 40)],
+            Edges = [.. job.Edges, new LayoutEdge("e2", "a", "c")],
+            Hints = job.Hints with { Order = order, Align = align },
         };
     }
 

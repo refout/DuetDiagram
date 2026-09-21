@@ -348,6 +348,89 @@ public sealed class LayoutTests
 
     #endregion
 
+    #region 中级约束
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void Order_and_align_hold_together()
+    {
+        // 两条约束作用在不同的自由度上：次序管同一层里的左右关系，对齐管跨层的那个坐标。
+        // 所以它们能同时成立——不能同时成立时才如实报出来，而不是靠优先级丢掉一条。
+        var request = new LayoutRequest(
+            [Graphs.Node("p"), Graphs.Node("a"), Graphs.Node("b"), Graphs.Node("c")],
+            [
+                new LayoutEdge("e1", "p", "a"),
+                new LayoutEdge("e2", "p", "b"),
+                new LayoutEdge("e3", "a", "c"),
+            ],
+            new LayoutOptions(
+                Direction.TB,
+                OrderGroups: [new[] { "b", "a" }],
+                AlignGroups: [new[] { "p", "c" }]));
+
+        var result = Compute(request);
+
+        result.Diagnostics.ConstraintConflicts.Should().BeEmpty();
+
+        // 层内次序：b 在 a 左边。
+        result.Find("b")!.X.Should().BeLessThan(result.Find("a")!.X);
+
+        // 对齐：p 与 c 在层内轴上取齐，而两者分处第一层与第三层。
+        result.Find("p")!.X.Should().Be(result.Find("c")!.X);
+        result.Find("p")!.Y.Should().NotBe(result.Find("c")!.Y);
+
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void Intermediate_constraints_hold_at_scale_without_breaking_the_hard_guarantees()
+    {
+        // 规模用例上带约束跑一遍。约束是在引擎之外补齐的，补齐逻辑一旦写成对全部节点
+        // 两两比较，这里会先慢下来，然后在别的图上错位。
+        var graph = Graphs.Layered(depth: 20, breadth: 50);
+        var baseline = Compute(graph);
+
+        // 把一个节点钉到整张图的右边界之外，逼让位真的动起来：
+        // 钉在原位的话这条用例什么也没验到。
+        var anchor = baseline.Find("n5-0")!;
+        var far = baseline.Nodes.Max(n => n.Right) + 100;
+
+        var request = graph with
+        {
+            Nodes =
+            [
+                .. graph.Nodes.Select(n =>
+                    n.Id == "n5-0" ? n with { Pinned = new LayoutPoint(far, anchor.Y) } : n),
+            ],
+            Options = new LayoutOptions(
+                Direction.TB,
+                OrderGroups: [new[] { "n5-10", "n5-3" }],
+                AlignGroups: [new[] { "n0-0", "n5-0" }]),
+        };
+
+        var result = Compute(request);
+
+        result.Nodes.Should().HaveCount(1000);
+        result.Diagnostics.ConstraintConflicts.Should().BeEmpty();
+        result.Diagnostics.MaxAnchorDeviation.Should().Be(0);
+        result.Diagnostics.ResidualOverlaps.Should().Be(0);
+        result.Diagnostics.EndpointFailures.Should().Be(0);
+        result.Diagnostics.UnresolvedEndpoints.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+
+        // 次序被保持，对齐轴上极差为零——而这两个成员里有一个是固定节点。
+        result.Find("n5-10")!.X.Should().BeLessThan(result.Find("n5-3")!.X);
+        result.Find("n0-0")!.X.Should().Be(result.Find("n5-0")!.X);
+        result.Find("n5-0")!.X.Should().Be(far, "固定坐标一个像素都不能偏");
+
+        // 上限给得很宽：这条断言盯的是"有没有退化成平方复杂度"，精确耗时在基准工程里。
+        (result.Diagnostics.AlignTime + result.Diagnostics.OrderTime)
+            .Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
+    #endregion
+
     #region 规模
 
     [Fact]

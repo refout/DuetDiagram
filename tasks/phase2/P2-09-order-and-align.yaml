@@ -1,21 +1,30 @@
 id: P2-09
 title: 中级布局约束——层内顺序与逐元素对齐
 phase: 2
-status: pending
+status: done
 depends_on: [P1-11, P1-12]
 estimated_loc: 500
 files:
   create:
     - DuetDiagram.Layout/Internal/OrderSolver.cs
     - DuetDiagram.Layout/Internal/AlignSolver.cs
+    - DuetDiagram.Layout/Internal/RowPacker.cs
     - DuetDiagram.Layout.Tests/OrderTests.cs
     - DuetDiagram.Layout.Tests/AlignTests.cs
-    - docs/Layout-Constraints.md
+    - DuetDiagram.Benchmarks/ConstraintBenchmarks.cs
     - reports/phase2-layout-constraints.md
   modify:
     - DuetDiagram.Layout/ConstraintLayoutEngine.cs
-    - DuetDiagram.Layout/Internal/（既有的收缩与让位逻辑）
-    - DuetDiagram.Layout.Tests/LayoutInvariantTests.cs
+    - DuetDiagram.Layout/LayoutModels.cs
+    - DuetDiagram.Layout/EngineLayoutResult.cs
+    - DuetDiagram.Layout/FallbackPlan.cs
+    - DuetDiagram.Layout/Internal/RowReflow.cs
+    - DuetDiagram.Layout.Tests/LayoutTests.cs
+    - DuetDiagram.Layout.Tests/FallbackTests.cs
+    - DuetDiagram.Layout.Tests/Graphs.cs
+    - DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj
+    - docs/Layout-Constraints.md
+    - docs/Architecture.md
     - AGENTS.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
@@ -44,3 +53,57 @@ scope_note: |
 
   **界面入口也不在本任务里**，见 P2-10。先把引擎侧的接线做出来再做界面，
   是因为界面先做出来会得到一个能点但没效果的控件。
+result:
+  verdict: 完成
+  delivered:
+    order: 层内次序按「换位」补齐——成员坐回它们自己占过的槽位，组外节点一个都不动
+    align: 逐元素对齐在层内轴上取齐，轴与让位轴是同一个；组里有固定成员时以它为准
+    pipeline: 流水线扩到八步，对齐插在让位之前、次序插在让位之后
+    packer: 让位与次序共用同一段摆开算法，只是坐标的来源不同
+    diagnostics: 诊断新增约束冲突清单与两项分阶段耗时
+    matrix: 保留项矩阵扩到四类约束，四个降级级别各一行
+    benchmark: 新增约束补齐的耗时基线，与引擎基线在同一次运行里出数
+  design_decisions:
+    keep_order_not_resort: 次序约束是「保持次序」而不是「按给定次序排」。重排整层会顺手打乱组外节点，而左右关系决定连线交叉与阅读顺序，打乱它比整层变宽更糟
+    seat_on_slots: 换位要坐回原来的槽位。只改次序、坐标不动的话，摆开那一步会按旧坐标往后推，次序对了但整层被撑宽
+    align_shares_axis: 对齐轴与让位轴是同一个。对齐若动分层轴上的坐标，节点就会跑到别的层去
+    align_target_first: 对齐目标取组里第一个成员的坐标，不取平均——取平均会让整组每次都挪一点，看起来像在抖
+    align_before_reflow: 对齐在让位之前。取齐可能把节点挪到同层另一个节点的身上，而让位正是用来解开那种情况的；反过来先让位，对齐的结果就没人再检查了
+    order_after_reflow: 次序在让位之后。让位保持的是当前次序，而次序约束要改的恰恰是它；反过来先做次序，让位会按旧坐标把它排回去
+    verify_final: 求解阶段报「当时算不出来」，核对阶段报「算出来了但被后面的步骤推开了」。少了后者，那一类失效是静默的
+    report_once: 求解阶段判定做不了的组，核对阶段要跳过。否则同一条约束报两次，而第二条的理由是错的——它说「被让位推开了」，实际是压根没动过
+    shared_packer: 让位与次序共用同一段摆开算法。分开写两遍的话，两者对「怎样才算摆得下」的判断迟早会不一致，同一条约束在不同路径上就会得到不同结果
+    diff_baseline: 补齐耗时读的是「全流水线（带约束）减全流水线（不带约束）」。引擎调用在流水线正中间摘不出去，而两条基线的引擎输入完全相同
+  fixed:
+    edge_to_node: 层内次序在 IR 里存的是出边标识，而求解器要节点标识。原先直接把边标识当节点标识传下去，求解器在节点里找不到成员就一声不吭地跳过——表现是「约束进了流水线却毫无效果」，与降级丢掉了它长得一模一样
+    duplicate_conflict: 求解阶段已报过的组在核对阶段又报了一次，且第二句的理由是错的
+    row_packer_firstx: RowPacker 原先带一个「第一个节点摆在哪」的参数，换位改成坐回槽位之后没人再用它，删掉了
+  findings:
+    same_layer_align: 同一层的两个节点在层内轴上取齐等于让它们重叠，这种组无解。实现如实报出，不静默丢掉约束
+    dsl_align_example: 语法文档里 `align pass, fail` 那个例子举的是同一层的两个分支，按本轮的语义它是无解的
+    cost_by_pin_position: 补齐逻辑的代价由固定节点的位置决定，不由约束的条数决定。常见情形读不出正数，把整层钉到别处才读得出 3.6 毫秒
+    overlap_stats_hot_path: 诊断里的重叠统计是两两比较的平方复杂度，按设计不进分阶段计时，但确实在每次布局的调用路径上，很可能是补齐逻辑里最贵的一段
+    benchmark_guard: 基准的输入最初两条约束都无解（次序组的两个成员被固定坐标分到了不同的层、对齐的目标位置在目标层里被占着），测出来的是「几乎没有代价」。现在开跑前先核对约束真的生效，不成立就终止整次运行
+  verified:
+    - Category=Layout 32 项全通过，固定位置与同层约束一条都没退化
+    - Category=OrderAlign 23 项全通过
+    - Category=LayoutFallback 20 项全通过，四类约束的归属方过滤走同一段
+    - 千节点带约束：硬保证全部成立，次序与对齐都生效
+    - 千节点全流水线 18.61 毫秒（最坏情形），引擎占七成以上
+  not_verified:
+    - 界面入口属 P2-10
+    - 相对位置约束属 Phase 3
+    - 对齐只有一条轴，没有左对齐与居中对齐之分
+    - 等宽网格上无法跨层取齐，每层都排满时任何取齐都会撞上目标层已有的节点
+open_questions:
+  - id: align-axis
+    question: 对齐要不要再分左对齐与居中对齐？
+    detail: |
+      现在约束里没有轴字段，对齐轴固定为「垂直于分层方向」，取齐的坐标取组里第一个成员的
+      左边界。界面上的对齐按钮通常有左/右/上/下/居中六种，其中"上"与"下"动的是分层轴，
+      按本轮的语义会把节点推出它所在的层。
+
+      要做得给约束加一个轴或对齐方式的字段，那是 IR 的改动，牵动序列化与哈希。
+      等 P2-10 把界面入口做出来、看到真实用户点的是哪几个按钮之后再定。
+    blocked_on: P2-10
+    status: open

@@ -104,6 +104,30 @@ public sealed record LayoutDiagnostics(
     TimeSpan ReflowTime,
     TimeSpan RoutingTime)
 {
+    /// <summary>
+    /// 中级约束里互相矛盾、没能同时满足的那些。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 为空表示全部约束都生效了。非空时每一条是一句人话，说明哪一条约束为什么没做到。
+    /// </para>
+    /// <para>
+    /// **不静默丢弃。** 悄悄丢掉一条的表现是"我设了但没生效"，用户会去反复重设，
+    /// 而每次重设都得不到反馈。如实报出来之后，界面才能把"这两条冲突"指给用户看。
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<string> ConstraintConflicts { get; init; } = [];
+
+    /// <summary>对齐补齐花的时间。单独计时，不并进引擎耗时。</summary>
+    /// <remarks>
+    /// 出问题时必须能立刻判断该换引擎还是该改算法：引擎慢要换引擎，
+    /// 补齐慢要改算法，两种处置完全不同。并成一个总耗时之后这个判断就做不了了。
+    /// </remarks>
+    public TimeSpan AlignTime { get; init; }
+
+    /// <inheritdoc cref="AlignTime"/>
+    public TimeSpan OrderTime { get; init; }
+
     /// <summary>这次布局是否满足全部硬保证。</summary>
     /// <remarks>
     /// <para>

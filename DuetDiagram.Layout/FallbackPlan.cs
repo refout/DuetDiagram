@@ -83,7 +83,13 @@ internal static class FallbackPlan
             dropped.Add($"固定位置 {job.Nodes.Count(n => n.Pinned is not null)} 个");
         }
 
-        var groups = keepConstraints ? SameRankGroups(job.Hints, level, dropped) : [];
+        var groups = keepConstraints ? Project(job.Hints.SameRank, level, "同层", c => c.Value.Nodes, dropped) : [];
+
+        // 层内次序要的是**目标节点的先后**，不是"哪个节点的出边"。
+        // 出边标识只用于界面上的呈现与冲突提示，求解器比的是节点坐标。
+        var targets = TargetsByEdge(job.Edges);
+        var order = keepConstraints ? Project(job.Hints.Order, level, "层内次序", c => Targets(c.Value, targets), dropped) : [];
+        var align = keepConstraints ? Project(job.Hints.Align, level, "对齐", c => c.Value.Nodes, dropped) : [];
 
         if (!keepConstraints)
         {
@@ -100,7 +106,9 @@ internal static class FallbackPlan
                     job.Direction,
                     keepSpacing ? hints.NodeSpacing : new LayoutOptions().NodeSpacing,
                     keepSpacing ? hints.LayerSpacing : new LayoutOptions().LayerSpacing,
-                    groups))
+                    groups,
+                    order,
+                    align))
             {
                 Groups = job.Groups,
             },
@@ -108,21 +116,26 @@ internal static class FallbackPlan
     }
 
     /// <summary>
-    /// 收集这一级保留的同层约束。
+    /// 收集这一级保留的某一类约束。
     /// </summary>
     /// <remarks>
     /// 到 <see cref="LayoutFallbackLevel.DropLlm"/> 为止只丢模型提的，
-    /// 人定的与自动推导的都留下。
+    /// 人定的与自动推导的都留下。四类约束走的是同一段过滤——
+    /// 分开写四遍的话，迟早有一类的归属方判错，而那种错表现为"某一类约束的降级行为不一样"，
+    /// 极难与其它原因区分开。
     /// </remarks>
-    private static IReadOnlyList<IReadOnlyList<string>> SameRankGroups(
-        LayoutHints hints,
+    private static IReadOnlyList<IReadOnlyList<string>> Project<T>(
+        IReadOnlyList<Constraint<T>> constraints,
         LayoutFallbackLevel level,
+        string name,
+        Func<Constraint<T>, IReadOnlyList<string>> select,
         List<string> dropped)
+        where T : notnull
     {
         var kept = new List<IReadOnlyList<string>>();
         var droppedLlm = 0;
 
-        foreach (var constraint in hints.SameRank)
+        foreach (var constraint in constraints)
         {
             if (level == LayoutFallbackLevel.DropLlm && constraint.Owner == ConstraintOwner.Llm)
             {
@@ -130,15 +143,59 @@ internal static class FallbackPlan
                 continue;
             }
 
-            kept.Add(constraint.Value.Nodes);
+            kept.Add(select(constraint));
         }
 
         if (droppedLlm > 0)
         {
-            dropped.Add($"模型提出的同层约束 {droppedLlm} 条");
+            dropped.Add($"模型提出的{name}约束 {droppedLlm} 条");
         }
 
         return kept;
+    }
+
+    /// <summary>边标识到终点节点标识的索引。</summary>
+    private static Dictionary<string, string> TargetsByEdge(IReadOnlyList<LayoutEdge> edges)
+    {
+        var targets = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var edge in edges)
+        {
+            targets[edge.Id] = edge.To;
+        }
+
+        return targets;
+    }
+
+    /// <summary>
+    /// 把一条层内次序的次序项从"出边标识"换成"目标节点标识"。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 次序存的是出边标识，因为**平行边**只能靠边标识区分：同一个终点可以有好几条边，
+    /// 而"这几条谁先谁后"用节点标识表达不出来。求解器比的却是节点坐标，
+    /// 所以这一层要把它换回节点标识。两处对同一个概念的定义不同，转换是必须的。
+    /// </para>
+    /// <para>
+    /// 多条边指向同一个节点时只留一个：那几条边之间没有左右可言，而重复的标识
+    /// 会让求解器以为组里有两个成员。指向组合或已删除节点的边在求解器那边按陈旧数据处理，
+    /// 这里不做过滤——过滤掉之后"约束引用了不存在的东西"就完全看不出来了。
+    /// </para>
+    /// </remarks>
+    private static IReadOnlyList<string> Targets(OrderConstraint constraint, Dictionary<string, string> targetsByEdge)
+    {
+        var targets = new List<string>(constraint.Order.Count);
+
+        foreach (var edgeId in constraint.Order)
+        {
+            if (targetsByEdge.TryGetValue(edgeId, out var target)
+                && !targets.Contains(target, StringComparer.Ordinal))
+            {
+                targets.Add(target);
+            }
+        }
+
+        return targets;
     }
 
     /// <summary>把文档里所有约束按归属方报出来，用于"整类丢弃"那一级。</summary>

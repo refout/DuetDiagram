@@ -91,42 +91,12 @@ internal static class RowReflow
                 .OrderBy(o => o.X)
                 .ToArray();
 
-            // 保持原有的横向次序。
+            // 保持原有的横向次序。次序本身是有语义的，打乱它比留下一点空隙更糟。
             var members = row.OrderBy(n => n.X).ToArray();
+            var packed = RowPacker.Pack(members, blockers, gap);
 
-            var cursor = double.NegativeInfinity;
-
-            foreach (var member in members)
-            {
-                var x = Math.Max(member.X, cursor);
-
-                // 障碍物已经按横坐标升序排好，而让位只会把节点往同一个方向推，
-                // 所以从左往右扫一遍就够，不需要反复回头检查：
-                // 扫过的障碍物一定已经在当前位置左侧，后面的障碍物只会更靠右。
-                foreach (var blocker in blockers)
-                {
-                    if (blocker.Right <= x)
-                    {
-                        continue;
-                    }
-
-                    if (blocker.X >= x + member.Width)
-                    {
-                        // 这一层与后面所有障碍物都在右侧且不相交，不必再看。
-                        break;
-                    }
-
-                    x = blocker.Right + gap;
-                }
-
-                placed.Add(member with { X = x });
-                cursor = x + member.Width + gap;
-
-                if (Math.Abs(x - member.X) > 0.01)
-                {
-                    reflowed++;
-                }
-            }
+            placed.AddRange(packed.Nodes);
+            reflowed += packed.Moved;
         }
 
         return new ReflowResult([.. placed], reflowed);

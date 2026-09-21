@@ -13,7 +13,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 |---|---|---|
 | `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化 | 垂直切片已落地 |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
-| `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 已落地 |
+| `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
 | `DuetDiagram.Render` | 绘制列表、文本度量、视口索引与剔除 | Phase 2 P2-01 已落地（画布控件在主程序） |
 | `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照 | 已落地 |
@@ -139,6 +139,8 @@ dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
+dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
+dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=LayoutFallback"
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=QuadTree"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidParsing"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidImport"
@@ -201,7 +203,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`DrawList`、`SceneSnapshot`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`QuadTree`、`DrawList`、`SceneSnapshot`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 

@@ -7,19 +7,19 @@
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
-| DuetDiagram.Benchmarks | 5 | 414 | 252 | 100 | 62 |
+| DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 55 | 6597 | 3517 | 2078 | 1002 |
 | DuetDiagram.Core.Tests | 22 | 4214 | 3017 | 466 | 731 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.Layout | 16 | 2288 | 1225 | 764 | 299 |
-| DuetDiagram.Layout.Tests | 4 | 1040 | 773 | 71 | 196 |
+| DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
+| DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 10 | 1794 | 996 | 521 | 277 |
 | DuetDiagram.Render.Tests | 6 | 1310 | 928 | 131 | 251 |
 | tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **196** | **36249** | **23134** | **7377** | **5738** |
+| **合计** | **202** | **37712** | **24012** | **7728** | **5972** |
 
 ## 明细
 
@@ -45,6 +45,7 @@
 | 文件 | 代码 |
 |---|---:|
 | Benchmarks.cs | 73 |
+| ConstraintBenchmarks.cs | 97 |
 | MermaidBenchmarks.cs | 63 |
 | Program.cs | 9 |
 | QuadTreeBenchmarks.cs | 45 |
@@ -167,31 +168,36 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ConstraintLayoutEngine.cs | 106 |
-| EngineLayoutResult.cs | 70 |
+| ConstraintLayoutEngine.cs | 210 |
+| EngineLayoutResult.cs | 73 |
 | Fallback.cs | 78 |
-| FallbackPlan.cs | 85 |
+| FallbackPlan.cs | 115 |
 | ILayoutEngine.cs | 5 |
+| AlignSolver.cs | 70 |
 | AnchorRestorer.cs | 35 |
 | CompositeOutline.cs | 59 |
 | EdgeRouter.cs | 251 |
 | EngineAdapter.cs | 41 |
 | NodeGrid.cs | 70 |
-| RowReflow.cs | 82 |
+| OrderSolver.cs | 128 |
+| RowPacker.cs | 40 |
+| RowReflow.cs | 62 |
 | SameRankContraction.cs | 144 |
 | LayoutBudgets.cs | 21 |
 | LayoutCoordinator.cs | 103 |
-| LayoutModels.cs | 30 |
+| LayoutModels.cs | 32 |
 | LayoutRequestFactory.cs | 45 |
 
 ### DuetDiagram.Layout.Tests
 
 | 文件 | 代码 |
 |---|---:|
-| FallbackTests.cs | 275 |
-| Graphs.cs | 53 |
+| AlignTests.cs | 129 |
+| FallbackTests.cs | 351 |
+| Graphs.cs | 69 |
 | LayoutRequestFactoryTests.cs | 176 |
-| LayoutTests.cs | 269 |
+| LayoutTests.cs | 327 |
+| OrderTests.cs | 145 |
 
 ### DuetDiagram.Mermaid
 

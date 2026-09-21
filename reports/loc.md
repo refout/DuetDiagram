@@ -10,6 +10,7 @@
 | DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
 | DuetDiagram.Core | 55 | 6308 | 3374 | 1967 | 967 |
 | DuetDiagram.Core.Tests | 20 | 3769 | 2731 | 390 | 648 |
+| DuetDiagram.Dsl | 5 | 1678 | 1102 | 320 | 256 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
 | DuetDiagram.Mermaid | 6 | 1487 | 886 | 365 | 236 |
@@ -17,7 +18,7 @@
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
 | tools | 21 | 3213 | 2153 | 528 | 532 |
-| **合计** | **141** | **21232** | **13301** | **4515** | **3416** |
+| **合计** | **146** | **22910** | **14403** | **4835** | **3672** |
 
 ## 明细
 
@@ -131,6 +132,16 @@
 | ValidatorTests.cs | 175 |
 | VersionLogTests.cs | 177 |
 | WorkspaceTests.cs | 94 |
+
+### DuetDiagram.Dsl
+
+| 文件 | 代码 |
+|---|---:|
+| DslLexer.cs | 228 |
+| DslSource.cs | 23 |
+| DslToken.cs | 26 |
+| DslAst.cs | 68 |
+| DslParser.cs | 757 |
 
 ### DuetDiagram.Layout
 

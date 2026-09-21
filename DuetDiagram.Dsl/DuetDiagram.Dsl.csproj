@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Dsl</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    DSL 的词法、语法与语义映射。方案的项目结构树里没有这个工程，
+    但 P1-16 / P1-17 两条任务确实存在，且树里有 Diagram.Compare.Tests。
+    命名按仓库约定加 DuetDiagram. 前缀，与 DuetDiagram.Mermaid 对称。
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -69,6 +69,34 @@ open_questions:
     recommendation: |
       这是 IR 契约问题，不该在导入层猜。建议先做决定再写映射，
       否则这七份文件会以某种「看起来导入成功了」的方式坏掉——而那种坏法最难发现。
+    status: resolved
+    resolution: |
+      **选第三条：放宽 IR，允许边的端点是复合节点。** 2026-09-21 定。
+      线格式不用改（EdgeDef.from/to 本来就是字符串，成员引用不带类型前缀），要改的是：
+      - `DiagramValidator.CheckEdgeEndpoints`：现在是两步解析模式的先例已经有了
+        （`CheckCompositeMembership` 先按节点解析、解析不到再按组合解析），照它写
+      - `CheckPort`：端点是复合节点时报错——端口只属于节点
+      - 加 `FindComposite`（`DiagramDocument` 现在只有 `FindNode`）
+      - `docs/IR-Schema.md` 登记端点约定
+      **布局那半做不了，要单列。** `LayoutRequestFactory.FromDocument` 只映射 Nodes 与 Edges，
+      `Composites` 被整个忽略，`LayoutNode.Parent` 只是透传——"把端点落到组合边界上"没有落点。
+      在那之前，布局遇到组合端点必须在降级报告里如实记录，**不许静默丢边**。
+    evidence: |
+      冻结语料里 8 份文件这么写（`a-bare` 3 份、`b-documented` 4 份、`c-dsl` 1 份，
+      见 `reports/compare-blind/parse-report.md` 的"端点是分组的边"一列）。
+      `ODS -- "清洗" --> DWD` 是 Mermaid 表达"这一层流向那一层"的常见写法，
+      而 IR 现在会报 EDGE_SOURCE_MISSING。
+  - id: pipe-label-quotes
+    question: 竖线定界的边标签要不要剥外层引号？
+    detail: |
+      模型会写 `idem -->|"已处理"| ackSkip`，解析出来的标签原样是 `"已处理"`（带引号）。
+      同一个解析器对同一件事有两种做法：方括号里的节点标签走 `Unquote`
+      （`MermaidParser.cs:287`、`:534`），竖线里的边标签不走（`:582`）。
+
+      **先要查证真实 Mermaid 的行为**：`-->|"text"|` 渲染出来带不带引号。
+      带的话就该改语法参考（不该教模型这么写），不带的话就该在 `:582` 补 `Unquote`。
+      两种改法都便宜，但选错会让导入结果和真实渲染不一致。
+    evidence: 冻结语料里命中 2 份，都在 `b-documented`（见 `reports/compare-blind/checkability.md`）
   - id: version-and-hash
     question: 导入产出的文档，版本号与哈希怎么定？
     detail: |

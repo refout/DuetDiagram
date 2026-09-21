@@ -56,6 +56,41 @@ scope_note: |
   解析错误率要区分「语法拒绝」与「语义拒绝」，而语义拒绝要过 IR 与校验器，
   只到语法树（P1-08）算不出来。P1-10 保留是因为 B 组是 Mermaid，
   结构清单要能从中还原出节点与边。
+progress:
+  updated_at: 2026-09-21
+  note: |
+    **装置的一半已落地，结论那一半没做，这是刻意的。**
+    见 reports/compare-blind/conclusion.md。
+  landed:
+    - tools/CompareHarness 的 listings 命令：冻结语料 → 盲评清单 + 解析统计，逐字节可复现
+    - reports/compare-blind/parse-report.md：解析错误率（真实测量）
+    - reports/compare-blind/checkability.md：检查项可判定性的实测
+  not_landed:
+    - 端到端准确率、人工修正步骤、首轮通过率——需要真人评分
+    - 语义拒绝率——需要 IR 映射（P1-09 / P1-17）
+    - 决策门 1 的结论
+  findings:
+    checkability: |
+      检查项判不了机器。子串命中约 60%，最松的确定匹配（子序列）约 75%，
+      三组分别是 75.5% / 69.1% / 75.5%。剩下那 25% 是措辞差异而不是模型没做到，
+      且三组少给分的比例不一样——差出来的部分会被算成格式的差别。
+      再松就要引入相似度阈值，而阈值取多少没有客观依据，判定门要的差别正好是十几个百分点。
+      要改的是检查项的写法（显式谓词 + 同义词表），不是评分程序。
+    blinding_leaks: |
+      只投影到节点与边还不够，清单里另有两处自报组别，实测后整批抹平：
+      标识写法（c-dsl 43 个带连字符、b-documented 零个；反向 B 有 11 个下划线与 14 个全大写、
+      C 两样都是零）与标签里的 <br>（A 13 个、B 8 个、C 零个）。
+      标识整批换成流水号，换行标记换成空格。
+    wrong_diagram_kind: |
+      不给文档时模型会挑错图类型：a-bare 组 50 份里有 3 份是 sequenceDiagram 或 stateDiagram-v2。
+      这一项在 B 与 C 上完全相同，**恰好证明三组设计是必要的**——
+      拿 A 与 C 比会把"有文档"的功劳记到 DSL 头上。
+    self_scoring_is_not_evidence: |
+      模拟评分做了三分之一（50/150），C 组端到端 78.6%、B 组 84.6%，没有信号。
+      决定不继续：评的人知道哪份是哪组（key 是装置自己生成的），
+      且逐批严格度漂移会伪装成组间差异。**把三分之一的猜测补成三分之三的猜测不会让它变成证据。**
+  registered_elsewhere:
+    - 竖线边标签不剥引号、边指向分组 → P1-09
 open_questions:
   - id: who-scores
     question: 两名评分者是谁，评分怎么落盘？
@@ -65,6 +100,19 @@ open_questions:
       （每条 prompt × 每个检查项 × 两名评分者）与存放位置，否则汇总算不出来。
       建议放在 reports/ 下与盲评清单同目录，且**不进版本库**——
       评分是人的工作产物，混进仓库会让「语料冻结」这件事变得模糊。
+    status: open
+    blocked_on: 用户拍板
+  - id: checks-not-machine-checkable
+    question: 要不要把 256 个检查项改写成可判定的形式？
+    detail: |
+      现在判不了机器（见 findings.checkability），所以三个指标只能靠人评，
+      而真人评分意味着换模型重跑的成本极高——而"换模型要重新跑"是
+      docs/Compare-Criteria.md 明写的既定需求。
+      改写成「显式谓词 + 同义词表」之后四个指标才可能自动重算。
+      代价是 50 条提示词的检查项全部重写，且重写会让已有语料的检查项失去对应关系
+      （语料不用重新生成——检查项是后加的，与响应无关）。
+    status: open
+    blocked_on: 用户拍板
   - id: rejection-granularity
     question: 「解析器拒绝」的判定粒度是什么？
     detail: |
@@ -72,9 +120,30 @@ open_questions:
       一行坏掉时是跳过该行继续（那么整份不算拒绝），还是整份拒绝。
       P1-16 的 open_questions 里列了同一条，两个任务必须用同一个答案，
       否则 DSL 组与 Mermaid 组的错误率不可比。
+    status: resolved
+    resolution: |
+      跳过坏行、记一条诊断、继续；只有「图类型不是流程图」整份放弃。
+      两个解析器同一口径（P1-16 已按此实现，P1-08 本来就是）。
+      落地时进一步细分成四种结局：干净 / 有诊断但有结构 / 语法拒绝 / 图类型不对，
+      前两种都不算拒绝，后两种都算。
+    evidence: reports/compare-blind/parse-report.md 的三组统计（a-bare 47/0/0/3，b 49/1/0/0，c 50/0/0/0）
   - id: semantic-checks
     question: 语义拒绝具体查哪些？
     detail: |
       docs/Compare-Criteria.md 举了两个例子：引用了不存在的节点、分组成环。
       完整清单要定下来并与 DiagramValidator 的检查项对齐——
       若语义拒绝的口径宽于校验器，会出现「解析器说拒绝但校验器说没问题」的矛盾。
+    status: resolved
+    resolution: |
+      **现在算不出来，留空。** 要算得先有 Mermaid→IR（P1-09）与 DSL→IR（P1-17）的映射。
+
+      原因在解析器的抽象语法树上，不是工程排期问题：
+      Mermaid 的解析器读到 `A --> B` 会顺手把 A、B 记成节点，DSL 的只记边——
+      于是「引用了不存在的节点」在 Mermaid 侧根本不可表达，在 DSL 侧却能看见。
+      直接比这一项，比的是两个解析器的宽松程度，不是两种格式。
+      分组的外层字段由解析器的栈赋值，成环写不出来；成员表又是从父级推出来的，
+      所以「分组成环」「成员不存在」同样不可表达。
+
+      唯一现在就能算的是「边指向分组」——它两边都可表达。
+      这一列同时是 P1-09 `subgraph-as-endpoint` 的证据。
+    evidence: reports/compare-blind/parse-report.md 的"语义拒绝率：现在算不出来"一节

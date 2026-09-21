@@ -11,7 +11,9 @@ dotnet run --project tools/CompareHarness -c Release -- listings
 | 文件 | 进仓库 | 给谁看 |
 |---|---|---|
 | `README.md` | 是 | 就是你正在看的这份 |
+| `conclusion.md` | 是 | **结论**。B 这一项定下来什么、没定什么 |
 | `parse-report.md` | 是 | **证据**。解析统计与判定门第四条，可机械核对 |
+| `checkability.md` | 是 | **证据**。检查项为什么判不了机器 |
 | `rater.md` | 否 | 评分者。150 份结构清单，已打乱，看不出组别 |
 | `items.json` | 否 | 后续自动核对用。同上内容，机器可读 |
 | `key.json` | **否** | **不要给评分者。** 它把匿名编号对回组别 |

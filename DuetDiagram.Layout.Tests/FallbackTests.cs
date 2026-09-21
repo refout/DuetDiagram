@@ -15,7 +15,8 @@ namespace DuetDiagram.Layout.Tests;
 /// </remarks>
 public sealed class FallbackTests
 {
-    // ---- 计划的合法性 ----
+
+    #region 计划的合法性
 
     [Fact]
     [Trait("Category", "LayoutFallback")]
@@ -64,7 +65,9 @@ public sealed class FallbackTests
         LayoutBudgets.ManualRelayout.Should().Be(TimeSpan.FromSeconds(2));
     }
 
-    // ---- 顺利路径 ----
+    #endregion
+
+    #region 顺利路径
 
     [Fact]
     [Trait("Category", "LayoutFallback")]
@@ -81,7 +84,9 @@ public sealed class FallbackTests
         engine.Calls.Should().Be(1, "第一级就成功了，不该再试");
     }
 
-    // ---- 降级 ----
+    #endregion
+
+    #region 降级
 
     [Fact]
     [Trait("Category", "LayoutFallback")]
@@ -184,7 +189,9 @@ public sealed class FallbackTests
         engine.Calls.Should().Be(0);
     }
 
-    // ---- 保留项矩阵 ----
+    #endregion
+
+    #region 保留项矩阵
 
     [Fact]
     [Trait("Category", "LayoutFallback")]
@@ -266,7 +273,9 @@ public sealed class FallbackTests
         options.LayerSpacing.Should().Be(defaults.LayerSpacing);
     }
 
-    // ---- 冲突日志 ----
+    #endregion
+
+    #region 冲突日志
 
     [Fact]
     [Trait("Category", "LayoutFallback")]
@@ -298,7 +307,9 @@ public sealed class FallbackTests
         log.Entries.Should().BeEmpty("最高级别什么都没丢，不该产生记录");
     }
 
-    // ---- 辅助 ----
+    #endregion
+
+    #region 辅助
 
     private static EngineLayoutResult Empty() => new(
         [],
@@ -364,4 +375,6 @@ public sealed class FallbackTests
         public void RecordDowngrade(LayoutFallbackLevel level, IReadOnlyList<string> dropped) =>
             Entries.Add((level, dropped));
     }
+
+    #endregion
 }

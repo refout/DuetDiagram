@@ -55,7 +55,7 @@ public static class ErrorCodes
     /// <summary>标识为空或全是空白字符。</summary>
     public const string InvalidId = "INVALID_ID";
 
-    // ---- 整体校验器使用的码 ----
+    #region 整体校验器使用的码
     //
     // 上面那些由命令的前置检查产生，下面这些由加载文件、接收同步结果时的整体校验产生。
     // 分成两段是因为两者的使用场合不同：前者在写入前挡，后者在外部内容进来时挡。
@@ -78,4 +78,6 @@ public static class ErrorCodes
 
     /// <summary>动作的目标不存在。</summary>
     public const string ActionTargetMissing = "ACTION_TARGET_MISSING";
+
+    #endregion
 }

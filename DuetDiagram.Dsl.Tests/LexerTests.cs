@@ -194,7 +194,7 @@ public sealed class LexerTests
         DslLexer.Tokenize(Source).Should().Equal(DslLexer.Tokenize(Source));
     }
 
-    // ---- 剥围栏 ----
+    #region 剥围栏
 
     [Fact]
     [Trait("Category", "DslLexing")]
@@ -254,4 +254,6 @@ public sealed class LexerTests
         DslLexer.Tokenize(source)
             .Where(t => t.Kind is not (DslTokenKind.NewLine or DslTokenKind.End))
             .Select(t => $"{t.Kind}({t.Text})");
+
+    #endregion
 }

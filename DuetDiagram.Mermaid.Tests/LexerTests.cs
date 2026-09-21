@@ -63,7 +63,7 @@ public sealed class LexerTests
         Words("A --> B --> C").Should().Equal("A", "B", "C");
     }
 
-    // ---- 形状与标签 ----
+    #region 形状与标签
 
     [Fact]
     [Trait("Category", "MermaidLexing")]
@@ -182,7 +182,9 @@ public sealed class LexerTests
         tokens.Single(t => t.Kind == MermaidTokenKind.Text).Text.Should().Be("\"开始\"");
     }
 
-    // ---- 边标签 ----
+    #endregion
+
+    #region 边标签
 
     [Fact]
     [Trait("Category", "MermaidLexing")]
@@ -211,7 +213,9 @@ public sealed class LexerTests
         Words("A -- 是 --> B").Should().Equal("A", "是", "B");
     }
 
-    // ---- 其它 ----
+    #endregion
+
+    #region 其它
 
     [Fact]
     [Trait("Category", "MermaidLexing")]
@@ -282,7 +286,9 @@ public sealed class LexerTests
             .Which.Kind.Should().Be(MermaidTokenKind.End);
     }
 
-    // ---- 图类型 ----
+    #endregion
+
+    #region 图类型
 
     [Theory]
     [Trait("Category", "MermaidLexing")]
@@ -315,7 +321,9 @@ public sealed class LexerTests
         MermaidDiagramKindDetector.Detect(string.Empty).Should().Be(MermaidDiagramKind.Unknown);
     }
 
-    // ---- 剥围栏 ----
+    #endregion
+
+    #region 剥围栏
 
     [Fact]
     [Trait("Category", "MermaidLexing")]
@@ -375,4 +383,6 @@ public sealed class LexerTests
         MermaidLexer.Tokenize(source)
             .Where(t => t.Kind is MermaidTokenKind.Word or MermaidTokenKind.Text or MermaidTokenKind.QuotedText)
             .Select(t => t.Text);
+
+    #endregion
 }

@@ -15,7 +15,8 @@ namespace DuetDiagram.Core.Tests;
 /// </remarks>
 public sealed class SidecarTests
 {
-    // ---- 路径约定 ----
+
+    #region 路径约定
 
     [Fact]
     [Trait("Category", "Sidecar")]
@@ -70,7 +71,9 @@ public sealed class SidecarTests
         SidecarPaths.ParseBackupTime("/tmp/orders.随便.bak").Should().BeNull();
     }
 
-    // ---- 布局缓存 ----
+    #endregion
+
+    #region 布局缓存
 
     [Fact]
     [Trait("Category", "Sidecar")]
@@ -201,7 +204,9 @@ public sealed class SidecarTests
         loaded.Orphans.Should().Equal("早就删掉的节点");
     }
 
-    // ---- 人工产物 ----
+    #endregion
+
+    #region 人工产物
 
     [Fact]
     [Trait("Category", "Sidecar")]
@@ -332,7 +337,9 @@ public sealed class SidecarTests
         SidecarStore.PruneOrphans(user, []).Should().BeSameAs(user);
     }
 
-    // ---- 写入的原子性 ----
+    #endregion
+
+    #region 写入的原子性
 
     [Fact]
     [Trait("Category", "Sidecar")]
@@ -360,7 +367,9 @@ public sealed class SidecarTests
         File.Exists(SidecarPaths.User(nested)).Should().BeTrue();
     }
 
-    // ---- 标识的大小写 ----
+    #endregion
+
+    #region 标识的大小写
 
     [Fact]
     [Trait("Category", "Sidecar")]
@@ -393,4 +402,5 @@ public sealed class SidecarTests
         Version = document.Version,
     };
 
+    #endregion
 }

@@ -20,7 +20,7 @@ public sealed class LayoutTests
     private static EngineLayoutResult Compute(LayoutRequest request) =>
         Engine.Layout(request, TestContext.Current.CancellationToken);
 
-    // ---- 基础 ----
+    #region 基础
 
     [Fact]
     [Trait("Category", "Layout")]
@@ -48,7 +48,9 @@ public sealed class LayoutTests
         result.Height.Should().Be(0);
     }
 
-    // ---- 固定位置是唯一的硬保证 ----
+    #endregion
+
+    #region 固定位置是唯一的硬保证
 
     [Fact]
     [Trait("Category", "Layout")]
@@ -106,7 +108,9 @@ public sealed class LayoutTests
         result.Find("b")!.X.Should().Be(310);
     }
 
-    // ---- 同层约束 ----
+    #endregion
+
+    #region 同层约束
 
     [Fact]
     [Trait("Category", "Layout")]
@@ -150,7 +154,9 @@ public sealed class LayoutTests
         result.Diagnostics.MaxAnchorDeviation.Should().Be(0);
     }
 
-    // ---- 方向 ----
+    #endregion
+
+    #region 方向
 
     [Theory]
     [Trait("Category", "Layout")]
@@ -205,7 +211,9 @@ public sealed class LayoutTests
         }
     }
 
-    // ---- 折线 ----
+    #endregion
+
+    #region 折线
 
     [Fact]
     [Trait("Category", "Layout")]
@@ -280,7 +288,9 @@ public sealed class LayoutTests
         result.Diagnostics.EndpointFailures.Should().Be(1);
     }
 
-    // ---- 规模 ----
+    #endregion
+
+    #region 规模
 
     [Fact]
     [Trait("Category", "Layout")]
@@ -302,4 +312,6 @@ public sealed class LayoutTests
 
         total.Should().BeLessThan(TimeSpan.FromSeconds(5));
     }
+
+    #endregion
 }

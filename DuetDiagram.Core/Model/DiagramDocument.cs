@@ -311,7 +311,7 @@ public sealed class DiagramDocument
     /// </summary>
     public string VisualHash { get; internal set; } = string.Empty;
 
-    // ---- 九个集合 ----
+    #region 九个集合
 
     /// <summary>页面集合。顺序有意义。</summary>
     public IReadOnlyList<PageDef> Pages => _pages.ReadOnly;
@@ -340,7 +340,9 @@ public sealed class DiagramDocument
     /// <summary>文本样式预设集合。</summary>
     public IReadOnlyList<TextStylePreset> TextPresets => _textPresets.ReadOnly;
 
-    // ---- 三个子对象 ----
+    #endregion
+
+    #region 三个子对象
 
     /// <summary>调色板。计入视觉哈希。</summary>
     public Palette Palette { get; internal set; } = new();
@@ -351,7 +353,9 @@ public sealed class DiagramDocument
     /// <summary>画布设置。计入视觉哈希。</summary>
     public CanvasSettings Canvas { get; internal set; } = new();
 
-    // ---- 快照 ----
+    #endregion
+
+    #region 快照
 
     /// <summary>
     /// 取一份完整快照。
@@ -428,7 +432,9 @@ public sealed class DiagramDocument
         Canvas = snapshot.Canvas;
     }
 
-    // ---- 仅命令实现可用的可变视图 ----
+    #endregion
+
+    #region 仅命令实现可用的可变视图
 
     internal List<PageDef> MutablePages => _pages.Mutable;
 
@@ -448,7 +454,9 @@ public sealed class DiagramDocument
 
     internal List<TextStylePreset> MutableTextPresets => _textPresets.Mutable;
 
-    // ---- 查找 ----
+    #endregion
+
+    #region 查找
 
     internal bool HasNode(string id) => _nodes.Has(id);
 
@@ -512,4 +520,6 @@ public sealed class DiagramDocument
 
         return found is not null && !ReferenceEquals(found, except);
     }
+
+    #endregion
 }

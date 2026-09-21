@@ -14,7 +14,8 @@ namespace DuetDiagram.Dsl.Tests;
 /// </remarks>
 public sealed class ParserTests
 {
-    // ---- 头部 ----
+
+    #region 头部
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -87,7 +88,9 @@ public sealed class ParserTests
         Parse($"kind {text}").Kind.Should().Be(expected);
     }
 
-    // ---- 节点 ----
+    #endregion
+
+    #region 节点
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -178,7 +181,9 @@ public sealed class ParserTests
         document.Diagnostics.Should().ContainSingle().Which.Message.Should().Contain("端口");
     }
 
-    // ---- 边 ----
+    #endregion
+
+    #region 边
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -307,7 +312,9 @@ public sealed class ParserTests
         document.IsClean.Should().BeTrue();
     }
 
-    // ---- 分组 ----
+    #endregion
+
+    #region 分组
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -421,7 +428,9 @@ public sealed class ParserTests
         document.IsClean.Should().BeTrue();
     }
 
-    // ---- 布局意图 ----
+    #endregion
+
+    #region 布局意图
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -563,7 +572,9 @@ public sealed class ParserTests
         Parse("node-spacing -5").Diagnostics.Should().ContainSingle();
     }
 
-    // ---- 错误恢复与纯度 ----
+    #endregion
+
+    #region 错误恢复与纯度
 
     [Fact]
     [Trait("Category", "DslParsing")]
@@ -651,4 +662,6 @@ public sealed class ParserTests
     }
 
     private static DslDocument Parse(string source) => DslParser.Parse(source);
+
+    #endregion
 }

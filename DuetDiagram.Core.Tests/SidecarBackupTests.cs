@@ -18,7 +18,7 @@ public sealed class SidecarBackupTests
 
     private static DateTimeOffset At(int days, int hours = 0) => Start.AddDays(days).AddHours(hours);
 
-    // ---- 产生备份 ----
+    #region 产生备份
 
     [Fact]
     [Trait("Category", "SidecarBackup")]
@@ -69,7 +69,9 @@ public sealed class SidecarBackupTests
         SidecarBackup.List(path).Should().BeEmpty();
     }
 
-    // ---- 列出 ----
+    #endregion
+
+    #region 列出
 
     [Fact]
     [Trait("Category", "SidecarBackup")]
@@ -120,7 +122,9 @@ public sealed class SidecarBackupTests
         SidecarBackup.List(temp.File("乙.dgm")).Should().HaveCount(1);
     }
 
-    // ---- 保留策略 ----
+    #endregion
+
+    #region 保留策略
 
     [Fact]
     [Trait("Category", "SidecarBackup")]
@@ -206,7 +210,9 @@ public sealed class SidecarBackupTests
         SidecarStore.LoadUser(path, document).Value!.PinnedNodes["a"].Should().Be(new Anchor(2, 2));
     }
 
-    // ---- 恢复 ----
+    #endregion
+
+    #region 恢复
 
     [Fact]
     [Trait("Category", "SidecarBackup")]
@@ -289,7 +295,9 @@ public sealed class SidecarBackupTests
             .Status.Should().Be(SidecarStatus.Unusable);
     }
 
-    // ---- 命名与清理的边界 ----
+    #endregion
+
+    #region 命名与清理的边界
 
     [Fact]
     [Trait("Category", "SidecarBackup")]
@@ -335,4 +343,6 @@ public sealed class SidecarBackupTests
             ["a"] = new Anchor(seed, seed),
         },
     };
+
+    #endregion
 }

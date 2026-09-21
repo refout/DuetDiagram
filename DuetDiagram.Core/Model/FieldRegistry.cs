@@ -53,7 +53,8 @@ public sealed record FieldDescriptor(string Name, string Owner, FieldScope Scope
 /// </remarks>
 public static class FieldNames
 {
-    // ---- 元素级：整个元素被增删 ----
+
+    #region 元素级：整个元素被增删
 
     public const string NodeElement = "@node";
     public const string EdgeElement = "@edge";
@@ -65,7 +66,9 @@ public static class FieldNames
     public const string LayerElement = "@layer";
     public const string PageElement = "@page";
 
-    // ---- 字段级 ----
+    #endregion
+
+    #region 字段级
 
     public const string Label = "label";
     public const string Shape = "shape";
@@ -101,6 +104,8 @@ public static class FieldNames
 
     /// <summary>是否表示"整个元素被增删"。</summary>
     public static bool IsElementLevel(string? name) => name?.StartsWith('@') ?? false;
+
+    #endregion
 }
 
 /// <summary>

@@ -13,7 +13,8 @@ namespace DuetDiagram.Core.Tests;
 /// </remarks>
 public sealed class IrExtensionTests
 {
-    // ---- 往返 ----
+
+    #region 往返
 
     [Fact]
     [Trait("Category", "RoundTrip")]
@@ -66,7 +67,9 @@ public sealed class IrExtensionTests
         restored.Composites.Single(c => c.Id == "lane1").Should().BeOfType<LaneDef>();
     }
 
-    // ---- 哈希口径 ----
+    #endregion
+
+    #region 哈希口径
 
     [Fact]
     [Trait("Category", "IrHashing")]
@@ -197,7 +200,9 @@ public sealed class IrExtensionTests
         }
     }
 
-    // ---- 快照 ----
+    #endregion
+
+    #region 快照
 
     [Fact]
     [Trait("Category", "IrSnapshot")]
@@ -247,7 +252,9 @@ public sealed class IrExtensionTests
                 "跨文档套用会得到一个标识是甲的、内容是乙的自相矛盾对象");
     }
 
-    // ---- 只读约束 ----
+    #endregion
+
+    #region 只读约束
 
     [Fact]
     [Trait("Category", "IrReadOnly")]
@@ -265,4 +272,6 @@ public sealed class IrExtensionTests
 
         act.Should().Throw<NotSupportedException>();
     }
+
+    #endregion
 }

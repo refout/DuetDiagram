@@ -17,7 +17,8 @@ namespace DuetDiagram.Dsl.Tests;
 /// </remarks>
 public sealed class MapperTests
 {
-    // ---- 节点 ----
+
+    #region 节点
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -64,7 +65,9 @@ public sealed class MapperTests
         Map("c\na\nb").Document.Nodes.Select(n => n.Id).Should().Equal("c", "a", "b");
     }
 
-    // ---- 边 ----
+    #endregion
+
+    #region 边
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -123,7 +126,9 @@ public sealed class MapperTests
         result.Document.Edges.Select(e => e.Id).Should().Equal("e2", "e1", "e3");
     }
 
-    // ---- 分组 ----
+    #endregion
+
+    #region 分组
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -166,7 +171,9 @@ public sealed class MapperTests
         result.Document.Composites.Single(c => c.Id == "inner").Parent.Should().Be("outer");
     }
 
-    // ---- 补节点 ----
+    #endregion
+
+    #region 补节点
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -221,7 +228,9 @@ public sealed class MapperTests
         result.Report.CreatedNodes.Should().BeEmpty();
     }
 
-    // ---- 撞名 ----
+    #endregion
+
+    #region 撞名
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -319,7 +328,9 @@ public sealed class MapperTests
         result.Report.Renames.Single().Reason.Should().NotBeNullOrWhiteSpace();
     }
 
-    // ---- 布局提示 ----
+    #endregion
+
+    #region 布局提示
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -341,7 +352,9 @@ public sealed class MapperTests
         result.Document.Layout.LayerSpacing.Should().Be(LayoutHintsDefaults.LayerSpacing);
     }
 
-    // ---- 产物本身 ----
+    #endregion
+
+    #region 产物本身
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -436,7 +449,9 @@ public sealed class MapperTests
         first.VisualHash.Should().Be(second.VisualHash);
     }
 
-    // ---- 语料 ----
+    #endregion
+
+    #region 语料
 
     [Fact]
     [Trait("Category", "DslMapping")]
@@ -462,4 +477,6 @@ public sealed class MapperTests
 
     private static MappingResult Map(string source) =>
         DslMapper.Map(DslParser.Parse(source), new MappingOptions { DocumentId = "dsl" });
+
+    #endregion
 }

@@ -155,7 +155,7 @@ public static class DslMapper
             return new UserSidecar { DocumentId = _options.DocumentId, PinnedNodes = pinned };
         }
 
-        // ---- 撞名 ----
+        #region 撞名
 
         /// <summary>
         /// 容器与节点同名时，**容器让位，节点保留原名**。
@@ -212,7 +212,9 @@ public static class DslMapper
         private string? Mapped(string? id) =>
             id is not null && _renamed.TryGetValue(id, out var renamed) ? renamed : id;
 
-        // ---- 节点 ----
+        #endregion
+
+        #region 节点
 
         /// <summary>
         /// 边引用了但没声明的端点，补成节点。
@@ -343,7 +345,9 @@ public static class DslMapper
         private static List<PortDef> MapPorts(IReadOnlyList<DslPortDeclaration> ports) =>
             [.. ports.Select(port => new PortDef { Name = port.Name, Side = port.Side, IsCustom = true })];
 
-        // ---- 组合 ----
+        #endregion
+
+        #region 组合
 
         private List<CompositeDef> MapComposites()
         {
@@ -396,7 +400,9 @@ public static class DslMapper
                 .Select(group => Mapped(group.Id)!),
         ];
 
-        // ---- 边 ----
+        #endregion
+
+        #region 边
 
         private List<EdgeDef> MapEdges(IReadOnlyList<string> edgeIds)
         {
@@ -440,7 +446,9 @@ public static class DslMapper
             StyleToken = edge.StyleToken,
         };
 
-        // ---- 布局提示 ----
+        #endregion
+
+        #region 布局提示
 
         /// <summary>
         /// 把五类布局意图落到 IR 的四类约束上。
@@ -593,7 +601,9 @@ public static class DslMapper
             _ => "?",
         };
 
-        // ---- 标识生成 ----
+        #endregion
+
+        #region 标识生成
 
         /// <summary>
         /// 给每条边定下标识：原文给了就用原文的，没给就补一个。
@@ -643,5 +653,7 @@ public static class DslMapper
 
             return $"e{counter}";
         }
+
+        #endregion
     }
 }

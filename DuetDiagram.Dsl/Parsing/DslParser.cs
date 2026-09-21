@@ -244,7 +244,7 @@ public static class DslParser
             }
         }
 
-        // ---- 头部声明 ----
+        #region 头部声明
 
         private void Version(Cursor cursor)
         {
@@ -349,7 +349,9 @@ public static class DslParser
             }
         }
 
-        // ---- 分组 ----
+        #endregion
+
+        #region 分组
 
         private void Group(Cursor cursor, DslGroupKind kind)
         {
@@ -383,7 +385,9 @@ public static class DslParser
             _openGroups.Push(id);
         }
 
-        // ---- 布局意图 ----
+        #endregion
+
+        #region 布局意图
 
         private void SameRank(Cursor cursor)
         {
@@ -609,7 +613,9 @@ public static class DslParser
             return result;
         }
 
-        // ---- 节点与边 ----
+        #endregion
+
+        #region 节点与边
 
         /// <summary>
         /// 一条节点声明或一条边。
@@ -1022,5 +1028,7 @@ public static class DslParser
 
         private void Diagnose(string message, DslToken at) =>
             _diagnostics.Add(new DslDiagnostic(message, at.Line, at.Column));
+
+        #endregion
     }
 }

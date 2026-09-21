@@ -27,7 +27,8 @@ namespace DuetDiagram.Core.Sidecar;
 /// </remarks>
 public static class SidecarStore
 {
-    // ---- 布局缓存 ----
+
+    #region 布局缓存
 
     public static SidecarLoad<LayoutSidecar> LoadLayout(string documentPath, DiagramDocument document)
     {
@@ -80,7 +81,9 @@ public static class SidecarStore
         WriteAtomic(SidecarPaths.Layout(documentPath), SerializeLayout(layout));
     }
 
-    // ---- 人工产物 ----
+    #endregion
+
+    #region 人工产物
 
     public static SidecarLoad<UserSidecar> LoadUser(string documentPath, DiagramDocument document)
     {
@@ -132,7 +135,9 @@ public static class SidecarStore
         WriteAtomic(SidecarPaths.User(documentPath), SerializeUser(user));
     }
 
-    // ---- 内部 ----
+    #endregion
+
+    #region 内部
 
     /// <summary>
     /// 从人工产物里摘出仍然有效的部分，丢掉孤儿。
@@ -195,4 +200,6 @@ public static class SidecarStore
 
     private static string SerializeUser(UserSidecar user) =>
         JsonSerializer.Serialize(user, SidecarJsonContext.Default.UserSidecar);
+
+    #endregion
 }

@@ -150,7 +150,7 @@ public sealed class ParserTests
         link.Line.Should().Be(line);
     }
 
-    // ---- 子图 ----
+    #region 子图
 
     [Fact]
     [Trait("Category", "MermaidParsing")]
@@ -343,7 +343,9 @@ public sealed class ParserTests
         chart.Subgraphs.Single(s => s.Id == "内层").Members.Should().Equal("A");
     }
 
-    // ---- 样式与类 ----
+    #endregion
+
+    #region 样式与类
 
     [Fact]
     [Trait("Category", "MermaidParsing")]
@@ -404,7 +406,9 @@ public sealed class ParserTests
         chart.Nodes.Should().ContainSingle("其余内容照常解析");
     }
 
-    // ---- 宽松 ----
+    #endregion
+
+    #region 宽松
 
     [Fact]
     [Trait("Category", "MermaidParsing")]
@@ -483,4 +487,6 @@ public sealed class ParserTests
         fenced.Nodes.Should().BeEquivalentTo(bare.Nodes);
         fenced.Links.Should().BeEquivalentTo(bare.Links);
     }
+
+    #endregion
 }

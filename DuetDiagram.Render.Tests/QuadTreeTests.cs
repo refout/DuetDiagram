@@ -48,7 +48,7 @@ public sealed class QuadTreeTests
         tree.Query(new SpatialRect(0, 0, 20, 20)).Should().BeEquivalentTo("n0", "n1", "n2");
     }
 
-    // ---- 跨边界：本块最容易出错的地方 ----
+    #region 跨边界：本块最容易出错的地方
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -110,7 +110,9 @@ public sealed class QuadTreeTests
         tree.Query(new SpatialRect(0, 0, 10, 10)).Should().BeEmpty();
     }
 
-    // ---- 增删 ----
+    #endregion
+
+    #region 增删
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -197,7 +199,9 @@ public sealed class QuadTreeTests
         tree.Depth.Should().Be(0);
     }
 
-    // ---- 细分与深度 ----
+    #endregion
+
+    #region 细分与深度
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -256,7 +260,9 @@ public sealed class QuadTreeTests
         tree.Bounds.Width.Should().BeGreaterThan(0, "零宽的根会让细分除出无穷大");
     }
 
-    // ---- 查询接口 ----
+    #endregion
+
+    #region 查询接口
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -302,7 +308,9 @@ public sealed class QuadTreeTests
         act.Should().Throw<ArgumentException>();
     }
 
-    // ---- 裁剪效果 ----
+    #endregion
+
+    #region 裁剪效果
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -321,7 +329,9 @@ public sealed class QuadTreeTests
         culled.Should().BeGreaterThan(0.8, "剔除率应当高于八成");
     }
 
-    // ---- 规模 ----
+    #endregion
+
+    #region 规模
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -357,7 +367,9 @@ public sealed class QuadTreeTests
         perQuery.Should().BeLessThan(1000, "方案要求单次查询低于一毫秒");
     }
 
-    // ---- 策略参数 ----
+    #endregion
+
+    #region 策略参数
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -384,7 +396,9 @@ public sealed class QuadTreeTests
         expanded.Height.Should().Be(250);
     }
 
-    // ---- 几何 ----
+    #endregion
+
+    #region 几何
 
     [Fact]
     [Trait("Category", "QuadTree")]
@@ -420,4 +434,6 @@ public sealed class QuadTreeTests
             yield return ($"n{i}", new SpatialRect((i % columns) * spacing, (i / columns) * spacing, 80, 40));
         }
     }
+
+    #endregion
 }

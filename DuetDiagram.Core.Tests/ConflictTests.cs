@@ -14,7 +14,8 @@ namespace DuetDiagram.Core.Tests;
 /// </summary>
 public sealed class ConflictTests
 {
-    // ---- 冲突结果必须携带差异 ----
+
+    #region 冲突结果必须携带差异
 
     [Fact]
     [Trait("Category", "ConflictPolicy")]
@@ -69,7 +70,9 @@ public sealed class ConflictTests
         ahead.Diff.Should().BeOfType<InvalidDiff>();
     }
 
-    // ---- 合并判定 ----
+    #endregion
+
+    #region 合并判定
 
     [Fact]
     [Trait("Category", "ConflictPolicy")]
@@ -159,7 +162,9 @@ public sealed class ConflictTests
             .Outcome.Should().Be(MergeOutcome.NoOverlap);
     }
 
-    // ---- 字段元数据 ----
+    #endregion
+
+    #region 字段元数据
 
     [Fact]
     [Trait("Category", "FieldMetadata")]
@@ -292,4 +297,6 @@ public sealed class ConflictTests
         Field = field,
         Kind = kind,
     };
+
+    #endregion
 }

@@ -8,18 +8,18 @@
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
-| DuetDiagram.Core | 55 | 6476 | 3430 | 2070 | 976 |
-| DuetDiagram.Core.Tests | 22 | 4091 | 2918 | 473 | 700 |
-| DuetDiagram.Dsl | 9 | 2533 | 1503 | 664 | 366 |
-| DuetDiagram.Dsl.Tests | 7 | 2296 | 1665 | 264 | 367 |
+| DuetDiagram.Core | 55 | 6500 | 3452 | 2059 | 989 |
+| DuetDiagram.Core.Tests | 22 | 4127 | 2952 | 456 | 719 |
+| DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
+| DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
-| DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
+| DuetDiagram.Layout.Tests | 4 | 954 | 710 | 59 | 185 |
 | DuetDiagram.Mermaid | 6 | 1488 | 886 | 366 | 236 |
-| DuetDiagram.Mermaid.Tests | 5 | 1412 | 1029 | 155 | 228 |
+| DuetDiagram.Mermaid.Tests | 5 | 1428 | 1045 | 147 | 236 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
-| DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
+| DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
 | tools | 24 | 4270 | 2876 | 708 | 686 |
-| **合计** | **162** | **27609** | **17435** | **5810** | **4364** |
+| **合计** | **162** | **27790** | **17609** | **5723** | **4458** |
 
 ## 明细
 
@@ -69,7 +69,7 @@
 | CommandMemento.cs | 29 |
 | CommandResult.cs | 58 |
 | DiagramCommandBase.cs | 35 |
-| ErrorCodes.cs | 25 |
+| ErrorCodes.cs | 27 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -85,11 +85,11 @@
 | CollectionEquality.cs | 104 |
 | Composites.cs | 45 |
 | DefinitionCollection.cs | 36 |
-| DiagramDocument.cs | 265 |
+| DiagramDocument.cs | 275 |
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 249 |
 | EdgeDef.cs | 14 |
-| FieldRegistry.cs | 128 |
+| FieldRegistry.cs | 132 |
 | IDefinition.cs | 5 |
 | LayoutHints.cs | 91 |
 | NodeDef.cs | 59 |
@@ -104,7 +104,7 @@
 | LayoutSidecar.cs | 44 |
 | SidecarBackup.cs | 132 |
 | SidecarPaths.cs | 55 |
-| SidecarStore.cs | 117 |
+| SidecarStore.cs | 123 |
 | UserSidecar.cs | 48 |
 | ITimeProvider.cs | 22 |
 | DiagramWorkspace.cs | 47 |
@@ -117,18 +117,18 @@
 | BroadcasterTests.cs | 89 |
 | CommandBusTests.cs | 242 |
 | CommentDisciplineTests.cs | 99 |
-| ConflictTests.cs | 223 |
+| ConflictTests.cs | 229 |
 | CorePurityTests.cs | 57 |
 | DocumentFactoryTests.cs | 66 |
 | Harness.cs | 73 |
-| IrExtensionTests.cs | 194 |
+| IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
 | RoundTripTests.cs | 137 |
 | SessionIdResolutionTests.cs | 57 |
-| SidecarBackupTests.cs | 235 |
-| SidecarTests.cs | 291 |
+| SidecarBackupTests.cs | 245 |
+| SidecarTests.cs | 301 |
 | TempDirectory.cs | 22 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |
@@ -143,12 +143,12 @@
 | DslLexer.cs | 228 |
 | DslSource.cs | 23 |
 | DslToken.cs | 26 |
-| DslMapper.cs | 358 |
+| DslMapper.cs | 370 |
 | MappingOptions.cs | 10 |
 | MappingReport.cs | 13 |
 | SidecarMerge.cs | 20 |
 | DslAst.cs | 68 |
-| DslParser.cs | 757 |
+| DslParser.cs | 765 |
 
 ### DuetDiagram.Dsl.Tests
 
@@ -157,10 +157,10 @@
 | AstProjection.cs | 25 |
 | Corpus.cs | 45 |
 | CorpusParsingTests.cs | 203 |
-| LayoutIntentTests.cs | 353 |
-| LexerTests.cs | 193 |
-| MapperTests.cs | 350 |
-| ParserTests.cs | 496 |
+| LayoutIntentTests.cs | 365 |
+| LexerTests.cs | 195 |
+| MapperTests.cs | 366 |
+| ParserTests.cs | 508 |
 
 ### DuetDiagram.Layout
 
@@ -186,10 +186,10 @@
 
 | 文件 | 代码 |
 |---|---:|
-| FallbackTests.cs | 263 |
+| FallbackTests.cs | 275 |
 | Graphs.cs | 53 |
 | LayoutRequestFactoryTests.cs | 154 |
-| LayoutTests.cs | 216 |
+| LayoutTests.cs | 228 |
 
 ### DuetDiagram.Mermaid
 
@@ -209,8 +209,8 @@
 | Corpus.cs | 53 |
 | CorpusLexingTests.cs | 118 |
 | CorpusParsingTests.cs | 194 |
-| LexerTests.cs | 284 |
-| ParserTests.cs | 380 |
+| LexerTests.cs | 294 |
+| ParserTests.cs | 386 |
 
 ### DuetDiagram.Render
 
@@ -224,7 +224,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| QuadTreeTests.cs | 291 |
+| QuadTreeTests.cs | 307 |
 
 ### tools
 

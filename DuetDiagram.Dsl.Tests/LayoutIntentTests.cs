@@ -25,7 +25,7 @@ public sealed class LayoutIntentTests
 {
     private static readonly DateTimeOffset At = new(2026, 9, 21, 8, 0, 0, TimeSpan.Zero);
 
-    // ---- 四类约束逐条 ----
+    #region 四类约束逐条
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -112,7 +112,9 @@ public sealed class LayoutIntentTests
         hints.Place.Should().BeEmpty();
     }
 
-    // ---- 归属方与时间 ----
+    #endregion
+
+    #region 归属方与时间
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -160,7 +162,9 @@ public sealed class LayoutIntentTests
         first.StructuralHash.Should().Be(second.StructuralHash);
     }
 
-    // ---- 引用不落地 ----
+    #endregion
+
+    #region 引用不落地
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -213,7 +217,9 @@ public sealed class LayoutIntentTests
         result.Document.Nodes.Select(n => n.Id).Should().Equal("check", "pass");
     }
 
-    // ---- 补节点 ----
+    #endregion
+
+    #region 补节点
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -254,7 +260,9 @@ public sealed class LayoutIntentTests
         result.Document.Nodes.Select(n => n.Id).Should().Equal("a", "x", "y");
     }
 
-    // ---- 产物 ----
+    #endregion
+
+    #region 产物
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -381,7 +389,9 @@ public sealed class LayoutIntentTests
         silent.Should().BeEmpty();
     }
 
-    // ---- pin 与 sidecar ----
+    #endregion
+
+    #region pin 与 sidecar
 
     [Fact]
     [Trait("Category", "DslLayoutIntent")]
@@ -483,4 +493,6 @@ public sealed class LayoutIntentTests
 
     private static LayoutHints Hints(string source, MappingOptions options) =>
         DslMapper.Map(DslParser.Parse(source), options).Document.Layout;
+
+    #endregion
 }

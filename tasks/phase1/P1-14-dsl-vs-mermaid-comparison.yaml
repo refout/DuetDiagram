@@ -65,9 +65,11 @@ progress:
     - tools/CompareHarness 的 listings 命令：冻结语料 → 盲评清单 + 解析统计，逐字节可复现
     - reports/compare-blind/parse-report.md：解析错误率（真实测量）
     - reports/compare-blind/checkability.md：检查项可判定性的实测
+    - reports/compare-blind/semantic-report.md：语义拒绝率（2026-09-21 补，
+      此前卡在缺一步映射；`semantic` 命令走「解析 → 映射成 IR → 校验」整条链）
+    - tools/CompareHarness 的 semantic 命令
   not_landed:
     - 端到端准确率、人工修正步骤、首轮通过率——需要真人评分
-    - 语义拒绝率——需要 IR 映射（P1-09 / P1-17）
     - 决策门 1 的结论
   findings:
     checkability: |
@@ -90,7 +92,7 @@ progress:
       决定不继续：评的人知道哪份是哪组（key 是装置自己生成的），
       且逐批严格度漂移会伪装成组间差异。**把三分之一的猜测补成三分之三的猜测不会让它变成证据。**
   registered_elsewhere:
-    - 竖线边标签不剥引号、边指向分组 → P1-09
+    - 竖线边标签不剥引号、边指向分组 → P1-09（都已在 P1-09 / P1-10 里处置）
 open_questions:
   - id: who-scores
     question: 两名评分者是谁，评分怎么落盘？
@@ -146,4 +148,19 @@ open_questions:
 
       唯一现在就能算的是「边指向分组」——它两边都可表达。
       这一列同时是 P1-09 `subgraph-as-endpoint` 的证据。
-    evidence: reports/compare-blind/parse-report.md 的"语义拒绝率：现在算不出来"一节
+    status: resolved
+    resolution: |
+      **2026-09-21 算出来了，三组都是 0%。** 见 reports/compare-blind/semantic-report.md。
+
+      分母只算解析出结构的份数（a-bare 47、b-documented 50、c-dsl 50），
+      解析器整份放弃的那些单列——把它们算作"语义没问题"会凭空拉低比率。
+
+      **这个数本身没有区分度，而它旁边那一列有。** 映射阶段消解掉的量三组不同：
+      a-bare 丢掉 11 个与子图同名的节点声明、b-documented 14 个、c-dsl 改名 1 个容器。
+      校验器那一步之所以全零，是因为映射层把矛盾都消解掉了——Mermaid 侧丢掉
+      与子图同名的节点，DSL 侧把撞名的容器改名。两种格式都写得出不自洽的文本，
+      只是这一层把两类不自洽各自抹平了。
+
+      要量"原始声明自不自洽"，得看映射阶段消解了多少，而不是看校验器的结果。
+      报告里两列都给出来了。
+    evidence: reports/compare-blind/semantic-report.md

@@ -4,7 +4,7 @@ namespace DuetDiagram.Tools.CompareHarness;
 /// 对比测试的语料生成器与评分装置。
 /// </summary>
 /// <remarks>
-/// 用法：用命令行运行本工程，加上 generate 或 listings 参数。
+/// 用法：用命令行运行本工程，加上 generate、listings 或 semantic 参数。
 /// 可用开关：--parallel 并发数、--force 覆盖已有结果、--secrets 凭据路径。
 /// </remarks>
 internal static class Program
@@ -23,6 +23,21 @@ internal static class Program
             {
                 return Listings.Run(
                     ReadOption(args, "--prompts") ?? Options.DefaultPromptsPath,
+                    ReadOption(args, "--corpus") ?? Options.DefaultCorpusRoot,
+                    ReadOption(args, "--out") ?? Options.DefaultListingsRoot);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"{ex.GetType().Name}：{ex.Message}");
+                return 1;
+            }
+        }
+
+        if (args.Contains("semantic", StringComparer.Ordinal))
+        {
+            try
+            {
+                return Semantic.Run(
                     ReadOption(args, "--corpus") ?? Options.DefaultCorpusRoot,
                     ReadOption(args, "--out") ?? Options.DefaultListingsRoot);
             }
@@ -81,12 +96,13 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("  generate                生成语料");
         Console.WriteLine("  listings                把冻结语料转成盲评清单，并算出解析统计");
+        Console.WriteLine("  semantic                把冻结语料读成 IR 再校验，算出语义拒绝率");
         Console.WriteLine();
         Console.WriteLine("  --prompts <路径>        提示词文件，默认 tools/CompareHarness/prompts.json");
         Console.WriteLine("  --arms <目录>           组定义目录，默认 tools/CompareHarness/arms");
         Console.WriteLine("  --secrets <路径>        凭据文件，默认 secrets/bigmodel.local.json");
-        Console.WriteLine("  --corpus <目录>         冻结语料目录（listings 用），默认 reports/raw");
-        Console.WriteLine("  --out <目录>            结果目录，generate 默认 reports/raw，listings 默认 reports/compare-blind");
+        Console.WriteLine("  --corpus <目录>         冻结语料目录（listings 与 semantic 用），默认 reports/raw");
+        Console.WriteLine("  --out <目录>            结果目录，generate 默认 reports/raw，listings 与 semantic 默认 reports/compare-blind");
         Console.WriteLine("  --parallel <数量>       并发请求数，默认 3");
         Console.WriteLine("  --only <标识,...>       只跑指定的提示词，用于冒烟与补跑");
         Console.WriteLine("  --force                 覆盖已有结果，默认跳过");

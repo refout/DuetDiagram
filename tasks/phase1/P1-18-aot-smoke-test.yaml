@@ -1,0 +1,53 @@
+id: P1-18
+title: AOT 冒烟工程
+phase: 1
+status: done
+depends_on: [P1-02]
+estimated_loc: 100
+files:
+  create:
+    - DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj
+    - DuetDiagram.AotSmokeTest/Program.cs
+  modify:
+    - DuetDiagram.slnx
+    - .github/workflows/ci.yml
+acceptance:
+  - command: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
+    expect: 产出 win-x64 原生可执行文件
+  - command: DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe
+    expect: "输出 AOT smoke test: PASS，退出码 0"
+constraints:
+  - 只引用可发布组件。方案写这一条时只引用 Core；现在也引用 Layout，理由见 P1-15
+  - 不做格式化输出，只用退出码表达结果，方便持续集成直接断言
+  - 覆盖多态逆变更快照的反序列化——标签漏标一个，普通运行完全正常（反射兜住），原生发布后才失败，而源生成器不会为此报错
+context:
+  - reports/phase0a.md（本机原生发布被工具链阻塞的完整记录）
+  - tasks/phase1/P1-15-ci-and-aot.yaml（冒烟覆盖面扩展与 CI 作业）
+  - DuetDiagram.AotSmokeTest/Program.cs
+scope_note: |
+  **本任务文件是事后补的。** 工程本身早在 Phase 0a 就随垂直切片建起来了
+  （P0-02 那条线上），P1-15 又把它扩展到九个集合、三个子对象、多态组合、
+  校验器、快照与布局降级。写这份文件只是把已经存在的东西登记回任务清单，
+  不是新开工。
+
+  方案给这一条 100 行、依赖 P1-02，与现状相符：`Program.cs` 约 240 行，
+  但其中大部分是 P1-15 扩展进来的覆盖面，本任务对应的骨架只有百来行。
+result:
+  verdict: 已交付（事后登记）
+  delivered:
+    project: 独立的可执行工程，开启 PublishAot、去掉全球化数据、关掉堆栈符号
+    smoke_flow: 建文档、连总线、增删改、撤销重做、删节点连带删边再撤销
+    round_trip: IR 往返与多态快照往返，逐一断言派生类型没有被还原成基类
+    extended_ir: 九个集合、三个子对象、多态组合、校验器、快照
+    layout: 布局引擎与降级路径，含固定坐标不偏的硬保证
+    ci_job: 持续集成的 app-and-aot 作业跑在 windows-latest 上，原生发布后直接运行可执行文件
+  design_decisions:
+    exit_code_only: 只用退出码表达结果。持续集成里断言一个数字比解析输出稳
+    analyzer_limit: 布局依赖的第三方引擎是否原生友好**分析器看不出来**——分析器只看我们自己的代码。只有真的发布一次才知道，那正是这个工程存在的意义
+    polymorphic_first: 多态快照往返是这条路径上最脆弱的一环，所以它排在冒烟流程的中间而不是末尾
+  findings:
+    local_blocked: 本机缺 C++ 工作负载，原生发布停在链接器的前置检查，编译还没开始。因此本机得不出任何关于原生兼容性的结论
+    analyzers_clean: 构建属性默认对每个工程开着原生分析器，我们自己的代码已经过分析且零警告。未验证的只是第三方引擎的运行时行为
+  not_verified:
+    - 本机从未成功产出过原生可执行文件，验收依赖持续集成
+    - 持续集成那次运行的结果**没有落进 reports/**。P1-15 记录了作业存在，但没有一份报告写它跑出了什么。下次推 CI 时应当把结论补进 reports/

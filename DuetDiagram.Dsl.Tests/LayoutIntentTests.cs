@@ -298,7 +298,7 @@ public sealed class LayoutIntentTests
     [Trait("Category", "DslLayoutIntent")]
     public void Every_corpus_constraint_refers_to_something_that_exists()
     {
-        // 校验器目前不检查布局约束的节点引用（见 P1-17 的 findings），
+        // 校验器目前不检查布局约束的节点引用，
         // 所以约束指向不存在的节点或边时不会有任何报错，只会一路安静地传下去。
         // 这条用例替校验器把这件事守住：语料里的每条约束都必须指向真实存在的元素。
         var broken = new List<string>();

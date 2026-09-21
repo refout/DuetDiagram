@@ -9,7 +9,7 @@ namespace DuetDiagram.Mermaid.Parsing;
 /// <remarks>
 /// 解析结果里带着诊断而不是直接抛异常：一部分内容认不出来时，
 /// 其余内容往往是好的。把整份输入判死会让用户手里一份九成正确的图变成零。
-/// 宽松模式（P1-09）就是在这条路上继续走。
+/// 导入层就是在这条路上继续走：认不出的留诊断，能认的照常映射。
 /// </remarks>
 public sealed record MermaidDiagnostic(string Message, int Line, int Column);
 

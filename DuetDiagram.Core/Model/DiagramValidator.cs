@@ -81,8 +81,7 @@ public static class DiagramValidator
     /// <remarks>
     /// <para>
     /// **端点可以是节点，也可以是组合。** 分层架构图里 <c>ODS --&gt; DWD</c> 拿分组当端点，
-    /// 说的是"这一层流向那一层"——外部格式允许，语料里真的出现过
-    /// （见 <c>reports/compare-blind/parse-report.md</c> 的"端点是分组的边"一列）。
+    /// 说的是"这一层流向那一层"——这是外部格式里很常见、也很自然的写法。
     /// 解析顺序是先节点后组合，与 <see cref="CheckCompositeMembership"/> 同一口径。
     /// </para>
     /// <para>
@@ -179,7 +178,7 @@ public static class DiagramValidator
     /// 组合成员与节点父级必须一致。
     /// </summary>
     /// <remarks>
-    /// 这两处表达的是同一件事。方案对两者都有要求，但两份数据天然可能不一致，
+    /// 这两处表达的是同一件事。两者都要满足，但两份数据天然可能不一致，
     /// 约定以组合的成员列表为准、成员的父级是冗余索引。不一致时必须报出来——
     /// 放任不管的话，布局按其中一处算、渲染按另一处画，症状会表现为"节点画在了错误的框里"。
     /// </remarks>

@@ -8,7 +8,7 @@ namespace DuetDiagram.Core.Sidecar;
 /// <remarks>
 /// <para>
 /// 两个上限**各自生效**，保留一份备份的条件是"既在前若干份之内、又没有超过最大年龄"。
-/// 方案写的是"保留最近 10 个或 30 天"，"或"字有歧义。取交集而不是并集的理由是存储要有上界：
+/// 保留条件写成"最近 10 个或 30 天"时，"或"字有歧义。取交集而不是并集的理由是存储要有上界：
 /// 并集在"一天之内改一百次"时会保留全部一百份，而那正是最需要收敛的场合。
 /// </para>
 /// <para>
@@ -18,7 +18,7 @@ namespace DuetDiagram.Core.Sidecar;
 /// </remarks>
 public sealed record BackupPolicy(int MaxCount, TimeSpan MaxAge)
 {
-    /// <summary>方案给的缺省值：最多十份，最老三十天。</summary>
+    /// <summary>缺省值：最多十份，最老三十天。</summary>
     public static BackupPolicy Default { get; } = new(10, TimeSpan.FromDays(30));
 
     public static BackupPolicy Keep(int count, int days) => new(count, TimeSpan.FromDays(days));
@@ -158,7 +158,7 @@ public static class SidecarBackup
     /// <param name="now">当前时刻。用于判断年龄。</param>
     /// <returns>被删掉的备份路径。</returns>
     /// <remarks>
-    /// 调用时机是启动时、每次保存后、以及每小时一次（方案 §4.3）。
+    /// 调用时机是启动时、每次保存后、以及每小时一次。
     /// 定时那一次要由宿主来排——Core 里没有调度器，也不该有。
     /// </remarks>
     public static IReadOnlyList<string> Prune(

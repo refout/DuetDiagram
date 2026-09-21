@@ -309,7 +309,7 @@ public sealed class QuadTreeTests
     public void Culling_keeps_the_draw_count_far_below_the_node_count()
     {
         // 这是四叉树存在的理由：不裁剪的话每帧要判一千个元素，
-        // 裁剪之后只判视口里那几个。方案的 Phase 2 目标是剔除率高于八成。
+        // 裁剪之后只判视口里那几个。Phase 2 的目标是剔除率高于八成。
         var tree = QuadTree.Build(Grid(count: 1000, columns: 40, spacing: 100));
 
         var viewport = new SpatialRect(0, 0, 400, 400);

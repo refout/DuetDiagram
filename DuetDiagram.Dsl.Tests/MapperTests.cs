@@ -442,7 +442,7 @@ public sealed class MapperTests
     [Trait("Category", "DslMapping")]
     public void Every_corpus_answer_maps_to_a_document_the_validator_accepts()
     {
-        // 这是 P1-17 的验收口径：校验器就是给这种不经过命令层的外部输入准备的。
+        // 这是这一层的验收口径：校验器就是给这种不经过命令层的外部输入准备的。
         // 手写用例干净得不真实，五十份真实回答才是它要能吃下的东西。
         var failures = new List<string>();
 

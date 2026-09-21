@@ -7,7 +7,7 @@ namespace DuetDiagram.Benchmarks;
 /// </summary>
 /// <remarks>
 /// 用法：用命令行运行本工程，可加 --filter 只跑部分基准。
-/// 结果同时写入 reports/phase0b-baseline.md，本程序只负责产生数据。
+/// 本程序只负责产生数据，不写结论——数字要连同误差棒一起看，由人来判。
 /// </remarks>
 internal static class Program
 {

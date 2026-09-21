@@ -468,8 +468,7 @@ public sealed class DiagramDocument
     /// <remarks>
     /// <para>
     /// 节点可以，组合也可以。分层架构图里 <c>ODS --&gt; DWD</c> 是拿分组当端点用的，
-    /// 表达的是"这一层流向那一层"——这是外部格式里很常见、也很自然的写法，
-    /// 语料里真的出现了（见 <c>reports/compare-blind/parse-report.md</c> 的"端点是分组的边"一列）。
+    /// 表达的是"这一层流向那一层"——这是外部格式里很常见、也很自然的写法。
     /// </para>
     /// <para>
     /// 判定顺序是先节点后组合，与组合成员的解析口径一致（见 <c>CheckCompositeMembership</c>）。

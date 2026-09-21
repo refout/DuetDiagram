@@ -9,7 +9,7 @@ namespace DuetDiagram.Dsl.Tests;
 /// DSL 的语法分析。
 /// </summary>
 /// <remarks>
-/// 每条断言都对应 docs/DSL-Syntax.md 里的一条约定。规格里没有明说的
+/// 每条断言都对着一条语法约定。规格里没有明说的
 /// （引号、转义、错误恢复）在这里被钉成默认值，改动必须是有意的。
 /// </remarks>
 public sealed class ParserTests
@@ -298,8 +298,8 @@ public sealed class ParserTests
         //
         // 这是一个**有意的分工**，不是漏了。Mermaid 侧同样不在解析层建节点
         // （它的语料恰好总是显式声明，所以那条不变量是靠语料本身满足的）。
-        // 两边保持一致，P1-14 的对比才是在比格式差异而不是比实现差异；
-        // 隐式创建由映射阶段（P1-17）统一补，两个格式共用同一套规则。
+        // 两边保持一致，两种格式的对比才是在比格式差异而不是比实现差异；
+        // 隐式创建由映射阶段统一补，两个格式共用同一套规则。
         var document = Parse("a -> b");
 
         document.Nodes.Should().BeEmpty();

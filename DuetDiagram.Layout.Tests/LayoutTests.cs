@@ -9,7 +9,7 @@ namespace DuetDiagram.Layout.Tests;
 /// 约束补齐全套流水线的不变量。
 /// </summary>
 /// <remarks>
-/// 这些用例是从 Phase 0a 的验证程序搬过来的。那份验证程序证明过方案的可行性，
+/// 这些用例是从选型阶段的验证程序搬过来的。那份程序证明过这套约束的可行性，
 /// 而验证程序不进产品——搬过来之后，约束补齐逻辑才真正受到持续保护。
 /// </remarks>
 public sealed class LayoutTests

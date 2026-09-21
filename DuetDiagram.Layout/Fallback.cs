@@ -87,7 +87,7 @@ public sealed class LayoutPlan
 
     public IReadOnlyList<LayoutPlanEntry> Entries => _entries;
 
-    /// <summary>缺省计划：方案给的四个预算。</summary>
+    /// <summary>缺省计划：四个预算。</summary>
     public static LayoutPlan Default { get; } = new(
         new LayoutPlanEntry(LayoutFallbackLevel.Full, TimeSpan.FromMilliseconds(300)),
         new LayoutPlanEntry(LayoutFallbackLevel.DropLlm, TimeSpan.FromMilliseconds(200)),

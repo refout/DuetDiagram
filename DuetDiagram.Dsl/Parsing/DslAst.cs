@@ -124,7 +124,7 @@ public enum DslLayoutIntentKind
 /// <remarks>
 /// 五种意图收在一条记录里而不是各建一个类型，是因为它们在语法层形状相近
 /// （都是一行关键字加若干标识），而真正有差别的部分是映射阶段的事。
-/// 语义映射（P1-17）再按 Kind 分派到 IR 的四类约束上。
+/// 语义映射再按 Kind 分派到 IR 的四类约束上。
 /// </remarks>
 public sealed record DslLayoutIntent(
     DslLayoutIntentKind Kind,

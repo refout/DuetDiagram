@@ -58,7 +58,7 @@ public enum MermaidTokenKind
 
     /// <summary>不认识的字符。</summary>
     /// <remarks>
-    /// 产生记号而不是抛异常。宽松模式（P1-09）要能在有坏字符的输入上继续走完，
+    /// 产生记号而不是抛异常。导入时要能在有坏字符的输入上继续走完，
     /// 把错误就地抛出去会让它连"哪里坏了"都报不出来。
     /// </remarks>
     Unknown,

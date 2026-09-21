@@ -23,7 +23,7 @@ internal static class Program
         }
 
         // 主候选用索引式入口：它在规模测例上快数倍，是实际会采用的那条路径。
-        // 默认入口的完整判据结果在 reports/phase0a-layout.md 里有记录，两者结论一致。
+        // 默认入口在同样的测例上要慢数倍，超出预算，所以不作候选。
         ILayoutCandidate[] candidates =
         [
             new DagreCandidate(useIndexedLayout: true),

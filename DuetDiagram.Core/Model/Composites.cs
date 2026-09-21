@@ -17,7 +17,7 @@ namespace DuetDiagram.Core.Model;
 /// </para>
 /// <para>
 /// **成员关系的两处表达**：本记录的 <see cref="Members"/> 与
-/// <see cref="NodeDef.Parent"/> 表达的是同一件事。方案对两者都有要求，
+/// <see cref="NodeDef.Parent"/> 表达的是同一件事。两者都要满足，
 /// 但两份数据天然可能不一致。约定是：**<see cref="Members"/> 为准**，
 /// 节点的 <c>Parent</c> 是便于查询的冗余字段，两者必须一致。
 /// 校验见 <c>DiagramValidator.ValidateCompositeMembership</c>。

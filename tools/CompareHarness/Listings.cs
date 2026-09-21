@@ -10,8 +10,9 @@ namespace DuetDiagram.Tools.CompareHarness;
 /// </summary>
 /// <remarks>
 /// <para>
-/// 见 <c>docs/Compare-Criteria.md</c> 的"双盲怎么做到"。Mermaid 与 DSL 的文本形态一眼可辨，
-/// 所以评分者看的不是原始文本，而是从生成结果解析出来的结构清单。
+/// 双盲靠"结构清单"做到：Mermaid 与 DSL 的文本形态一眼可辨，
+/// 所以评分者看的不是原始文本，而是从生成结果解析出来的结构清单——
+/// 只投影节点、分组与边，标识整批换成流水号，看不出是哪个组。
 /// </para>
 /// <para>
 /// 这个命令同时算出**解析错误率**——四个指标里唯一不需要人判的一项。

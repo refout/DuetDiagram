@@ -8,18 +8,18 @@
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
-| DuetDiagram.Core | 55 | 6478 | 3430 | 2072 | 976 |
-| DuetDiagram.Core.Tests | 21 | 3937 | 2819 | 442 | 676 |
-| DuetDiagram.Dsl | 9 | 2535 | 1503 | 666 | 366 |
+| DuetDiagram.Core | 55 | 6476 | 3430 | 2070 | 976 |
+| DuetDiagram.Core.Tests | 22 | 4091 | 2918 | 473 | 700 |
+| DuetDiagram.Dsl | 9 | 2533 | 1503 | 664 | 366 |
 | DuetDiagram.Dsl.Tests | 7 | 2296 | 1665 | 264 | 367 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 929 | 686 | 71 | 172 |
-| DuetDiagram.Mermaid | 6 | 1487 | 886 | 365 | 236 |
+| DuetDiagram.Mermaid | 6 | 1488 | 886 | 366 | 236 |
 | DuetDiagram.Mermaid.Tests | 5 | 1412 | 1029 | 155 | 228 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
-| tools | 24 | 4268 | 2876 | 706 | 686 |
-| **合计** | **161** | **27456** | **17336** | **5780** | **4340** |
+| tools | 24 | 4270 | 2876 | 708 | 686 |
+| **合计** | **162** | **27609** | **17435** | **5810** | **4364** |
 
 ## 明细
 
@@ -116,6 +116,7 @@
 | AtomicityTests.cs | 126 |
 | BroadcasterTests.cs | 89 |
 | CommandBusTests.cs | 242 |
+| CommentDisciplineTests.cs | 99 |
 | ConflictTests.cs | 223 |
 | CorePurityTests.cs | 57 |
 | DocumentFactoryTests.cs | 66 |

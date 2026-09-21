@@ -23,8 +23,8 @@ public sealed record MappingRename(string OriginalId, string NewId, string Reaso
 /// <param name="Id">补出来的标识，取自被引用的名字。</param>
 /// <param name="Reason">谁引用了它，例如"边 e1""布局意图 same-rank"。</param>
 /// <remarks>
-/// 语法层不替边端点补节点（见 <c>docs/DSL-Syntax.md</c> 的「两条实现层面的约定」），
-/// 补节点是这一层的事。补出来的节点在图上是真实存在的方块，所以也要留下记录——
+/// 语法层如实产出"这条边连到某个标识"这个事实，不替端点建节点；补节点是这一层的事。
+/// 补出来的节点在图上是真实存在的方块，所以也要留下记录——
 /// 否则用户会看到"图里凭空多了一个节点"而找不到它是哪来的。
 /// </remarks>
 public sealed record CreatedNode(string Id, string Reason);

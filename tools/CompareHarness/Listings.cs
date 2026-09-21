@@ -583,7 +583,13 @@ internal static class Listings
         text.AppendLine("填一个估计值进去等于把猜测洗成测量。");
         text.AppendLine();
         text.AppendLine("能算的语义问题是「边指向分组」——它两边都可表达，见上表的最后一列。");
-        text.AppendLine("这一列同时是 IR 端点约定那条待决策项的证据。");
+        text.AppendLine("这一列同时是 IR 端点约定那条待决策项的证据（2026-09-21 按「端点可以是组合」定下，见 `docs/IR-Schema.md`）。");
+        text.AppendLine();
+        text.AppendLine("**判据是标识字符串**：端点标识与某个分组标识相同就算一条。所以它有一个已知的误报模式——");
+        text.AppendLine("节点与分组撞名时，指向节点的边会被记成组端点。`c-dsl` 的 C02 正是如此：");
+        text.AppendLine("模型把泳道与其中一个节点都取名叫 `pay`，而那条边指的是节点。");
+        text.AppendLine("Mermaid 侧的条目才是真正的子图端点（`ODS --> DWD` 那种分层流向的写法）；");
+        text.AppendLine("DSL 侧的条目是撞名，它本身是真问题，但属 P1-17 的 `group-and-node-share-a-name`，不该算进这一列。");
         text.AppendLine();
         text.AppendLine("## 装置自身的两处缝");
         text.AppendLine();

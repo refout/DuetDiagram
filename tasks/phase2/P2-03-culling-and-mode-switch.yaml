@@ -1,0 +1,43 @@
+id: P2-03
+title: 视口虚拟化与动态阈值切换
+phase: 2
+status: pending
+depends_on: [P2-02, P1-13]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Render/CullingPolicy.cs
+    - DuetDiagram.Render/RenderMode.cs
+    - DuetDiagram.Render/ModeSwitch.cs
+    - DuetDiagram.Render.Tests/CullingPolicyTests.cs
+    - DuetDiagram.Render.Tests/ModeSwitchTests.cs
+    - DuetDiagram.App/ViewModels/RenderModeViewModel.cs
+    - DuetDiagram.E2E.Tests/ModeSwitchTests.cs
+    - reports/phase2-render.md
+  modify:
+    - DuetDiagram.Render/ViewportCulling.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/FrameBenchmark.cs
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CullingPolicy"
+    expect: 全通过；预取边距、阈值边界、跨边界元素都在里面
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120
+    expect: 千节点满视口时 FPS 不低于 30，剔除率高于八成
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ModeSwitch"
+    expect: 切换那一帧的耗时不超过前后各帧的两倍，且切换前后画面逐像素一致
+constraints:
+  - "**切换不瞬时。** 先把下一帧要用的绘制列表算好，下一帧才换。切换的那一帧现算的话，那一帧必然超时，表现是\"转一下视图就卡一下\""
+  - 阈值默认五百节点，可配置但**只有一处**。写成两个地方迟早对不上，而对不上时表现是"有时快有时慢"，看不出规律
+  - 预取边距一百像素。边距为零时贴边元素会在滚动时一闪一闪；边距太大等于没剔除
+  - "**剔除不得改变画面。** 剔除只是少画，不是画得不一样——所以判据是\"剔除前后逐像素一致\"，不是\"看起来差不多\""
+  - 命中测试不受剔除影响：被剔掉只是不画，点还是要点得中（那一步在 P2-06）
+context:
+  - 方案 §10 要求四叉树视口虚拟化加一百像素预取，动态阈值切换默认五百节点，且切换前先预计算绘制列表
+  - 方案 §14.3 的 Phase 2 判据有两条落在本任务：千节点 FPS 不低于 30、虚拟化剔除率高于八成、渲染模式切换无卡顿
+  - 四叉树与视口裁剪已在 Phase 1 落地并实测，查询三百纳秒，余量三千倍
+scope_note: |
+  **这一步量的是剔除率与帧时，不是"快不快"这个感觉。**
+  Phase 0a 的帧率测量工具已经能跑，本任务把它接上真实的绘制列表——
+  原来的用例只画矩形，量不出标签度量与折线路由的开销，而后者才是千节点下的主要成本。

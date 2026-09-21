@@ -1,0 +1,50 @@
+id: P2-02
+title: 画布控件与视口变换
+phase: 2
+status: pending
+depends_on: [P2-01]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Render/Viewport.cs
+    - DuetDiagram.Render/ViewportTransform.cs
+    - DuetDiagram.Render.Tests/ViewportTests.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.axaml
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
+    - docs/GUI.md
+  modify:
+    - DuetDiagram.App/DuetDiagram.App.csproj
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/DiagramPreview.cs
+    - Directory.Packages.props
+    - DuetDiagram.slnx
+    - .github/workflows/ci.yml
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=Viewport"
+    expect: 全通过；缩放锚点、边界钳制、坐标往返都在里面
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
+    expect: 全通过；无头模式下起窗口、画一帧、断言绘制列表被消费
+  - command: dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase2-selftest.png
+    expect: 退出码 0；位图里能看到节点、边与标签
+constraints:
+  - "**视口变换是纯函数。** 屏幕坐标与文档坐标的互转不持有状态、不读控件属性，否则命中测试与渲染会各算一套，误差累积之后点不中元素"
+  - 缩放锚点必须是光标位置：以画布中心为锚点会让用户"想放大的地方"跑出视口
+  - 缩放范围要钳制，上下界写进主题常量，不散落成魔数
+  - 画布只消费绘制列表，**不直接读 IR**。它读 IR 的话，渲染路径就绕过了绘制列表，快照测试覆盖到的东西与实际画出来的东西会分叉
+  - 界面线程之外不碰控件；重建绘制列表是纯计算，可以放在界面线程外做
+context:
+  - 方案 §9.1 给出界面分区：菜单栏、工具栏、图层面板、画布、属性面板、状态栏
+  - 方案 §9.2 列出核心交互，本任务只做视口相关的两条：滚轮缩放、中键或空格拖拽平移
+  - 方案 §15.1 把端到端测试单列一层，工具是界面框架的无头模式
+  - 方案 §14.3 的 Phase 2 判据里有「渲染模式切换无卡顿」，那是下一步的事，本任务只要一帧画得出来
+scope_note: |
+  **端到端测试工程这一轮才建。** 方案 §12 的项目树里有它，而 Phase 0a 的
+  界面栈自检是用主程序自己的 `--selftest` 开关做的——那时只有一帧要验，
+  起一个测试工程不值。现在开始有交互要验（缩放、平移、点选），
+  再用命令行开关表达就得给主程序加一堆只为测试存在的参数。

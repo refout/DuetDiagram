@@ -1,0 +1,44 @@
+id: P2-05
+title: 属性面板
+phase: 2
+status: pending
+depends_on: [P2-02, P1-03, P1-05]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertySectionViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldViewModel.cs
+    - DuetDiagram.App/Controls/PropertyPanel.axaml
+    - DuetDiagram.App/Controls/PropertyPanel.axaml.cs
+    - DuetDiagram.App/Controls/FieldEditors/（每种字段类型一个编辑器）
+    - DuetDiagram.App/Services/FieldEditBinder.cs
+    - DuetDiagram.E2E.Tests/PropertyPanelTests.cs
+    - docs/GUI.md
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PropertyPanel"
+    expect: 全通过；选一个节点后面板出现六个分节，改一个字段后文档版本加一
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-panel --switches 200
+    expect: 单次切换不超过 100 毫秒
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过（面板走的是既有命令，不得为面板新开一条改文档的路）
+constraints:
+  - "**面板不直接改 IR。** 每一次改动都构造一条命令交给总线。面板自己写文档的话，\"人和 LLM 能力对等\"当场不成立——那条命令层会缺一个入口，而 LLM 那边没有面板"
+  - 字段元数据从既有的字段注册表读，不在面板里另抄一份。另抄一份的后果是改了字段名之后面板静默失联
+  - 只读字段要**看起来**只读：能改的与不能改的必须一眼分得开，否则用户点半天没反应会以为是坏了
+  - 多选时只显示各元素共有的字段；值不一致的字段显示为"多个值"，且编辑它等于给所有选中元素赋同一个值——这一点必须在界面上写出来
+  - 切换选中元素不重建整棵树，只换数据源。重建会让面板在连续点选时明显卡顿
+context:
+  - 方案 §9.1 给出属性面板的六个分节：形状、样式与调色板、文本与字体、布局约束、端口、动作与链接
+  - 方案 §4.4 规定所有修改都走命令；§4.5 的字段元数据给出每个字段的归属、作用域与是否原子
+  - 方案 §9.6 要求错误码在界面上有确定的呈现方式，字段改坏时面板要显示结构化错误而不是抛异常
+  - 方案 §14.3 的 Phase 2 判据有一条落在本任务：属性面板切换低于一百毫秒
+scope_note: |
+  **布局约束那一节在本任务只做"读"。** 它显示当前节点有哪些约束、归属是谁，
+  改约束的入口在 P2-10——那一项要先有引擎侧的接线，
+  先把界面做出来会得到一个能点但没效果的控件。

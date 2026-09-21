@@ -1,0 +1,43 @@
+id: P2-10
+title: 中级布局约束的界面入口
+phase: 2
+status: pending
+depends_on: [P2-09, P2-05]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.App/Interaction/ConstraintGestures.cs
+    - DuetDiagram.App/ViewModels/ConstraintEditorViewModel.cs
+    - DuetDiagram.E2E.Tests/ConstraintEditorTests.cs
+  modify:
+    - DuetDiagram.App/Controls/PropertyPanel.axaml
+    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/Interaction/DragController.cs
+    - DuetDiagram.Core/Commands/Builtin/（增删布局约束的命令）
+    - docs/Command-List.md
+    - docs/GUI.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ConstraintEditor"
+    expect: 全通过；面板上能加删顺序与对齐约束，改完之后下一次布局确实按约束走
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过（约束的增删也是命令，各带原子性测试）
+  - command: dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase2-constraints.png
+    expect: 退出码 0；位图里能看出同层组与对齐的两组节点
+constraints:
+  - "**每一条约束都带归属**，界面加的是人工约束。归属是降级矩阵的输入，缺了它降级时不知道该丢谁"
+  - 约束的增删走命令，与其它修改同一条路。面板自己写 IR 的话，LLM 与界面在这件事上就不对等了
+  - 界面必须能**撤销**一条约束，也能看到当前有哪些约束、分别是谁加的。只能加不能看的话，用户会反复加同一条
+  - 约束指向已删除的节点时不能崩，也不能静默留着：走既有的校验路径给出结构化错误
+  - 拖动生成的顺序约束要**合并**而不是每次追加。一次拖动追加一条的话，同一对节点上会积下几十条互相矛盾的顺序约束
+context:
+  - 方案 §9.1 把「布局约束」列为属性面板的六个分节之一，P2-05 只做了读
+  - 方案 §9.2 规定框选右键创建分组与泳道，那类结构性约束的入口也在这一节
+  - 方案 §4.2 规定约束记录携带归属与创建时间，六个取值方法都按归属过滤
+  - 引擎侧的接线在 P2-09，本任务只做入口
+scope_note: |
+  **界面加的是人工约束，不是自动约束。** 自动约束由引擎推导，LLM 约束由工具写入，
+  三者在降级时被丢弃的次序不同（见布局那一节的保留项矩阵）。
+  界面上不区分这三者的话，用户会以为自己加的约束在降级时被保住了，
+  而实际丢掉的可能是他加的那一条。

@@ -21,12 +21,16 @@
 「人和 LLM 能力对等」的落点就是这条汇合线：**命令之下没有任何东西知道变更来自谁**，
 只有一个 `ChangeSource` 字段用于审计与变更高亮。
 
-## 已实现模块（垂直切片）
+## 已实现模块
+
+### `DuetDiagram.Core`（只依赖 BCL）
 
 | 模块 | 文件 | 说明 |
 |---|---|---|
-| IR | `Model/` | `DiagramDocument` + `NodeDef` + `EdgeDef` + 5 个枚举 |
-| 命令契约 | `Commands/` | `IDiagramCommand`、`DiagramCommandBase`、`CommandMemento`、`CommandResult`、`CommandError`、`ValidationResult`、`FieldChange`、`ChangeContext`、`ISessionProvider`、`SessionIds` |
+| IR | `Model/` | `DiagramDocument` + `NodeDef` + `EdgeDef` + `CompositeDef` + `PageDef` / `LayerDef` + 形状与样式定义 + 调色板 + 布局提示 |
+| 校验器 | `Model/DiagramValidator.cs` | 只报告不修改，返回结构化错误与修复建议。它服务的是**不经过命令层**的输入：加载外部文件、接收同步结果 |
+| 冲突与字段元数据 | `Model/ChangeConflict.cs`、`Model/FieldRegistry.cs` | 冲突只判定不合并，写回必须走命令层；字段名取自登记表 |
+| 命令契约 | `Commands/` | `IDiagramCommand`、`DiagramCommandBase`、`CommandMemento`、`CommandResult`、`CommandError`、`ValidationResult`、`FieldChange`、`ChangeContext`、`ISessionProvider`、`SessionIds`、`ErrorCodes` |
 | 内置命令 | `Commands/Builtin/` | `AddNodeCommand`、`RemoveNodeCommand`、`ConnectEdgeCommand` |
 | 版本日志 | `Logging/VersionLog.cs`、`DiffResult.cs`、`VersionEntry.cs` | 环形 100 条；`BuildDiff` 的五种结果 |
 | 审计日志 | `Logging/AuditLog.cs` | 容量 1000 |
@@ -34,21 +38,29 @@
 | 广播 | `Broadcasting/` | `InProcessBroadcaster`（有界 1024 / DropOldest）、`NullChangeBroadcaster` |
 | 命令总线 | `Bus/` | `Execute` / `ExecuteAsync` / `Undo` / `Redo`，门锁 + AsyncLocal 嵌套检测 |
 | 序列化 | `Serialization/` | 源生成 JSON（AOT 安全）、结构哈希、视觉哈希 |
+| Sidecar | `Sidecar/` | `layout.json` / `user.json` 的读写、路径推导、备份轮转与损坏恢复 |
 | 工作区 | `Workspace/DiagramWorkspace.cs` | 文档 + 总线 + 广播器所有权 |
+| 时间 | `Time/ITimeProvider.cs` | 命令总线填充时间戳的唯一来源 |
 | 诊断 | `Diagnostics/` | 最小告警出口，避免 Core 依赖 `Microsoft.Extensions.Logging` |
+
+### 其余工程
+
+| 工程 | 说明 |
+|---|---|
+| `DuetDiagram.Layout` | 引擎封装（索引式入口）、四级降级与路径预算、级别唯一性、尝试记录，以及引擎不支持的两项补齐：固定位置与同层约束 |
+| `DuetDiagram.Render` | 四叉树空间索引与视口剔除。绘制列表见 Phase 2 |
+| `DuetDiagram.Mermaid` | 词法与语法、图类型识别、宽松模式导入（认不出的进导入报告）、导出 |
+| `DuetDiagram.Dsl` | 词法与语法、语义映射（含五类布局意图与 `pin` 落到 sidecar） |
+| `DuetDiagram.App` | 界面主程序。当前是技术栈验证脚手架，含脱屏自检与帧率测量两个开关 |
 
 ## 未实现模块
 
 | 模块 | 方案位置 | 计划 |
 |---|---|---|
-| Sidecar（`layout.json` / `user.json` / `.dsl`） | §4.3 / §11 | Phase 1 P1-06 / P1-07 |
-| 布局引擎 + 四级降级 | §5 | Phase 1 P1-11 / P1-12 |
-| Mermaid 导入导出 | §二 | Phase 1 P1-08 ~ P1-10 |
-| DSL 解析器 | §一 | Phase 1 P1-16 / P1-17 |
-| 四叉树视口索引 | §十 | Phase 1 P1-13 |
-| 校验器 / 冲突策略 | §4.4 | Phase 1 P1-04 / P1-05 |
-| 渲染与导出 | §三 | Phase 2 |
-| LLM / MCP / Skills | §六~八 | Phase 3 |
+| 绘制列表与画布控件 | §三 整体架构、§九 GUI 设计 | Phase 2 |
+| LLM 集成 / MCP Server / Skill 机制 | §六 / §七 / §八 | Phase 3 |
+| 图层、页面、形状库、模板、组合、调色板、富文本与数学排版 | §四 核心数据模型、§13.8 | Phase 4 |
+| 布局质量评分、主题、国际化与无障碍 | §13.9、§二十 | Phase 5 |
 
 ## 布局引擎的选型与已知缺口
 

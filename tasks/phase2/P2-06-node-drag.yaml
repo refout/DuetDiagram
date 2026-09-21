@@ -1,0 +1,47 @@
+id: P2-06
+title: 节点拖拽与固定
+phase: 2
+status: pending
+depends_on: [P2-05, P1-03, P1-06]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Render/HitTest.cs
+    - DuetDiagram.Render.Tests/HitTestTests.cs
+    - DuetDiagram.App/Interaction/DragSession.cs
+    - DuetDiagram.App/Interaction/DragController.cs
+    - DuetDiagram.App/Interaction/SelectionSet.cs
+    - DuetDiagram.E2E.Tests/DragTests.cs
+    - reports/phase2-drag.md
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
+    - DuetDiagram.Core/Commands/Builtin/（拖动落定与 pin 的命令）
+    - docs/GUI.md
+    - docs/IR-Schema.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=HitTest"
+    expect: 全通过；点中边、点中节点、点中空白、重叠时谁在上都在里面
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Drag"
+    expect: 全通过；拖动中不发命令，松手只发一条命令
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000 --samples 200
+    expect: 单帧处理拖拽输入不超过 16 毫秒
+constraints:
+  - "**拖动过程中不调布局、不发命令。** 拖动只改屏幕上的临时偏移。每帧发一条命令的话，撤销栈会被一次拖动塞进几百条记录，用户按一次撤销只退回一像素"
+  - 松手时只发**一条**命令，把"移动了哪些节点、落到哪"一次性交出去。路径预算是 200 毫秒（结构变更走 800 毫秒）
+  - "**写入侧阻止重叠。** 不允许把一个节点放到与另一个已固定节点重叠的位置上——两个都不可动时布局无解，事后兜底要么悄悄挪走用户放好的节点，要么给出一张明显坏掉的图。挡住它的代价是拖动时一次判断"
+  - 拖动中重算折线只算与该节点相连的那些边，不是全量重路由
+  - 撤销/重做要把拖动当成一步，与"用户按了一次撤销"的预期一致
+  - 命中测试**不受视口剔除影响**：被剔掉只是不画，点还是要点得中
+context:
+  - 方案 §9.2 规定拖节点更新 Sidecar、松手后固定
+  - 方案 §5.2 的路径预算：拖拽中不调用布局，拖拽松手 200 毫秒
+  - 方案 §4.3 规定固定位置存在 `user.json` 的 pinnedNodes，加载时转成只读字典
+  - 布局侧已经支持固定位置，回填后按层做一次线性让位，不变量测试在布局测试工程里
+  - 布局约束文档把"两个固定节点互不重叠"定为前置条件而不是布局职责，本任务就是那个前置条件的落点
+scope_note: |
+  **重叠检查是拖动的一部分，不是布局的一部分。**
+  布局阶段能做的只有如实报出无解的输入；能在入口挡住的就不该留到出口。
+  这条取舍写在本仓的布局约束文档里，本任务是它的实现。

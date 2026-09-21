@@ -1,0 +1,44 @@
+id: P2-12
+title: 多窗口与多进程
+phase: 2
+status: pending
+depends_on: [P2-11, P1-02]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.App/Services/WorkspaceRegistry.cs
+    - DuetDiagram.App/Services/DocumentLock.cs
+    - DuetDiagram.App/Services/Heartbeat.cs
+    - DuetDiagram.E2E.Tests/MultiWindowTests.cs
+    - DuetDiagram.Core.Tests/DocumentLockTests.cs
+    - reports/phase2-multi-window.md
+  modify:
+    - DuetDiagram.App/Program.cs
+    - DuetDiagram.App/App.axaml.cs
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Controls/StatusBar.axaml
+    - docs/Architecture.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MultiWindow"
+    expect: 全通过；同一进程开两个窗口改同一文档，两个窗口都刷新且版本不冲突
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"
+    expect: 全通过；占用、超时抢占、心跳过期判定各有用例
+  - command: 起第二个进程打开同一份文档
+    expect: 第二个进程只读，状态栏给出提示，不写盘
+constraints:
+  - "**同一进程内共享工作区，不各开一份。** 各开一份的话两个窗口各有各的文档与历史栈，改一边另一边不动，而用户以为在看同一份文件"
+  - 多进程用锁文件，且**锁与心跳是两个文件**：锁文件用独占共享模式，心跳文件用允许读写的共享模式。合成一个的话，心跳的写入会与锁的独占冲突，表现是"第一个进程一写心跳就把自己锁死"
+  - 崩溃判定靠心跳超时，不靠进程句柄——进程被强杀时句柄不一定及时释放，而心跳会停
+  - 抢占之后**必须重新校验**：心跳超时只是"疑似崩溃"，抢占前要确认那份文档没有被真正写坏
+  - 第二个进程只读时，界面上所有写入口都要禁用，不只是加一句提示。留一个能点的按钮就是一个能造成损坏的入口
+  - 广播器所有权按既有约定：共享的那个只有创建者负责释放
+context:
+  - 方案 §9.5 规定单进程多窗口共享工作区并通过进程内广播器刷新；多进程用锁文件加心跳，超时十五秒判定崩溃可抢占，第二实例只读
+  - 方案 §4.10 的工作区已经承载文档、总线与广播器所有权
+  - 方案 §14.4 的端到端场景里有一条：两个窗口同时改同一文档，无数据损坏
+  - 方案 §14.3 的 Phase 2 判据里没有直接对应多窗口的一条，但它是 §9.5 的完整实现
+scope_note: |
+  **这一条不是"顺手做一下"。** 方案把它单列成一节，而且端到端场景里有对应条目，
+  说明它是产品行为而不是实现细节。心跳周期与超时都写进常量并在一处定义，
+  与渲染阈值同样的理由：写在两处之后对不上，而对不上时的表现没有规律。

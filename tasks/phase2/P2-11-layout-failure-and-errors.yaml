@@ -1,0 +1,48 @@
+id: P2-11
+title: 布局失败处理与错误码呈现
+phase: 2
+status: pending
+depends_on: [P2-03, P1-12]
+estimated_loc: 420
+files:
+  create:
+    - DuetDiagram.App/Services/ErrorPresenter.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
+    - DuetDiagram.App/Controls/StatusBar.axaml
+    - DuetDiagram.App/Controls/StatusBar.axaml.cs
+    - DuetDiagram.App/Controls/LayoutFailureDialog.axaml
+    - DuetDiagram.App/Controls/SidecarRecoveryDialog.axaml
+    - DuetDiagram.App/ViewModels/StatusBarViewModel.cs
+    - DuetDiagram.E2E.Tests/ErrorPresentationTests.cs
+    - docs/GUI.md
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - docs/Error-Codes.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+    expect: 全通过；错误码枚举逐个查表，漏一个就红；呈现方式与错误码文档里的表逐行一致
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayoutFailure"
+    expect: 全通过；布局全部降级失败后画面仍是上一次成功的结果，状态栏是红的，三个选项都在
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 全通过
+constraints:
+  - "**呈现方式由错误码查表决定，不在各处就地判断。** 就地判断的结果是同一个错误码在两个入口给出两种呈现，而用户以为遇到的是两个问题"
+  - 表格**必须覆盖全部错误码**，漏一个就是一次没有反馈的失败。漏项用一个测试挡住：拿错误码枚举逐个查表，查不到就红
+  - "**失败要留痕。** 布局全部降级失败时保留上一次成功布局，画面不清空——清空会让用户以为图丢了"
+  - 无操作的失败（例如无可撤销）在状态栏灰显，不弹窗。弹窗打断的是整条操作链，而这类失败本来就没有需要用户决策的事
+  - 内部错误只显示"内部错误，已记录日志"，不把异常类型名或堆栈显示给用户；细节进应用日志
+  - 版本冲突必须弹差异对话框，不能只给一句"版本冲突"——用户拿不到差异就无从知道冲突在哪，只能放弃自己的改动重来
+context:
+  - 方案 §9.4 规定布局失败时保留上一次成功布局、状态栏红色提示、给重试 / 手动布局 / 简化图三个选项
+  - 方案 §9.6 给出错误码到界面处理的对照表，含无操作的灰显规则
+  - 方案 §11.2 规定 Sidecar 的五级恢复，其中两级要弹对话框
+  - 方案 §4.4 规定命令错误是结构化的，且审计日志里不写异常类型名
+  - 错误码清单与含义在错误码文档里，本任务要把那张表补上界面呈现这一列
+scope_note: |
+  **手动布局模式是本任务唯一的新交互，而它做得很薄。**
+  方案把「手动布局」列为布局失败后的三个选项之一，但它到底意味着什么，
+  方案没写。本任务只做"降级之后不再自动重排、由用户显式触发"这一层，
+  不做完整的手动摆放工具——那是一个独立的编辑器功能，不该顺手塞进来。

@@ -1,0 +1,44 @@
+id: P2-04
+title: 性能诊断面板
+phase: 2
+status: pending
+depends_on: [P2-02]
+estimated_loc: 350
+files:
+  create:
+    - DuetDiagram.Render/DiagnosticsFrame.cs
+    - DuetDiagram.Render/DiagnosticsSampler.cs
+    - DuetDiagram.Render.Tests/DiagnosticsSamplerTests.cs
+    - DuetDiagram.App/Controls/DiagnosticsPanel.axaml
+    - DuetDiagram.App/Controls/DiagnosticsPanel.axaml.cs
+    - DuetDiagram.App/ViewModels/DiagnosticsViewModel.cs
+    - DuetDiagram.E2E.Tests/DiagnosticsPanelTests.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DiagnosticsSampler"
+    expect: 全通过；环形窗口、分位数、空样本都在里面
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120 --diagnostics
+    expect: 面板打开与关闭两种情况下 FPS 差距不超过一成
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Diagnostics"
+    expect: 全通过；快捷键能开关面板，面板上的数字跟着帧更新
+constraints:
+  - "**采样器不分配。** 每帧往一个预分配的环形缓冲区里写，超出容量覆盖最旧的。每帧建列表的话，垃圾回收本身就会出现在面板显示的数字里，量的是自己"
+  - 分位数从环形窗口里算，不用全量排序；窗口长度固定，与运行时长无关
+  - 面板**只读**。它不做任何"自动优化"，也不改渲染模式——诊断工具改了状态之后，看到的数字就不再是用户实际遇到的那份
+  - 快捷键是 Ctrl+Shift+P，与菜单项走同一个入口，不各写一套开关逻辑
+  - 计时用单调时钟。墙上时钟在系统对时的时候会跳，跳出来的负帧时会让人去查一个不存在的问题
+  - 关闭时开销为零：采样点挂在渲染回调里，但回调在关闭时直接返回，不做判断以外的任何事
+context:
+  - 方案 §10 规定性能诊断面板由快捷键呼出
+  - 方案 §5.2 的降级有四级，面板要把当前落在哪一级显示出来——排查"为什么这次布局慢"时，第一件要确认的就是它有没有降级
+  - 布局协调器已经携带尝试记录与所应用级别，哈希与序列化的耗时也已有测量入口
+scope_note: |
+  **面板要显示的是"哪一段慢"，不是"总共多慢"。**
+  方案在布局那一节把引擎耗时与补齐耗时分开计，理由写在那边：
+  出问题时必须能立刻判断该换引擎还是该改算法，处置完全不同。
+  面板沿用同一条：布局、绘制列表构建、剔除、光栅化、哈希各占一行，
+  只给一个总帧时的话，面板好看但不解决问题。

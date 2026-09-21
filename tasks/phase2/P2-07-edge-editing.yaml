@@ -1,0 +1,42 @@
+id: P2-07
+title: 连线与边的编辑
+phase: 2
+status: pending
+depends_on: [P2-06, P1-03]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.App/Interaction/ConnectSession.cs
+    - DuetDiagram.App/Interaction/EdgeHandleHitTest.cs
+    - DuetDiagram.App/Controls/EdgeAdorner.cs
+    - DuetDiagram.E2E.Tests/ConnectTests.cs
+    - DuetDiagram.E2E.Tests/EdgeEditTests.cs
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.Core/Commands/Builtin/（改端点、加删折点、改边标签的命令）
+    - DuetDiagram.Core/Model/（端口与折点的既有定义，若需补齐）
+    - docs/GUI.md
+    - docs/Command-List.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Connect"
+    expect: 全通过；从端口拖出连线、拖到空白取消、拖到自身被拒
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=EdgeEdit"
+    expect: 全通过；端点重连、折点增删、边标签编辑各发一条命令
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过（新命令必须各带原子性测试）
+constraints:
+  - 新命令按既有清单补齐九项：`CommandId` 用小写连字符、`Validate` 覆盖全部前置条件、`Apply` 失败可回滚、`CaptureMemento` 与 `Apply` 对同一文档给出一致的索引、`RestoreCore` 能还原顺序、新增的 Memento 记录补上多态注册、补原子性测试与往返测试、在命令清单里登记
+  - "**端点是组合时也要能连。** IR 允许边的端点是组合，布局侧已经能把它落到包围盒边界上；连线交互不得只认节点，否则从分组拖出来的线画得出来却连不上"
+  - 拖到空白处取消，不弹对话框。拖错的代价是再拖一次，弹窗打断的是整条操作链
+  - 折点的增删是**一条**命令，不是"删一条再加一条"。拆成两条之后撤销要按两次，而用户眼里那是一次操作
+  - 端口标识在拖动过程中就记进命令，不等到松手再去猜用户从哪个端口出发
+context:
+  - 方案 §9.2 列出四条与本任务相关的交互：从端口拖出连线并自动记录 fromPort、拖边端点重连到新端口、拖边中间点添加折点、右键节点编辑链接
+  - 方案 §4.4 规定命令的契约与错误结构；本仓的契约文件给出新增命令的九步检查清单
+  - 组合端点那件事已在布局侧落地，IR 侧校验器也已按"先节点、后组合"解析端点
+scope_note: |
+  **这一轮不做富文本标签编辑。** 方案 §9.2 的"双击节点编辑标签"写的是富文本模式，
+  而富文本与数学排版属于 Phase 4。本任务里双击只做纯文本编辑，
+  富文本的入口留到那时再接——先做一半比先做一个假的富文本控件好。

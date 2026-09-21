@@ -1,0 +1,48 @@
+id: P2-01
+title: 绘制列表——IR 与布局结果转成有序绘制指令
+phase: 2
+status: pending
+depends_on: [P1-01, P1-11]
+estimated_loc: 450
+files:
+  create:
+    - DuetDiagram.Render/DrawCommand.cs
+    - DuetDiagram.Render/DrawList.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Render/Theme.cs
+    - DuetDiagram.Render/ITextMeasurer.cs
+    - DuetDiagram.Render/SkiaTextMeasurer.cs
+    - DuetDiagram.Render.Tests/DrawListTests.cs
+    - DuetDiagram.Render.Tests/SceneSnapshotTests.cs
+    - docs/Render-Pipeline.md
+  modify:
+    - DuetDiagram.Render/DuetDiagram.Render.csproj
+    - DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj
+    - Directory.Packages.props
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DrawList"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SceneSnapshot"
+    expect: 十个场景的快照全部匹配；快照差异能指出是哪个元素变了
+constraints:
+  - 绘制列表是**纯数据**：不含界面框架类型、不含绘图库类型，可序列化、可逐字节比较
+  - "**文本度量必须可注入。** 节点尺寸由标签测出来的宽高决定，而度量依赖字体与渲染后端；写死成绘图库调用之后，同一份文档在两台机器上会得到不同的绘制列表，快照就永远对不上"
+  - 顺序即层叠顺序：边在节点之下，节点按声明顺序，选中与高亮在最上
+  - 构建一次之后只读，不允许增量修改——要改就重建，增量更新由上游决定要不要重建
+  - 绘制列表不含颜色以外的样式解释：颜色与线宽从主题查表得来，主题是显式参数
+context:
+  - 方案把渲染与导出归在渲染层，渲染层的产出是绘制列表；把列表画到画布上是下一步
+  - 方案要求渲染层有十个场景的快照测试
+  - 方案要求「结构变更才重布局，样式变更只重绘」，所以构建入口要能只看视觉差异就重建列表
+  - 结构哈希决定要不要重布局，视觉哈希决定要不要重绘，两者都已存在
+scope_note: |
+  **这一层不碰界面框架。** 方案把「Avalonia Canvas 渲染」写在渲染层名下，
+  而这里只做到绘制列表为止，画布控件放在主程序里。两个理由：
+
+  - 绘制列表要能进快照测试，而快照要求逐字节可比。带上窗口与面板之后，
+    测试得起一个无头界面进程，快照就不再是"同一份输入永远同一份输出"了。
+  - 方案 §15.1 的端到端测试单列了一层，用的是界面框架的无头模式。
+    那是另一件事，不该和绘制列表的回归混在一起。
+
+  这是有意偏离，已记进 `AGENTS.md` 的差异表。

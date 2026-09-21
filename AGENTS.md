@@ -217,16 +217,16 @@ dotnet run --project tools/LocCounter -- --root . --check
 | §4.4 `CommandError.Payload` | 类型为 `string?` 而非「可选对象」 | AOT 源生成下不需要多态注册；需要富载荷时再引入注册的联合类型 |
 | §4.4 `FieldChange` 值 | 统一 `string?`，未引入 `PositionValue` / `SizeValue` | 坐标类命令属 Phase 2 |
 | §4.5 派生名 | `EmptyDiff` / `InvalidDiff` / `EntriesDiff`（规格文档为 `Empty` / `Invalid` / `Entries`） | 避免与静态成员及类型名冲突 |
-| §4.9 Context 依赖 | 8 项（缺 `Sidecar` / `Layout` / `Renderer`） | 三者尚未实现；「结构变更重布局，否则重绘」暂由 `CommandResult` 的两个布尔标志外化给宿主 |
+| §4.9 Context 依赖 | 8 项（不含 `Sidecar` / `Layout` / `Renderer`） | `ChangeContext` 只带来源、操作者、会话、理由与时间戳，不带服务引用。Sidecar 与布局后来都实现了，但它们不进命令上下文：「结构变更重布局，否则重绘」由 `CommandResult` 的两个布尔标志外化给宿主，宿主自己决定调谁。命令里塞进布局引擎的话，Core 就不再只依赖 BCL |
 | §4.9 步骤 3/4 | 填充的是 `ChangeContext` 的 `Timestamp` / `SessionId` | 这是唯一读得通的解释 |
 | §4.1 IR 字段 | 九个集合与三个子对象已实现，但 `PageDef` / `LayerDef` 的字段取最小集合 | 规格文档只列出集合存在、未给字段；等对应交互开工时再补，见 `docs/IR-Schema.md` |
 | §4.1 快照方法 | 只实现 `TakeFullSnapshot` / `RestoreFromSnapshot`，`ApplySnapshot` 未实现 | 它的语义规格文档未定义，协作同步设计清楚之前不硬猜 |
-| §4.2 布局提示 | 已进 IR，但尚未接到布局引擎 | 约束补齐逻辑已落地，接线属 Phase 1 后续任务 |
 | §12 冒烟工程只引用 Core | 现在也引用 Layout | 规格文档写这一条时还没有别的可发布组件。布局依赖的第三方引擎**是否原生友好分析器看不出来**——分析器只看我们自己的代码，只有真的发布一次才知道 |
 | §12 工程命名 | 用 `DuetDiagram.*` 而不是 `Diagram.*` | 与解决方案文件名的前缀一致 |
-| §4.3 Sidecar | 未实现 | Phase 1 P1-06 |
 | 风险表「宽松模式 + 原始片段保留」 | **不保留原始片段**，认不出的只进导入报告 | 片段只在元素未被改动时有效。用户或模型改过那个节点之后它就过期了，导出时再吐出来会把旧内容复活——而两个哈希都没变，这种错看不出来。P1-10 的往返按「IR 往返一致」算（同一份 IR 走一圈还是同一份），不是文本逐字节一致 |
 | 项目结构树 | 多一个 `DuetDiagram.Dsl` / `.Dsl.Tests` | 树里有 `Diagram.Compare.Tests` 与 P1-16/P1-17 两条任务，却没有承载它们的工程；命名按仓库约定加前缀，与 `DuetDiagram.Mermaid` 对称 |
+| 项目结构树 | Phase 2 起多一个 `DuetDiagram.E2E.Tests` | 树里有这个工程，但 Phase 0a 的界面栈自检是用主程序自己的 `--selftest` 开关做的——那时只有一帧要验，起一个测试工程不值。开始有交互要验（缩放、平移、点选）之后，再用命令行开关表达就得给主程序加一堆只为测试存在的参数 |
+| §三 整体架构 / §九 GUI 设计：渲染层 | 「Avalonia Canvas 渲染」**不进** `DuetDiagram.Render` | 渲染层只做到**绘制列表**为止（纯数据、可逐字节比较、文本度量可注入），画布控件放在主程序。带上窗口与面板之后快照测试就不再是「同一份输入永远同一份输出」——测试得起一个无头界面进程。而 §15.1 的端到端测试本来就单列了一层，用界面框架的无头模式，那是另一件事，不该和绘制列表的回归混在一起 |
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |

@@ -1,0 +1,41 @@
+id: P2-13
+title: 用户测试——装置与协议
+phase: 2
+status: pending
+depends_on: [P2-01, P2-02, P2-03, P2-04, P2-05, P2-06, P2-07, P2-08, P2-09, P2-10, P2-11, P2-12]
+estimated_loc: 400
+files:
+  create:
+    - tools/UserStudy/（分析脚本，不进 sln）
+    - tools/UserStudy/Program.cs
+    - tools/UserStudy/Analysis.cs
+    - tools/UserStudy/Checks.cs
+    - docs/User-Study.md
+    - reports/phase2-user-study.md
+  modify:
+    - AGENTS.md
+acceptance:
+  - command: dotnet run --project tools/UserStudy -c Release -- verify
+    expect: 全通过；统计检验在构造好的已知答案上算得对（不需要真人数据）
+  - command: dotnet run --project tools/UserStudy -c Release -- template
+    expect: 产出量表、拉丁方分配表与录入模板
+  - command: dotnet run --project tools/UserStudy -c Release -- analyze
+    expect: 有录入数据时算出四条统计判定与结论；没有时明确报"还没有数据"，不生成报告
+constraints:
+  - "**判定门写死成四条，逐条给出算出来的值与是否达标。** 只给一个\"通过 / 不通过\"的话，读的人无法判断差多少——而\"两条时交评审组\"这条规则本身就要求知道差多少"
+  - 交叉设计要**均衡顺序效应**：每个方案在每个位置出现的次数相同。不均衡的话，学习效应会被算成方案差异
+  - 至少有三人评审组的多数决规则要写进协议，且成员不得参与方案设计。这条写在那里是为了在"两条达标"时不必临时商量怎么办
+  - 分析脚本可复现：输入数据与脚本一起进版本库，同一条命令跑多少次都是同一组数
+  - 没有数据时不生成报告。生成一份空的或占位的报告，后来的读者会以为测过了
+context:
+  - 方案 §9.7 规定十二到十五人、交叉设计、定量加定性，以及四条统计判定与至少三条的门槛
+  - 方案 §15.1 把用户测试单列一层，频率是 Phase 2 一次
+  - 方案 §14.3 的 Phase 2 判据有一条是"变更高亮通过用户测试"，判定就在这里给出
+  - 方案 §15.4 列出统计方法：Friedman、Wilcoxon 加 Holm-Bonferroni 校正、Kendall's W、平均排序分
+scope_note: |
+  **本任务交付装置，不交付结论。** 十二到十五个人的测试不可能由编码 agent 完成，
+  而四条统计判定的结论必须由人给出——本仓在对比测试那一项上已经踩过这条线：
+  装置齐了不等于测过了，报告里不能替人写结论。
+
+  因此 `reports/phase2-user-study.md` 在数据收上来之前**不生成**。
+  这与对比测试那一项的处理一致。

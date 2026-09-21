@@ -1,0 +1,46 @@
+id: P2-09
+title: 中级布局约束——层内顺序与逐元素对齐
+phase: 2
+status: pending
+depends_on: [P1-11, P1-12]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Layout/Internal/OrderSolver.cs
+    - DuetDiagram.Layout/Internal/AlignSolver.cs
+    - DuetDiagram.Layout.Tests/OrderTests.cs
+    - DuetDiagram.Layout.Tests/AlignTests.cs
+    - docs/Layout-Constraints.md
+    - reports/phase2-layout-constraints.md
+  modify:
+    - DuetDiagram.Layout/ConstraintLayoutEngine.cs
+    - DuetDiagram.Layout/Internal/（既有的收缩与让位逻辑）
+    - DuetDiagram.Layout.Tests/LayoutInvariantTests.cs
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
+    expect: 全通过；既有的固定位置与同层约束一条都不能退化
+  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
+    expect: 全通过；层内顺序被保持、对齐轴上的极差为零、两者与固定位置同时成立
+  - command: dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*LayoutBenchmarks*" --job medium
+    expect: 千节点布局仍在 1000 毫秒预算内，补齐逻辑仍在 100 毫秒预算内
+constraints:
+  - 约束**在引擎之外补齐**，不改引擎、不要求引擎配合。引擎始终只看到一张合法的分层图——这是固定位置与同层约束已经走过的路，另外两项沿用同一手法
+  - "**顺序约束是\"保持次序\"，不是\"按给定次序排\"。** 打乱次序比整层变宽更糟：变宽只是占地方，乱序会让人看不懂图"
+  - 对齐必须与让位**同一个方向轴**。让位方向垂直于分层方向，对齐轴也是；两处推错一个，节点就会被推出它所在的层，而这种情况在上下一维的测试里看不出来
+  - 约束互相矛盾时**如实报出**，不静默丢弃其中一条。悄悄丢掉一条的表现是"我设了但没生效"，用户会去反复重设
+  - 新增的补齐逻辑要单独计时，不并进引擎耗时。出问题时必须能立刻判断该换引擎还是该改算法
+  - 约束归属（自动 / LLM / 人工）的保留项矩阵必须跟着扩展，四个降级级别各一行，与既有矩阵同一张表
+context:
+  - 方案 §4.2 的布局提示里有同层、层内顺序、对齐、相对位置四类，前两类已在 Phase 1 落地
+  - 方案 §13.6 把「中级布局约束」列进 Phase 2，§13.7 把「高级布局约束」列进 Phase 3
+  - 本仓的布局约束文档在"尚未验证"一节里明确记着：逐元素对齐与层内顺序两项，两个候选引擎都没有入口，那一轮的方案未覆盖
+  - 固定位置与同层约束的补齐已经落地，四个方向都验过，补齐合计 5.3 毫秒
+scope_note: |
+  **相对位置约束不在本任务里。** 方案把「高级布局约束」放在 Phase 3，
+  而层内顺序与逐元素对齐是本仓布局文档里点名的、Phase 1 那一轮明确没覆盖的两项，
+  正好对上 Phase 2 的「中级」。三档的划分是：
+  固定位置与同层（Phase 1）、顺序与对齐（Phase 2）、相对位置（Phase 3）。
+
+  **界面入口也不在本任务里**，见 P2-10。先把引擎侧的接线做出来再做界面，
+  是因为界面先做出来会得到一个能点但没效果的控件。

@@ -1,0 +1,45 @@
+id: P2-08
+title: 变更高亮
+phase: 2
+status: pending
+depends_on: [P2-07, P1-02]
+estimated_loc: 450
+files:
+  create:
+    - DuetDiagram.Render/Highlight.cs
+    - DuetDiagram.Render.Tests/HighlightTests.cs
+    - DuetDiagram.App/Interaction/HighlightTracker.cs
+    - DuetDiagram.App/Controls/HighlightOverlay.cs
+    - DuetDiagram.App/Controls/DiffSidebar.axaml
+    - DuetDiagram.App/Controls/DiffSidebar.axaml.cs
+    - DuetDiagram.E2E.Tests/HighlightTests.cs
+    - reports/phase2-highlight.md
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/MainWindow.axaml
+    - docs/GUI.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=Highlight"
+    expect: 全通过；三种手段各自独立可辨、叠加时不互相盖住
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Highlight"
+    expect: 全通过；一条命令之后对应元素被标记，撤销之后标记继承原来源并带撤销符号
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120 --highlight
+    expect: 高亮全开时 FPS 不低于 30
+constraints:
+  - "**不靠颜色。** 四种手段里三种是形状与运动（脉冲、角标、虚线轮廓），颜色只是辅助线索。只靠颜色的话，色觉障碍用户看到的是一张没标过的图，而这一点无法事后补救"
+  - 脉冲**不改填充色**，只动边框。改填充色会让高亮与样式面板里用户自己选的颜色打架
+  - 高亮信息来自命令的变更通知，不由界面自己猜"哪个字段变了"。界面自己猜的话，LLM 改的东西不会亮
+  - 高亮是**叠加层**，不进绘制列表的几何。混进去之后快照测试会被动画时间戳污染，永远对不上
+  - 脉冲次数与时长写进主题常量，且**只在有变更时跑动画**。空闲时也在跑动画的话，省电模式下会被系统降频，而那个降频会被误读成性能退化
+  - 边栏 diff 默认折叠只显示摘要；展开的详情用既有的版本日志差异结果，不在界面侧另算一份
+context:
+  - 方案 §9.3 规定四种高亮手段与撤销重做的呈现：继承原命令的来源颜色，加撤销或重做符号
+  - 方案 §4.8 的变更通知已经携带来源与版本，界面据此决定标记谁
+  - 方案 §4.5 的版本日志能给出两个版本之间的差异，边栏详情直接用它
+  - 方案 §14.3 的 Phase 2 判据有一条落在本任务：变更高亮通过用户测试（用户测试在 P2-13）
+scope_note: |
+  **这条判据的验收方式与别的不一样。** 别的都是"跑一个命令看数字"，
+  这一条写的是"通过用户测试"。所以本任务交付的是可测的高亮，
+  判定在 P2-13 由人给出——一个编码 agent 说"高亮方案很好用"没有意义。

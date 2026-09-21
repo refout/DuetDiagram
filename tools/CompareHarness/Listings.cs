@@ -67,13 +67,13 @@ internal static class Listings
 
         Directory.CreateDirectory(outputRoot);
 
-        File.WriteAllText(Path.Combine(outputRoot, "rater.md"), RaterSheet(items), Utf8);
-        File.WriteAllText(Path.Combine(outputRoot, "items.json"), ItemsJson(items), Utf8);
-        File.WriteAllText(Path.Combine(outputRoot, "key.json"), KeyJson(items), Utf8);
+        Write(outputRoot, "rater.md", RaterSheet(items));
+        Write(outputRoot, "items.json", ItemsJson(items));
+        Write(outputRoot, "key.json", KeyJson(items));
 
         var report = ParseReport(items, records.Count, StructureArms.Length);
 
-        File.WriteAllText(Path.Combine(outputRoot, "parse-report.md"), report, Utf8);
+        Write(outputRoot, "parse-report.md", report);
 
         Console.WriteLine($"清单已生成到 {outputRoot}");
         Console.WriteLine(report);
@@ -86,6 +86,20 @@ internal static class Listings
     private static readonly string[] StructureArms = ["a-bare", "b-documented", "c-dsl"];
 
     private static readonly UTF8Encoding Utf8 = new(false);
+
+    /// <summary>
+    /// 落盘。
+    /// </summary>
+    /// <remarks>
+    /// 换行统一成 <c>\n</c>。<see cref="StringBuilder.AppendLine()"/> 用的是
+    /// <see cref="Environment.NewLine"/>，不统一的话 Windows 与 Linux 上跑出来的是两份不同的文件，
+    /// 而"逐字节可复现"正是这些产物不进版本库的唯一理由。
+    /// </remarks>
+    private static void Write(string root, string name, string text) =>
+        File.WriteAllText(
+            Path.Combine(root, name),
+            text.Replace("\r\n", "\n", StringComparison.Ordinal),
+            Utf8);
 
     /// <summary>
     /// 一份待评的条目。

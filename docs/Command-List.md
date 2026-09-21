@@ -9,7 +9,7 @@
 |---|---|---|---|
 | `add-node` | `AddNodeCommand` | `id` 非空；`id` 不重复 | `index` 越界一律**夹紧**而非抛异常；`CaptureMemento` 与 `Apply` 用同一个 `ResolveIndex`，保证撤销索引一致 |
 | `remove-node` | `RemoveNodeCommand` | 节点存在 | 连带删除全部关联边；memento 记录每条边的**原索引**，撤销时按索引升序插回，边顺序逐字节还原 |
-| `connect-edge` | `ConnectEdgeCommand` | `id` 非空且不重复；`from` / `to` 均存在 | 校验一次返回全部错误（`EDGE_SOURCE_MISSING` + `EDGE_TARGET_MISSING` 可同时出现） |
+| `connect-edge` | `ConnectEdgeCommand` | `id` 非空且不重复；`from` / `to` 均存在（**节点或组合都可以**） | 校验一次返回全部错误（`EDGE_SOURCE_MISSING` + `EDGE_TARGET_MISSING` 可同时出现） |
 
 三个命令都返回 `StructuralChanged = true`、`VisualChanged = true`。
 

@@ -7,8 +7,8 @@
 | 码 | 类型 | 触发 | GUI 处理 |
 |---|---|---|---|
 | `DUPLICATE_ID` | 校验失败 | 节点或边 id 已存在 | 高亮冲突 ID |
-| `EDGE_TARGET_MISSING` | 校验失败 | 边的 `to` 节点不存在 | 提示「是否创建？」 |
-| `EDGE_SOURCE_MISSING` | 校验失败 | 边的 `from` 节点不存在 | 提示「是否创建？」 |
+| `EDGE_TARGET_MISSING` | 校验失败 | 边的 `to` **节点或组合**不存在 | 提示「是否创建？」 |
+| `EDGE_SOURCE_MISSING` | 校验失败 | 边的 `from` **节点或组合**不存在 | 提示「是否创建？」 |
 | `GROUP_MEMBER_MISSING` | 校验失败 | — （Phase 4） | 提示 |
 | `GROUP_CYCLE` | 校验失败 | — （Phase 4） | 高亮循环 |
 | `VERSION_CONFLICT` | 并发冲突 | MCP 客户端版本落后 | 弹可视化 diff 对话框 |
@@ -42,6 +42,7 @@
 | 码 | 类型 | 触发 | GUI 处理 |
 |---|---|---|---|
 | `EDGE_PORT_MISSING` | 校验失败 | 边指定的端口在节点上不存在 | 高亮该边 |
+| `EDGE_PORT_ON_COMPOSITE` | 校验失败 | 边的一端是组合，却指定了端口。**组合没有端口** | 高亮该边 |
 | `MEMBERSHIP_MISMATCH` | 校验失败 | 组合的成员列表与成员的父级互相矛盾 | 高亮两者 |
 | `PARENT_MISSING` | 校验失败 | 节点或组合的父级指向不存在的组合 | 提示「是否创建？」 |
 | `TAG_MEMBER_MISSING` | 校验失败 | 标签的成员不存在 | 高亮该标签 |

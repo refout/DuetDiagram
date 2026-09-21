@@ -40,12 +40,15 @@ public sealed class ConnectEdgeCommand : DiagramCommandBase
 
         // 端点缺失要分别报告，因为界面对两种情况的处置不同：
         // 缺终点提示"是否创建目标节点"，缺起点则提示补上来源。
-        if (!document.HasNode(_edge.From))
+        //
+        // 端点可以是节点也可以是组合：`ODS --> DWD` 这种拿分组当端点的写法，
+        // 表达的是"这一层流向那一层"，IR 现在容得下它。
+        if (!document.HasEndpoint(_edge.From))
         {
             errors.Add(CommandError.Of(ErrorCodes.EdgeSourceMissing, _edge.From));
         }
 
-        if (!document.HasNode(_edge.To))
+        if (!document.HasEndpoint(_edge.To))
         {
             errors.Add(CommandError.Of(ErrorCodes.EdgeTargetMissing, _edge.To));
         }

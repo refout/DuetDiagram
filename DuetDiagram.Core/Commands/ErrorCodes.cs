@@ -64,6 +64,9 @@ public static class ErrorCodes
     /// <summary>边指定的端口在该节点上不存在。</summary>
     public const string EdgePortMissing = "EDGE_PORT_MISSING";
 
+    /// <summary>边的一端是组合，却指定了端口。组合没有端口。</summary>
+    public const string EdgePortOnComposite = "EDGE_PORT_ON_COMPOSITE";
+
     /// <summary>组合的成员列表与成员的父级字段互相矛盾。</summary>
     public const string MembershipMismatch = "MEMBERSHIP_MISMATCH";
 

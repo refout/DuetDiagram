@@ -92,6 +92,33 @@ IR 是唯一事实源。本文件描述**当前已实现**的字段，以及尚�
 **这个形状与节点不同**：节点的样式令牌留在顶层，边则全部收在样式里。
 不对称是方案本身的规定，改动它要同时改线格式。
 
+#### 端点可以是组合
+
+`from` / `to` 指向的可以是节点，也可以是组合（`GroupDef` / `LaneDef` / `SubflowDef` / `ComboDef`）。
+分层架构图里 `ODS --> DWD` 拿分组当端点，说的是"这一层流向那一层"——
+外部格式允许，Mermaid 语料里出现过**七份**（见 P1-09 的 `subgraph-as-endpoint`）。
+
+**别把标识撞名也算进来。** 对比语料的 `parse-report.md` 在"端点是分组的边"一列上数出八条，
+多出来的那条是 `c-dsl` 的 C02：模型把泳道与其中的一个节点都叫 `pay`，
+那一列的判据是"端点标识与某个分组标识相同"，于是把它记成了组端点。
+它实际指向的是节点，属于 P1-17 的 `group-and-node-share-a-name`，不是这里的证据。
+
+**线格式没有因此改动。** 标识本来就是字符串，九个集合也共用同一个命名空间，
+所以数据层本来就容得下它；改的只是校验器的端点解析（先按节点找，找不到再按组合找，
+与成员列表同一口径）。
+
+| 项 | 规则 |
+|---|---|
+| 端点解析 | 先 `FindNode`，再 `FindComposite`。两者都找不到报 `EDGE_SOURCE_MISSING` / `EDGE_TARGET_MISSING` |
+| 端口 | **只属于节点。** 端点是组合时必须为空，否则报 `EDGE_PORT_ON_COMPOSITE` |
+| 命令层 | `ConnectEdgeCommand` 用同一个判据，两层不得各写一份 |
+
+**布局还没跟上，这是一个已知缺口。** `LayoutRequestFactory.FromDocument` 只把 `Nodes` 映射成
+`LayoutNode`，`Composites` 整个被忽略；端点落在组合上的边会走到 `EdgeRouter` 的
+"输入引用了不存在的节点"分支，**边画不出来**，只把 `EndpointFailures` 加一。
+也就是说：一份**校验通过**的文档，布局仍会报硬保证不满足。修法是让布局把组合端点的边
+落到组合的包围盒边界上，单列在 P1-11 的待办里。
+
 ### CompositeDef 及其派生
 
 抽象基类，派生 `GroupDef`（分组）、`LaneDef`（泳道）、`SubflowDef`（子流程）、
@@ -187,14 +214,20 @@ IR 是唯一事实源。本文件描述**当前已实现**的字段，以及尚�
 
 | 码 | 含义 |
 |---|---|
-| `ID_DUPLICATE` | 标识在九个集合中重复 |
-| `EDGE_FROM_MISSING` / `EDGE_TO_MISSING` | 边的端点不存在 |
+| `DUPLICATE_ID` | 标识在九个集合中重复 |
+| `EDGE_SOURCE_MISSING` / `EDGE_TARGET_MISSING` | 边的端点（节点或组合）不存在 |
 | `EDGE_PORT_MISSING` | 边指定的端口在节点上不存在 |
-| `COMPOSITE_PARENT_MISSING` | 组合的外层不存在 |
-| `NODE_PARENT_MISSING` | 节点的父级不是已定义的组合 |
+| `EDGE_PORT_ON_COMPOSITE` | 端点落在组合上，却指定了端口 |
+| `PARENT_MISSING` | 节点或组合的父级不是已定义的组合 |
 | `MEMBERSHIP_MISMATCH` | 成员列表与父级不一致 |
-| `MEMBER_MISSING` | 组合的成员既不是节点也不是组合 |
+| `GROUP_MEMBER_MISSING` | 组合的成员既不是节点也不是组合 |
 | `TAG_MEMBER_MISSING` / `ACTION_TARGET_MISSING` | 标签成员或动作目标不存在 |
+
+这张表原先写的码名有六个是错的（`ID_DUPLICATE`、`EDGE_FROM_MISSING`、`EDGE_TO_MISSING`、
+`COMPOSITE_PARENT_MISSING`、`NODE_PARENT_MISSING`、`MEMBER_MISSING`），
+与 `ErrorCodes.cs` 对不上，而没有任何东西会报错。权威定义在
+`DuetDiagram.Core/Commands/ErrorCodes.cs`，**这张表是手抄的副本，改码要两边一起改**。
+下面「字段名与元数据」一节用登记表加门禁避开了这个问题，错误码还没走那条路。
 
 校验只报告不修改。发现问题时由调用方决定是拒绝加载、丢弃问题部分，还是照常打开并提示。
 

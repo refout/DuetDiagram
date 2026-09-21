@@ -46,6 +46,32 @@ public sealed class RoundTripTests
         DiagramSerializer.Normalize(restored).Should().Be(json);
     }
 
+    /// <summary>
+    /// 端点是组合的边要能原样往返。
+    /// </summary>
+    /// <remarks>
+    /// 端点允许是组合之后，线格式不用改——<c>from</c> / <c>to</c> 本来就是字符串。
+    /// 但"不用改"是推断，这条用例把它变成验证过的：真要有人日后给端点加上类型前缀，
+    /// 这里会红。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "RoundTrip")]
+    public void Edge_to_a_composite_round_trips()
+    {
+        var document = IrFixtures.WithEdge(
+            IrFixtures.WithComposites(
+                IrFixtures.Base(),
+                [new GroupDef { Id = "ods", Label = "原始层" }, new GroupDef { Id = "dwd", Label = "明细层" }]),
+            new EdgeDef { Id = "e1", From = "ods", To = "dwd", Label = "清洗" });
+
+        var json = DiagramSerializer.SerializeFull(document);
+        var restored = DiagramSerializer.DeserializeFull(json);
+
+        restored.Edges.Should().Equal(document.Edges);
+        restored.Composites.Should().Equal(document.Composites);
+        DiagramSerializer.Normalize(restored).Should().Be(json);
+    }
+
     [Fact]
     [Trait("Category", "RoundTrip")]
     public void Empty_document_round_trips()

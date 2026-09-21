@@ -21,16 +21,32 @@ public sealed record EdgeDef : IDefinition
     /// <summary>边标识。同一文档内唯一。</summary>
     public required string Id { get; init; }
 
-    /// <summary>起点节点标识。必须存在于 <see cref="DiagramDocument.Nodes"/> 中。</summary>
+    /// <summary>
+    /// 起点标识。必须是 <see cref="DiagramDocument.Nodes"/> 或 <see cref="DiagramDocument.Composites"/> 中的一员。
+    /// </summary>
+    /// <remarks>
+    /// 端点允许是组合，是为了表达"这一层流向那一层"——<c>ODS --&gt; DWD</c> 里的
+    /// <c>ODS</c> 与 <c>DWD</c> 是分组而不是节点。字段类型不用改：标识本来就是字符串，
+    /// 九个集合也共用同一个命名空间，所以数据层本来就容得下它。
+    /// </remarks>
     public required string From { get; init; }
 
-    /// <summary>终点节点标识。必须存在于 <see cref="DiagramDocument.Nodes"/> 中。</summary>
+    /// <summary>
+    /// 终点标识。必须是 <see cref="DiagramDocument.Nodes"/> 或 <see cref="DiagramDocument.Composites"/> 中的一员。
+    /// </summary>
+    /// <remarks>见 <see cref="From"/>。</remarks>
     public required string To { get; init; }
 
-    /// <summary>起点端口名。为空表示由布局引擎自动选边。</summary>
+    /// <summary>
+    /// 起点端口名。为空表示由布局引擎自动选边。
+    /// </summary>
+    /// <remarks>**端口只属于节点。** 起点是组合时必须为空，否则校验报 <c>EDGE_PORT_ON_COMPOSITE</c>。</remarks>
     public string? FromPort { get; init; }
 
-    /// <summary>终点端口名。为空表示由布局引擎自动选边。</summary>
+    /// <summary>
+    /// 终点端口名。为空表示由布局引擎自动选边。
+    /// </summary>
+    /// <remarks>见 <see cref="FromPort"/>。</remarks>
     public string? ToPort { get; init; }
 
     /// <summary>边上的文字，例如"是""否"。</summary>

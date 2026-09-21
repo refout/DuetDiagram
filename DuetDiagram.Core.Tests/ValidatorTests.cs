@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Core.Model;
 using FluentAssertions;
 using Xunit;
@@ -48,6 +49,98 @@ public sealed class ValidatorTests
         // 两端各报一条。只报一条的话，修完一头才会发现另一头也有问题。
         issues.Should().Contain(i => i.Code == ErrorCodes.EdgeSourceMissing);
         issues.Should().Contain(i => i.Code == ErrorCodes.EdgeTargetMissing);
+    }
+
+    /// <summary>
+    /// 端点是组合的边是合法的。
+    /// </summary>
+    /// <remarks>
+    /// 分层架构图里 <c>ODS --&gt; DWD</c> 是拿分组当端点用的，说的是"这一层流向那一层"。
+    /// 这是外部格式里很常见、也很自然的写法，冻结语料里真的出现了。
+    /// 字段类型不用改：标识本来就是字符串，九个集合也共用同一个命名空间。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Edge_between_two_composites_is_accepted()
+    {
+        var document = IrFixtures.WithEdge(
+            IrFixtures.WithComposites(
+                IrFixtures.Base(),
+                [new GroupDef { Id = "ods" }, new GroupDef { Id = "dwd" }]),
+            new EdgeDef { Id = "e1", From = "ods", To = "dwd", Label = "清洗" });
+
+        DiagramValidator.Validate(document).Should().BeEmpty();
+    }
+
+    /// <summary>一端是节点、一端是组合，同样合法。</summary>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Edge_from_a_node_to_a_composite_is_accepted()
+    {
+        var document = IrFixtures.WithEdge(
+            IrFixtures.WithComposite(IrFixtures.Base(), new GroupDef { Id = "g1" }),
+            new EdgeDef { Id = "e1", From = "a", To = "g1" });
+
+        DiagramValidator.Validate(document).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// 端点不存在时仍然要报，放宽端点类型不能把这条一起放过。
+    /// </summary>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Unknown_endpoint_is_still_reported_after_relaxing()
+    {
+        var document = IrFixtures.WithEdge(
+            IrFixtures.WithComposite(IrFixtures.Base(), new GroupDef { Id = "g1" }),
+            new EdgeDef { Id = "e1", From = "g1", To = "查无此物" });
+
+        var issues = DiagramValidator.Validate(document);
+
+        issues.Should().Contain(i => i.Code == ErrorCodes.EdgeTargetMissing);
+        issues.Should().NotContain(i => i.Code == ErrorCodes.EdgeSourceMissing);
+    }
+
+    /// <summary>
+    /// 组合端点上指定端口要单独报一种码。
+    /// </summary>
+    /// <remarks>
+    /// 组合没有端口，所以这是"写错了"而不是"端口名对不上"。两种说法给用户的下一步动作不同：
+    /// 前者要把端口去掉或把端点改成节点，后者要去补端口。
+    /// 用两个码而不是共用一个，是因为共用之后调用方分不出该提示哪一句。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Port_on_a_composite_endpoint_is_reported_separately()
+    {
+        var document = IrFixtures.WithEdge(
+            IrFixtures.WithComposite(IrFixtures.Base(), new GroupDef { Id = "g1" }),
+            new EdgeDef { Id = "e1", From = "a", To = "g1", ToPort = "out" });
+
+        var issues = DiagramValidator.Validate(document);
+
+        issues.Should().Contain(i => i.Code == ErrorCodes.EdgePortOnComposite);
+
+        // 不能再报"端口不存在"：同一处错因引出两条问题，用户会以为有两件事要修。
+        issues.Should().NotContain(i => i.Code == ErrorCodes.EdgePortMissing);
+    }
+
+    /// <summary>
+    /// 命令层与校验器对"什么算端点"必须给出同一个答案。
+    /// </summary>
+    /// <remarks>
+    /// 两层各写一份判定必然分叉，症状是"能画出来的边，存下来再打开就报错"——
+    /// 而那时候用户已经看不出是哪一步不对了。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void Command_layer_and_validator_agree_on_what_an_endpoint_is()
+    {
+        var document = IrFixtures.WithComposite(IrFixtures.Base(), new GroupDef { Id = "g1" });
+        var edge = new EdgeDef { Id = "e1", From = "a", To = "g1" };
+
+        new ConnectEdgeCommand(edge).Validate(document).IsValid.Should().BeTrue();
+        DiagramValidator.Validate(IrFixtures.WithEdge(document, edge)).Should().BeEmpty();
     }
 
     [Fact]

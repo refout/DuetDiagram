@@ -75,29 +75,44 @@ public static class DiagramValidator
         Check("文本预设", document.TextPresets);
     }
 
+    /// <summary>
+    /// 边的两端必须指向存在的定义。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **端点可以是节点，也可以是组合。** 分层架构图里 <c>ODS --&gt; DWD</c> 拿分组当端点，
+    /// 说的是"这一层流向那一层"——外部格式允许，语料里真的出现过
+    /// （见 <c>reports/compare-blind/parse-report.md</c> 的"端点是分组的边"一列）。
+    /// 解析顺序是先节点后组合，与 <see cref="CheckCompositeMembership"/> 同一口径。
+    /// </para>
+    /// <para>
+    /// 提示语里把两种可能都写出来：只说"创建节点"的话，用户面对一个本来就想连到分组上的边
+    /// 会以为是标识写错了，而实际上他要的可能是先建那个分组。
+    /// </para>
+    /// </remarks>
     private static void CheckEdgeEndpoints(DiagramDocument document, List<ValidationIssue> issues)
     {
         foreach (var edge in document.Edges)
         {
-            if (document.FindNode(edge.From) is null)
+            if (!document.HasEndpoint(edge.From))
             {
                 issues.Add(new ValidationIssue
                 {
                     Code = ErrorCodes.EdgeSourceMissing,
                     Message = $"边 {edge.Id} 的起点 {edge.From} 不存在。",
                     RelatedId = edge.Id,
-                    Suggestion = $"创建节点 {edge.From}，或把边 {edge.Id} 的起点改成已有节点。",
+                    Suggestion = $"创建节点或组合 {edge.From}，或把边 {edge.Id} 的起点改成已有的节点或组合。",
                 });
             }
 
-            if (document.FindNode(edge.To) is null)
+            if (!document.HasEndpoint(edge.To))
             {
                 issues.Add(new ValidationIssue
                 {
                     Code = ErrorCodes.EdgeTargetMissing,
                     Message = $"边 {edge.Id} 的终点 {edge.To} 不存在。",
                     RelatedId = edge.Id,
-                    Suggestion = $"创建节点 {edge.To}，或把边 {edge.Id} 的终点改成已有节点。",
+                    Suggestion = $"创建节点或组合 {edge.To}，或把边 {edge.Id} 的终点改成已有的节点或组合。",
                 });
             }
 
@@ -106,11 +121,19 @@ public static class DiagramValidator
         }
     }
 
+    /// <summary>
+    /// 端点上指定的端口必须存在。
+    /// </summary>
+    /// <remarks>
+    /// **端口只属于节点。** 组合没有端口，所以端点落在组合上时指定端口是写错了，
+    /// 而不是"端口名对不上"——这两种说法给用户的下一步动作完全不同：
+    /// 前者要把端口去掉或把端点改成节点，后者要去补端口。
+    /// </remarks>
     private static void CheckPort(
         DiagramDocument document,
         List<ValidationIssue> issues,
         string edgeId,
-        string nodeId,
+        string endpointId,
         string? portName,
         string end)
     {
@@ -119,11 +142,24 @@ public static class DiagramValidator
             return;
         }
 
-        var node = document.FindNode(nodeId);
+        // 端点本身不存在的情况上面已经报过，这里不重复报，避免一处错因引出两条问题。
+        if (!document.HasEndpoint(endpointId))
+        {
+            return;
+        }
 
-        // 节点本身不存在的情况上面已经报过，这里不重复报，避免一处错因引出两条问题。
+        var node = document.FindNode(endpointId);
+
         if (node is null)
         {
+            issues.Add(new ValidationIssue
+            {
+                Code = ErrorCodes.EdgePortOnComposite,
+                Message = $"边 {edgeId} 的{end}指向组合 {endpointId}，却指定了端口 {portName}。组合没有端口。",
+                RelatedId = edgeId,
+                Suggestion = $"去掉边 {edgeId} 的{end}端口，或把{end}改成节点 {endpointId} 之外的某个节点。",
+            });
+
             return;
         }
 
@@ -132,9 +168,9 @@ public static class DiagramValidator
             issues.Add(new ValidationIssue
             {
                 Code = ErrorCodes.EdgePortMissing,
-                Message = $"边 {edgeId} 的{end}指定了端口 {portName}，但节点 {nodeId} 上没有这个端口。",
+                Message = $"边 {edgeId} 的{end}指定了端口 {portName}，但节点 {endpointId} 上没有这个端口。",
                 RelatedId = edgeId,
-                Suggestion = $"在节点 {nodeId} 上补上端口 {portName}，或把边改为不指定端口由引擎自动选边。",
+                Suggestion = $"在节点 {endpointId} 上补上端口 {portName}，或把边改为不指定端口由引擎自动选边。",
             });
         }
     }

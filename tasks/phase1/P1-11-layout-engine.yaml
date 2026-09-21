@@ -63,3 +63,24 @@ result:
     - 降级与路径预算属 P1-12
     - 组合的层级布局尚未实现，父子关系只做透传
     - 端口感知的通道规划未做
+  open_questions:
+    - id: composite-endpoint
+      question: 端点落在组合上的边，布局怎么画？
+      detail: |
+        IR 已经允许边的端点是组合（见 P1-09 的 `subgraph-as-endpoint`，2026-09-21 定的），
+        而布局层还不认识组合：`LayoutRequestFactory.FromDocument` 只把 `Nodes` 映射成
+        `LayoutNode`，`Composites` 整个被忽略。于是这种边走到 `EdgeRouter` 的
+        "输入引用了不存在的节点"分支，**边画不出来**。
+
+        后果是**一份校验通过的文档，布局仍会报硬保证不满足**：
+        `EndpointFailures` 加一，而 `SatisfiesHardGuarantees` 要求它为零。
+        那条注释写着"这一项必须为零"，现在有了例外，注释与判据都要跟着改。
+
+        要做的：把组合端点落到组合的包围盒边界上。折线重算已经在节点坐标之上工作，
+        组合的包围盒由成员算得出来，所以真正要加的是"端点解析多一层"，
+        与 Core 侧校验器同一口径（先节点、后组合）。
+
+        附带要把 `EndpointFailures` 拆开——它现在把"端点没落在边界上"与
+        "端点根本解析不出来"算在同一项里，两件事的处置完全不同。
+      blocked_on: 排期
+      status: open

@@ -367,9 +367,34 @@ public sealed class DiagramDocument
 
     internal bool HasEdge(string id) => _edges.Has(id);
 
+    internal bool HasComposite(string id) => _composites.Has(id);
+
     internal NodeDef? FindNode(string id) => _nodes.Find(id);
 
+    internal CompositeDef? FindComposite(string id) => _composites.Find(id);
+
     internal EdgeDef? FindEdge(string id) => _edges.Find(id);
+
+    /// <summary>
+    /// 标识能不能当作边的端点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 节点可以，组合也可以。分层架构图里 <c>ODS --&gt; DWD</c> 是拿分组当端点用的，
+    /// 表达的是"这一层流向那一层"——这是外部格式里很常见、也很自然的写法，
+    /// 语料里真的出现了（见 <c>reports/compare-blind/parse-report.md</c> 的"端点是分组的边"一列）。
+    /// </para>
+    /// <para>
+    /// 判定顺序是先节点后组合，与组合成员的解析口径一致（见 <c>CheckCompositeMembership</c>）。
+    /// 九个集合共用一个命名空间，所以同一个标识不会既是节点又是组合，
+    /// 先查哪个都不影响结果——顺序统一只是为了让两处读起来是同一件事。
+    /// </para>
+    /// <para>
+    /// **端口仍然只属于节点。** 组合没有端口，端点落在组合上时不能指定端口，
+    /// 见 <c>DiagramValidator.CheckPort</c>。
+    /// </para>
+    /// </remarks>
+    internal bool HasEndpoint(string id) => HasNode(id) || HasComposite(id);
 
     internal int IndexOfNode(string id) => _nodes.IndexOf(id);
 

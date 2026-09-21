@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using DuetDiagram.Core.Serialization;
 
 namespace DuetDiagram.Core.Model;
 
@@ -193,6 +194,92 @@ public sealed class DiagramDocument
         Palette = palette ?? new Palette();
         Layout = layout ?? LayoutHintsDefaults.Create();
         Canvas = canvas ?? new CanvasSettings();
+    }
+
+    /// <summary>
+    /// 按内容新建文档，并把两个哈希一并算好。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这是**外部程序集唯一一条能造出内容完整的文档的路**。另两条都不行：
+    /// <see cref="DiagramDocument(string, DiagramKind, Direction)"/> 只造空文档；
+    /// 反序列化构造要求把版本号与哈希一并传入，而哈希要先有文档实例才算得出来，
+    /// setter 又是 internal——外部算得出、赋不进去。
+    /// </para>
+    /// <para>
+    /// **它只造新实例，不提供改已有文档的路。** 哈希的计算权仍然只有两处：
+    /// 命令总线（每次成功变更后重算）与这里（构造时算一次）。
+    /// 这里算完之后文档对外就是只读的，要改仍然只能走命令。
+    /// 没有这条限定，这个方法会变成一个绕过命令层直接改内容的后门。
+    /// </para>
+    /// <para>
+    /// **版本号取 0。** <see cref="Version"/> 是变更计数，构造不是变更——
+    /// "新建时是 0、首次成功变更后是 1"这条规则不为导入破例。
+    /// </para>
+    /// <para>
+    /// **不做标识唯一性检查。** 九个集合共用一个命名空间，重复标识是可能出现的，
+    /// 而它是**可诊断**的：<c>DiagramValidator</c> 报 <c>DUPLICATE_ID</c>。
+    /// 在这里抛异常会让"造一份带重复标识的文档去测校验器"变得做不到，
+    /// 也会让这条路径与反序列化路径行为不一致（后者同样不检查）。
+    /// 内容合不合法由校验器回答，不由构造入口回答。
+    /// </para>
+    /// </remarks>
+    /// <param name="id">文档标识。</param>
+    /// <param name="kind">图类型。</param>
+    /// <param name="direction">主方向。</param>
+    /// <param name="pages">页面集合。</param>
+    /// <param name="layers">图层集合。</param>
+    /// <param name="nodes">节点集合。顺序有意义：位置是层内次序的依据。</param>
+    /// <param name="edges">边集合。顺序有意义：删除后撤销要按原索引插回。</param>
+    /// <param name="composites">组合集合。</param>
+    /// <param name="tags">标签集合。</param>
+    /// <param name="actions">动作集合。</param>
+    /// <param name="fonts">字体集合。</param>
+    /// <param name="textPresets">文本预设集合。</param>
+    /// <param name="palette">调色板。为空表示空表，由渲染层用兜底外观。</param>
+    /// <param name="layout">布局提示。为空表示取缺省间距、无约束。</param>
+    /// <param name="canvas">画布设置。</param>
+    public static DiagramDocument CreateFromContent(
+        string id,
+        DiagramKind kind = DiagramKind.Flowchart,
+        Direction direction = Direction.TB,
+        IReadOnlyList<PageDef>? pages = null,
+        IReadOnlyList<LayerDef>? layers = null,
+        IReadOnlyList<NodeDef>? nodes = null,
+        IReadOnlyList<EdgeDef>? edges = null,
+        IReadOnlyList<CompositeDef>? composites = null,
+        IReadOnlyList<TagDef>? tags = null,
+        IReadOnlyList<ActionDef>? actions = null,
+        IReadOnlyList<FontDef>? fonts = null,
+        IReadOnlyList<TextStylePreset>? textPresets = null,
+        Palette? palette = null,
+        LayoutHints? layout = null,
+        CanvasSettings? canvas = null)
+    {
+        var document = new DiagramDocument(
+            id,
+            kind,
+            direction,
+            version: 0,
+            structuralHash: string.Empty,
+            visualHash: string.Empty,
+            pages,
+            layers,
+            nodes,
+            edges,
+            composites,
+            tags,
+            actions,
+            fonts,
+            textPresets,
+            palette,
+            layout,
+            canvas);
+
+        document.StructuralHash = DiagramHashing.ComputeStructuralHash(document);
+        document.VisualHash = DiagramHashing.ComputeVisualHash(document);
+
+        return document;
     }
 
     public string Id { get; }

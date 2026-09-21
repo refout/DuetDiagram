@@ -8,8 +8,8 @@
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
 | DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
-| DuetDiagram.Core | 55 | 6391 | 3389 | 2029 | 973 |
-| DuetDiagram.Core.Tests | 20 | 3888 | 2798 | 426 | 664 |
+| DuetDiagram.Core | 55 | 6478 | 3430 | 2072 | 976 |
+| DuetDiagram.Core.Tests | 21 | 3937 | 2819 | 442 | 676 |
 | DuetDiagram.Dsl | 5 | 1678 | 1102 | 320 | 256 |
 | DuetDiagram.Dsl.Tests | 5 | 1345 | 962 | 171 | 212 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
@@ -19,7 +19,7 @@
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 423 | 291 | 35 | 97 |
 | tools | 24 | 4268 | 2876 | 706 | 686 |
-| **合计** | **154** | **25512** | **16170** | **5282** | **4060** |
+| **合计** | **155** | **25648** | **16232** | **5341** | **4075** |
 
 ## 明细
 
@@ -85,7 +85,7 @@
 | CollectionEquality.cs | 104 |
 | Composites.cs | 45 |
 | DefinitionCollection.cs | 36 |
-| DiagramDocument.cs | 224 |
+| DiagramDocument.cs | 265 |
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 249 |
 | EdgeDef.cs | 14 |
@@ -118,15 +118,16 @@
 | CommandBusTests.cs | 242 |
 | ConflictTests.cs | 223 |
 | CorePurityTests.cs | 57 |
+| DocumentFactoryTests.cs | 66 |
 | Harness.cs | 73 |
 | IrExtensionTests.cs | 194 |
-| IrFixtures.cs | 218 |
+| IrFixtures.cs | 176 |
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
 | RoundTripTests.cs | 137 |
 | SessionIdResolutionTests.cs | 57 |
 | SidecarBackupTests.cs | 235 |
-| SidecarTests.cs | 294 |
+| SidecarTests.cs | 291 |
 | TempDirectory.cs | 22 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |

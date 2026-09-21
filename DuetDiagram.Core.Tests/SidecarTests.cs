@@ -166,12 +166,9 @@ public sealed class SidecarTests
 
         // 换一个文档标识。只换内容不行——那份内容仍属于同一份文档，
         // 被当成"缓存过期"才是对的。
-        var other = IrFixtures.Construct(
+        var other = DiagramDocument.CreateFromContent(
             "另一个文档",
-            0,
-            null, null,
-            [new NodeDef { Id = "a" }],
-            null, null, null, null, null, null, null, null, null);
+            nodes: [new NodeDef { Id = "a" }]);
 
         other.Id.Should().NotBe(IrFixtures.Base().Id);
         SidecarStore.SaveLayout(path, CacheFor(other));

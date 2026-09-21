@@ -1,5 +1,4 @@
 using DuetDiagram.Core.Model;
-using DuetDiagram.Core.Serialization;
 
 namespace DuetDiagram.Core.Tests;
 
@@ -135,72 +134,20 @@ internal static class IrFixtures
         Palette? palette = null,
         LayoutHints? layout = null,
         CanvasSettings? canvas = null) =>
-        Construct("ir-test", 0, pages, layers, nodes, edges, composites, tags, actions, fonts, textPresets, palette, layout, canvas);
-
-    /// <summary>
-    /// 先造一份算出哈希，再带着哈希造第二份。
-    /// </summary>
-    /// <remarks>
-    /// 哈希的 setter 是 <c>internal</c>，测试程序集改不了——这正是"仅命令总线可推进版本与哈希"
-    /// 这条约束在起作用。两个哈希都不覆盖自身，因此从空哈希算起与从最终态算起结果相同，
-    /// 两趟构造是安全的。
-    /// </remarks>
-    public static DiagramDocument Construct(
-        string id,
-        int version,
-        IReadOnlyList<PageDef>? pages,
-        IReadOnlyList<LayerDef>? layers,
-        IReadOnlyList<NodeDef>? nodes,
-        IReadOnlyList<EdgeDef>? edges,
-        IReadOnlyList<CompositeDef>? composites,
-        IReadOnlyList<TagDef>? tags,
-        IReadOnlyList<ActionDef>? actions,
-        IReadOnlyList<FontDef>? fonts,
-        IReadOnlyList<TextStylePreset>? textPresets,
-        Palette? palette,
-        LayoutHints? layout,
-        CanvasSettings? canvas)
-    {
-        var draft = new DiagramDocument(
-            id,
-            DiagramKind.Flowchart,
-            Direction.TB,
-            version,
-            string.Empty,
-            string.Empty,
-            pages,
-            layers,
-            nodes,
-            edges,
-            composites,
-            tags,
-            actions,
-            fonts,
-            textPresets,
-            palette,
-            layout,
-            canvas);
-
-        return new DiagramDocument(
-            id,
-            DiagramKind.Flowchart,
-            Direction.TB,
-            version,
-            DiagramHashing.ComputeStructuralHash(draft),
-            DiagramHashing.ComputeVisualHash(draft),
-            pages,
-            layers,
-            nodes,
-            edges,
-            composites,
-            tags,
-            actions,
-            fonts,
-            textPresets,
-            palette,
-            layout,
-            canvas);
-    }
+        DiagramDocument.CreateFromContent(
+            "ir-test",
+            pages: pages,
+            layers: layers,
+            nodes: nodes,
+            edges: edges,
+            composites: composites,
+            tags: tags,
+            actions: actions,
+            fonts: fonts,
+            textPresets: textPresets,
+            palette: palette,
+            layout: layout,
+            canvas: canvas);
 
     public static DiagramDocument WithLayout(DiagramDocument source, LayoutHints layout) =>
         Rebuild(source, layout: layout);
@@ -242,9 +189,10 @@ internal static class IrFixtures
         IReadOnlyList<FontDef>? fonts = null,
         Palette? palette = null,
         LayoutHints? layout = null) =>
-        Construct(
+        DiagramDocument.CreateFromContent(
             source.Id,
-            source.Version,
+            source.Kind,
+            source.Direction,
             source.Pages,
             source.Layers,
             nodes ?? source.Nodes,

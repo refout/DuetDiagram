@@ -1,0 +1,80 @@
+id: P1-14
+title: DSL 与 Mermaid 对比评分
+phase: 1
+status: pending
+depends_on: [P0-08, P1-09, P1-10, P1-16, P1-17]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj
+    - DuetDiagram.Compare.Tests/CorpusArms.cs
+    - DuetDiagram.Compare.Tests/ParseRateTests.cs
+    - DuetDiagram.Compare.Tests/BlindingTests.cs
+    - DuetDiagram.Compare.Tests/ScoringTests.cs
+    - reports/compare-blind/（盲评清单，生成物）
+    - reports/phase1-compare.md
+  modify:
+    - DuetDiagram.slnx
+    - AGENTS.md
+    - docs/Compare-Criteria.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj -- --filter-trait "Category=CompareParseRate"
+    expect: 全通过；三组各 50 条的语法拒绝与语义拒绝分开报出
+  - command: dotnet test --project DuetDiagram.Compare.Tests/DuetDiagram.Compare.Tests.csproj -- --filter-trait "Category=CompareScoring"
+    expect: 全通过；给定人工评分文件时四个指标与判定结论算得出来
+  - command: dotnet run --project tools/LocCounter -c Release -- --root . --check
+    expect: 一致
+constraints:
+  - "**C 与 B 比，不与 A 比。** A 是基线，B 是「Mermaid 加等量文档」的对照组。用 A 与 C 比会把「有文档」的效果算成 DSL 的效果——这是本次实验最容易犯也最致命的错"
+  - 解析失败计入分母且**必然不通过**，不能从分母里剔除
+  - 移动节点位置与整体重排一律计 0 步。位置由布局引擎负责，算进人工修正会让所有格式一起变差，掩盖真正的差别
+  - 分组增删计 2 步（建组 1、归入成员 1）。粒度不定死，两个人能数出一倍差距
+  - 差距落在噪声范围内时（两组各 50 条，小于 2 条）**即使达标也判为不达标**。50 条样本量撑不起 3 个百分点的差距
+  - 语料已冻结，不得重新生成。重新生成会让三组不再同时同模型状态，对照失效
+  - 双盲靠「结构清单」而不是隐藏文本：评分者看节点列表（标识、标签、形状）与边列表（起点、终点、标签），看不出格式
+context:
+  - docs/Compare-Criteria.md（四个指标的计算口径与判定规则，本任务的实现依据）
+  - docs/DSL-Syntax.md
+  - reports/raw/README.md
+  - tasks/phase0a/P0-08-llm-corpus-generation.yaml（语料的生成记录与已知局限）
+  - tasks/phase1/P1-09-mermaid-import.yaml
+scope_note: |
+  **这个任务有一半不是编码 agent 能做的。**
+
+  四个指标里只有「解析错误率」可以自动算——它的判定者是自动的，不需要人。
+  另外三个（端到端准确率、人工修正步骤、首轮通过率）按 docs/Compare-Criteria.md
+  的设计**需要两名受过培训的评分者各自独立评 150 份**，再算一致性。
+
+  所以本任务的交付物是**装置**：把可自动算的算出来、把要人评的整理成盲评清单、
+  把人工评分汇总成四个指标与判定结论。**结论本身（决策门 1）由人填。**
+
+  一个编码 agent 声称「已跑完对比并得出 DSL 应当保留」时，它几乎一定只是算了
+  解析错误率那一项，然后把结论替人写了。任务验收里没有「得出保留 DSL 的结论」
+  这一条，是刻意的。
+
+  另：方案的依赖写的是 P1-08/10/16/17。这里改成 P1-09/10/16/17——
+  解析错误率要区分「语法拒绝」与「语义拒绝」，而语义拒绝要过 IR 与校验器，
+  只到语法树（P1-08）算不出来。P1-10 保留是因为 B 组是 Mermaid，
+  结构清单要能从中还原出节点与边。
+open_questions:
+  - id: who-scores
+    question: 两名评分者是谁，评分怎么落盘？
+    detail: |
+      docs/Compare-Criteria.md 规定了「两名评分者各自独立评全部 150 份」与培训流程，
+      但没说评分结果存在哪、由谁触发汇总。需要一个明确的评分文件格式
+      （每条 prompt × 每个检查项 × 两名评分者）与存放位置，否则汇总算不出来。
+      建议放在 reports/ 下与盲评清单同目录，且**不进版本库**——
+      评分是人的工作产物，混进仓库会让「语料冻结」这件事变得模糊。
+  - id: rejection-granularity
+    question: 「解析器拒绝」的判定粒度是什么？
+    detail: |
+      解析错误率的分子是「解析器拒绝的数量」，而「拒绝」的定义取决于错误恢复粒度——
+      一行坏掉时是跳过该行继续（那么整份不算拒绝），还是整份拒绝。
+      P1-16 的 open_questions 里列了同一条，两个任务必须用同一个答案，
+      否则 DSL 组与 Mermaid 组的错误率不可比。
+  - id: semantic-checks
+    question: 语义拒绝具体查哪些？
+    detail: |
+      docs/Compare-Criteria.md 举了两个例子：引用了不存在的节点、分组成环。
+      完整清单要定下来并与 DiagramValidator 的检查项对齐——
+      若语义拒绝的口径宽于校验器，会出现「解析器说拒绝但校验器说没问题」的矛盾。

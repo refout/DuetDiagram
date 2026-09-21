@@ -14,7 +14,7 @@ acceptance:
   - command: 校验 CI 配置合法
     expect: YAML 可解析，作业与步骤齐全
   - command: dotnet run --project DuetDiagram.AotSmokeTest -c Release
-    expect: 输出 AOT smoke test: PASS，退出码 0
+    expect: "输出 AOT smoke test: PASS，退出码 0"
 constraints:
   - 本地缺 C++ 工具链，原生发布只能由持续集成验证
   - 冒烟程序不做格式化输出，只用退出码表达结果

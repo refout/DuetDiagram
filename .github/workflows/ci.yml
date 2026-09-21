@@ -39,6 +39,7 @@ jobs:
           dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
 
       # P1 判据 #1：DuetDiagram.Core 仅依赖 BCL
       - name: Core 引用门禁（csproj 层）
@@ -85,6 +86,20 @@ jobs:
       # 那是刻意的：语料缺席时"通过"等于什么都没验。
       - name: Mermaid 语料门禁
         run: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MermaidCorpus"
+
+      # 剥围栏：真实语料里有三成回答把 DSL 包在 Markdown 围栏里，标签还各不相同。
+      # 这一步与词法分析分开，失败时能一眼看出是哪一层的错。
+      - name: DSL 词法门禁
+        run: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DslLexing"
+
+      # 语法层：认不出的内容记诊断而不抛异常。与 Mermaid 侧同一口径——
+      # 口径不一致的话，P1-14 的对比量到的是口径差异而不是格式差异。
+      - name: DSL 语法门禁
+        run: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DslParsing"
+
+      # c-dsl 组五十份真实回答必须全部解析干净。同样依赖 LFS。
+      - name: DSL 语料门禁
+        run: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DslCorpus"
 
   app-and-aot:
     name: 界面栈自检 + 原生发布

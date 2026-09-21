@@ -17,7 +17,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
 | `DuetDiagram.Render` | 渲染与导出（当前只有视口索引） | Phase 1 P1-13 已落地 |
 | `DuetDiagram.Render.Tests` | 空间索引测试 | 已落地 |
-| `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别与导入 | Phase 1 P1-08 / P1-09 已落地 |
+| `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
@@ -142,6 +142,8 @@ dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=QuadTree"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidParsing"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidImport"
+dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidExport"
+dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidRoundTrip"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslParsing"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslCorpus"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslMapping"
@@ -179,7 +181,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`LayoutFallback`、`QuadTree`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 

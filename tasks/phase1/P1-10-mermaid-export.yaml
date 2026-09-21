@@ -1,17 +1,23 @@
 id: P1-10
 title: Mermaid 导出：IR 到 Mermaid 文本
 phase: 1
-status: pending
+status: done
 depends_on: [P1-08, P1-09]
 estimated_loc: 300
 files:
   create:
     - DuetDiagram.Mermaid/Export/MermaidExporter.cs
     - DuetDiagram.Mermaid/Export/ExportOptions.cs
+    - DuetDiagram.Mermaid/Export/ExportReport.cs
     - DuetDiagram.Mermaid.Tests/ExporterTests.cs
     - DuetDiagram.Mermaid.Tests/RoundTripTests.cs
   modify:
     - AGENTS.md
+    - DuetDiagram.Benchmarks/MermaidBenchmarks.cs
+    - DuetDiagram.Mermaid/Lexing/MermaidLexer.cs
+    - DuetDiagram.Mermaid/Parsing/MermaidParser.cs
+    - DuetDiagram.Mermaid.Tests/CorpusParsingTests.cs
+    - tasks/phase1/P1-08-mermaid-lexing-parsing.yaml
 acceptance:
   - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidExport"
     expect: 全通过
@@ -36,6 +42,63 @@ scope_note: |
   方案写这一条依赖 P1-08，估 300 行。依赖上调为 P1-08 + P1-09，理由是它的验收判据
   「往返一致」需要导入才能验——只靠 P1-08 的语法树验不了往返。
   导出本身确实只用到 P1-08 的形状与箭头词汇表。
+result:
+  verdict: 导出与往返完成；97 份语料走一圈之后内容与归属完全一致，第二圈不再有任何变化
+  delivered:
+    structure: 节点、边、子图块（含嵌套与方向）、样式语句
+    ids: 写不出来的标识改名并贯穿引用，改名进报告
+    vocabulary: 形状与连线按各自的词汇表写出；写不出来的退回最接近的写法并记进报告
+    report: ExportReport 按类收拢丢失（端口、图层、布局约束、调色板、令牌等），一类一条
+    determinism: 同一份文档两次导出逐字节相同；行尾一律用换行符，不跟平台走
+    tests: "MermaidExport 36、MermaidRoundTrip 7；Mermaid 合计 179"
+  acceptance:
+    export_budget: "1000 节点导出 < 500 毫秒，实测 2.642 毫秒，余量 189 倍"
+    round_trip: "97 份语料导入出的文档经「导出→再导入」得到等价文档，四条判据全过"
+  evidence: reports/phase1-mermaid-export.md
+  findings:
+    - id: click-is-both-a-keyword-and-a-node-name
+      what: |
+        语料 b-documented/S04 里 `click --> setpwd[设置新密码]` 的 click 是**节点名**，
+        而它同时是一条指令的关键字。词法层原先在行首见到 click 就把整行收成一个文本记号，
+        于是那个节点与它引出的那条边一起消失（只留一条"暂不支持 click 指令"的诊断，
+        而那条诊断本身是错的）。
+      fixed: |
+        两处判据：行首的关键字后面若跟着连线、形状定界符或并列符号，它就是节点而不是指令。
+        词法层据此不收自由尾部，语法层据此不派发到指令分支——两处都要改，
+        因为两种写法（`click --> x` 与 `click["x"]`）走的是不同的分支。
+        修好之后流程图语料零诊断，边数从 1059 变成 1060——**只多一条，说明只丢了这一条**。
+      filed_to: P1-08 的两个语料钉桩数已相应更新，说明写在测试注释里
+    - id: membership-beats-position
+      what: |
+        Mermaid 的语法把**声明位置与归属块绑在一起**：节点写在哪个子图块里就属于哪个子图。
+        而 IR 允许两者不一致——语料 a-bare/C10 的 RBK 先在 W1 块里被引用（首次出现在那儿），
+        后来又在 SHARED 块里带标签声明，于是它的归属是 SHARED 而首次位置在 W1。
+      resolution: |
+        导出按**归属**写（写进归属块），位置因此会挪一次。这不是可以两全的事：
+        要位置就得把它写在原来的位置，那样归属就错了，而归属是结构性的、位置只是层内次序。
+        所以往返的口径定为「第二圈不再有任何变化」——挪过一次之后与语法结构对齐，从此稳定。
+        有一条用例专门守这个口径，另有一条守"归属与内容原样保留"。
+    - id: label-empty-versus-unspecified
+      what: |
+        IR 的 NodeDef.Label 默认是空串，而 DSL 与 Mermaid 两个映射层都在"没写显示文本"时
+        主动回退到标识。于是"空串"到底是"没有标签"还是"空标签"没有定论。
+      resolution: |
+        导出按**字面**写：标签为空串时写 `A[""]`（渲染成空方框），不回退到标识。
+        理由是这是一条真正的不动点——写空标签读回来还是空标签；而回退会让
+        `A[""]` 在往返中变成 `A`。
+        代价是命令层或别处构造出的"没设标签"的节点会导出成空方框。
+        要彻底解决得给 IR 定下这个语义，属 Phase 2 的事。
+      filed_to: 未开任务；记在这里备查
+    - id: hash-does-not-see-node-order
+      what: |
+        DiagramHashing 按标识排序之后算哈希，所以**节点顺序变了哈希不变**。
+        而项目里节点在集合中的位置是层内次序的依据，也就是说顺序会影响布局结果。
+      impact: |
+        "哈希没变"因此不等于"现有坐标仍然有效"——顺序一变，布局结果会变，
+        而哈希说的是不用重排。这条与本任务的往返口径直接相关：往返的第二条判据
+        （内容逐字段相等）之所以比哈希强，就是因为哈希看不见顺序。
+        往返用例因此同时断言内容与归属，不只看哈希。
+      filed_to: 未开任务；见 P1-11 的 open_questions
 open_questions:
   - id: round-trip-scope
     question: 「往返一致」的判定口径是什么？
@@ -50,6 +113,14 @@ open_questions:
       也就是把往返定义成**不动点**：不要求导出的文本与原始 Mermaid 逐字相同，
       只要求「导入 → 导出 → 导入」之后稳定下来。
       这个口径可测、可达，而且正好覆盖真实输入。
+    status: resolved
+    resolution: |
+      **采用建议的口径，并且加了一条更强的：走两圈，第二圈不再有任何变化。** 2026-09-21 定。
+
+      第一圈可能变一次，原因是 Mermaid 的语法把声明位置与归属块绑在一起（见 findings
+      的 membership-beats-position）。第二圈不变才是真正的"稳定下来"。
+      另有两条判据守着更强的性质：内容逐字段相等、每个节点的归属原样保留。
+      为什么不只看哈希：哈希对节点顺序不敏感（见 findings 的 hash-does-not-see-node-order）。
     why_it_matters: |
       口径不定死的话，这条判据要么永远无法验收，要么被悄悄放宽成
       「能跑通就行」——而后者会让往返回归失去意义。
@@ -59,3 +130,13 @@ open_questions:
       上一条决定了丢失不可避免。问题是要不要像导入那样产出一份报告，
       让调用方知道「这次导出丢了哪些东西」。倾向是要——静默丢失会让用户
       以为 Mermaid 文件就是全部内容，而实际不是。
+    status: resolved
+    resolution: |
+      **要，产出 ExportReport。** 2026-09-21 定，已落地。
+
+      - 按类收拢而不是逐个元素一条：同一类丢失往往涉及几十个元素，
+        逐条列出来之后报告会长到没人看。
+      - 清单是照着 IR 逐字段对出来的，新加字段时要跟着补。不补不会报错，
+        只会从报告里悄悄消失。所以报告为空**不等于**无损。
+      - 有一条用例守着底线：语料的文档只用了 Mermaid 表达得出来的东西，
+        导出必须一条丢失都不报。报了说明清单过报，而过报会让真丢失被淹掉。

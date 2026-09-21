@@ -193,7 +193,7 @@ public static class MermaidImporter
             Arrow = link.Arrow == ArrowStyle.Arrow ? null : link.Arrow,
         };
 
-        // ---- 样式与类 ----
+        #region 样式与类
 
         /// <summary>
         /// 把 <c>style</c> 与 <c>classDef</c> + <c>class</c> 解析成"标识到样式"的映射。
@@ -342,7 +342,9 @@ public static class MermaidImporter
             return double.TryParse(text.Trim(), System.Globalization.CultureInfo.InvariantCulture, out result);
         }
 
-        // ---- 标识生成 ----
+        #endregion
+
+        #region 标识生成
 
         /// <summary>
         /// 给未命名的边找一个标识：<c>e1</c>、<c>e2</c>……取第一个空位。
@@ -362,5 +364,7 @@ public static class MermaidImporter
 
             return $"e{counter}";
         }
+
+        #endregion
     }
 }

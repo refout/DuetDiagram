@@ -208,7 +208,14 @@ public static class MermaidLexer
 
             tokens.Add(new MermaidToken(MermaidTokenKind.Word, word, startLine, startColumn));
 
-            if (atLineStart && FreeTailKeywords.Contains(word, StringComparer.Ordinal))
+            // 尾部自由文本只在这类关键字**真的是指令**时收。
+            // 同一个词也可能是节点名——真实语料里有 `click --> setpwd[设置新密码]`，
+            // 那里的 click 是个节点。判据是紧跟其后的字符：连线与形状定界符只可能
+            // 出现在节点或连线里，指令后面接的是普通标识或属性。
+            // 不这样判的话整行会被收成一个文本记号，节点与它引出的连线一起消失。
+            if (atLineStart
+                && FreeTailKeywords.Contains(word, StringComparer.Ordinal)
+                && !StartsNodeOrLink(source, index))
             {
                 EmitFreeTail(source, tokens, ref index, ref column, line);
             }
@@ -386,8 +393,48 @@ public static class MermaidLexer
     /// 非 ASCII 一律放行。中文可以直接当节点标识用，而模型的输出里这种写法很常见。
     /// </para>
     /// </remarks>
-    private static bool IsWordChar(char c) =>
+    public static bool IsWordChar(char c) =>
         char.IsLetterOrDigit(c) || c is '_' or '-' or '.' || c >= '\u0080';
+
+    /// <summary>
+    /// 这段文本能不能原样当作标识写出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 判据有两半，缺一不可：每个字符都得是标识字符，而且里面不能藏着连线记号。
+    /// 后半条容易漏——<c>a--b</c> 每一个字符都是标识字符，可它读出来是
+    /// <c>a</c>、连线、<c>b</c> 三段，而不是一个叫 <c>a--b</c> 的节点。
+    /// </para>
+    /// <para>
+    /// 写在词法层是因为**这里才知道什么算标识**。导出那一侧要判"这个标识写得出来吗"，
+    /// 自己抄一份判据必然与这里分叉，而分叉的表现是导出结果再导入时被切成两段。
+    /// </para>
+    /// </remarks>
+    public static bool IsPlainIdentifier(string text)
+    {
+        if (text.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var c in text)
+        {
+            if (!IsWordChar(c))
+            {
+                return false;
+            }
+        }
+
+        for (var index = 0; index < text.Length; index++)
+        {
+            if (TryReadArrow(text, index) is not null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static string ReadToLineEnd(string source, int index)
     {
@@ -399,6 +446,27 @@ public static class MermaidLexer
         }
 
         return source[index..end];
+    }
+
+    /// <summary>
+    /// 从这个位置往后看，像不像一条节点或连线语句的开头。
+    /// </summary>
+    /// <remarks>
+    /// 只看紧接着的那个非空白字符：形状定界符、连线记号、并列符号三者只可能出现在
+    /// 节点或连线里。空白要先跳过，因为 <c>click --&gt; x</c> 与 <c>click--&gt;x</c> 都得认。
+    /// </remarks>
+    private static bool StartsNodeOrLink(string source, int index)
+    {
+        var probe = index;
+
+        while (probe < source.Length && source[probe] is ' ' or '\t')
+        {
+            probe++;
+        }
+
+        return TryReadShape(source, probe) is not null
+            || TryReadArrow(source, probe) is not null
+            || (probe < source.Length && source[probe] == '&');
     }
 
     private static (string Open, string Close)? TryReadShape(string source, int index)

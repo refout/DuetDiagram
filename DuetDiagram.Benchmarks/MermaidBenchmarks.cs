@@ -1,5 +1,7 @@
 using System.Text;
 using BenchmarkDotNet.Attributes;
+using DuetDiagram.Core.Model;
+using DuetDiagram.Mermaid.Export;
 using DuetDiagram.Mermaid.Import;
 using DuetDiagram.Mermaid.Lexing;
 using DuetDiagram.Mermaid.Parsing;
@@ -16,7 +18,7 @@ namespace DuetDiagram.Benchmarks;
 /// </para>
 /// <para>
 /// 规模是 1000 节点、950 条连线、20 个子图、带样式——按验收口径
-/// "1000 节点导入不超过 500 毫秒"来定。
+/// "1000 节点导入不超过 500 毫秒"来定。导出用同一份文档，两边的数字才可比。
 /// </para>
 /// </remarks>
 [MemoryDiagnoser]
@@ -24,9 +26,16 @@ namespace DuetDiagram.Benchmarks;
 public class MermaidBenchmarks
 {
     private string _source = string.Empty;
+    private DiagramDocument _document = new("bench");
 
     [GlobalSetup]
-    public void Setup() => _source = Layered(depth: 20, breadth: 50);
+    public void Setup()
+    {
+        _source = Layered(depth: 20, breadth: 50);
+        _document = MermaidImporter
+            .Import(MermaidParser.Parse(_source), new ImportOptions { DocumentId = "bench" })
+            .Document;
+    }
 
     /// <summary>词法：源文本切成记号。</summary>
     [Benchmark]
@@ -42,6 +51,14 @@ public class MermaidBenchmarks
         MermaidImporter
             .Import(MermaidParser.Parse(_source), new ImportOptions { DocumentId = "bench" })
             .Document.Nodes.Count;
+
+    /// <summary>导出：IR 写回 Mermaid 文本。</summary>
+    /// <remarks>
+    /// 测的是导出本身，不含导入——导入的耗时在上一条里，两者相加才是往返的开销。
+    /// </remarks>
+    [Benchmark]
+    public int Export_1000_Nodes() =>
+        MermaidExporter.Export(_document, new ExportOptions()).Text.Length;
 
     /// <summary>
     /// 造一份分层的流程图。

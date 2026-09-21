@@ -232,6 +232,18 @@ public static class MermaidParser
                 return;
             }
 
+            // 这一行的第一个词与某个指令同名，但它其实是节点或连线的起点。
+            // 真实语料里出现过：`click --> setpwd[设置新密码]` 里的 click 是节点名，
+            // 而它同时是一条指令的关键字。判据是紧跟其后的记号——连线、形状定界符、
+            // 并列符号三者只可能出现在节点或连线里，指令后面接的是普通词或属性。
+            // 不这样判的话那一行会被当成指令跳过，连带它引出的连线一起消失，
+            // 而症状是"图上少了一个节点和一条线"，极难归因到关键字撞名。
+            if (StartsNodeOrLink(cursor))
+            {
+                NodeOrLink(cursor);
+                return;
+            }
+
             switch (first.Text)
             {
                 case "subgraph":
@@ -678,6 +690,19 @@ public static class MermaidParser
                 ? trimmed[1..^1]
                 : trimmed;
         }
+
+        /// <summary>
+        /// 这一行虽然以指令关键字开头，其实是一条节点或连线语句。
+        /// </summary>
+        /// <remarks>
+        /// 判据只看第一个词之后的那个记号：连线、形状定界符、并列符号这三样只可能出现在
+        /// 节点或连线里。指令后面接的是普通词（<c>subgraph 名字</c>）或属性列表
+        /// （<c>style 名字 属性</c>），都不会是这三样。
+        /// </remarks>
+        private static bool StartsNodeOrLink(Cursor cursor) =>
+            cursor.PeekAt(1).Kind is MermaidTokenKind.Arrow
+                or MermaidTokenKind.ShapeOpen
+                or MermaidTokenKind.Ampersand;
 
         /// <summary>形状定界符到 IR 形状的映射。</summary>
         private static NodeShape ShapeOf(string open) => open switch

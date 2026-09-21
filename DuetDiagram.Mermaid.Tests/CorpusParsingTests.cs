@@ -79,14 +79,17 @@ public sealed class CorpusParsingTests
     {
         // 把已知的那几条固定下来。数字变了说明语料用到了新构造，
         // 那是有信息量的变化，应当被看见而不是被"非空即可"的断言吞掉。
+        //
+        // **2026-09-21：从一条降为零条。** 原先那一条是 b-documented/S04 的
+        // "暂不支持 click 指令，已跳过"——而它根本不是什么指令：那一行是
+        // `click --> setpwd[设置新密码]`，click 是节点名，只是撞上了指令关键字。
+        // 判据修好之后（行首的关键字后面若跟着连线或形状定界符，它就是节点），
+        // 流程图语料里再没有需要跳过的内容了。
         var diagnostics = Flowcharts()
             .SelectMany(pair => pair.Chart.Diagnostics.Select(d => (pair.Entry, Diagnostic: d)))
             .ToArray();
 
-        diagnostics.Should().HaveCount(1);
-        diagnostics[0].Diagnostic.Message.Should().Contain("click");
-        diagnostics[0].Entry.Arm.Should().Be("b-documented");
-        diagnostics[0].Entry.PromptId.Should().Be("S04");
+        diagnostics.Should().BeEmpty();
     }
 
     [Fact]
@@ -210,7 +213,11 @@ public sealed class CorpusParsingTests
         var charts = Flowcharts().Select(pair => pair.Chart).ToArray();
 
         charts.Sum(c => c.Nodes.Count).Should().Be(993);
-        charts.Sum(c => c.Links.Count).Should().Be(1059);
+
+        // **2026-09-21：从 1059 加到 1060。** S04 里 `click --> setpwd[设置新密码]`
+        // 那一行原先被当成 click 指令跳过了，边跟着一起丢；判据修好之后它回来了。
+        // 加一而不是加多，说明只丢了这一条。
+        charts.Sum(c => c.Links.Count).Should().Be(1060);
         charts.Sum(c => c.Subgraphs.Count).Should().Be(77);
 
         // 有子图的文件占了近四分之一，子图不是边角特性。

@@ -18,8 +18,8 @@
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
-| tools | 28 | 6222 | 4265 | 975 | 982 |
-| **合计** | **178** | **32839** | **20966** | **6643** | **5230** |
+| tools | 34 | 7468 | 5112 | 1201 | 1155 |
+| **合计** | **184** | **34085** | **21813** | **6869** | **5403** |
 
 ## 明细
 
@@ -242,15 +242,21 @@
 
 | 文件 | 代码 |
 |---|---:|
+| Agreement.cs | 392 |
+| Blind.cs | 207 |
 | Corpus.cs | 89 |
+| Digest.cs | 15 |
 | Generator.cs | 143 |
-| Listings.cs | 486 |
+| Judging.cs | 40 |
+| Listings.cs | 300 |
 | Predicate.cs | 527 |
-| Program.cs | 123 |
-| Scoring.cs | 312 |
+| Program.cs | 160 |
+| Ratings.cs | 108 |
+| Sample.cs | 261 |
+| Scoring.cs | 271 |
 | Semantic.cs | 201 |
 | Structure.cs | 170 |
-| Support.cs | 120 |
+| Support.cs | 134 |
 | Verify.cs | 239 |
 | Program.cs | 155 |
 | ApiDump.cs | 58 |

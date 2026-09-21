@@ -30,7 +30,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
 | `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
 | `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
-| `tools/CompareHarness` | 对比测试的语料生成、盲评装置与谓词评分（不进 sln） | 已落地 |
+| `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `DuetDiagram.Llm` / `.Mcp` | 后续 Phase | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
@@ -172,6 +172,13 @@ dotnet run --project tools/CompareHarness -c Release -- verify
 # 谓词口径的端到端准确率（读冻结语料，逐字节可复现）
 # 它是一张回归网，不是判定门的答案，理由写在 reports/compare-blind/predicate-report.md
 dotnet run --project tools/CompareHarness -c Release -- score
+
+# 抽样：挑一批条目交给人判，用来校谓词。产物 sample-rater.md + human/template.json
+dotnet run --project tools/CompareHarness -c Release -- sample
+
+# 人工评分与谓词的一致率。读 reports/compare-blind/human/ratings-*.json，
+# 算出 agreement.md 并列出分歧。没有评分文件时不生成报告。
+dotnet run --project tools/CompareHarness -c Release -- agreement
 
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release

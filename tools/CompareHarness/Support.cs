@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -145,6 +146,36 @@ internal sealed class PromptSet : IEnumerable<Prompt>
 }
 
 /// <summary>
+/// 写进报告与清单的路径。
+/// </summary>
+/// <remarks>
+/// <see cref="System.IO.Path.Combine(string, string)"/> 在 Windows 上给的是反斜杠，而这些文本
+/// 是要交给人照着敲命令的，也要求同一台机器重跑逐字节一致。统一成正斜杠，
+/// 两个平台上的产物才是同一份。
+/// </remarks>
+internal static class Display
+{
+    public static string Path(string path) => path.Replace('\\', '/');
+}
+
+/// <summary>
+/// 写 JSON 时的统一设置。
+/// </summary>
+/// <remarks>
+/// 缩进是为了能对着文件核；不转义非 ASCII 是为了能读——默认编码器会把中文写成
+/// <c>\uXXXX</c>，而其中一份文件是要交给人手填的，满屏转义码看不出哪一栏写的是什么。
+/// 这里写的都是本地文件，不做 HTML 嵌入，所以放宽转义没有风险。
+/// </remarks>
+internal static class Json
+{
+    public static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+}
+
+/// <summary>
 /// 一个对照组。
 /// </summary>
 /// <remarks>
@@ -192,6 +223,16 @@ internal sealed record Options(
 
     /// <summary>盲评清单的输出处。</summary>
     public const string DefaultListingsRoot = "reports/compare-blind";
+
+    /// <summary>
+    /// 人工评分放在结果目录下的这个子目录里。
+    /// </summary>
+    /// <remarks>
+    /// 单独一层子目录是为了能整目录忽略：评分文件是人工产出的工作材料，
+    /// 里面还带着"哪一条来自哪一组"的对照，不该进版本库。
+    /// 汇总结论进版本库，原始评分不进。
+    /// </remarks>
+    public const string HumanDirectoryName = "human";
 
     /// <summary>是否选中这条提示词。没指定筛选时全部选中。</summary>
     public bool Selects(Prompt prompt) =>

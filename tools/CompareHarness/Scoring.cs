@@ -29,7 +29,6 @@ internal static class Scoring
     public static int Run(string promptsPath, string corpusRoot, string outputRoot)
     {
         var prompts = PromptSet.Load(promptsPath);
-        var byId = prompts.ToDictionary(prompt => prompt.Id, StringComparer.Ordinal);
         var records = Corpus.Load(corpusRoot, Structure.Arms);
         var (missing, drifted) = Corpus.Reconcile(records, prompts);
 
@@ -46,7 +45,9 @@ internal static class Scoring
             return 1;
         }
 
-        var judged = records.Select(record => Judge(record, byId[record.PromptId])).ToArray();
+        // 解析、匿名化、逐项判定都走共用入口：抽样与算一致率看到的是同一份清单，
+        // 三处各自实现的话，"人判的是哪一份"说不清，一致率也就不成立。
+        var judged = Judging.RunAll(Blind.Build(prompts, records));
 
         Directory.CreateDirectory(outputRoot);
 
@@ -61,69 +62,6 @@ internal static class Scoring
 
         return 0;
     }
-
-    #region 逐份判定
-
-    /// <summary>一条检查项在一份语料上的判定。</summary>
-    /// <param name="Index">在提示词的检查项列表里的序号，从 0 数。</param>
-    /// <param name="Text">检查项原文。</param>
-    /// <param name="Machine">这一项有没有谓词。</param>
-    /// <param name="Pass">通过与否。没有谓词时恒为假，报告里不把它算进分母。</param>
-    /// <param name="Reason">不通过的原因，给人复核用。</param>
-    private sealed record CheckVerdict(int Index, string Text, bool Machine, bool Pass, string? Reason);
-
-    /// <summary>一份语料的判定。</summary>
-    private sealed record Judged(
-        ResponseRecord Record,
-        Prompt Prompt,
-        StructureListing Listing,
-        CheckVerdict[] Checks)
-    {
-        public bool Parsed => !Structure.IsRejected(Listing.Outcome);
-
-        public int MachineCount => Checks.Count(check => check.Machine);
-
-        public int MachinePassed => Checks.Count(check => check.Machine && check.Pass);
-
-        /// <summary>有谓词的项全过。没有谓词的项不参与——它们的结论要等人工。</summary>
-        public bool AllMachinePassed => MachineCount > 0 && MachinePassed == MachineCount;
-    }
-
-    private static Judged Judge(ResponseRecord record, Prompt prompt)
-    {
-        var parsed = Structure.Parse(record.Arm, record.Content);
-
-        // 判的是**评分者看到的那一份**：标识已换成流水号、换行标记已抹平。
-        // 这样机器判定与人工判定看的是同一件东西，将来拿人工评分来校谓词才对得上。
-        var listing = Listings.Sanitize(parsed);
-        var index = new StructureIndex(listing);
-        var reject = Structure.IsRejected(listing.Outcome);
-        var verdicts = new CheckVerdict[prompt.Checks.Length];
-
-        for (var i = 0; i < prompt.Checks.Length; i++)
-        {
-            var check = prompt.Checks[i];
-
-            if (check.When is null)
-            {
-                verdicts[i] = new CheckVerdict(i, check.Text, false, false, null);
-            }
-            else if (reject)
-            {
-                // 解析失败必然不通过，且不能从分母里剔除。这是判定口径定死的。
-                verdicts[i] = new CheckVerdict(i, check.Text, true, false, "解析器没给出结构，必然不通过。");
-            }
-            else
-            {
-                var verdict = check.When.Evaluate(index);
-                verdicts[i] = new CheckVerdict(i, check.Text, true, verdict.Pass, verdict.Reason);
-            }
-        }
-
-        return new Judged(record, prompt, listing, verdicts);
-    }
-
-    #endregion
 
     #region 报告
 

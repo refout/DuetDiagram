@@ -48,3 +48,12 @@ packages/
 reports/compare-blind/rater.md
 reports/compare-blind/items.json
 reports/compare-blind/key.json
+
+# 抽样评分表与它的对照表，理由同上。
+reports/compare-blind/sample-rater.md
+reports/compare-blind/sample-key.json
+
+# 人工评分。里面既有评分者本人的判断，也有"哪一条来自哪一组"的对照，
+# 不进版本库。由它算出来的结论 reports/compare-blind/agreement.md 进仓库，
+# 报告里记着评分文件的指纹，对得上才认。
+reports/compare-blind/human/

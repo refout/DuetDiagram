@@ -59,13 +59,20 @@ scope_note: |
 progress:
   updated_at: 2026-09-21
   note: |
-    **装置的一半已落地，结论那一半没做，这是刻意的。**
+    **装置这一半齐了，结论那一半没做，这是刻意的。**
     见 reports/compare-blind/conclusion.md。
+
+    六个命令：`generate`（生成语料）、`listings`（盲评清单 + 解析统计）、
+    `semantic`（语义拒绝率）、`score`（谓词口径的端到端准确率）、
+    `verify`（求值器自检）、`sample` / `agreement`（人工评分与谓词的一致率）。
+    剩下的全是人工活：填 60 份抽样评分，然后才是全量判定。
 
     落地位置与上面 files 一节写的不一样：装置在 `tools/CompareHarness`（不进 sln），
     没有建 `DuetDiagram.Compare.Tests`。理由与 tools/ 下其它几个一样——
     它跑一次就要花钱调模型，不适合进 CI。能进 CI 的那部分做成了 `verify` 命令：
     谓词求值器的自检加"检查项本身读不读得进来"，不需要语料、不需要网络、不进 sln。
+    所以 acceptance 里那两条 `dotnet test --project DuetDiagram.Compare.Tests/…`
+    **跑不了**，它们对应的验证改由上面这些命令承担。
   landed:
     - tools/CompareHarness 的 listings 命令：冻结语料 → 盲评清单 + 解析统计，逐字节可复现
     - reports/compare-blind/parse-report.md：解析错误率（真实测量）
@@ -77,10 +84,15 @@ progress:
       新增 Predicate.cs（模型与求值器）、Scoring.cs（score 命令）、Verify.cs（求值器自检），
       prompts.json 升到 version 2
     - reports/compare-blind/predicate-report.md：谓词口径的端到端准确率
+    - tools/CompareHarness 的 sample 与 agreement 命令（2026-09-21 补，
+      见 open_questions.who-scores）：抽样清单 + 空白模板、人工评分与谓词的一致率。
+      共用的判定管线抽在 Blind.cs（解析、匿名化）与 Judging.cs（逐项判定），
+      三条命令不再各解析一遍
   not_landed:
     - 人工修正步骤、首轮通过率——谓词判不了"多余"，这两项只能靠人
     - 端到端准确率的口径虽然能算，但对照组贴顶、失去区分力（见 findings.predicate_saturation），
       所以判定门第一条仍然要人判
+    - 人工评分本身：装置齐了，评分还没收，所以 agreement.md 还不存在
     - 决策门 1 的结论
   findings:
     checkability: |
@@ -125,7 +137,17 @@ progress:
       同一件事还暴露了求值器的另一处：`IsDescendant` 只查节点的父级表，
       嵌套分组永远查不到祖先，于是 groupMembers 的 memberGroups 分支恒不成立。
       也已修，并进了 Verify.cs 的自检。
-      registered_elsewhere:
+    predicate_failures_are_rare: |
+      抽样时量了一遍「谓词判不通过」的条目有多少：**150 份里只有 4 份**
+      （a-bare 3、c-dsl 1、b-documented 0），其余 146 份三组谓词全过。
+      这是 predicate_saturation 的另一面：不只是"三组之间没有差别"，
+      而是"几乎没有任何一份被谓词判过不通过"。
+
+      对抽样设计有直接影响：分层只能多收 4 份，其余 56 份按固定顺序补。
+      另：a-bare 那 3 份之外还有 3 份解析失败，最初的分层把它们也当成了
+      "判不通过"优先收。那是错的——解析失败的谓词必然判不通过，人看一眼也会说不通过，
+      两边永远一致，收进来只挤掉真正有分歧的条目。已改成只收「解析成功且判不通过」的。
+  registered_elsewhere:
     - 竖线边标签不剥引号、边指向分组 → P1-09（都已在 P1-09 / P1-10 里处置）
 open_questions:
   - id: who-scores
@@ -136,8 +158,42 @@ open_questions:
       （每条 prompt × 每个检查项 × 两名评分者）与存放位置，否则汇总算不出来。
       建议放在 reports/ 下与盲评清单同目录，且**不进版本库**——
       评分是人的工作产物，混进仓库会让「语料冻结」这件事变得模糊。
-    status: open
-    blocked_on: 用户拍板
+    status: resolved
+    resolution: |
+      **2026-09-21 定了，分两步走，第一步是校准而不是判定。**
+
+      先校准。谓词是拿 150 份语料对着调出来的，还没跟人核过（见
+      open_questions.checks-not-machine-checkable）。全量 150 份 × 逐项 × 两人
+      的量太大，而校准只需要发现"谓词哪里写错了"，不需要对每一份都下结论。
+      所以先抽 60 份（每组 20）逐项判，算谓词与人的一致率。
+
+      校准通过之后才轮到判定。那时检查项可以交给机器，人只需要给
+      「修正步数」与「多出来的东西」——这两项谓词判不了，也正是判定门里
+      首轮通过率与人工修正步骤要的两个数。全量人工成本因此从"每份逐项判五条"
+      降到"每份填一个步数"。**这不是把判定门那一步省掉，是把它前面的判据先落实。**
+
+      **落盘格式与位置：**
+      - 目录 `reports/compare-blind/human/`，**整目录不进版本库**。
+      - 文件名 `ratings-<评分者>.json`。
+      - 键是抽样清单上的编号；值是 `{ "checks": [1,0,null,…], "steps": 0, "extra": "" }`。
+        `checks` 逐项填 1（通过）/0（不通过）/null（未判），`steps` 是人工修正步数，
+        `extra` 写多出来的东西。
+      - 文件里的 `sample` 字段记抽样清单的指纹，对不上就报错不干活——
+        编号指的是不同的条目时，按序号对齐会把判定安到错的话上，而算出来的数字看起来正常。
+      - 格式只认严的：编号不认识、项数对不上、值不是 0/1/null，一律报错并指出位置。
+        放过去的代价是那几项从分母里静默消失。
+
+      **工具：** `sample` 生成清单与空白模板，`agreement` 读评分文件算一致率并列出分歧。
+      抽样的分层口径是「谓词判不通过、且解析成功的优先收」；解析失败的排除在优先层之外，
+      它们的谓词必然判不通过，人看一眼也会说不通过，两边永远一致，问不出谓词错在哪。
+      汇总结论 `agreement.md` 进版本库，里面记着每份评分文件的指纹。
+
+      **状态：装置已落地，人工评分还没收，所以 `agreement.md` 还不存在。**
+      先放一份假报告进去只会被后来的读者当成真数据。
+    evidence: |
+      tools/CompareHarness/Sample.cs、Ratings.cs、Agreement.cs；
+      reports/compare-blind/sample-rater.md（60 份清单，不进版本库）；
+      reports/compare-blind/README.md（工作流程与文件去向）
   - id: checks-not-machine-checkable
     question: 要不要把 256 个检查项改写成可判定的形式？
     detail: |

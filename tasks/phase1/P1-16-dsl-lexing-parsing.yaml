@@ -1,7 +1,7 @@
 id: P1-16
 title: DSL 词法与语法
 phase: 1
-status: pending
+status: done
 depends_on: [P1-01]
 estimated_loc: 400
 files:
@@ -9,18 +9,28 @@ files:
     - DuetDiagram.Dsl/DuetDiagram.Dsl.csproj
     - DuetDiagram.Dsl/Lexing/DslToken.cs
     - DuetDiagram.Dsl/Lexing/DslLexer.cs
+    - DuetDiagram.Dsl/Lexing/DslSource.cs
     - DuetDiagram.Dsl/Parsing/DslAst.cs
     - DuetDiagram.Dsl/Parsing/DslParser.cs
     - DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj
+    - DuetDiagram.Dsl.Tests/Corpus.cs
+    - DuetDiagram.Dsl.Tests/AstProjection.cs
     - DuetDiagram.Dsl.Tests/LexerTests.cs
     - DuetDiagram.Dsl.Tests/ParserTests.cs
+    - DuetDiagram.Dsl.Tests/CorpusParsingTests.cs
   modify:
     - DuetDiagram.slnx
     - AGENTS.md
+    - docs/DSL-Syntax.md
+    - .github/workflows/ci.yml
 acceptance:
   - command: dotnet build DuetDiagram.slnx -c Release
     expect: exit 0，0 警告
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslLexing"
+    expect: 全通过
   - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslParsing"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslCorpus"
     expect: 全通过
   - command: dotnet run --project tools/LocCounter -c Release -- --root . --check
     expect: 一致
@@ -48,24 +58,120 @@ scope_note: |
 open_questions:
   - id: attribute-value-quoting
     question: 属性值里出现空格时怎么办？
-    detail: |
-      现约定是「显示文本与 desc 必须加引号，属性值不加引号」。
-      但 `desc="这是一段说明"` 里可以带空格，而 `shape="rounded rect"` 这种
-      带空格的属性值没有定义。词法层要先知道这个，否则切分规则定不下来。
+    status: resolved
+    resolution: 显示文本与 desc 加引号，其余属性值是不含空格的裸记号。属性值要带空格时走引号形式
+    evidence: 五十份语料里零个带引号、零个含空格的属性值；用到的键只有 shape / style / line / arrow
   - id: escaping
     question: 显示文本里的引号与换行怎么转义？
-    detail: |
-      `label "他说\"好\""` 还是 `label '他说"好"'`？换行是写成 \n 还是不允许？
-      规格里没定，而它直接决定词法层的字符串扫描怎么写。
+    status: resolved
+    resolution: 支持 \" \\ \n 三种，其余 \x 原样保留反斜杠
+    evidence: 五十份语料里零个反斜杠，因此这一条没有语料压力，取超集是因为成本为零
   - id: units
     question: pin 的坐标要不要支持百分比或单位？
-    detail: |
-      当前是无单位数字。若以后要支持百分比（相对画布），词法层现在就得预留，
-      否则改起来要动整个数值记号的定义。
+    status: resolved
+    resolution: 只支持无单位数字，含负号与小数
+    evidence: "% 在五十份里出现四次，全部在引号内的显示文本里，没有一次是数字"
   - id: error-recovery-granularity
     question: 一行解析失败时，是跳过该行继续，还是整份拒绝？
-    detail: |
-      docs/DSL-Syntax.md 的「待定」里列了这一条，但它与对比测试直接相关：
-      解析错误率的分子是「解析器拒绝的数量」，而「拒绝」的定义取决于这个粒度。
-      口径不定，P1-14 的第一个指标就算不出来。
-      倾向与 Mermaid 侧一致（跳过坏行、记诊断、继续），但那要先确认。
+    status: resolved
+    resolution: 跳过坏行、记一条诊断、继续。整份拒绝只用于「图类型不是流程图」这一种情况
+    evidence: 与 Mermaid 侧同一口径；口径不一致的话 P1-14 的对比量到的是口径差异而不是格式差异
+result:
+  verdict: 词法与语法两层完成，五十份真实语料全部解析干净（零诊断）
+  pushed_forward: 剥围栏这一步原先不在任务范围内，是读语料时发现的必需项
+  corpus_composition:
+    arm: c-dsl
+    count: 50
+    kind: 五十份全部是 flowchart
+    fenced: 15
+    fenced_tags: "dsl / flow / text / 空，四种都有，所以只能整行跳过而不能按标签匹配"
+  corpus_scale:
+    nodes: 451
+    edges: 491
+    groups: 48
+    files_with_groups: 18
+    largest_nodes: 18
+    largest_edges: 22
+    note: |
+      比 Mermaid 组小（那边最大 31 节点 / 32 边）。原因不是模型写得少，
+      而是 DSL 每行更长，同样长度的回答装不下同样多的节点。这一条对
+      P1-14 的 token 效率指标有直接影响，对比时必须按「每个节点多少 token」算而不是按总量
+  layout_intents_in_corpus:
+    same-rank: 32
+    order: 64
+    align: 0
+    place: 0
+    pin: 0
+    note: |
+      align / place / pin 是零，不是没人要，而是这一批提示词没有要求人工微调——
+      它们是拖动之后才写回的东西，语料生成时还不存在拖动。那三条只有手写用例保证，
+      不能宣称「语料验过」
+  delivered:
+    source: 剥 Markdown 围栏，四种标签一视同仁
+    lexer: 行有意义、引号文本与转义、连线与无箭头连线、负号与小数、连字符标识、位置信息
+    parser: 版本与图类型与方向、节点与属性与端口、边与标识与属性、三种分组与嵌套、五类布局意图与两种间距
+    diagnostics: 认不出的内容记成诊断而不抛异常；坏行跳过、其余保留
+    tests: "词法用例 30、语法用例 62、语料回归 12，共 104"
+  design_decisions:
+    end_is_conditional: end 只在「有分组打开」且「这一行只有 end」时才是关键字
+    members_derived: 分组成员从子项的父级**推导**，不是解析时另行登记的第二份记录
+    implicit_creation_deferred: 语法层不替边端点建节点，隐式创建留给映射阶段（P1-17）。Mermaid 侧同样如此，两边一致 P1-14 的对比才是在比格式差异而不是比实现差异
+    fence_separate_layer: 剥围栏与词法分析分开，与 Mermaid 侧同构。失败时能一眼看出是哪一层的错
+    duplicate_fence_stripper: 两份剥围栏实现是刻意重复的——Mermaid 与 DSL 互不依赖，而 Core 的职责是 IR 与命令总线，把 Markdown 围栏的知识塞进去不属于它的章程
+    order_is_list: 各集合按首次出现顺序排列。顺序是层内次序的依据，用集合会让同一份输入两次解析出不同的图
+    spacing_null_means_unset: 间距缺省留 null 而不是填解析器自己的默认值。填在这里会让「用户没写」和「用户写了 40」变成同一件事
+    attribute_values_bare: "属性值是不含空格的裸记号。唯一例外是 ports——它在记号流里是一串（冒号与逗号被词法层切开），由 ReadPortList 接回原文再切分"
+  findings:
+    end_as_node_name: |
+      S07 里 end 是终点的名字（`end "结束" shape=stadium`，后面还有三条边连到它）。
+      原先无条件把行首 end 当分组收尾，后果是那一行被吞掉、节点没声明、
+      引用它的边与 order 全部指向不存在的节点——整份图错位，
+      而诊断只有一条「没有对应分组的 end」，指向的原因完全不对。
+      改成两个条件之后，带内容的 end 一律当标识，光杆 end 且有分组打开才收尾
+    from_port_silently_dropped: |
+      `api.req -> web`（起点带端口）原先落到节点解析分支上，整条边被 Justify
+      静默跳过——图上少一条线而没有任何提示。判据改成前瞻：
+      标识后跟「点 加 标识 加 连线」就是边。这个 bug 是写测试时发现的，
+      语料里没有 dot-port 用法，所以语料回归挡不住它
+    fractional_numbers_split: |
+      `pin a at 12.5, 3.25` 里的 12.5 被切成 Word(12) Dot Word(5)。
+      词法层的数字读取原先只吃连续数字，现在连着小数部分一起吃。
+      点只在后面真跟着数字时才吃——无条件吃会让 `a.5` 从「节点 a 的端口 5」
+      变成「节点 a5」
+    ports_only_first_token: |
+      `ports=req:left,resp:right` 原先只拿到第一个记号（req），因为 : 与 , 是独立记号。
+      现在由 ReadPortList 接回原文再切分，停止条件是「下一个属性开始了」而不是「遇到逗号」
+    stray_content_silently_eaten: |
+      `a b`（想写边却漏了连线）、`a -> b 多余`、`a.req` 这三种都会让多余记号
+      被 Justify 静默吃掉。现在节点与边声明读完属性后都检查是否有剩。
+      Unknown 记号排除在外，交给 Justify 报更具体的说法（如「字符串没有收尾引号」），
+      否则同一条会出两条诊断
+    unterminated_string_message_never_fired: |
+      Justify 里「字符串没有收尾引号」这条判断看的是记号文本是否以引号开头，
+      而 ReadQuoted 返回的文本**不含**开引号，所以这条永远走不到，
+      实际报的是笼统的「不认识的字符」。修法是未收尾时把开引号补回原文
+    group_node_name_collision: |
+      C02 里 pay 既是一个节点（「完成支付」，在 lane user 里）又是一个泳道
+      （lane pay「支付服务」）。两个声明各自合法，DSL 也允许，但 IR 的约定是
+      节点与组合共用一个标识命名空间，所以映射阶段必须合并或改名，
+      否则导入出来的图上会有一个与泳道同名的方块。
+      Mermaid 侧有完全同类的现象：那边是子图被当成边端点用，语料里七次。
+      两个格式都会撞，说明这不是边角情况——模型天然会把「那个阶段」和「那个框」取同一个名字
+    record_equality_again: |
+      DslNodeDeclaration / DslLayoutIntent / DslGroupDeclaration 都带列表成员，
+      记录的自动相等性对它们用引用比较，两次解析结果被判为不等。
+      测试里改用 AstProjection 投影成字符串再比。同一个坑在 Core 踩过两次、Mermaid 一次
+  deviations:
+    loc: |
+      预估 400 行，实际 Dsl 工程 1102 行代码、Dsl.Tests 962 行，合计 2064。
+      主因是注释密度（Dsl 工程 320 行注释）与语料回归的体量，不是实现本身膨胀
+    added_files: |
+      任务原定 8 个文件，实际 12 个。多出的是 DslSource.cs（剥围栏）、
+      Corpus.cs 与 CorpusParsingTests.cs（语料回归）、AstProjection.cs（记录相等性的规避）。
+      前三个是 P1-08 已有的同类物，第四个是踩到同一个坑之后的共用规避
+  not_verified:
+    - 语义映射（DSL 到 IR）未实现，属 P1-17。本任务只到抽象语法树
+    - ports / align / place / pin / subflow / layer / desc / 边标识 / 无箭头连线 / 转义 / 带引号属性值 这十一项语法在五十份语料里一次都没出现，只有手写用例覆盖
+    - 语料里只有 kind flowchart，另外三种图类型（flow / block / state）的语义差异未验证
+    - 分组与节点同名时怎么处理（C02 的 pay）取决于 IR 如何表达复合节点，属 P1-17
+    - 宽松模式（跳过坏行之外是否还有别的容错）未与 Mermaid 侧对齐到细节，P1-09 / P1-17 再定

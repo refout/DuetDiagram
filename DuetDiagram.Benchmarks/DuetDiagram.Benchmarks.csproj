@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Mermaid\DuetDiagram.Mermaid.csproj" />
     <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
   </ItemGroup>
 

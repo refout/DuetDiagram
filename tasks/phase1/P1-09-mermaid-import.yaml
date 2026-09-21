@@ -1,7 +1,7 @@
 id: P1-09
 title: Mermaid 导入：抽象语法树到 IR 的映射与宽松模式
 phase: 1
-status: pending
+status: done
 depends_on: [P1-08]
 estimated_loc: 350
 files:
@@ -14,7 +14,7 @@ files:
     - DuetDiagram.Benchmarks/MermaidBenchmarks.cs
   modify:
     - AGENTS.md
-    - docs/IR-Schema.md
+    - tasks/phase1/P1-10-mermaid-export.yaml
 acceptance:
   - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidImport"
     expect: 全通过
@@ -46,6 +46,36 @@ scope_note: |
   映射不写，导入这条线就没有产出物，P1-10 也没有东西可导出。
 
   因此本任务 = 映射 + 宽松模式，估行相应上调。这不是范围蔓延，是把方案漏掉的一步补回它该在的位置。
+result:
+  verdict: 一百份语料里的 97 份流程图全部导入，产物通过 DiagramValidator 零问题
+  delivered:
+    nodes: 显示文本省略时回退到标识；形状直传；所属子图作为父级
+    links: 生成标识（Mermaid 的连线没有标识，而 IR 的边必须有）；与缺省相同的线型与箭头不写出来
+    subgraphs: 落成 GroupDef，成员按父级重推且**含嵌套子图**——语法树的成员表里只有节点，
+      照抄会让外层组合的成员表与父级字段对不上
+    composite_endpoints: 与子图同名的节点声明被丢掉，标识让给子图，并记进报告
+    styles: style 与 classDef/class 落成具体颜色的 NodeStyle（填充、描边、文字色、描边粗细）
+    report: Diagnostics / DroppedNodes / IgnoredStyleProperties 三份列表，各有出处
+    tests: "MermaidImport 27、语料导入 5；Mermaid 合计 136"
+  design_decisions:
+    groups_win_over_nodes: 子图被当成连线端点时，节点那一份丢掉而不是改名——那份节点是解析器
+      顺手造出来的，不是用户写的声明，而 Mermaid 渲染的就是两个子图框之间的连线
+    classes_are_two_pass: 先收全部类定义再套用。Mermaid 要求先定义后套用，但两趟没有代价，
+      而一趟时"先套用后定义"会静默丢掉样式
+    member_order: 先节点、后嵌套分组，与 DSL 侧同一条规则，两边的产物才可比
+  findings:
+    - id: corpus-count
+      what: |
+        一百份语料里 97 份是流程图，另外 3 份图类型不对（都是 a-bare 组）。
+        这个数是从产物里数出来的，不是假设的——用例把它钉住了，
+        对不上说明有流程图被误判，或者反过来。
+    - id: no-implicit-node-creation-needed
+      what: |
+        导入层**没有**补隐式节点，因为它依赖"解析器读到连线时会顺手给两端各造一个节点"。
+        那条性质属于 P1-08，将来可能变。
+      mitigation: |
+        有一条用例逐份检查每条边的两端都有落点。将来那条性质变了，它会直接报出是哪个端点没落地，
+        而不是让边悄悄地少一条——少一条线不容易被归因到解析器改了行为。
 open_questions:
   - id: subgraph-as-endpoint
     question: 子图被当作连线端点时怎么映射？
@@ -101,6 +131,22 @@ open_questions:
       带的话就该改语法参考（不该教模型这么写），不带的话就该在 `:582` 补 `Unquote`。
       两种改法都便宜，但选错会让导入结果和真实渲染不一致。
     evidence: 冻结语料里命中 2 份，都在 `b-documented`（见 `reports/compare-blind/checkability.md`）
+    status: resolved
+    resolution: |
+      **引号是定界符，Mermaid 渲染时剥掉。所以在解析器里补 `Unquote`。** 2026-09-21 定，已落地。
+
+      查证方式是读 Mermaid 自己的语法文件，不靠猜：
+
+        <string>[^"]+   { return "STR"; }     ← 引号之间的内容作为 STR 返回，不含引号
+        <string>["]     this.popState();
+        <*>["]          this.pushState("string");
+
+      而 text 状态里的 TEXT 记号明确排除了引号（`[^\[\]\(\)\{\}\|"]+`），
+      所以 `|"已处理"|` 一定走字符串状态。边标签的语法 `PIPE text PIPE` 直接接受 `STR`。
+
+      - 两种写法同一个机制，所以两处都剥：竖线定界那处，以及 `A -- "已处理" --> B` 那处。
+      - 只剥最外层一对。标签里本来就有引号时，多剥会改掉用户的文字。
+      - 语法参考不动：含逗号、括号这类会打断语法的字符时，引号**必须**加。
   - id: version-and-hash
     question: 导入产出的文档，版本号与哈希怎么定？
     detail: |
@@ -130,3 +176,21 @@ open_questions:
       NodeDef.meta 是 IReadOnlyDictionary<string,string> 且不计入哈希，形状上合适；
       但它挂在节点上，而原始片段可能属于整份文档、某条指令或某个子图。
       需要先定下存放位置与键名约定，并在 docs/IR-Schema.md 里登记。
+    status: resolved
+    resolution: |
+      **不保留原始片段，只进导入报告。** 2026-09-21 定（这是对方案风险表的偏离，
+      已记进 AGENTS.md 的「与方案的已知差异」表）。
+
+      理由是原始片段有个错误模式：**它只在元素未被改动时有效**。
+      用户或模型改过那个节点之后，片段就成了旧文本，而导出时再吐出来会把旧内容复活。
+      放进不计哈希的 NodeDef.meta 会掩盖这个问题——两个哈希都没变，
+      导出的文本却错了，而那种错没有任何地方会报。
+
+      于是：
+
+      - 认不出的内容（`linkStyle`、`click`、认不出的样式属性）进
+        `MermaidImportReport`，并如实说明"这一条不会被导出"。
+      - P1-10 的往返口径按「同一份 IR 走一圈还是同一份 IR」，
+        **不是文本逐字节一致**。P1-10 的那条约束已相应改写。
+      - 代价是导入→导出之后 `linkStyle` 这类东西找不回来。这是明说的损失，
+        不是悄悄丢的——报告里有一条记录，用户能看到。

@@ -7,19 +7,19 @@
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
-| DuetDiagram.Benchmarks | 4 | 309 | 189 | 73 | 47 |
+| DuetDiagram.Benchmarks | 5 | 397 | 240 | 96 | 61 |
 | DuetDiagram.Core | 55 | 6500 | 3452 | 2059 | 989 |
 | DuetDiagram.Core.Tests | 22 | 4127 | 2952 | 456 | 719 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.Layout | 15 | 2073 | 1134 | 660 | 279 |
 | DuetDiagram.Layout.Tests | 4 | 954 | 710 | 59 | 185 |
-| DuetDiagram.Mermaid | 6 | 1488 | 886 | 366 | 236 |
-| DuetDiagram.Mermaid.Tests | 5 | 1460 | 1066 | 152 | 242 |
+| DuetDiagram.Mermaid | 9 | 1944 | 1133 | 510 | 301 |
+| DuetDiagram.Mermaid.Tests | 7 | 2062 | 1513 | 208 | 341 |
 | DuetDiagram.Render | 3 | 501 | 296 | 117 | 88 |
 | DuetDiagram.Render.Tests | 1 | 439 | 307 | 27 | 105 |
 | tools | 24 | 4270 | 2876 | 708 | 686 |
-| **合计** | **162** | **27822** | **17630** | **5728** | **4464** |
+| **合计** | **168** | **28968** | **18375** | **5951** | **4642** |
 
 ## 明细
 
@@ -45,6 +45,7 @@
 | 文件 | 代码 |
 |---|---:|
 | Benchmarks.cs | 73 |
+| MermaidBenchmarks.cs | 51 |
 | Program.cs | 9 |
 | QuadTreeBenchmarks.cs | 45 |
 | TestGraphs.cs | 62 |
@@ -195,6 +196,9 @@
 
 | 文件 | 代码 |
 |---|---:|
+| ImportOptions.cs | 7 |
+| ImportReport.cs | 10 |
+| MermaidImporter.cs | 230 |
 | MermaidDiagramKind.cs | 45 |
 | MermaidLexer.cs | 273 |
 | MermaidSource.cs | 23 |
@@ -207,8 +211,10 @@
 | 文件 | 代码 |
 |---|---:|
 | Corpus.cs | 53 |
+| CorpusImportTests.cs | 118 |
 | CorpusLexingTests.cs | 118 |
 | CorpusParsingTests.cs | 194 |
+| ImporterTests.cs | 329 |
 | LexerTests.cs | 294 |
 | ParserTests.cs | 407 |
 

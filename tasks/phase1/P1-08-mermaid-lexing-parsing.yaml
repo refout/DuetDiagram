@@ -1,7 +1,7 @@
 id: P1-08
 title: Mermaid 词法与语法
 phase: 1
-status: in_progress
+status: done
 depends_on: [P1-01]
 estimated_loc: 500
 files:
@@ -11,15 +11,21 @@ files:
     - DuetDiagram.Mermaid/Lexing/MermaidLexer.cs
     - DuetDiagram.Mermaid/Lexing/MermaidSource.cs
     - DuetDiagram.Mermaid/Lexing/MermaidDiagramKind.cs
+    - DuetDiagram.Mermaid/Parsing/MermaidAst.cs
+    - DuetDiagram.Mermaid/Parsing/MermaidParser.cs
     - DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj
     - DuetDiagram.Mermaid.Tests/Corpus.cs
     - DuetDiagram.Mermaid.Tests/LexerTests.cs
     - DuetDiagram.Mermaid.Tests/CorpusLexingTests.cs
+    - DuetDiagram.Mermaid.Tests/ParserTests.cs
+    - DuetDiagram.Mermaid.Tests/CorpusParsingTests.cs
   modify:
     - DuetDiagram.slnx
     - AGENTS.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidLexing"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidParsing"
     expect: 全通过
   - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidCorpus"
     expect: 全通过
@@ -31,7 +37,7 @@ context:
   - 方案原来的 Mermaider 是布局库而不是解析器，已在 Phase 0a 换掉
   - 方案说「50 官方示例」但没有出处，实际采用冻结语料
 result:
-  verdict: 词法层完成，语法层待做
+  verdict: 词法与语法两层完成
   pushed_forward: 语料来源
   corpus_decision:
     rejected: 方案说的「50 官方示例」没有出处，且官方示例是手写的、干净得不真实
@@ -43,11 +49,21 @@ result:
     stateDiagram: 2
     sequenceDiagram: 1
     note: 状态图与状态机提示词对应，是模型的合理选择；时序图是「下单全链路」选了时序，IR 里没有对应类型
+  corpus_scale:
+    nodes: 993
+    links: 1059
+    subgraphs: 77
+    files_with_subgraphs: 23
+    largest_nodes: 31
+    largest_links: 32
+    note: 语料是教科书式的图而不是压力测试。千节点用例在 Benchmarks 里，不在这里
   delivered:
     kinds: 图类型识别，并区分「IR 表达不了」与「还没做」
     lexer: 行有意义、标签自由文本、指令行自由尾部、左向连线、隐形连线
     source: 剥代码围栏
-    tests: 词法用例加语料回归
+    parser: 图头与方向、节点声明与形状、连线与链条、与号扇出、两种标签写法、子图与嵌套、方向、样式、类定义与套用
+    diagnostics: 认不出的内容记成诊断而不抛异常；只有「图类型不是流程图」整份放弃
+    tests: 词法用例加语料回归、语法用例加语料回归
   design_decisions:
     line_significant: 换行是有意义的记号。吞掉之后语句边界只能靠猜，紧凑写法与错误写法无法区分
     label_opaque: 定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，按标识切会让它们全变成「不认识的东西」
@@ -55,11 +71,20 @@ result:
     left_arrow_prefix: 左向连线按「尖括号前缀」统一处理，比逐种列举可靠
     unknown_not_fatal: 不认识的字符产出记号而不抛异常，宽松模式要靠它定位坏在哪
     allowed_not_forbidden: 标识字符按「允许什么」定义。按「不允许什么」定义的话，乱入的字符会悄悄变成节点名
+    members_derived: 子图成员从节点父级**推导**，不是解析时另行登记的第二份记录
+    parent_rules: 节点归属子图分两种情况——在子图里被引用而此前无归属则归此子图；在子图里被带标签地声明则改归此子图。仅被引用不足以搬走节点，否则共享节点随引用次序漂移
+    nested_subgraphs: 嵌套子图记在外层标识上（MermaidSubgraphDeclaration.Parent）。成员表只放节点不放子图，两者互为反向索引
+    refuse_non_flowchart: 图类型不是流程图时整份放弃。硬解析出来的是垃圾，而垃圾比空结果更糟——它看起来像是导入成功了
   findings:
+    members_diverged: 子图成员与节点父级曾经是各记各的两份记录，在真实语料里六处对不上。起因是「先在子图外声明、再在子图里被引用」这种常见写法：父级停在「无」而成员表把它算进了子图。两份记录分叉之后每份单看都自洽，测试全绿，直到有人真的去用它。修法是只留一份事实源
+    subgraph_as_endpoint: 分层架构图里 `ODS --> DWD` 是拿子图当连线端点用的，Mermaid 允许。解析器因此同时产出同名的子图与节点，七份文件如此。**导入时必须合并**，否则图上会多出与子图重叠的方块；合并规则取决于 IR 怎么表达复合节点，属接线阶段
+    nested_is_real: 嵌套子图不是假想需求，两份文件深度为二（分层架构图外面再套一个总览框）。原先外层标识被算出来又丢掉，内层子图会在外层里凭空消失
+    record_equality: 记录含集合成员时相等性按引用比较。语料往返测试里两次解析出的子图记录被判为不等，而那并不是「解析不确定」。同一个坑在 Core 里踩过两次，见 CollectionEquality
     corpus_mixed_kinds: 语料里混着状态图与时序图。没有这一步识别，时序图会被当流程图解析，然后在无关的位置报一个与真正原因无关的错
     hyphens: 连字符既是连线的一部分又是标识的合法字符，按「遇到就连字符就切」会把 my-node-1 切碎
     br_tags: 标签里的换行标记是最常见的写法，尖括号与斜杠在那里只是普通字符
   not_verified:
-    - 语法分析尚未实现
     - 状态图的解析未实现，IR 里有对应类型
-    - 时序图不可表达，导入时应当明确拒绝而不是误解析
+    - 子图被当作连线端点时的合并规则未定，取决于 IR 如何表达复合节点
+    - Mermaid 流程图到 IR 的映射未实现，本任务只到抽象语法树
+    - 宽松模式（P1-09）未实现，诊断已按它能用的形状产出

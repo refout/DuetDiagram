@@ -12,7 +12,7 @@
 | 组 | 干净 | 有诊断但有结构 | 语法拒绝 | 图类型不对 | 拒绝合计 | 解析错误率 |
 |---|---:|---:|---:|---:|---:|---:|
 | `a-bare` | 47 | 0 | 0 | 3 | 3 | 6.0 % |
-| `b-documented` | 49 | 1 | 0 | 0 | 0 | 0.0 % |
+| `b-documented` | 50 | 0 | 0 | 0 | 0 | 0.0 % |
 | `c-dsl` | 50 | 0 | 0 | 0 | 0 | 0.0 % |
 
 ## 判定门第四条：解析错误率
@@ -109,7 +109,7 @@ B 组一个拒绝都没有，相对下降无从谈起——按口径这一条**�
 | `b-documented` | S01 | Clean | 6 | 0 | 6 | 0 |  |
 | `b-documented` | S02 | Clean | 6 | 0 | 5 | 0 |  |
 | `b-documented` | S03 | Clean | 7 | 0 | 6 | 0 |  |
-| `b-documented` | S04 | Partial | 8 | 0 | 7 | 1 |  |
+| `b-documented` | S04 | Clean | 8 | 0 | 8 | 0 |  |
 | `b-documented` | S05 | Clean | 5 | 0 | 4 | 0 |  |
 | `b-documented` | S06 | Clean | 6 | 0 | 5 | 0 |  |
 | `b-documented` | S07 | Clean | 10 | 0 | 10 | 0 |  |
@@ -185,8 +185,6 @@ B 组一个拒绝都没有，相对下降无从谈起——按口径这一条**�
   - 1:1 暂不支持解析 State，IR 里有对应的图类型，只是语法还没做。
 - `a-bare` / M01（Unsupported）
   - 1:1 暂不支持解析 State，IR 里有对应的图类型，只是语法还没做。
-- `b-documented` / S04（Partial）
-  - 5:5 暂不支持 click 指令，已跳过。
 
 ## 语义拒绝率：现在算不出来
 

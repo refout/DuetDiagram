@@ -93,6 +93,9 @@ internal sealed record StructureListing(
 /// </remarks>
 internal static class Structure
 {
+    /// <summary>三个组的标识。顺序就是报告里的列顺序。</summary>
+    public static readonly string[] Arms = ["a-bare", "b-documented", "c-dsl"];
+
     /// <summary>组标识 → 用哪个解析器。新增组必须在这里登记。</summary>
     private static readonly Dictionary<string, string> FormatByArm = new(StringComparer.Ordinal)
     {

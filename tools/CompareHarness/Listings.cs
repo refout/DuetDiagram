@@ -30,21 +30,13 @@ internal static class Listings
         var byId = prompts.ToDictionary(p => p.Id, StringComparer.Ordinal);
 
         var records = Corpus.Load(corpusRoot, [.. StructureArms]);
-        var missing = records.Where(r => !byId.ContainsKey(r.PromptId)).Select(r => r.PromptId).ToArray();
+        var (missing, drifted) = Corpus.Reconcile(records, prompts);
 
         if (missing.Length > 0)
         {
-            Console.Error.WriteLine($"语料里有提示词文件里没有的条目：{string.Join('、', missing.Distinct())}");
+            Console.Error.WriteLine($"语料里有提示词文件里没有的条目：{string.Join('、', missing)}");
             return 1;
         }
-
-        // 语料记录里存着当时的原始请求体，提示词文件是随仓库版本化的那份。
-        // 两者对不上，说明语料是对着另一个版本的提示词生成的——那么检查项也就配错了对象。
-        // 这种错误不会让任何测试变红，只会让结论偏掉，所以在这里挡下来。
-        var drifted = records
-            .Where(r => !string.Equals(Normalize(r.RequestedPrompt), Normalize(byId[r.PromptId].Text), StringComparison.Ordinal))
-            .Select(r => $"{r.Arm}/{r.PromptId}")
-            .ToArray();
 
         if (drifted.Length > 0)
         {
@@ -84,7 +76,7 @@ internal static class Listings
         return 0;
     }
 
-    private static readonly string[] StructureArms = ["a-bare", "b-documented", "c-dsl"];
+    private static readonly string[] StructureArms = Structure.Arms;
 
     private static readonly UTF8Encoding Utf8 = new(false);
 
@@ -143,15 +135,20 @@ internal static class Listings
     /// 两处都在报告里如实登记。抹平本身是一种改动，改了什么必须能被看见。
     /// </para>
     /// </remarks>
-    private static StructureListing Sanitize(StructureListing listing)
+    internal static StructureListing Sanitize(StructureListing listing)
     {
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        // 节点与分组各有一张表，因为它们是两个命名空间。
+        // 合成一张表的话，源文档里同一个标识既当节点又当分组时（模型偶尔这么写），
+        // 两个不同的东西会被编成同一个流水号，而清单里出现重号会让求值器
+        // 把节点当成分组——它会静默给出一个错的结果，看不出是编错了号。
+        var nodeTokens = new Dictionary<string, string>(StringComparer.Ordinal);
+        var groupTokens = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        string Token(string id)
+        static string Assign(Dictionary<string, string> map, int offset, string id)
         {
             if (!map.TryGetValue(id, out var token))
             {
-                token = $"n{map.Count + 1}";
+                token = $"n{offset + map.Count + 1}";
                 map[id] = token;
             }
 
@@ -161,25 +158,33 @@ internal static class Listings
         // 先给节点编号，再给分组——分组的流水号排在节点之后，读起来有层次。
         foreach (var node in listing.Nodes)
         {
-            _ = Token(node.Id);
+            _ = Assign(nodeTokens, 0, node.Id);
         }
 
         foreach (var group in listing.Groups)
         {
-            _ = Token(group.Id);
+            _ = Assign(groupTokens, nodeTokens.Count, group.Id);
         }
 
+        // 引用按「先节点、后分组」解析，与映射层遇到撞名时的取舍一致：
+        // 保持原标识的是节点，被改名的才是容器，所以引用处指的是节点。
+        string Token(string id) => nodeTokens.GetValueOrDefault(id) ?? groupTokens[id];
+
+        // 外层分组按分组解析。这一处不能走上面那条「先节点」的路：
+        // 外层字段在投影那一步就已经确定是分组，撞名时它指的还是分组。
+        string GroupToken(string id) => groupTokens.GetValueOrDefault(id) ?? nodeTokens[id];
+
         var nodes = listing.Nodes
-            .Select(node => node with { Id = Token(node.Id), Label = Flatten(node.Label) })
+            .Select(node => node with { Id = Assign(nodeTokens, 0, node.Id), Label = Flatten(node.Label) })
             .ToList();
 
         var groups = listing.Groups
             .Select(group => group with
             {
-                Id = Token(group.Id),
+                Id = Assign(groupTokens, nodeTokens.Count, group.Id),
                 Label = Flatten(group.Label) ?? string.Empty,
                 Members = [.. group.Members.Select(Token)],
-                Parent = group.Parent is null ? null : Token(group.Parent),
+                Parent = group.Parent is null ? null : GroupToken(group.Parent),
             })
             .ToList();
 
@@ -212,10 +217,6 @@ internal static class Listings
             .Replace("<br />", " ", StringComparison.OrdinalIgnoreCase)
             .Replace("<br>", " ", StringComparison.OrdinalIgnoreCase)
             .Trim();
-
-    /// <summary>把原始提示词里的换行与空白抹平，只比内容。</summary>
-    private static string Normalize(string text) =>
-        string.Join('\n', text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(line => line.TrimEnd())).Trim();
 
     /// <summary>
     /// 确定性打乱。
@@ -268,7 +269,9 @@ internal static class Listings
         text.AppendLine("- 标签里的换行标记已换成空格。");
         text.AppendLine("- 清单不含端口、样式、坐标与布局意图——那些只有一种格式能表达，放进来会暴露组别。");
         text.AppendLine("  代价是**这份清单看不见布局表达能力**，判读时不要把这一点算成某一方的优点。");
-        text.AppendLine("- 检查项来自 `tools/CompareHarness/prompts.json`，是提示词定稿时一起写好的，不是事后补的。");
+        text.AppendLine("- 检查项在 `tools/CompareHarness/prompts.json` 里。它**不随语料冻结**——"
+            + "检查项从来不会被发给模型，所以事后改写它不影响语料；"
+            + "但改写是判断，改过哪些、为什么改，记在 `reports/compare-blind/predicate-report.md` 里。");
         text.AppendLine();
         text.AppendLine("评分口径见 `docs/Compare-Criteria.md`。");
         text.AppendLine();
@@ -285,12 +288,27 @@ internal static class Listings
             text.AppendLine();
             text.AppendLine(Quote(item.Prompt.Text));
             text.AppendLine();
+            var machine = item.Prompt.Checks.Count(check => check.MachineCheckable);
+
             text.AppendLine($"### 检查项（{item.Prompt.Checks.Length}）");
             text.AppendLine();
 
             for (var i = 0; i < item.Prompt.Checks.Length; i++)
             {
-                text.AppendLine($"{i + 1}. {item.Prompt.Checks[i]}");
+                var check = item.Prompt.Checks[i];
+
+                // 有谓词的项在这里标一下，但**不是叫评分者跳过**。
+                // 那份判据还没有跟人核过，两边都判才能发现它写错的地方；
+                // 而判据写错的后果是整份报告偏掉，且看不出偏在哪里。
+                text.AppendLine($"{i + 1}. {check.Text}{(check.MachineCheckable ? "（有机器判据）" : string.Empty)}");
+            }
+
+            if (machine > 0)
+            {
+                text.AppendLine();
+                text.AppendLine(
+                    $"这一份有 {machine} 项带机器判据。**照常逐项判**——那份判据还没有跟人核过，"
+                    + "两边都判才能发现它写错的地方；两边不一致的项会在汇总时报出来。");
             }
 
             text.AppendLine();
@@ -404,7 +422,15 @@ internal static class Listings
                 ["tier"] = item.Prompt.Tier,
                 ["title"] = item.Prompt.Title,
                 ["prompt"] = item.Prompt.Text,
-                ["checks"] = new JsonArray([.. item.Prompt.Checks.Select(c => (JsonNode)c)]),
+                ["checks"] = new JsonArray(
+                [
+                    .. item.Prompt.Checks.Select(check => (JsonNode)new JsonObject
+                    {
+                        ["text"] = check.Text,
+                        ["machine"] = check.MachineCheckable,
+                        ["human"] = check.Human,
+                    }),
+                ]),
                 ["outcome"] = item.Listing.Outcome.ToString(),
                 ["direction"] = item.Listing.Direction,
                 ["nodes"] = new JsonArray([.. item.Listing.Nodes.Select(n => (JsonNode)new JsonObject

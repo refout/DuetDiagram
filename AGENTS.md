@@ -30,7 +30,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
 | `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
 | `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
-| `tools/CompareHarness` | 对比测试的语料生成与盲评装置（不进 sln） | 已落地 |
+| `tools/CompareHarness` | 对比测试的语料生成、盲评装置与谓词评分（不进 sln） | 已落地 |
 | `DuetDiagram.Llm` / `.Mcp` | 后续 Phase | 未创建 |
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
@@ -165,6 +165,13 @@ dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Relea
 # 对比测试：冻结语料 → 盲评清单 + 解析统计
 # 逐字节可复现（打乱种子写死在代码里）。rater.md / items.json / key.json 不进仓库。
 dotnet run --project tools/CompareHarness -c Release -- listings
+
+# 谓词求值器自检（不需要语料、不需要网络，改完谓词求值先跑这个）
+dotnet run --project tools/CompareHarness -c Release -- verify
+
+# 谓词口径的端到端准确率（读冻结语料，逐字节可复现）
+# 它是一张回归网，不是判定门的答案，理由写在 reports/compare-blind/predicate-report.md
+dotnet run --project tools/CompareHarness -c Release -- score
 
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release

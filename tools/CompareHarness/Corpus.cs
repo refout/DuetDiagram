@@ -73,6 +73,51 @@ internal static class Corpus
         return records;
     }
 
+    /// <summary>
+    /// 语料与提示词文件对不对得上。
+    /// </summary>
+    /// <param name="records">读进来的语料。</param>
+    /// <param name="prompts">当前的提示词文件。</param>
+    /// <returns>语料里没有对应提示词的标识，以及原始请求与当前提示词不一致的条目。</returns>
+    /// <remarks>
+    /// <para>
+    /// 语料记录里存着当时的原始请求体，提示词文件是随仓库版本化的那份。两者对不上，
+    /// 说明语料是对着另一个版本的提示词生成的——那么配上去的检查项也就配错了对象。
+    /// </para>
+    /// <para>
+    /// 这种错误不会让任何测试变红，只会让结论偏掉。所以每个用到语料的命令都先过一遍这里，
+    /// 对不上就直接不干活，而不是把数算出来之后再让人怀疑它。
+    /// </para>
+    /// </remarks>
+    public static (string[] Missing, string[] Drifted) Reconcile(
+        IReadOnlyList<ResponseRecord> records,
+        PromptSet prompts)
+    {
+        var byId = prompts.ToDictionary(prompt => prompt.Id, StringComparer.Ordinal);
+        var missing = new List<string>();
+        var drifted = new List<string>();
+
+        foreach (var record in records)
+        {
+            if (!byId.TryGetValue(record.PromptId, out var prompt))
+            {
+                missing.Add(record.PromptId);
+            }
+            else if (!string.Equals(Normalize(record.RequestedPrompt), Normalize(prompt.Text), StringComparison.Ordinal))
+            {
+                drifted.Add($"{record.Arm}/{record.PromptId}");
+            }
+        }
+
+        return ([.. missing.Distinct(StringComparer.Ordinal)], [.. drifted]);
+    }
+
+    /// <summary>把原始提示词里的换行与行尾空白抹平，只比内容。</summary>
+    private static string Normalize(string text) =>
+        string.Join(
+            '\n',
+            text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(line => line.TrimEnd())).Trim();
+
     private static ResponseRecord Read(string path, string arm)
     {
         var node = JsonNode.Parse(File.ReadAllText(path))

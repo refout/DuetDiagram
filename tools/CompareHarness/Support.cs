@@ -25,14 +25,38 @@ internal sealed record Credentials(string Endpoint, string ApiKey, string Model)
     }
 }
 
-internal sealed record Prompt(string Id, string Tier, string Title, string Text, string[] Checks);
+/// <summary>
+/// 一条检查项。
+/// </summary>
+/// <param name="Text">给人读的那句话。评分者看到的就是它。</param>
+/// <param name="When">
+/// 可执行的判据。<b>为空表示这一项只能靠人判</b>，<paramref name="Human"/> 里写着为什么。
+/// </param>
+/// <param name="Human">判不了机器时，说明是哪一类判断。</param>
+/// <param name="Note">
+/// 原文与现在这句话不一样时，写明原来是什么、为什么改。
+/// 改写本身是判断，判断要能被看见——不然读的人以为检查项一直长这样。
+/// </param>
+internal sealed record Check(string Text, Predicate? When, string? Human, string? Note)
+{
+    public bool MachineCheckable => When is not null;
+}
+
+internal sealed record Prompt(string Id, string Tier, string Title, string Text, Check[] Checks);
 
 /// <summary>
 /// 提示词集合。
 /// </summary>
 /// <remarks>
+/// <para>
 /// 提示词本身不是机密，随仓库一起版本化——它是实验的一部分，改一条就会让已有语料失效，
 /// 所以必须能被追踪和对照。
+/// </para>
+/// <para>
+/// 检查项也在同一个文件里，但它**不随语料冻结**：检查项从来不会被发给模型
+/// （看 <c>Generator</c> 就知道，请求体里只有 <c>prompt</c>），所以改写它不影响已有语料。
+/// 把两者放在一起是因为它们判的是同一件事，分开放迟早会对不上。
+/// </para>
 /// </remarks>
 internal sealed class PromptSet : IEnumerable<Prompt>
 {
@@ -60,12 +84,17 @@ internal sealed class PromptSet : IEnumerable<Prompt>
                 continue;
             }
 
+            var id = item["id"]?.GetValue<string>() ?? throw new InvalidDataException("提示词缺少 id。");
+            var checks = (item["checks"]?.AsArray() ?? [])
+                .Select((check, i) => ParseCheck(check, $"{id} 第 {i + 1} 项"))
+                .ToArray();
+
             prompts.Add(new Prompt(
-                item["id"]?.GetValue<string>() ?? throw new InvalidDataException("提示词缺少 id。"),
+                id,
                 item["tier"]?.GetValue<string>() ?? string.Empty,
                 item["title"]?.GetValue<string>() ?? string.Empty,
                 item["prompt"]?.GetValue<string>() ?? throw new InvalidDataException("提示词缺少 prompt。"),
-                [.. (item["checks"]?.AsArray() ?? []).Select(c => c?.GetValue<string>() ?? string.Empty)]));
+                checks));
         }
 
         if (prompts.Count == 0)
@@ -76,7 +105,43 @@ internal sealed class PromptSet : IEnumerable<Prompt>
         return new PromptSet(prompts);
     }
 
+    /// <summary>
+    /// 读一条检查项。
+    /// </summary>
+    /// <remarks>
+    /// 既不写 <c>when</c> 也不写 <c>human</c> 的检查项直接报错，而不是当成"人判"放过去。
+    /// 那样写的人多半是忘了给谓词，而放过去的代价是这一项从机器口径里静默消失——
+    /// 指标会照常算出来，只是少判了几项，没有任何东西会提示。
+    /// </remarks>
+    private static Check ParseCheck(JsonNode? node, string where)
+    {
+        if (node is not JsonObject obj)
+        {
+            throw new InvalidDataException($"{where}：检查项必须是一个对象，写成 {{\"text\": \"…\", \"when\": {{…}}}}。");
+        }
 
+        var text = obj["text"]?.GetValue<string>()
+            ?? throw new InvalidDataException($"{where}：缺少 text。");
+
+        var when = obj["when"];
+        var human = obj["human"]?.GetValue<string>();
+
+        if (when is null && human is null)
+        {
+            throw new InvalidDataException($"{where}：既没有 when 也没有 human。判不了机器的项要写明是哪一类判断。");
+        }
+
+        if (when is not null && human is not null)
+        {
+            throw new InvalidDataException($"{where}：when 与 human 只能有一个。");
+        }
+
+        return new Check(
+            text,
+            when is null ? null : Predicate.Parse(when, where),
+            human,
+            obj["note"]?.GetValue<string>());
+    }
 }
 
 /// <summary>

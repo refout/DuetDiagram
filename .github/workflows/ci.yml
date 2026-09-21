@@ -16,7 +16,12 @@ jobs:
     name: 编译 + 测试 + 契约门禁
     runs-on: ubuntu-latest
     steps:
+      # lfs: true 不是可选项。冻结语料在 reports/raw/ 下走 LFS，不拉取的话
+      # 检出的是指针文本，而 Corpus.Load() 见到指针会**直接抛异常**——
+      # 这是有意设计的：静默跳过会让语料回归测试在别人机器上"通过"，而它什么都没验。
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -33,6 +38,7 @@ jobs:
           dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
 
       # P1 判据 #1：DuetDiagram.Core 仅依赖 BCL
       - name: Core 引用门禁（csproj 层）
@@ -65,6 +71,20 @@ jobs:
       # 空间索引的跨边界正确性。这一条退化的表现是「拖动时元素一半画出来一半没有」。
       - name: 视口索引门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=QuadTree"
+
+      # 词法层：定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，
+      # 按标识切会让它们全变成「不认识的东西」。
+      - name: Mermaid 词法门禁
+        run: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MermaidLexing"
+
+      # 语法层：认不出的内容记诊断而不抛异常，图类型不是流程图时整份放弃。
+      - name: Mermaid 语法门禁
+        run: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MermaidParsing"
+
+      # 冻结语料回归。这一道需要 LFS 真的拉下来，否则会在 Corpus.Load() 上直接失败——
+      # 那是刻意的：语料缺席时"通过"等于什么都没验。
+      - name: Mermaid 语料门禁
+        run: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MermaidCorpus"
 
   app-and-aot:
     name: 界面栈自检 + 原生发布

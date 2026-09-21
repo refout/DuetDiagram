@@ -1,6 +1,6 @@
 # AGENTS.md — Agent 约定
 
-本文件是**契约**，不是说明文档。改动前先读完《对人和 LLM 双友好的流程图/框图绘制软件——完整方案》。
+本文件是**契约**，不是说明文档。改动前先读完根目录那份《对人和 LLM 双友好的流程图/框图绘制软件——完整方案》，下文称**规格文档**。
 
 ## 项目定位
 
@@ -40,7 +40,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 ## 不可违反的约束
 
-以下 13 条由方案附录得出，每条都有对应的测试或 CI 门禁。**违反即视为回归。**
+以下 13 条由规格文档附录得出，每条都有对应的测试或 CI 门禁。**违反即视为回归。**
 
 1. **集合对外只读，修改只能通过命令。**
    `DiagramDocument` 的 `Nodes` / `Edges` 是 `IReadOnlyList<T>`；`Version` / `StructuralHash` / `VisualHash` 的 setter 是 `internal`。
@@ -89,7 +89,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 - **`DuetDiagram.Core` 只依赖 BCL。** 永不添加 `PackageReference` / `ProjectReference`。
   门禁：CI 的 `core-bcl-only` 作业。
-- **不引入选型清单（方案 §2）之外的依赖。** 需要新依赖先在 `Directory.Packages.props` 登记精确版本，
+- **不引入选型清单（规格文档 §2）之外的依赖。** 需要新依赖先在 `Directory.Packages.props` 登记精确版本，
   并在 PR 里说明理由。
 - **版本必须精确。** 不得出现 `*` 或区间。Phase 0 P0-01 已核实全部主选依赖存在。
 
@@ -123,7 +123,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 ## 验收命令
 
 本仓库使用 **Microsoft.Testing.Platform**（`global.json` 的 `test.runner`），
-因此方案里的 `dotnet test --filter Category=xxx` 实际写法是 `--filter-trait`：
+因此规格文档里的 `dotnet test --filter Category=xxx` 实际写法是 `--filter-trait`：
 
 ```bash
 # 编译
@@ -193,20 +193,20 @@ dotnet run --project tools/LocCounter -- --root . --check
 8. 在 `docs/Command-List.md` 登记。
 9. 跑一遍 `Category=Atomicity` 与 `Category=MementoRegistration`。
 
-## 与方案的已知差异
+## 与规格文档的已知差异
 
-| 方案位置 | 差异 | 原因 |
+| 规格文档位置 | 差异 | 原因 |
 |---|---|---|
 | §4.4 `IDiagramCommand.Undo` | 未提供该方法，由 `RestoreMemento` 承担 | 撤销所需信息全在 memento 中；`Undo()` 需要命令自身缓存状态，会和 Redo 的「重新捕获 memento」语义打架 |
 | §4.4 `CommandError.Payload` | 类型为 `string?` 而非「可选对象」 | AOT 源生成下不需要多态注册；需要富载荷时再引入注册的联合类型 |
 | §4.4 `FieldChange` 值 | 统一 `string?`，未引入 `PositionValue` / `SizeValue` | 坐标类命令属 Phase 2 |
-| §4.5 派生名 | `EmptyDiff` / `InvalidDiff` / `EntriesDiff`（方案为 `Empty` / `Invalid` / `Entries`） | 避免与静态成员及类型名冲突 |
+| §4.5 派生名 | `EmptyDiff` / `InvalidDiff` / `EntriesDiff`（规格文档为 `Empty` / `Invalid` / `Entries`） | 避免与静态成员及类型名冲突 |
 | §4.9 Context 依赖 | 8 项（缺 `Sidecar` / `Layout` / `Renderer`） | 三者尚未实现；「结构变更重布局，否则重绘」暂由 `CommandResult` 的两个布尔标志外化给宿主 |
 | §4.9 步骤 3/4 | 填充的是 `ChangeContext` 的 `Timestamp` / `SessionId` | 这是唯一读得通的解释 |
-| §4.1 IR 字段 | 九个集合与三个子对象已实现，但 `PageDef` / `LayerDef` 的字段取最小集合 | 方案只列出集合存在、未给字段；等对应交互开工时再补，见 `docs/IR-Schema.md` |
-| §4.1 快照方法 | 只实现 `TakeFullSnapshot` / `RestoreFromSnapshot`，`ApplySnapshot` 未实现 | 它的语义方案未定义，协作同步设计清楚之前不硬猜 |
+| §4.1 IR 字段 | 九个集合与三个子对象已实现，但 `PageDef` / `LayerDef` 的字段取最小集合 | 规格文档只列出集合存在、未给字段；等对应交互开工时再补，见 `docs/IR-Schema.md` |
+| §4.1 快照方法 | 只实现 `TakeFullSnapshot` / `RestoreFromSnapshot`，`ApplySnapshot` 未实现 | 它的语义规格文档未定义，协作同步设计清楚之前不硬猜 |
 | §4.2 布局提示 | 已进 IR，但尚未接到布局引擎 | 约束补齐逻辑已落地，接线属 Phase 1 后续任务 |
-| §12 冒烟工程只引用 Core | 现在也引用 Layout | 方案写这一条时还没有别的可发布组件。布局依赖的第三方引擎**是否原生友好分析器看不出来**——分析器只看我们自己的代码，只有真的发布一次才知道 |
+| §12 冒烟工程只引用 Core | 现在也引用 Layout | 规格文档写这一条时还没有别的可发布组件。布局依赖的第三方引擎**是否原生友好分析器看不出来**——分析器只看我们自己的代码，只有真的发布一次才知道 |
 | §12 工程命名 | 用 `DuetDiagram.*` 而不是 `Diagram.*` | 与解决方案文件名的前缀一致 |
 | §4.3 Sidecar | 未实现 | Phase 1 P1-06 |
 | 风险表「宽松模式 + 原始片段保留」 | **不保留原始片段**，认不出的只进导入报告 | 片段只在元素未被改动时有效。用户或模型改过那个节点之后它就过期了，导出时再吐出来会把旧内容复活——而两个哈希都没变，这种错看不出来。P1-10 的往返按「IR 往返一致」算（同一份 IR 走一圈还是同一份），不是文本逐字节一致 |

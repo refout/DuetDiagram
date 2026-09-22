@@ -33,6 +33,8 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(ReconnectEdgeMemento), "reconnect-edge")]
 [JsonDerivedType(typeof(SetEdgeFieldMemento), "set-edge-field")]
 [JsonDerivedType(typeof(LayoutConstraintMemento), "layout-constraint")]
+[JsonDerivedType(typeof(SetDirectionMemento), "set-direction")]
+[JsonDerivedType(typeof(PaletteMemento), "palette")]
 public abstract record CommandMemento
 {
     /// <summary>本次变更波及的元素标识，用于增量同步时告诉对端"重取这些元素"。</summary>
@@ -184,6 +186,39 @@ public sealed record SetEdgeFieldMemento : CommandMemento
 }
 
 /// <summary>
+/// 改布局主方向的逆变更。
+/// </summary>
+/// <remarks>
+/// 只记改之前的那个方向就够——它是文档上的一个标量，不是集合里的一条，
+/// 还原时直接写回去，没有"位置"要操心。
+/// </remarks>
+public sealed record SetDirectionMemento : CommandMemento
+{
+    /// <summary>改之前的方向。</summary>
+    public required Direction Previous { get; init; }
+}
+
+/// <summary>
+/// 调色板增删改的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 记的是**改之前的整份调色板**，而不是"这一个条目"或"这一个成员"。
+/// 只记一个条目的话，还原时要按成员再拼一次记录，而那一次拼接必须与命令里的拼接
+/// 逐字一致——两处一旦分叉，撤销出来的条目与原来那份会有细微差别，
+/// 而差异只体现在哈希上，界面上看不出来。
+/// </para>
+/// <para>
+/// 增、删、改共用这一个记录：三者要还原的都是"改之前的那一份"，方向不同而已。
+/// </para>
+/// </remarks>
+public sealed record PaletteMemento : CommandMemento
+{
+    /// <summary>改之前的调色板。</summary>
+    public required Palette Previous { get; init; }
+}
+
+/// <summary>
 /// 增删一条布局约束的逆变更。
 /// </summary>
 /// <remarks>
@@ -193,7 +228,8 @@ public sealed record SetEdgeFieldMemento : CommandMemento
 /// 两处一旦分叉，撤销出来的约束集合与原来那份会有细微差别，而差异只体现在哈希上。
 /// </para>
 /// <para>
-/// 增与删共用这一个记录：两者要还原的都是"改之前的那一份"，方向不同而已。
+/// **增、删、改共用这一个记录**：三者要还原的都是"改之前的那一份"，方向不同而已。
+/// 记的是整份布局提示，所以两个间距的改动也走这里——它们同样落在布局提示上。
 /// </para>
 /// </remarks>
 public sealed record LayoutConstraintMemento : CommandMemento

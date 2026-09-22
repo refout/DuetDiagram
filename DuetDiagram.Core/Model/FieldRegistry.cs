@@ -65,6 +65,7 @@ public static class FieldNames
     public const string TextPresetElement = "@text-preset";
     public const string LayerElement = "@layer";
     public const string PageElement = "@page";
+    public const string PaletteEntryElement = "@palette-entry";
 
     #endregion
 
@@ -127,6 +128,19 @@ public static class FieldNames
     public const string Order = "layout.order";
     public const string Align = "layout.align";
     public const string Place = "layout.place";
+
+    #region 调色板条目的子字段
+    //
+    // 与样式那一组同一个口径：拆成子字段而不是只留一个整体条目。
+    // 界面上一个成员一个控件；而冲突判定要能认出"一边改填充、一边改描边"可以共存，
+    // 只留整体条目的话会把两次互不相干的修改判成冲突。
+
+    public const string PaletteFill = "palette.fill";
+    public const string PaletteStroke = "palette.stroke";
+    public const string PaletteText = "palette.text";
+    public const string PaletteWeight = "palette.weight";
+
+    #endregion
 
     /// <summary>是否表示"整个元素被增删"。</summary>
     public static bool IsElementLevel(string? name) => name?.StartsWith('@') ?? false;
@@ -213,6 +227,12 @@ public static class FieldRegistry
         new(FieldNames.Order, "文档", FieldScope.Structural, Atomic: true),
         new(FieldNames.Align, "文档", FieldScope.Structural, Atomic: true),
         new(FieldNames.Place, "文档", FieldScope.Structural, Atomic: true),
+
+        // 调色板。整个条目只计外观：换调色板不改变节点尺寸，坐标仍然有效。
+        new(FieldNames.PaletteFill, "调色板", FieldScope.Visual),
+        new(FieldNames.PaletteStroke, "调色板", FieldScope.Visual),
+        new(FieldNames.PaletteText, "调色板", FieldScope.Visual),
+        new(FieldNames.PaletteWeight, "调色板", FieldScope.Visual),
     ];
 
     private static readonly HashSet<string> ElementLevel =
@@ -226,6 +246,7 @@ public static class FieldRegistry
         FieldNames.TextPresetElement,
         FieldNames.LayerElement,
         FieldNames.PageElement,
+        FieldNames.PaletteEntryElement,
     ];
 
     private static readonly Dictionary<string, FieldDescriptor> ByName = BuildIndex();

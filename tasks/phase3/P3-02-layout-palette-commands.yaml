@@ -1,48 +1,132 @@
 id: P3-02
 title: 补齐命令层——布局与调色板
 phase: 3
-status: pending
+status: done
 depends_on: [P1-03, P1-11, P1-12, P2-10]
-estimated_loc: 420
+estimated_loc: 400
 files:
   create:
     - DuetDiagram.Core/Commands/Builtin/SetDirectionCommand.cs
-    - DuetDiagram.Core/Commands/Builtin/PinNodeCommand.cs
-    - DuetDiagram.Core/Commands/Builtin/UnpinNodeCommand.cs
     - DuetDiagram.Core/Commands/Builtin/SetSpacingCommand.cs
     - DuetDiagram.Core/Commands/Builtin/SetPlaceCommand.cs
     - DuetDiagram.Core/Commands/Builtin/DefinePaletteEntryCommand.cs
     - DuetDiagram.Core/Commands/Builtin/UpdatePaletteEntryCommand.cs
     - DuetDiagram.Core/Commands/Builtin/RemovePaletteEntryCommand.cs
+    - DuetDiagram.Core/Commands/PaletteFieldValue.cs
   modify:
     - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Model/Palette.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
     - docs/Command-List.md
     - docs/Layout-Constraints.md
+    - docs/Error-Codes.md
+    - AGENTS.md
+    - tasks/README.md
   test:
     - DuetDiagram.Core.Tests/LayoutCommandTests.cs
     - DuetDiagram.Core.Tests/PaletteCommandTests.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
-    expect: 全通过
+    expect: 全通过；六条命令的失败路径与成功路径各有用例
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayoutConstraint"
-    expect: 全通过；set-place 与既有的同层 / 对齐 / 层内次序三类约束不互相打架
-  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
-    expect: 全通过；方向与间距改动之后确实触发重排，固定位置保留到最后一级之前
+    expect: 全通过；set-place 与既有的同层 / 对齐 / 层内次序三类约束不互相覆盖
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+    expect: 全通过；六条新命令都登记进了命令清单的「已实现」表
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=FieldMetadata"
+    expect: 全通过；调色板的子字段都登记在字段表里，命令不许写裸字符串
 constraints:
-  - "**这八条要各立命令，而节点与边的字段不需要——差别在于被改的东西在哪一层。** P1-05 的字段表只覆盖**元素上的字段**（节点与边），所以 label / shape / layer / style / text 那些由 `set-node-field` 一条命令分发就够了。`layout` 与 `palette` 是**文档的子对象**，不在字段表里，所以它们要各立命令。判断标准是「这个值挂在元素上还是挂在文档上」，不是「它看起来像不像一个字段」"
+  - "**这六条要各立命令，而节点与边的字段不需要——差别在于被改的东西在哪一层。** P1-05 的字段表只覆盖**元素上的字段**（节点与边），所以 label / shape / layer / style / text 那些由 `set-node-field` 一条命令分发就够了。`layout` 与 `palette` 是**文档的子对象**，不在元素字段表里，所以它们要各立命令。判断标准是「这个值挂在元素上还是挂在文档上」，不是「它看起来像不像一个字段」"
   - "**布局类命令必须让 `CommandResult` 的结构变更标志为真。** 报成纯外观的话，宿主会只重绘不重排，而画面上的坐标根本没跟着约束变"
-  - "`set-place` 是**相对位置**，与既有的同层 / 对齐 / 层内次序三类约束并存。四类都落在 `layout` 子对象上，写入时要合并而不是覆盖整份 `LayoutHints`——覆盖的话，加一条相对位置会把之前加的同层约束悄悄删掉"
-  - "`pin-node` 与 `unpin-node` 走命令总线（进 IR）；而 Phase 2 的拖拽落点走 sidecar 的 `pinnedNodes`。两者**不是同一件事**：前者是 LLM 或命令明确表达的意图，后者是用户拖出来的产物。写清楚它们的边界，否则同一个节点会有两个互相矛盾的固定位置"
-  - "调色板的增删改要让引用它的样式令牌失效得看得见：删掉一个还在被引用的令牌时返回结构化错误并列出引用者，不要留下悬空引用"
+  - "**`set-place` 是第四类约束，形状与前三类不同。** 同层 / 对齐是「这一组节点」，层内次序是「这个主语的这几条出边」，而相对位置是「这个节点在那个节点的某一侧」——它是一个**函数式关系**，同一对节点只该有一条。所以它单列一条 `set-place`（设置或清除），而不是并进 `add-layout-constraint` / `remove-layout-constraint` 那对按组增删的命令"
+  - "**`set-place` 写入时必须合并，不许覆盖整份 `LayoutHints`。** 覆盖的话，加一条相对位置会把之前加的同层约束悄悄删掉——而用户看到的只是「我加了个相对位置」"
+  - "**`pin-node` / `unpin-node` 不立命令，这一条不做。** IR 里**没有任何地方能存节点的绝对坐标**：`NodeDef` 的字段里没有位置，`LayoutHints` 的四个列表全是相对约束。而 DSL 的 `pin` 意图已经落到 sidecar 的 `pinnedNodes`（P1-17 定的），mapper 的注释写着理由——「坐标属于渲染结果，存进 IR 会让同一份语义在不同机器上产生不同的文档内容」。命令层再立一条 pin 会与这条原则直接冲突，同一个节点还会因此有两个互相矛盾的固定位置"
+  - "**删调色板条目时，被引用的要挡住并列出引用者。** 与删边那一处的处置**相反**，理由是「有没有东西会报出来」：删边留下的悬空约束引用由整体校验器报 `LAYOUT_ORDER_EDGE_MISSING`，所以留着；而删掉一个还在被引用的调色板条目，渲染层只是静默退回节点自己的样式（`Theme` 的 `Find` 返回空就兜底），**没有任何东西会报**，用户看到的是一批节点悄悄变了颜色。判据是「这件事有没有第二个地方能看见」"
+  - "**调色板的子字段要登记进字段表。** 有一条门禁断言命令发出的字段名都是已登记的——写裸字符串曾经造成过一次静默漂移（错误码在两处各写一份，名字不一致而没有任何东西会报错）。拆成 `palette.entry.fill` 这样的子字段，与 `style.fill` 那一组同一个口径：界面上一个成员一个控件，而冲突判定要能认出「一边改填充、一边改描边」可以共存"
   - "`Validate` 返回结构化 `CommandError`；`CaptureMemento` 与 `Apply` 索引一致；新增 Memento 记录补 `[JsonDerivedType]`"
 context:
-  - 方案 §5 的四级降级与布局提示；方案 §5.3 ApplyFallback 按级别裁掉 Llm / Human / Auto 三类提示
-  - 方案 §9.2 的 set-place 与三类约束并存
-  - "`DuetDiagram.Core/Commands/Builtin/AddLayoutConstraintCommand.cs` 是三类约束的现成骨架"
-  - "`docs/Layout-Constraints.md` 记着三类约束的成员形状与合并口径"
-  - "`DuetDiagram.Core/Model/FieldRegistry.cs` 里 `layout` 与 `palette` 都不在字段表内，这一条与 P3-01 是同一判断的两面"
+  - "`DuetDiagram.Core/Commands/Builtin/AddLayoutConstraintCommand.cs` 是三类约束的现成骨架，`set-place` 的合并写法照着它"
+  - "`DuetDiagram.Core/Commands/CommandMemento.cs` 里的 `LayoutConstraintMemento` 记的是**改之前的整份布局提示**，间距与相对位置都直接复用它——增删改共用同一个记录，方向不同而已"
+  - "`DuetDiagram.Core/Model/FieldRegistry.cs` 里 `layout` 与 `palette` 都不在元素字段表内，这一条与 P3-01 是同一判断的两面；文档级的 `direction`、`layout.nodeSpacing`、`layout.place` 已经在表里了"
+  - "`DuetDiagram.Core/Serialization/DiagramHashing.cs` 把 `Direction`、两个间距、四类约束、调色板条目都算进了哈希，所以六条命令都要报结构变更"
+  - "`DuetDiagram.Layout/FallbackPlan.cs` 只投影同层 / 层内次序 / 对齐三类，`LayoutOptions` 也没有相对位置这一项——**求解器现在不消费 `Place`**。`set-place` 写进去的约束进哈希、进校验、进约束面板，但不改变任何坐标"
 scope_note: |
-  **`pin-node` 与 sidecar 的 `pinnedNodes` 是两个来源，这一点必须写在文档里。**
-  P2-06 已经定下「拖动产生的固定位置不进 IR」，理由是拖动一次会塞进几百条 IR 记录、
-  撤销栈失真。命令层的 pin 是另一回事：它是明确的意图表达，量少、该进 IR、该进撤销栈。
-  布局求解时两者要合起来看，谁优先得在文档里定死，否则同一个节点会有两个固定位置。
+  **这一条原本写了八条命令，收成了六条，`pin-node` / `unpin-node` 拿掉了。**
+
+  起草时按命令清单里那张「计划中」表把布局那一组抄了下来。对着代码核才发现，
+  IR 里根本没有节点的绝对坐标——`NodeDef` 没有位置字段，`LayoutHints` 的四个列表
+  全是相对约束。而 DSL 的 `pin` 意图早就落到 sidecar 的 `pinnedNodes` 了，
+  mapper 的注释把理由写得很清楚：坐标是渲染结果，进 IR 会让同一份语义在不同机器上
+  产生不同的文档内容。
+
+  也就是说，命令层的 pin 不是「还没做」，是「不该这么做」。它要成为真功能，
+  前提是先决定「坐标到底算不算文档内容」——那是个 IR 层的决定，不是命令层的缺口。
+
+  **`set-place` 留着，但要知道它现在不改坐标。** 它写的 `PlaceConstraint` 已经在 IR 里，
+  DSL 的映射早就写得进去，校验器也认它，约束面板也显示它——缺的只有命令层这一条写入口。
+  按「GUI 能做的 LLM 通过命令层都能做」这条前提，补上是对的。但求解器还不消费它
+  （`FallbackPlan` 只投影三类，`LayoutOptions` 也没有这一项），所以调 `set-place` 之后
+  节点不会动。这一点必须写进文档，否则用工具的人会以为命令没生效。
+result:
+  summary: |
+    - **六条命令，分两组。** 布局那三条：`SetDirectionCommand`（改 `document.Direction`，
+      新记录 `SetDirectionMemento` 只记旧方向）、`SetSpacingCommand`（改两个间距，复用
+      `LayoutConstraintMemento` 记整份布局提示）、`SetPlaceCommand`（第四类约束的设置与清除）。
+      调色板那三条：`DefinePaletteEntryCommand`、`UpdatePaletteEntryCommand`、
+      `RemovePaletteEntryCommand`，三条共用新的 `PaletteMemento`（记整份调色板）。
+    - **两条 `LayoutConstraintMemento` 的复用是有意的。** 它记的是「改之前的整份布局提示」，
+      而间距与相对位置都落在同一份记录上，所以三者共用同一个类型——要还原的都是
+      「改之前的那一份」，方向不同而已。这也顺带让撤销时那条同层约束跟着回到原样：
+      只记两个数的话，还原之后约束会少一条，而这件事界面上看不出来。
+    - **`set-spacing` 的两个参数都可选，粒度由变更明细决定。** 界面上是两个数字框共用一个
+      应用按钮，要求调用方两个都填的话，改一项就得先把另一项读出来再写回去，而那次读回来的
+      值可能已经过期。变更明细按「真的变了的那一项」发，不是按参数个数发——两条一起发的话，
+      一边调层间距、一边调同层间距会被判成冲突，而那是两次互不相干的修改。
+    - **`set-place` 写入时合并，不整份换掉布局提示。** 换掉的话，加一条相对位置会把之前加的
+      同层约束悄悄删掉，而用户看到的只是「我加了个相对位置」。同一对节点、同一归属方只留一条，
+      再设一次是替换而不是追加：追加几次就积下几条互相矛盾的相对位置，而求解器取的是列表里的
+      第一条，于是生效的永远是最早那一次。不同归属方各留一条——归属方是降级矩阵的输入。
+    - **`remove-palette-entry` 挡住被引用的条目，并把引用者列出来。** 新错误码
+      `PALETTE_ENTRY_IN_USE`，载荷里带引用者的标识，呈现方式是 `HighlightTargets`
+      （要把它们标出来，用户才知道该先改哪些元素）。这与删边那一处**刻意相反**：
+      删边留下的悬空约束引用有整体校验器会报，所以命令层留着不管；而删掉一个被引用的令牌，
+      渲染层只是静默退回元素自己的样式，**没有任何东西会报**。判据是「这件事有没有第二个
+      地方能看见」。
+    - **调色板的子字段登记进了字段表**（`palette.fill` / `palette.stroke` / `palette.text` /
+      `palette.weight`），与 `style.fill` 那一组同一个口径：界面上一个成员一个控件，
+      而冲突判定要能认出「一边改填充、一边改描边」可以共存。新的 `PaletteFieldValue`
+      照着 `NodeFieldValue` / `EdgeFieldValue` 写，`FieldMetadata` 那条门禁因此一上来就
+      把新字段收进来了。新增 `Palette.WithEntry` / `WithoutEntry`：返回新实例而不是就地改，
+      就地改会让「撤销之后回不到原样」。
+    - **`pin-node` / `unpin-node` 拿掉了，八条收成六条。** 理由写在 scope_note 与
+      `docs/Command-List.md` 的「计划中」表里：IR 里没有任何地方能存节点的绝对坐标，
+      而 DSL 的 `pin` 早就落到 sidecar 的 `pinnedNodes`。命令层的 pin 不是「还没做」，
+      是「不该这么做」。
+    - **`set-place` 现在不改坐标，这一点写进了文档。** 求解器只投影同层 / 层内次序 / 对齐
+      三类，`LayoutOptions` 也没有相对位置这一项。`docs/Layout-Constraints.md` 新增一节
+      「第四类约束：相对位置」，把它的形状与前三类的差别、以及「求解器还不消费」写清楚；
+      `AGENTS.md` 的已知差异表补三行（`pin-node` 不做、第四类约束与它自己的命令、
+      相对位置尚未被求解器消费）。
+    - `DuetDiagram.Core.Tests/LayoutCommandTests.cs`（24 条，`Category=LayoutConstraint`）与
+      `PaletteCommandTests.cs`（`Category=Atomicity`）：失败路径回滚、撤销还原、NoOp、
+      memento 往返。**撤销那几条用两个哈希比而不是整份序列化结果比**——撤销会让版本号往前走，
+      而版本号是序列化结果的一部分，比整份的话每条撤销用例都会因为版本号而红，
+      那个红与要验的东西无关。哈希不含版本，且覆盖方向、间距、四类约束与调色板。
+    - `Harness` 补了六条命令的快捷方法，其中 `DefinePalette` 有两个重载（整条记录 / 按名字
+      给几个成员），让用例读起来是「定义一条叫 warn 的、填充是某某」而不是一堆对象初始化器。
+  gates:
+    - "dotnet build DuetDiagram.slnx -c Release => 0 警告 0 错误"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Atomicity => 66/66 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=LayoutConstraint => 24/24 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=FieldMetadata => 6/6 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=MementoRegistration => 7/7 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommandGroups => 4/4 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommentDiscipline => 1/1 通过"
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=ErrorPresentation => 10/10 通过"
+    - "核心 341/341、布局 75/75、渲染 145/145、Mermaid 179/179、DSL 158/158、端到端 81/81 全部通过"
+    - "dotnet run --project tools/LocCounter -- --root . --check => 一致（reports/loc.md 已重新生成）"
+  followups:
+    - "相对位置约束要落到坐标上，得先定「某一侧」在分层布局里是哪个自由度，以及它与同层 / 对齐两类的关系。在那之前 `set-place` 只写不求解，调用方设完之后节点不会动。"
+    - "调色板条目的令牌名不在可写字段里（它是条目的标识而不是属性），改名字由删除加新增表达。工具层若要开一个「改令牌名」的 action，得先决定改名要不要连带把引用它的节点一起改。"
+    - "`docs/Command-List.md` 的「已实现」表现在有 15 行。等 P3-03 / P3-04 落地时，组合与图层页面那两组也要落一条就从「计划中」挪一条过来，两边同时改，否则 `CommandGroups` 会红。"

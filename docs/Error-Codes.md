@@ -51,7 +51,14 @@
 | `LAYOUT_ORDER_EDGE_MISSING` | 校验失败 | 层内次序引用的边不存在，或不是主语节点的出边 | 高亮该约束 |
 | `LAYOUT_CONSTRAINT_INVALID` | 校验失败 | 约束本身不成立：成员不够、主语缺失或多余、成员重复 | 状态栏一句话 |
 | `LAYOUT_CONSTRAINT_MISSING` | 校验失败 | 要删除的布局约束不存在 | 状态栏一句话 |
+| `PALETTE_ENTRY_MISSING` | 校验失败 | 要改或要删的调色板条目不存在 | 状态栏一句话 |
+| `PALETTE_ENTRY_IN_USE` | 校验失败 | 这条调色板条目还被样式令牌引用着，删除会让那些元素悄悄变样 | 高亮引用它的元素 |
 | `DOCUMENT_READ_ONLY` | 所有权 | 另一个进程正拿着这份文档，这一份只读 | 状态栏灰显一句话 |
+
+`PALETTE_ENTRY_IN_USE` 与删边那一处留下的悬空引用**刻意不同**：删边之后约束指向一条
+不存在的边，这件事由整体校验器报 `LAYOUT_ORDER_EDGE_MISSING`，所以命令层留着不管；
+而删掉一个还在被引用的调色板条目，渲染层只是静默退回元素自己的样式，
+**没有任何东西会报**，用户看到的是一批节点悄悄换了颜色。判据是「这件事有没有第二个地方能看见」。
 
 `DOCUMENT_READ_ONLY` 与「版本冲突」分开：版本冲突是"你手上的副本旧了，同步一下再来"，
 处置是同步；这个码是"这一次操作在这份文档上根本不允许"，处置是去改那一份。
@@ -121,6 +128,8 @@
 | `ACTION_TARGET_MISSING` | `HighlightTargets` |
 | `LAYOUT_CONSTRAINT_INVALID` | `StatusBar` |
 | `LAYOUT_CONSTRAINT_MISSING` | `StatusBar` |
+| `PALETTE_ENTRY_MISSING` | `StatusBar` |
+| `PALETTE_ENTRY_IN_USE` | `HighlightTargets` |
 | `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
 
 呈现方式只有这几种，因为用户能做的事只有这几种：

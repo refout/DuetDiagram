@@ -110,6 +110,20 @@ public static class ErrorCodes
     /// <summary>要删除的布局约束不存在。</summary>
     public const string LayoutConstraintMissing = "LAYOUT_CONSTRAINT_MISSING";
 
+    /// <summary>要改或要删的调色板条目不存在。</summary>
+    public const string PaletteEntryMissing = "PALETTE_ENTRY_MISSING";
+
+    /// <summary>
+    /// 这条调色板条目还被样式令牌引用着，删掉会让那些元素悄悄变样。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是复用"条目不存在"：前者是"换个名字再来"，
+    /// 后者是"先把引用它的元素改掉"。两者的处置完全不同。
+    /// 与删边那一处留下的悬空引用也刻意不同：那边有整体校验器会报出来，
+    /// 而删掉一个被引用的调色板条目，渲染层只是静默退回元素自己的样式，没有任何东西会报。
+    /// </remarks>
+    public const string PaletteEntryInUse = "PALETTE_ENTRY_IN_USE";
+
     /// <summary>
     /// 这份文档这一份是只读的：另一个进程正拿着它。
     /// </summary>

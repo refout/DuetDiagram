@@ -39,6 +39,39 @@ public sealed record Palette
     public PaletteEntry? Find(string? token) =>
         token is not null && Entries.TryGetValue(token, out var entry) ? entry : null;
 
+    /// <summary>
+    /// 加入或替换一个条目，返回新的调色板。
+    /// </summary>
+    /// <remarks>
+    /// 返回新实例而不是就地改：调色板可能被多个版本共享，就地改会让"撤销之后回不到原样"。
+    /// 字典每次复制一份，因为 <see cref="Entries"/> 对外是只读的，就地加键会让
+    /// 已经发出去的那些引用跟着变——而那些引用本该是某一份旧版本的快照。
+    /// </remarks>
+    public Palette WithEntry(PaletteEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        return this with
+        {
+            Entries = new Dictionary<string, PaletteEntry>(Entries, StringComparer.Ordinal)
+            {
+                [entry.Name] = entry,
+            },
+        };
+    }
+
+    /// <summary>去掉一个条目，返回新的调色板。条目本来就不在时返回一份内容相同的实例。</summary>
+    public Palette WithoutEntry(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        var entries = new Dictionary<string, PaletteEntry>(Entries, StringComparer.Ordinal);
+
+        return entries.Remove(name)
+            ? this with { Entries = entries }
+            : this;
+    }
+
     /// <summary>结构化相等。必须重写：<see cref="Entries"/> 是字典。</summary>
     public bool Equals(Palette? other) =>
         other is not null && CollectionEquality.Map(Entries, other.Entries);

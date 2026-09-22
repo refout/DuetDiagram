@@ -16,21 +16,40 @@
 | `set-edge-field` | `SetEdgeFieldCommand` | 边存在；字段名在已注册边字段内（`label` / `style`）；`style` 须为合法令牌 | 端点之外的边属性走这里；`label` 这一轮只做纯文本（富文本属 Phase 4） |
 | `add-layout-constraint` | `AddLayoutConstraintCommand` | 同层与对齐：至少两个成员、无主语、成员不重复、节点都存在；层内次序：有主语、至少两条出边、边不重复且都是主语的出边 | 归属由调用方显式给出，不给默认值——它是降级矩阵的输入。层内次序是**每个主语一条**：同一主语上已有次序时换掉它而不是追加，否则拖几次就积下几十条互相矛盾的次序。memento 整份换回 `LayoutHints` |
 | `remove-layout-constraint` | `RemoveLayoutConstraintCommand` | 要删的那一条存在（按内容找，不按序号） | 不存在时报 `LAYOUT_CONSTRAINT_MISSING` 而**不是** NoOp：那通常说明调用方手上那份列表已经过期，报成功会让它继续拿一份错的列表往下走 |
+| `set-direction` | `SetDirectionCommand` | 方向是已定义的枚举值 | 方向是文档自己的属性、不是元素字段，所以单立一条。改成同一个值是 NoOp；变更明细的归属元素写文档标识——这次改动没落在任何元素上 |
+| `set-spacing` | `SetSpacingCommand` | 两个间距至少给一个；给的那个必须是大于零的有限数 | 两个参数都可选，传空表示不动那一项。**每改一项发一条变更明细**：冲突判定按"哪个元素的哪个字段"算，粒度由变更明细决定而不由参数个数决定 |
+| `set-place` | `SetPlaceCommand` | 两个节点都存在；主语与参照不是同一个；位置关系是已定义的枚举值 | 第四类布局约束，形状是**函数式关系**（同一对节点只该有一条），所以单列一条做设置与清除，而不并进按组增删的那两条。按归属方各留一条，同一归属方下再设一次是替换而不是追加。写入合并进 `LayoutHints`，不整份换掉 |
+| `define-palette-entry` | `DefinePaletteEntryCommand` | 条目名非空；条目名不重复 | 重名报 `DUPLICATE_ID` 而**不覆盖**：覆盖会把一个正被几百个节点引用的令牌悄悄换掉外观，而调用方以为自己只是加了个东西。只计外观，不触发重排 |
+| `update-palette-entry` | `UpdatePaletteEntryCommand` | 条目存在；字段名在已注册的调色板字段内（`palette.fill` / `palette.stroke` / `palette.text` / `palette.weight`）；值能解析成该字段要的类型 | 一次只改一个成员，与改节点、改边同一个形状。条目不存在时报 `PALETTE_ENTRY_MISSING` 而**不顺手新建**——顺手建会造出一个只有一半成员的条目 |
+| `remove-palette-entry` | `RemovePaletteEntryCommand` | 条目存在；**没有元素还在用这个样式令牌** | 被引用时报 `PALETTE_ENTRY_IN_USE` 并把引用者写进载荷，界面据此把它们标出来。这与删边留下的悬空引用**刻意相反**：那边有整体校验器会报，这边渲染层只是静默兜底，没有任何东西会报 |
 
-上面这些命令都返回 `StructuralChanged = true`、`VisualChanged = true`。
-布局约束进的是结构哈希，而那个哈希要回答的正是"要不要重新求解布局"——
-报成纯外观的话，宿主会只重绘不重排，而画面上的坐标根本没跟着约束变。
+**结构还是纯外观，取决于被改的值进的是哪个哈希。**
+
+- 改布局（方向、间距、四类约束）与增删元素都是 `StructuralChanged = true`、`VisualChanged = true`。
+  这些值进的是结构哈希，而那个哈希要回答的正是"要不要重新求解布局"——
+  报成纯外观的话，宿主会只重绘不重排，而画面上的坐标根本没跟着约束变。
+- 改调色板是 `StructuralChanged = false`、`VisualChanged = true`。颜色不改变节点尺寸，
+  已算出的坐标仍然有效；报成结构变更的话，换一次主题就要把整张图重排一遍。
+
+**还有一类不是失败的成功：`IsNoOp`。** 命令合法、但没什么可做（值没变、要删的本来就不在）。
+它算成功，但不推进版本、不进历史、不广播。所以真正要触发副作用的判断用
+`IsEffectiveSuccess` 而不是 `IsSuccess`。
 
 > 边的**折点**（bend point）不在命令层里。折点是用户「拖这儿」的产物，与文档结构无关；
 > 走命令总线会把一次拖动塞进几百条 IR 记录，撤销栈失真。折点写在 sidecar 的 `pinnedEdges`，
 > 由宿主侧直接读写（快照式撤销/重做），不进命令总线——与 P2-06 的 `pinnedNodes` 同一口径。
+>
+> **节点的固定位置同样不在命令层里。** IR 里没有任何地方能存节点的绝对坐标：
+> 节点的字段里没有位置，布局提示的四个列表全是相对约束。DSL 的 `pin` 意图也是落到
+> sidecar 的 `pinnedNodes` 的，理由是**坐标属于渲染结果**——存进 IR 会让同一份语义
+> 在不同机器上产生不同的文档内容。
 
 ## 计划中（Phase 1 P1-03，方案称 40+ 条）
 
 > **这张表是目标，不是承诺，而且它已经不准确了。** 实际创建以任务 YAML 为准，
 > 每完成一条就在本表登记实现状态。
 >
-> 已知的不准确有三处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
+> 已知的不准确有四处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
 >
 > - **节点与样式那两组里的多数条目不需要新命令。** P1-05 的字段注册表落地之后，
 >   `set-node-field` 按字段名分发，label、shape、parent、layer、styleToken、style、
@@ -46,20 +65,26 @@
 >   用标识断掉），也因为布局保证同层不重叠而看不出绘制次序。它要成为真功能，前提是
 >   先给节点加一个 z 序字段并定义它在绘制里的语义，那是 IR 的改动。判断标准是
 >   **被改的值挂在元素上还是挂在文档上**之外的第三条：**这个改动有没有人能看见**。
+> - **`pin-node` 与 `unpin-node` 不该有命令。** IR 里没有任何地方能存节点的绝对坐标：
+>   `NodeDef` 的字段里没有位置，`LayoutHints` 的四个列表全是相对约束。DSL 的 `pin`
+>   意图早就落到 sidecar 的 `pinnedNodes` 了，理由是**坐标属于渲染结果**——
+>   存进 IR 会让同一份语义在不同机器上产生不同的文档内容。命令层再立一条 pin
+>   会与这条原则直接冲突，同一个节点还会因此有两个互相矛盾的固定位置。
 >
 > 剩下的条目仍然有效，落在 `tasks/phase3/P3-01` ~ `P3-04`。
 
-按工具层的 action 分组，便于 `diagram_edit` 内部按 action 分发：
+按工具层的 action 分组，便于 `diagram_edit` 内部按 action 分发。
+**做完的从这里划掉、挪进「已实现」表**，两边同时改：
 
-| 分组 | 命令（`CommandId`） |
+| 分组 | 还缺的命令（`CommandId`） |
 |---|---|
-| 节点 | `update-node-label`、`move-node-layer`、`set-node-shape`（已由字段表覆盖，见上）；`reorder-node`（**待 IR 加 z 序字段**，见上） |
-| 边 | `disconnect-edge`（P3-01）；`set-edge-route`、`add-edge-waypoints`（**不该有命令**，折点走 sidecar，见上）；`reconnect-edge` 与 `set-edge-label` 已在 Phase 2 P2-07 落地，分别走 `reconnect-edge` 与 `set-edge-field` 的 `label` 字段 |
-| 样式 | `apply-style-token`、`set-node-style`、`set-text-style`、`set-edge-style` |
-| 布局 | `set-direction`、`pin-node`、`unpin-node`、`set-spacing`、`set-place`（`set-same-rank` / `set-order` / `set-align` 已在 Phase 2 P2-10 落地，三类合成两条命令：`add-layout-constraint` 与 `remove-layout-constraint`） |
+| 节点 | 无。`update-node-label`、`move-node-layer`、`set-node-shape` 已由字段表覆盖（见上）；`reorder-node` 待 IR 加 z 序字段（见上） |
+| 边 | 无。`set-edge-route`、`add-edge-waypoints` 不该有命令（折点走 sidecar，见上） |
+| 样式 | 无。`apply-style-token`、`set-node-style`、`set-text-style`、`set-edge-style` 四条都已由字段表覆盖（见上） |
+| 布局 | 无。`pin-node`、`unpin-node` 不该有命令（见上） |
 | 组合 | `create-group`、`create-lane`、`create-subflow`、`create-combo`、`dissolve-composite`、`move-into-composite` |
 | 图层 / 页面 | `create-layer`、`rename-layer`、`reorder-layer`、`assign-layer`、`create-page`、`delete-page` |
-| 调色板 | `define-palette-entry`、`update-palette-entry`、`remove-palette-entry` |
+| 调色板 | 无。三条已落地（P3-02） |
 | 标签 / 动作 | `add-tag`、`remove-tag`、`add-action`、`remove-action` |
 | 文档 | `set-kind`、`set-canvas-settings` |
 

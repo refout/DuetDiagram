@@ -104,6 +104,64 @@ internal sealed class Harness : IDisposable
         => Bus.Execute(new RemoveLayoutConstraintCommand(spec, owner)
             .WithContext(ChangeContext.For(source, "tester")));
 
+    /// <summary>改布局主方向。</summary>
+    public CommandResult SetDirection(Direction direction, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetDirectionCommand(direction)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>改布局间距。传空表示那一项不动。</summary>
+    public CommandResult SetSpacing(
+        double? nodeSpacing = null,
+        double? layerSpacing = null,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetSpacingCommand(nodeSpacing, layerSpacing)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>设置或清除一条相对位置约束。关系传空表示清除。</summary>
+    public CommandResult SetPlace(
+        string nodeId,
+        string relativeTo,
+        PlaceRelation? relation,
+        ConstraintOwner owner = ConstraintOwner.Human,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetPlaceCommand(nodeId, relativeTo, relation, owner)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>定义一条调色板条目。</summary>
+    public CommandResult DefinePalette(PaletteEntry entry, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new DefinePaletteEntryCommand(entry)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>按名字定义一条调色板条目。只给要用的那几个成员，其余留空。</summary>
+    public CommandResult DefinePalette(
+        string name,
+        string? fill = null,
+        string? stroke = null,
+        string? text = null,
+        double? weight = null,
+        ChangeSource source = ChangeSource.Human)
+        => DefinePalette(
+            new PaletteEntry { Name = name, Fill = fill, Stroke = stroke, Text = text, Weight = weight },
+            source);
+
+    /// <summary>改一条调色板条目的一个成员。</summary>
+    public CommandResult UpdatePalette(
+        string name,
+        string field,
+        string? value,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new UpdatePaletteEntryCommand(name, field, value)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>删一条调色板条目。</summary>
+    public CommandResult RemovePalette(string name, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RemovePaletteEntryCommand(name)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>给一个节点挂上样式令牌。走字段写入那条命令，与界面走的是同一条路。</summary>
+    public CommandResult SetStyleToken(string nodeId, string token, ChangeSource source = ChangeSource.Human)
+        => SetField(nodeId, FieldNames.StyleToken, token, source);
+
     public void Dispose()
     {
         Bus.Dispose();

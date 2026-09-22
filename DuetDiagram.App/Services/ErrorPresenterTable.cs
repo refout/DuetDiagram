@@ -96,6 +96,11 @@ public static class ErrorPresenterTable
             [ErrorCodes.ActionTargetMissing] = new(ErrorPresentationKind.HighlightTargets, "动作目标不存在"),
             [ErrorCodes.LayoutConstraintInvalid] = new(ErrorPresentationKind.StatusBar, "这条布局约束不成立"),
             [ErrorCodes.LayoutConstraintMissing] = new(ErrorPresentationKind.StatusBar, "要删的布局约束已经不在了"),
+            [ErrorCodes.PaletteEntryMissing] = new(ErrorPresentationKind.StatusBar, "调色板条目不存在"),
+
+            // 删一个还被引用的调色板条目：要把引用它的元素指出来，
+            // 用户才知道该先改哪些元素。只给一句话的话，他无从知道是谁在用这个令牌。
+            [ErrorCodes.PaletteEntryInUse] = new(ErrorPresentationKind.HighlightTargets, "还有元素在用这个样式令牌"),
 
             // 只读那一份。它不是失败，是"这件事在这份文档上做不了"，
             // 所以走灰显那一档：不弹窗，也不报成红的。

@@ -57,6 +57,12 @@ jobs:
       - name: Memento 注册门禁
         run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MementoRegistration"
 
+      # 两个哈希的覆盖口径。这一条退化的表现是"改了某个东西，宿主却不知道该不该重排/重绘"：
+      # 该进结构哈希的没进，改了间距图不重排；不该进的进了，加一条动作让所有 agent 的
+      # 版本检查报冲突，而画面上什么都没变。两种都不会让别的测试变红。
+      - name: 哈希覆盖门禁
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=IrHashing"
+
       # 命令清单与实际注册的命令逐条一致。这张表是外部代理写代码时唯一的依据，
       # 表里多一条不存在的命令、或少一条真有的命令，都不会让别的测试变红。
       - name: 命令清单门禁

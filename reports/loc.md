@@ -6,10 +6,10 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 39 | 9236 | 5194 | 2525 | 1517 |
+| DuetDiagram.App | 39 | 9240 | 5198 | 2525 | 1517 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 81 | 11345 | 6495 | 3155 | 1695 |
-| DuetDiagram.Core.Tests | 32 | 7988 | 5678 | 805 | 1505 |
+| DuetDiagram.Core | 90 | 12538 | 7231 | 3445 | 1862 |
+| DuetDiagram.Core.Tests | 34 | 8848 | 6263 | 890 | 1695 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
@@ -20,7 +20,7 @@
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **306** | **62989** | **39605** | **13017** | **10367** |
+| **合计** | **317** | **65046** | **40930** | **13392** | **10724** |
 
 ## 明细
 
@@ -61,7 +61,7 @@
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 65 |
+| ErrorPresenterTable.cs | 69 |
 | FieldEditBinder.cs | 257 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
@@ -96,23 +96,31 @@
 | DiagramCommandBusContext.cs | 48 |
 | DiagramCommandBusOptions.cs | 9 |
 | VersionCheckRequest.cs | 6 |
+| AddActionCommand.cs | 71 |
 | AddLayoutConstraintCommand.cs | 198 |
 | AddNodeCommand.cs | 77 |
+| AddTagCommand.cs | 76 |
 | ConnectEdgeCommand.cs | 82 |
 | CreateCompositeCommand.cs | 150 |
 | CreateLayerCommand.cs | 68 |
+| CreatePageCommand.cs | 68 |
 | DefinePaletteEntryCommand.cs | 88 |
+| DeletePageCommand.cs | 77 |
 | DisconnectEdgeCommand.cs | 81 |
 | DissolveCompositeCommand.cs | 106 |
 | MoveIntoCompositeCommand.cs | 93 |
 | ReconnectEdgeCommand.cs | 130 |
+| RemoveActionCommand.cs | 69 |
 | RemoveLayoutConstraintCommand.cs | 107 |
 | RemoveNodeCommand.cs | 126 |
-| RemovePaletteEntryCommand.cs | 98 |
+| RemovePaletteEntryCommand.cs | 105 |
+| RemoveTagCommand.cs | 69 |
 | RenameLayerCommand.cs | 73 |
 | ReorderLayerCommand.cs | 77 |
+| SetCanvasSettingsCommand.cs | 152 |
 | SetDirectionCommand.cs | 65 |
 | SetEdgeFieldCommand.cs | 110 |
+| SetKindCommand.cs | 65 |
 | SetNodeFieldCommand.cs | 108 |
 | SetPlaceCommand.cs | 113 |
 | SetSpacingCommand.cs | 89 |
@@ -120,17 +128,18 @@
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 86 |
+| CommandMemento.cs | 111 |
 | CommandResult.cs | 58 |
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 93 |
-| ErrorCodes.cs | 39 |
+| ErrorCodes.cs | 43 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
 | LayerAccess.cs | 46 |
 | NodeFieldValue.cs | 361 |
+| PageAccess.cs | 36 |
 | PaletteFieldValue.cs | 73 |
 | SessionIds.cs | 8 |
 | ValidationResult.cs | 8 |
@@ -148,7 +157,7 @@
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 348 |
 | EdgeDef.cs | 14 |
-| FieldRegistry.cs | 176 |
+| FieldRegistry.cs | 190 |
 | IDefinition.cs | 5 |
 | LayoutConstraintSpec.cs | 44 |
 | LayoutHints.cs | 91 |
@@ -159,7 +168,7 @@
 | SupportingDefs.cs | 62 |
 | ValidationIssue.cs | 10 |
 | DiagramHashing.cs | 172 |
-| DiagramJsonContext.cs | 64 |
+| DiagramJsonContext.cs | 67 |
 | DiagramSerializer.cs | 54 |
 | LayoutSidecar.cs | 44 |
 | SidecarBackup.cs | 132 |
@@ -181,13 +190,14 @@
 | CommandListTests.cs | 154 |
 | CommentDisciplineTests.cs | 99 |
 | CompositeCommandTests.cs | 405 |
-| ConflictTests.cs | 229 |
+| ConflictTests.cs | 234 |
 | CorePurityTests.cs | 57 |
 | DisconnectEdgeCommandTests.cs | 176 |
 | DocumentFactoryTests.cs | 66 |
 | DocumentLockTests.cs | 177 |
+| DocumentSettingCommandTests.cs | 219 |
 | EdgeCommandTests.cs | 276 |
-| Harness.cs | 167 |
+| Harness.cs | 215 |
 | IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
 | LayerCommandTests.cs | 180 |
@@ -196,7 +206,8 @@
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
 | NodeFieldTests.cs | 303 |
-| PaletteCommandTests.cs | 241 |
+| PageTagActionCommandTests.cs | 298 |
+| PaletteCommandTests.cs | 256 |
 | RoundTripTests.cs | 139 |
 | SessionIdResolutionTests.cs | 57 |
 | SidecarBackupTests.cs | 245 |

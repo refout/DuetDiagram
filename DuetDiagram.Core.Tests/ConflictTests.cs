@@ -181,6 +181,15 @@ public sealed class ConflictTests
             harness.AddNode("b", "乙"),
             harness.Connect("e1", "a", "b", "是"),
             harness.Bus.Execute(new RemoveNodeCommand("a").WithContext(ChangeContext.For(ChangeSource.Human))),
+
+            // 集合级元素与文档级设置走的是另一批字段名：元素级的带 @ 前缀，
+            // 文档子对象的是自己那一组（canvas.*）。这一批同样要登记，
+            // 否则冲突判定认不出"改的是哪个字段"，会退化成整个元素一个粒度。
+            harness.CreatePage("p1", "第一页"),
+            harness.AddTag("t1", ["b"], label: "待确认"),
+            harness.AddAction("act1", "click", "open-url", "b"),
+            harness.SetKind(DiagramKind.Block),
+            harness.SetCanvas(grid: GridStyle.Dots),
         };
 
         var fields = results

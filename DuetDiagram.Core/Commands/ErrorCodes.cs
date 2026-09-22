@@ -42,6 +42,26 @@ public static class ErrorCodes
     /// <summary>要操作的图层不存在。</summary>
     public const string LayerMissing = "LAYER_MISSING";
 
+    /// <summary>要操作的页面不存在。</summary>
+    public const string PageMissing = "PAGE_MISSING";
+
+    /// <summary>
+    /// 文档至少要留一页，这一页是最后一页，删不得。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是复用"页面不存在"：那一种是"这个标识写错了或已经没了"，
+    /// 处置是换一个标识；这一种是"这一页确实在，但删掉之后文档就没有页了"，
+    /// 处置是先建一页再删。渲染层拿到空页面集合时该画什么没有定义，
+    /// 所以这条限制放在命令层而不是留给渲染层去兜底。
+    /// </remarks>
+    public const string PageRequired = "PAGE_REQUIRED";
+
+    /// <summary>要操作的标签不存在。</summary>
+    public const string TagMissing = "TAG_MISSING";
+
+    /// <summary>要操作的动作不存在。</summary>
+    public const string ActionMissing = "ACTION_MISSING";
+
     /// <summary>调用方持有的版本落后于当前版本，需要先同步。</summary>
     public const string VersionConflict = "VERSION_CONFLICT";
 

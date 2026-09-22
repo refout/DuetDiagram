@@ -129,6 +129,21 @@ public static class FieldNames
     public const string Align = "layout.align";
     public const string Place = "layout.place";
 
+    #region 画布设置的子字段
+    //
+    // 与样式、调色板同一口径：拆成子字段而不是只留一个整体。
+    // 画布设置是一个子对象，一次调用可能改到其中几项；拆开之后，
+    // 一边调网格、一边调背景色这两件互不相干的事才不会被判成冲突。
+
+    public const string CanvasGrid = "canvas.grid";
+    public const string CanvasGridSize = "canvas.gridSize";
+    public const string CanvasPageSize = "canvas.pageSize";
+    public const string CanvasOrientation = "canvas.orientation";
+    public const string CanvasBackground = "canvas.background";
+    public const string CanvasInfinite = "canvas.infinite";
+
+    #endregion
+
     #region 调色板条目的子字段
     //
     // 与样式那一组同一个口径：拆成子字段而不是只留一个整体条目。
@@ -233,6 +248,14 @@ public static class FieldRegistry
         new(FieldNames.PaletteStroke, "调色板", FieldScope.Visual),
         new(FieldNames.PaletteText, "调色板", FieldScope.Visual),
         new(FieldNames.PaletteWeight, "调色板", FieldScope.Visual),
+
+        // 画布设置。整个子对象只计外观：网格、背景、纸张尺寸都不改变任何坐标。
+        new(FieldNames.CanvasGrid, "画布", FieldScope.Visual),
+        new(FieldNames.CanvasGridSize, "画布", FieldScope.Visual),
+        new(FieldNames.CanvasPageSize, "画布", FieldScope.Visual),
+        new(FieldNames.CanvasOrientation, "画布", FieldScope.Visual),
+        new(FieldNames.CanvasBackground, "画布", FieldScope.Visual),
+        new(FieldNames.CanvasInfinite, "画布", FieldScope.Visual),
     ];
 
     private static readonly HashSet<string> ElementLevel =

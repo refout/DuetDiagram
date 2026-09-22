@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 起补命令层（断边、布局、调色板、组合与图层） |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置） |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -38,7 +38,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
-分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，尚未开工。
+分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
+P3-01 ~ P3-04（命令层）已落地，P3-05 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -152,6 +153,7 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Composite"
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrHashing"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayoutConstraint"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
@@ -366,3 +368,8 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 组合的嵌套深度 | 新加一条上限（`CompositeLimits.MaxDepth`，顶层是第 1 层），命令层与整体校验器都读它，超了报 `COMPOSITE_TOO_DEEP` | 成环已经单独挡住，所以深度天然有界；上限要防的是**深而窄**的链——一千层逐级嵌套的合法文档会让任何按层递归的遍历一路压到栈底，而栈溢出的现场离肇事的那条命令很远。上限只写一处：两处各写一个数的话，会出现「命令放得进去、校验器却报错」这种自相矛盾的状态 |
 | 组合成员一致性的校验方向 | 除「成员列表里列了谁、而那个谁的父级不是本组合」之外，**反向也查**：父级指向某个组合、而那个组合的成员列表里没有它 | 只查前一个方向的话，这种文档不会被报出来——解散那个外层时它也就不会被放出来，于是用户拆了一个分组，却发现里面少了一层。而那条报错本该在写入那一刻就出现 |
 | 计划中命令清单里的 `reorder-layer` | 改的是 `LayerDef.Order` 字段，不是集合里的位置 | 图层集合在视觉哈希里按标识排序后遍历，所以集合位置进不了任何哈希——改位置是一条**效果不可观测**的命令，与 `reorder-node` 同一个坑。次序值整体重排成连续的 0、1、2……，顺带治好从文件里读进来的重复次序。`DiagramDocument.Layers` 上原先那句「排列次序决定叠放次序」说的是集合位置，一并改对了 |
+| P3-04 起草时写的那条约束「`remove-tag` / `remove-action` 要处理元素上还挂着它」 | **这件事不存在**，两条命令都不需要顺带摘掉任何引用 | 标签的成员列表与动作的目标引用都是**单向**的：被指向的元素上没有回指字段（`NodeDef` 里根本没有标签字段）。删一个标签就是删掉那份成员列表本身，删一个动作就是删掉那份引用本身，两个方向都不会留下悬空引用。反过来那件事——删掉元素之后别处还写着它——由整体校验器报 `TAG_MEMBER_MISSING` / `ACTION_TARGET_MISSING`，与删边留下的悬空次序同一口径。起草任务时是按「引用关系总是双向的」这个直觉写的，对着模型核完才发现不成立 |
+| 删调色板条目时的引用者范围 | 除节点与边之外，**标签的颜色**也算引用者 | `TagDef.Color` 取的就是调色板令牌名。`add-tag` 落地之前这个字段没有任何命令能写，所以漏着不显；落地之后它就成了第三条引用路径。不补的话，删掉一个被标签引用的令牌，标签的颜色会静默退回兜底值——正是那条命令自己的说明里要避免的那件事（判据是「这件事有没有第二个地方能看见」）。组合的样式记录里没有令牌字段，所以不算引用者 |
+| `add-action` / `remove-action` 的两个变更标志 | 都报假，**而那不是无操作** | 动作不进任何哈希：不影响坐标，也不影响像素，只影响交互。报成视觉变更会让宿主白白重绘一次。版本照推、历史照进、广播照发，变的只是宿主那一侧不必重排也不必重绘——所以判断要不要触发副作用一律用 `IsEffectiveSuccess`，它只看 `IsNoOp`，不看那两个标志 |
+| `set-canvas-settings` 的形状 | 六个成员各自可选，背景色用**空串表示清除**、空引用表示不动 | 与 `set-spacing` 同一口径：整份替换会逼调用方先把没打算改的项读回来再写回去，而那份读回来的值可能已经过期——一次「只改网格」的调用会把背景色悄悄改回旧值。清除只能另给一个信号，而空引用在可选参数里已经占了「这一项不动」的意思；空串在字段写入那条路上本来就是「这个字段没有值」的写法，两处一致。六个成员各登记一个 `canvas.*` 字段名，好让变更明细的粒度落到成员上：只用一个 `canvas` 的话，一边改网格、一边改背景色会被判成冲突 |
+| 页面、标签、动作的消费方 | 三样都能经命令层增删了，但渲染层与界面都还没读它们 | 翻页、标签着色、动作触发都还没有接线，图层的可见与锁定也仍然没有命令能改。IR 与命令先就位，是为了让「一份带页面与标签的文档能存下来、能往返」这件事先成立；消费方开工时再定它们各自的界面语义 |

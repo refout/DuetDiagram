@@ -80,6 +80,15 @@ internal sealed class Harness : IDisposable
     /// <summary>按标识取一个图层。</summary>
     public LayerDef Layer(string id) => Document.Layers.Single(l => l.Id == id);
 
+    /// <summary>按标识取一页。</summary>
+    public PageDef Page(string id) => Document.Pages.Single(p => p.Id == id);
+
+    /// <summary>按标识取一个标签。</summary>
+    public TagDef Tag(string id) => Document.Tags.Single(t => t.Id == id);
+
+    /// <summary>按标识取一个动作。</summary>
+    public ActionDef Action(string id) => Document.Actions.Single(a => a.Id == id);
+
     public CommandResult AddNode(string id, string label = "", NodeShape shape = NodeShape.Rect, ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new AddNodeCommand(new NodeDef { Id = id, Label = label, Shape = shape })
             .WithContext(ChangeContext.For(source, "tester")));
@@ -213,6 +222,71 @@ internal sealed class Harness : IDisposable
     /// <summary>把图层挪到第几位。</summary>
     public CommandResult ReorderLayer(string layerId, int index, ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new ReorderLayerCommand(layerId, index)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>新建一页。</summary>
+    public CommandResult CreatePage(string pageId, string name = "", ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new CreatePageCommand(pageId, name)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>删掉一页。</summary>
+    public CommandResult DeletePage(string pageId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new DeletePageCommand(pageId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>新建一个标签。</summary>
+    public CommandResult AddTag(TagDef tag, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new AddTagCommand(tag)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>按几个成员建一个标签，颜色留空。</summary>
+    public CommandResult AddTag(
+        string tagId,
+        IReadOnlyList<string> members,
+        string label = "",
+        string? color = null,
+        ChangeSource source = ChangeSource.Human)
+        => AddTag(new TagDef { Id = tagId, Members = members, Label = label, Color = color }, source);
+
+    /// <summary>删掉一个标签。</summary>
+    public CommandResult RemoveTag(string tagId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RemoveTagCommand(tagId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>新建一个动作。</summary>
+    public CommandResult AddAction(ActionDef action, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new AddActionCommand(action)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>按事件与类型建一个动作。</summary>
+    public CommandResult AddAction(
+        string actionId,
+        string @event,
+        string kind,
+        string? target = null,
+        ChangeSource source = ChangeSource.Human)
+        => AddAction(new ActionDef { Id = actionId, Event = @event, Kind = kind, Target = target }, source);
+
+    /// <summary>删掉一个动作。</summary>
+    public CommandResult RemoveAction(string actionId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RemoveActionCommand(actionId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>改文档类型。</summary>
+    public CommandResult SetKind(DiagramKind kind, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetKindCommand(kind)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>改画布设置。传空表示那一项不动。</summary>
+    public CommandResult SetCanvas(
+        GridStyle? grid = null,
+        double? gridSize = null,
+        Size? pageSize = null,
+        CanvasOrientation? orientation = null,
+        string? background = null,
+        bool? infinite = null,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetCanvasSettingsCommand(grid, gridSize, pageSize, orientation, background, infinite)
             .WithContext(ChangeContext.For(source, "tester")));
 
     public void Dispose()

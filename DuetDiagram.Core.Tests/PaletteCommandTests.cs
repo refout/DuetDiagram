@@ -290,6 +290,30 @@ public sealed class PaletteCommandTests
 
     [Fact]
     [Trait("Category", "Atomicity")]
+    public void An_entry_a_tag_still_uses_is_not_removed()
+    {
+        using var harness = new Harness();
+        harness.AddNode("a").IsEffectiveSuccess.Should().BeTrue();
+        harness.DefinePalette("warn", fill: "#ffeeaa").IsEffectiveSuccess.Should().BeTrue();
+
+        // 标签的颜色取的也是调色板令牌名，所以它是第三条引用路径。
+        // 漏掉这一条的话，删掉之后标签的颜色会静默退回兜底值——不报错、不崩，
+        // 用户看到的是一次"什么都没发生"的删除。
+        harness.AddTag("t1", ["a"], label: "待确认", color: "warn").IsEffectiveSuccess.Should().BeTrue();
+
+        var before = harness.Snapshot();
+
+        var result = harness.RemovePalette("warn");
+
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().ContainSingle(e => e.Code == ErrorCodes.PaletteEntryInUse)
+            .Which.Payload.Should().Contain("t1");
+
+        harness.Snapshot().Should().Be(before);
+    }
+
+    [Fact]
+    [Trait("Category", "Atomicity")]
     public void An_entry_becomes_removable_once_the_last_element_stops_using_it()
     {
         using var harness = new Harness();

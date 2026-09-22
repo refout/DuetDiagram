@@ -9,8 +9,8 @@
 | `DUPLICATE_ID` | 校验失败 | 节点或边 id 已存在 | 高亮冲突 ID |
 | `EDGE_TARGET_MISSING` | 校验失败 | 边的 `to` **节点或组合**不存在 | 提示「是否创建？」 |
 | `EDGE_SOURCE_MISSING` | 校验失败 | 边的 `from` **节点或组合**不存在 | 提示「是否创建？」 |
-| `GROUP_MEMBER_MISSING` | 校验失败 | — （Phase 4） | 提示 |
-| `GROUP_CYCLE` | 校验失败 | — （Phase 4） | 高亮循环 |
+| `GROUP_MEMBER_MISSING` | 校验失败 | 组合的成员不存在 | 提示「是否创建？」 |
+| `GROUP_CYCLE` | 校验失败 | 组合的父子关系成环 | 高亮循环 |
 | `VERSION_CONFLICT` | 并发冲突 | MCP 客户端版本落后 | 弹可视化 diff 对话框 |
 | `INVALID_EXPECTED_VERSION` | 参数错误 | 客户端版本 > 服务端版本 | 状态栏提示「内部错误，已记录日志」 |
 | `EXPECTED_VERSION_REQUIRED` | 参数错误 | MCP 模式未携带 `VersionCheckRequest` | 状态栏提示 |
@@ -56,12 +56,24 @@
 | `COMPOSITE_MISSING` | 校验失败 | 要操作的组合不存在 | 状态栏一句话 |
 | `COMPOSITE_TOO_DEEP` | 校验失败 | 组合的嵌套深度超过上限 | 状态栏一句话 |
 | `LAYER_MISSING` | 校验失败 | 要操作的图层不存在 | 状态栏一句话 |
+| `PAGE_MISSING` | 校验失败 | 要操作的页面不存在 | 状态栏一句话 |
+| `PAGE_REQUIRED` | 校验失败 | 要删的是最后一页，文档至少要留一页 | 状态栏一句话 |
+| `TAG_MISSING` | 校验失败 | 要操作的标签不存在 | 状态栏一句话 |
+| `ACTION_MISSING` | 校验失败 | 要操作的动作不存在 | 状态栏一句话 |
 | `DOCUMENT_READ_ONLY` | 所有权 | 另一个进程正拿着这份文档，这一份只读 | 状态栏灰显一句话 |
+
+`PAGE_REQUIRED` 与「页面不存在」分开：那一种是"这个标识写错了或已经没了"，处置是换一个标识；
+这一种是"这一页确实在，但删掉之后文档就没有页了"，处置是先建一页再删。
+渲染层拿到空页面集合时该画什么没有定义，所以这条限制放在命令层挡住，
+而不是留给渲染层去兜底。
 
 `PALETTE_ENTRY_IN_USE` 与删边那一处留下的悬空引用**刻意不同**：删边之后约束指向一条
 不存在的边，这件事由整体校验器报 `LAYOUT_ORDER_EDGE_MISSING`，所以命令层留着不管；
 而删掉一个还在被引用的调色板条目，渲染层只是静默退回元素自己的样式，
 **没有任何东西会报**，用户看到的是一批节点悄悄换了颜色。判据是「这件事有没有第二个地方能看见」。
+引用者有三条路径：节点与边上的样式令牌，以及标签的颜色——标签色取的也是令牌名。
+删标签与删动作则**没有**这个问题：那两样与元素的关系是单向的，元素上没有回指字段，
+删掉之后不会留下任何悬空引用，所以不需要挡住。
 
 `DOCUMENT_READ_ONLY` 与「版本冲突」分开：版本冲突是"你手上的副本旧了，同步一下再来"，
 处置是同步；这个码是"这一次操作在这份文档上根本不允许"，处置是去改那一份。
@@ -136,6 +148,10 @@
 | `COMPOSITE_MISSING` | `StatusBar` |
 | `COMPOSITE_TOO_DEEP` | `StatusBar` |
 | `LAYER_MISSING` | `StatusBar` |
+| `PAGE_MISSING` | `StatusBar` |
+| `PAGE_REQUIRED` | `StatusBar` |
+| `TAG_MISSING` | `StatusBar` |
+| `ACTION_MISSING` | `StatusBar` |
 | `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
 
 呈现方式只有这几种，因为用户能做的事只有这几种：

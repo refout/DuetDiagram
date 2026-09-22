@@ -34,9 +34,14 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(SetEdgeFieldMemento), "set-edge-field")]
 [JsonDerivedType(typeof(LayoutConstraintMemento), "layout-constraint")]
 [JsonDerivedType(typeof(SetDirectionMemento), "set-direction")]
+[JsonDerivedType(typeof(SetKindMemento), "set-kind")]
 [JsonDerivedType(typeof(PaletteMemento), "palette")]
+[JsonDerivedType(typeof(CanvasMemento), "canvas")]
 [JsonDerivedType(typeof(CompositeMemento), "composite")]
 [JsonDerivedType(typeof(LayerMemento), "layer")]
+[JsonDerivedType(typeof(PageMemento), "page")]
+[JsonDerivedType(typeof(TagMemento), "tag")]
+[JsonDerivedType(typeof(ActionMemento), "action")]
 public abstract record CommandMemento
 {
     /// <summary>本次变更波及的元素标识，用于增量同步时告诉对端"重取这些元素"。</summary>
@@ -201,6 +206,21 @@ public sealed record SetDirectionMemento : CommandMemento
 }
 
 /// <summary>
+/// 改文档类型的逆变更。
+/// </summary>
+/// <remarks>
+/// 与改方向同一个形状：图类型也是文档上的一个标量，不是集合里的一条，
+/// 还原时直接写回去，没有"位置"要操心。两个记录不合并，是因为要还原的值类型不同——
+/// 合成一个带两个可空成员的记录，读日志的人会看到一个只填了一半的快照，
+/// 而它对应的是哪一次改动只能靠猜。
+/// </remarks>
+public sealed record SetKindMemento : CommandMemento
+{
+    /// <summary>改之前的图类型。</summary>
+    public required DiagramKind Previous { get; init; }
+}
+
+/// <summary>
 /// 调色板增删改的逆变更。
 /// </summary>
 /// <remarks>
@@ -218,6 +238,20 @@ public sealed record PaletteMemento : CommandMemento
 {
     /// <summary>改之前的调色板。</summary>
     public required Palette Previous { get; init; }
+}
+
+/// <summary>
+/// 画布设置的逆变更。
+/// </summary>
+/// <remarks>
+/// 记的是**改之前的整份画布设置**，而不是"改到的那几个成员"。一次调用可能改到其中几项，
+/// 只记一项的话，还原时要按成员再拼一次记录，而那一次拼接必须与命令里的拼接逐字一致——
+/// 两处一旦分叉，撤销出来的设置与原来那份会有细微差别，而差异只体现在哈希上。
+/// </remarks>
+public sealed record CanvasMemento : CommandMemento
+{
+    /// <summary>改之前的画布设置。</summary>
+    public required CanvasSettings Previous { get; init; }
 }
 
 /// <summary>
@@ -264,6 +298,48 @@ public sealed record LayerMemento : CommandMemento
 {
     /// <summary>改之前的图层集合，顺序与次序原样保留。</summary>
     public required LayerDef[] PreviousLayers { get; init; }
+}
+
+/// <summary>
+/// 页面增删的逆变更。
+/// </summary>
+/// <remarks>
+/// 记的是**改之前的整份页面集合**，而不是"这一页"。新建的逆操作是删除，按标识删掉就行；
+/// 但删除的逆操作必须把那一页插回它原来那一格——页面的集合位置是加入顺序，
+/// 一律追加到末尾会让撤销之后的页面次序与删除前不同，而两个哈希都按标识排序后遍历，
+/// 顺序错了照样对得上，这个错在哈希上看不出来。
+/// </remarks>
+public sealed record PageMemento : CommandMemento
+{
+    /// <summary>改之前的页面集合，顺序原样保留。</summary>
+    public required PageDef[] PreviousPages { get; init; }
+}
+
+/// <summary>
+/// 标签增删的逆变更。
+/// </summary>
+/// <remarks>
+/// 记的是**改之前的整份标签集合**。标签与元素的关系是单向的：成员列表挂在标签自己身上，
+/// 被点名的元素上没有回指字段，所以删一个标签不需要顺带摘掉别处的引用，
+/// 还原时把整份集合换回去就够了。
+/// </remarks>
+public sealed record TagMemento : CommandMemento
+{
+    /// <summary>改之前的标签集合，顺序原样保留。</summary>
+    public required TagDef[] PreviousTags { get; init; }
+}
+
+/// <summary>
+/// 动作增删的逆变更。
+/// </summary>
+/// <remarks>
+/// 与标签同一个形状：关系是单向的，目标元素上没有回指字段，
+/// 所以整份集合换回去就还原了，没有别处要摘。
+/// </remarks>
+public sealed record ActionMemento : CommandMemento
+{
+    /// <summary>改之前的动作集合，顺序原样保留。</summary>
+    public required ActionDef[] PreviousActions { get; init; }
 }
 
 /// <summary>

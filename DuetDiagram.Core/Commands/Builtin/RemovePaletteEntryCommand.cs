@@ -17,7 +17,8 @@ namespace DuetDiagram.Core.Commands.Builtin;
 /// 判据是「这件事有没有第二个地方能看见」：有就留着让那个地方报，没有就在这里挡住。
 /// </para>
 /// <para>
-/// 引用者只看样式令牌这一条路：节点上有令牌字段，边上有，两者都算。
+/// 引用者只看样式令牌这一条路：节点上有令牌字段，边上有，标签的颜色也取令牌名，
+/// 三者都算。组合的样式记录里没有令牌字段，所以它不算引用者。
 /// </para>
 /// </remarks>
 public sealed class RemovePaletteEntryCommand : DiagramCommandBase
@@ -118,8 +119,9 @@ public sealed class RemovePaletteEntryCommand : DiagramCommandBase
     /// 还在用这个令牌的元素。
     /// </summary>
     /// <remarks>
-    /// 节点与边各扫一遍。写成两段而不是一段通用代码，是因为两处读令牌的方式不同：
-    /// 节点上是一个直接的字段，边上藏在样式记录里——硬凑成一个接口反而要多加一层抽象。
+    /// 节点、边、标签各扫一遍。写成三段而不是一段通用代码，是因为三处读令牌的方式不同：
+    /// 节点上是一个直接的字段，边上藏在样式记录里，标签上是颜色字段——硬凑成一个接口
+    /// 反而要多加一层抽象。
     /// </remarks>
     private List<string> Referrers(DiagramDocument document)
     {
@@ -138,6 +140,14 @@ public sealed class RemovePaletteEntryCommand : DiagramCommandBase
             if (string.Equals(edge.StyleToken, _name, StringComparison.Ordinal))
             {
                 users.Add(edge.Id);
+            }
+        }
+
+        foreach (var tag in document.Tags)
+        {
+            if (string.Equals(tag.Color, _name, StringComparison.Ordinal))
+            {
+                users.Add(tag.Id);
             }
         }
 

@@ -105,6 +105,10 @@ public static class ErrorPresenterTable
             [ErrorCodes.CompositeMissing] = new(ErrorPresentationKind.StatusBar, "这个组合已经不在了"),
             [ErrorCodes.CompositeTooDeep] = new(ErrorPresentationKind.StatusBar, "组合嵌套得太深了"),
             [ErrorCodes.LayerMissing] = new(ErrorPresentationKind.StatusBar, "这个图层已经不在了"),
+            [ErrorCodes.PageMissing] = new(ErrorPresentationKind.StatusBar, "这一页已经不在了"),
+            [ErrorCodes.PageRequired] = new(ErrorPresentationKind.StatusBar, "文档至少要留一页"),
+            [ErrorCodes.TagMissing] = new(ErrorPresentationKind.StatusBar, "这个标签已经不在了"),
+            [ErrorCodes.ActionMissing] = new(ErrorPresentationKind.StatusBar, "这个动作已经不在了"),
 
             // 只读那一份。它不是失败，是"这件事在这份文档上做不了"，
             // 所以走灰显那一档：不弹窗，也不报成红的。

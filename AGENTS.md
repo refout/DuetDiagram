@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳 |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 起补命令层（断边） |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -150,6 +150,7 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
 
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayoutConstraint"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
@@ -290,7 +291,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 
@@ -301,8 +302,10 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 5. `RestoreCore` 必须能还原顺序（边的插入按原索引升序）。
 6. 新增 Memento 记录 → 补 `[JsonDerivedType]`（约束 5）。
 7. 补原子性测试 + 往返测试。
-8. 在 `docs/Command-List.md` 登记。
-9. 跑一遍 `Category=Atomicity` 与 `Category=MementoRegistration`。
+8. 在 `docs/Command-List.md` 的「已实现」表登记，**标识与类名两列都要写对**。
+9. 跑一遍 `Category=Atomicity`、`Category=MementoRegistration` 与 `Category=CommandGroups`。
+   最后一条会拿「已实现」表跟程序集里真正存在的命令逐条比——漏登记、写错类名、或者
+   表里留着一条已经删掉的命令，都会红。
 
 ## 与规格文档的已知差异
 
@@ -349,3 +352,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | §9.3 变更高亮列了四种手段 | 用户测试只测三种非颜色手段（脉冲、角标、虚线轮廓），边栏 diff 不进被测项 | 边栏 diff 是折叠面板而不是画布上的标记，量的是另一件事（读详情），和「一眼看出哪里变了」不是同一个问题，混进同一个量表会让受试者拿两把尺子打同一组分。边栏那一块也没进这一轮的界面 |
 | 用户测试的装置 | 不进 sln，也没有对应的测试工程；自检是 `tools/UserStudy -- verify` | 与对比测试同一口径：它是调查装置而不是产品的一部分。它没有可被产品代码引用的接口，也就没有单元测试要写——能验的是统计量算得对不对，那件事由 `verify` 在构造好的已知答案上做 |
 | §15.4 的统计方法 | 四个统计量全部自己算（精确条件置换 Friedman、精确符号组合 Wilcoxon、Kendall's W、卡方上尾的级数加连分式），不引第三方统计库 | 判定门的数字必须逐字节可复现，多一个依赖就多一处会随版本变的行为。三个被测项、十来个人的样本量下卡方近似与精确分布能差好几个数量级，而这份数据唯一的用途就是决定设计保不保，所以能精确的地方不近似 |
+| §4.4 与计划中命令清单的规模（四十余条） | 实际落地的命令远少于此：节点与边的字段写入合成 `set-node-field` / `set-edge-field` 两条，按字段名分发 | 字段注册表落地之后，`update-node-label`、`move-node-layer`、`set-node-shape`、`apply-style-token`、`set-node-style`、`set-text-style`、`set-edge-style` 这些各自再立一条命令的话，同一个效果会有两条路，而两条路的**冲突粒度不一样**——按字段写的那条能认出「一边改填充、一边改描边」可以共存，整份覆盖的那条会把两次互不相干的修改判成冲突。判断标准是**被改的值挂在元素上还是挂在文档上**：挂在元素上的由字段表覆盖，挂在文档子对象上的（`layout`、`palette`）才各立命令 |
+| 计划中命令清单里的 `reorder-node` | 不做，也没有对应的任务 | 节点集合顺序在三个可能观察到它的地方都不可见：结构哈希与外观哈希都先把集合按标识排序再遍历，布局引擎在同层内按横坐标排序、并列时用标识断掉，绘制阶段虽然按集合顺序出笔但布局保证同层不重叠。做出来会是一条**效果不可观测**的命令。它要成为真功能，前提是先给节点加一个 z 序字段并定义它在绘制里的语义，那是 IR 的改动 |
+| 计划中命令清单里的 `add-edge-waypoints` / `set-edge-route` | 不做，也没有对应的任务 | 折点写在 sidecar 的 `pinnedEdges`，不进 IR、不走命令总线——折点是用户「拖这儿」的产物，走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。所以工具层也不为折点开 action，它只走宿主侧的入口 |
+| 删除元素时对布局约束的处置 | 删边（`disconnect-edge`）不清理引用了它的层内次序，留着让整体校验器报 `LAYOUT_ORDER_EDGE_MISSING` | 命令里替用户把那条约束删掉的话，用户失去的是一条自己设过的约束，而且没有任何提示——比一条能被报出来的悬空引用糟得多。布局侧也是同一口径：求解器把认不出的标识当陈旧数据跳过而**不过滤**，就是为了让这种悬空还能被看出来 |

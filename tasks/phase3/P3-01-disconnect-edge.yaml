@@ -1,0 +1,101 @@
+id: P3-01
+title: 补齐命令层——断边
+phase: 3
+status: done
+depends_on: [P1-03, P1-05, P2-07]
+estimated_loc: 220
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/DisconnectEdgeCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - docs/Command-List.md
+  test:
+    - DuetDiagram.Core.Tests/DisconnectEdgeCommandTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；断边的失败路径与成功路径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 全通过；新增的 Memento 记录都补了 [JsonDerivedType]
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+    expect: 全通过；命令清单的「已实现」表与实际注册的命令逐条一致，没有列在计划里却已经存在、或反过来漏掉的
+constraints:
+  - "**动手之前先查字段表。** P1-05 的字段注册表已经把节点与边的字段写好了，`set-node-field` / `set-edge-field` 按字段名分发，覆盖 label、shape、parent、layer、styleToken、style（含七个子字段）、text（含八个）、ports、richText、mathMode、desc、meta；边只有 label 与 style 两个。**这些再各立一条命令的话，同一个效果会有两条路**，而两条路的冲突粒度不一样：按字段写的那条能认出「一边改填充、一边改描边」可以共存，整份覆盖的那条会把两次互不相干的修改判成冲突"
+  - "**`disconnect-edge` 是删除。** memento 要能按原索引把边插回去，`RestoreCore` 的顺序还原要单独有用例——插回位置错了的话，撤销之后文档与之前逐字节不一致，而画面上看不出来。**边集合的顺序是有语义的**，所以不能只按标识插回末尾"
+  - "**删边不连带删任何东西。** 边不持有子对象，端点节点也不因失去一条边而改变——所以本命令的波及面只有这一条边。反过来，删节点要连带删边（见 `remove-node`），两者不是同一种操作，不要因为名字像就共用一条命令"
+  - "**`reorder-node` 不立命令，这一条不做。** 它改的是节点集合内的位置，而集合顺序在**三个可能观察到它的地方都不可见**：结构哈希与外观哈希都把节点集合按标识排序后遍历，所以次序进不了任何哈希；布局引擎在同层内按横坐标排序、并列时用标识断掉，所以次序不改变任何坐标；绘制阶段确实按集合顺序出笔，但布局保证同层不重叠，所以画面逐像素一致。做出来会是一条**效果不可观测**的命令，而它还得带着自己的冲突判定、撤销语义与一条门禁。**次序要成为真功能，得先给节点加一个 z 序字段并定义它在绘制里的语义**，那是 IR 的改动，不是命令层的缺口"
+  - "**`add-edge-waypoints` 与 `set-edge-route` 不立命令。** 折点写在 sidecar 的 `pinnedEdges`，不进 IR、不走命令总线——这是 P2-07 定下的，理由是折点是用户「拖这儿」的产物，走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。所以工具层也**不得**为折点开 action，它只能走宿主侧的入口"
+  - "`Validate` 返回结构化 `CommandError`；`CaptureMemento` 与 `Apply` 对同一文档给出**一致**的索引"
+  - "新增 Memento 记录补 `[JsonDerivedType]`，否则原生编译下反序列化失败而普通测试全绿"
+context:
+  - "`docs/Command-List.md` 里那张「计划中」表是目标不是现状，这一条要把其中已被字段表覆盖的那些划掉，并把不做的两条连同理由写进去"
+  - "`DuetDiagram.Core/Model/FieldRegistry.cs` 是字段名的唯一来源；`NodeFieldValue.Writable` 与 `EdgeFieldValue.Writable` 由它派生"
+  - "`DuetDiagram.Core/Commands/Builtin/RemoveNodeCommand.cs` 是删除类命令的现成骨架，`EdgePlacement` 那套「边 + 原索引」的记法可以直接沿用"
+  - "`DuetDiagram.Core/Serialization/DiagramHashing.cs` 里每个集合都是 `OrderBy(标识)` 之后才遍历；`DuetDiagram.Layout/Internal/OrderSolver.cs` 在同层内 `OrderBy(横坐标).ThenBy(标识)`。这两处合起来说明节点集合顺序既不进哈希也不影响坐标"
+scope_note: |
+  **这一条原本写了十一条命令，最后只剩一条。** 两轮收窄，两轮都是对着代码核出来的，
+  不是对着计划核的。
+
+  第一轮：起草时照抄了命令清单里那张「计划中」表，没有先查 P1-05 的字段注册表。
+  而字段表落地之后，标签、形状、层、样式令牌、样式、文本这些字段的写入已经被
+  `set-node-field` 一条命令覆盖了。按原来的写法做下去，会得到九条与既有命令功能重叠
+  的命令，而重叠的两条路冲突粒度不同，同一个用户操作走哪条路由调用方决定，
+  行为不一致而两边各自都自洽。
+
+  第二轮：剩下的两条里，`reorder-node` 被查出**效果不可观测**——节点集合顺序既不进
+  结构哈希也不进外观哈希，不影响布局坐标，也因为布局保证不重叠而看不出绘制次序。
+  做出来会是一条没有任何东西能验证的命令。它要成为真功能，前提是先给节点加一个
+  z 序字段并定义绘制语义，那是 IR 的改动。
+
+  教训与命令清单里那句话是同一件事：那张表是**目标**，实际创建以任务为准。
+  起草任务之前要对着代码核一遍，不能对着计划核——**而且「对着代码核」要一直核到
+  这条命令的效果有没有人能看见**，否则会做出一条通过全部测试、但什么都没改变的命令。
+result:
+  summary: |
+    - `DuetDiagram.Core/Commands/Builtin/DisconnectEdgeCommand.cs`：`Validate` 只查一条
+      「边存在」（报 `EDGE_MISSING`）；`Apply` 按标识取出索引、移掉那一条边，波及面只有它自己。
+      端点节点与别的边都不动——删边不是删节点，节点因为失去一条边而改变是没有道理的。
+    - **撤销按原索引插回，不追加到末尾。** `DisconnectEdgeMemento` 记的是「整条边 + 原索引」。
+      边的集合顺序是有语义的（层内次序按出边先后排列），而结构哈希与外观哈希都先把集合
+      按标识排序再遍历，所以位置错了两个哈希照样对得上——只有专门比顺序的用例能发现。
+      用例删的是**中间**那一条：删首尾的话追加与插回原位分不开。
+    - **不共用新增边那个快照记录。** 两者数据形状一样（边 + 索引），但类型名要说清方向，
+      否则读日志的人看到一个「新增边」的快照却对应一次删除，只能靠上下文猜。
+      代价是多一行多态标签，而标签漏了会被反射门禁当场逮住。
+    - **引用了这条边的布局约束不清理，这是有意的。** 删完之后层内次序会指向一个不存在的
+      边标识，留着让整体校验器报 `LAYOUT_ORDER_EDGE_MISSING`——用户因此知道有一条约束悬空了。
+      命令里顺手把约束删掉的话，用户失去的是一条自己设过的约束，而且没有任何提示。
+      布局侧也是同一口径：`FallbackPlan.Targets` 把认不出的标识当陈旧数据跳过而**不过滤**，
+      那段代码的注释写的就是「过滤掉之后约束引用了不存在的东西就完全看不出来了」。
+      用例断言的是「约束原样留着」并且「校验器确实报了那个码」，两件事缺一不可。
+    - `DuetDiagram.Core.Tests/CommandListTests.cs`（新分类 `CommandGroups`）：反射枚举程序集里
+      所有具体命令类型、读出各自的 `Id` 常量，再逐行解析 `docs/Command-List.md` 的「已实现」表，
+      **比标识与类名两列**。只比标识的话，改了类名而没改文档照样绿，而读文档的人按旧名字搜代码搜不到。
+    - 这道门禁**一上来就抓到了两条漏登记的**：`disconnect-edge`（这一条新加的）与
+      `set-node-field`（P2-05 落地时就没登记进「已实现」表，一直没人发现）。两条都补上了。
+    - 门禁的可失效性当场验过：把表里 `add-node` 那一行的类名改成 `AddNodeCommandX`，
+      `The_class_column_names_the_type_that_owns_that_command_id` 立刻红；改回来即绿。
+      只能通过、不能失败的门禁等于没有门禁。
+    - **`reorder-node` 没做**，理由写在任务的 constraints 与 `docs/Command-List.md` 里：
+      节点集合顺序进不了任何哈希、不改变布局坐标、也因为布局保证同层不重叠而看不出绘制次序。
+      它要成为真功能，前提是先给节点加一个 z 序字段并定义它在绘制里的语义，那是 IR 的改动。
+    - `docs/Command-List.md`：「已实现」表补两行；「计划中」表里被字段表覆盖的那些、
+      以及不做的那两条（`reorder-node`、折点）连同理由一起标注，免得下一个人再照抄一遍。
+    - `AGENTS.md`：仓库布局表补 Phase 3 命令层；验收命令与已有分类补 `CommandGroups`；
+      新增命令检查清单第 8、9 步改成「标识与类名两列都要写对」并点名这道门禁；
+      已知差异表补四条（命令规模、`reorder-node`、折点、删元素时对约束的处置）。
+    - `.github/workflows/ci.yml` 加「命令清单门禁」独立作业，与 `MementoRegistration` 同一档——
+      它是约束类门禁，红了要能一眼看出是哪一类约束被破坏。
+  gates:
+    - "dotnet build DuetDiagram.slnx -c Release => 0 警告 0 错误"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Atomicity => 36/36 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=MementoRegistration => 4/4 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommandGroups => 4/4 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommentDiscipline => 1/1 通过"
+    - "核心 294/294、布局 75/75、渲染 145/145、Mermaid 179/179、DSL 158/158、端到端 81/81 全部通过"
+    - "dotnet run --project tools/LocCounter -- --root . --check => 一致（reports/loc.md 已重新生成）"
+    - "反向验证：把命令清单里 add-node 那一行的类名改错，CommandGroups 立刻红；改回即绿"
+  followups:
+    - "节点 z 序要成为真功能，得先给 IR 加一个 z 序字段并定义它在绘制里的语义（同层不重叠时也要看得出先后），那一步做完 `reorder-node` 才有意义。"
+    - "删节点（remove-node）也会留下悬空的约束引用，与这一条同一口径，同样由整体校验器报出来。这一轮没有改它。"
+    - "`Category=CommandGroups` 现在只比「已实现」那一节。命令清单里那几张计划中的表不参与比对——它们是目标不是现状，写法也不同。等 P3-02 ~ P3-04 落地时，落一条就从计划表挪进已实现表，两边都要动。"

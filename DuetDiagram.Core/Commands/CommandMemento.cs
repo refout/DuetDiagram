@@ -28,6 +28,7 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(AddNodeMemento), "add-node")]
 [JsonDerivedType(typeof(RemoveNodeMemento), "remove-node")]
 [JsonDerivedType(typeof(ConnectEdgeMemento), "connect-edge")]
+[JsonDerivedType(typeof(DisconnectEdgeMemento), "disconnect-edge")]
 [JsonDerivedType(typeof(SetNodeFieldMemento), "set-node-field")]
 [JsonDerivedType(typeof(ReconnectEdgeMemento), "reconnect-edge")]
 [JsonDerivedType(typeof(SetEdgeFieldMemento), "set-edge-field")]
@@ -91,6 +92,29 @@ public sealed record ConnectEdgeMemento : CommandMemento
 {
     public required EdgeDef Edge { get; init; }
 
+    public required int Index { get; init; }
+}
+
+/// <summary>
+/// 删除边的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 与新增边的逆变更形状一样（边本身 + 索引），但**不共用那个记录**：两个记录的
+/// 类型名要说明方向，否则读日志的人看到一个"新增边"的快照却对应一次删除，
+/// 只能靠上下文猜。多一个类型只多一行多态标签，而标签写错是编译期就能发现的。
+/// </para>
+/// <para>
+/// 索引是撤销时的插入位置。边的集合顺序有语义（层内次序按出边先后排列），
+/// 所以不能省掉索引改用追加——追加之后顺序变了，而两个哈希都按标识排序，
+/// 算出来一模一样，这个错在哈希上看不出来。
+/// </para>
+/// </remarks>
+public sealed record DisconnectEdgeMemento : CommandMemento
+{
+    public required EdgeDef Edge { get; init; }
+
+    /// <summary>这条边被删除前的位置。</summary>
     public required int Index { get; init; }
 }
 

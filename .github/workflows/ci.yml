@@ -57,6 +57,11 @@ jobs:
       - name: Memento 注册门禁
         run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MementoRegistration"
 
+      # 命令清单与实际注册的命令逐条一致。这张表是外部代理写代码时唯一的依据，
+      # 表里多一条不存在的命令、或少一条真有的命令，都不会让别的测试变红。
+      - name: 命令清单门禁
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=CommandGroups"
+
       # P1 判据 #22：LOC 一致
       - name: LOC 一致性
         run: dotnet run --project tools/LocCounter -c ${{ env.CONFIGURATION }} -- --root "$PWD" --check

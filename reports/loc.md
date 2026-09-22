@@ -8,8 +8,8 @@
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
 | DuetDiagram.App | 39 | 9227 | 5189 | 2523 | 1515 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 65 | 8792 | 4934 | 2535 | 1323 |
-| DuetDiagram.Core.Tests | 26 | 5705 | 4101 | 579 | 1025 |
+| DuetDiagram.Core | 66 | 8948 | 5021 | 2583 | 1344 |
+| DuetDiagram.Core.Tests | 28 | 6199 | 4431 | 650 | 1118 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
@@ -20,7 +20,7 @@
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **284** | **58144** | **36462** | **12169** | **9513** |
+| **合计** | **287** | **58794** | **36879** | **12288** | **9627** |
 
 ## 明细
 
@@ -99,6 +99,7 @@
 | AddLayoutConstraintCommand.cs | 198 |
 | AddNodeCommand.cs | 77 |
 | ConnectEdgeCommand.cs | 82 |
+| DisconnectEdgeCommand.cs | 81 |
 | ReconnectEdgeCommand.cs | 130 |
 | RemoveLayoutConstraintCommand.cs | 107 |
 | RemoveNodeCommand.cs | 126 |
@@ -107,7 +108,7 @@
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 58 |
+| CommandMemento.cs | 64 |
 | CommandResult.cs | 58 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 93 |
@@ -162,9 +163,11 @@
 | AtomicityTests.cs | 126 |
 | BroadcasterTests.cs | 89 |
 | CommandBusTests.cs | 242 |
+| CommandListTests.cs | 154 |
 | CommentDisciplineTests.cs | 99 |
 | ConflictTests.cs | 229 |
 | CorePurityTests.cs | 57 |
+| DisconnectEdgeCommandTests.cs | 176 |
 | DocumentFactoryTests.cs | 66 |
 | DocumentLockTests.cs | 177 |
 | EdgeCommandTests.cs | 276 |

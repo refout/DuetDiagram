@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>DuetDiagram.Llm</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    内部模型与外部代理共用的一套工具定义。
+    两个包都引，是因为「一份定义、两处派生」这件事就落在这里：
+    模型侧要函数，代理侧要由函数派生出来的工具，而派生需要代理侧的包。
+    传输不在这个工程里——服务端、会话与安全是另一件事，另立工程。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

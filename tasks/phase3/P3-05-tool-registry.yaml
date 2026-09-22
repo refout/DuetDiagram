@@ -1,7 +1,7 @@
 id: P3-05
 title: ToolRegistry 与八个工具的描述与参数校验
 phase: 3
-status: pending
+status: done
 depends_on: [P3-01, P3-02, P3-03, P3-04, P1-05]
 estimated_loc: 450
 files:
@@ -43,3 +43,110 @@ scope_note: |
   `DuetDiagram.Mcp` 留到 P3-13（MCP Server）再建，理由是工具定义与传输是两件事，
   而工具定义要先能被模型侧用起来才算数——先把传输建起来的话，会有一段时间里
   那份定义只有代理侧在用，共用这件事就没被验到。
+
+reconnaissance: |
+  **动手前对着命令层与两个依赖的公开接口核了一遍，结论如下。**
+
+  1. **29 条命令全部有归属，没有一条落空，也没有一个工具没有命令可包。**
+     动作表（工具 → action）：
+
+     - `diagram_read`：无 action，读文档本身。
+     - `diagram_edit`：`add-node` `remove-node` `connect-edge` `disconnect-edge`
+       `reconnect-edge` `set-node-field` `set-edge-field` `create-page` `delete-page`
+       `create-layer` `rename-layer` `reorder-layer` `add-tag` `remove-tag`
+       `add-action` `remove-action` `set-kind`。
+     - `diagram_style`：`set-shape` `set-style` `set-text` `set-canvas`
+       `define-palette-entry` `update-palette-entry` `remove-palette-entry`。
+     - `diagram_layout`：`set-direction` `set-spacing` `add-constraint`
+       `remove-constraint` `set-place`。
+     - `diagram_composite`：`create` `dissolve` `move-into`。
+     - `diagram_export`：`dsl` `mermaid`（位图三种走同一入口返回「尚未支持」）。
+     - `diagram_validate`：无 action。
+     - `diagram_undo_redo`：`undo` `redo`。
+
+  2. **action 数少于命令数，因为字段写入是合并的。** 节点与边的属性各合成一条按字段名
+     分发的命令，所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条。
+     这是字段表落地时就定下的口径，工具层不把它拆回一条一个 action——拆回去之后
+     同一个效果会有两条路，而其中一条不进结构哈希。
+
+  3. **折点与固定位置不进动作表。** 两者都写在 sidecar、不走命令总线，
+     所以 `diagram_layout` 与 `diagram_edit` 都不为它们开 action。为它们开 action 的话，
+     那条 action 要么绕开总线直接改 sidecar（撤销栈与广播都不经过），
+     要么给它们立一条命令（推翻既有决定）。
+
+  4. **`diagram_layout` 里没有 pin / unpin。** 命令层没有这条命令，IR 里也没有能存
+     绝对坐标的地方——节点的固定位置落在 sidecar。本条任务的验收里写着
+     「pin 与 unpin 走命令层」，那句话与命令层的现状对不上，P3-08 开工时要改掉。
+
+  5. **pattern 约束不能靠 `AIJsonSchemaCreateOptions.TransformSchemaNode` 注入。**
+     实测那个回调对每个 schema 节点都被调用，但 `Path` 恒为空、
+     `ParameterAttributeProvider` 与 `PropertyAttributeProvider` 恒为空，
+     认不出当前节点属于哪个参数，也拿不到参数上的特性。改为在
+     `AIFunctionFactory` 生成 schema 之后，按 `AIFunction.UnderlyingMethod` 的
+     `ParameterInfo` 读特性再回填——确定，且不依赖回调次序。
+
+  6. **`AIFunction` 可以派生**（`Name` / `Description` / `JsonSchema` / `InvokeCoreAsync`
+     都可重写），而 `McpServerTool.Create(AIFunction)` 取的就是它的 `JsonSchema`。
+     所以「两侧共用同一个函数对象」这件事可以落在注册表里，而不是靠两边各自推导。
+
+  7. **`ModelContextProtocol` 进一个开了裁剪与 AOT 分析器的工程是 0 警告**（实测）。
+     因此 `ToMcpTools` 与 `ToMeaiFunctions` 同处一地，不必把代理侧那一半挪到
+     P3-13 的工程里去。
+
+  8. **JSON 到强类型参数的绑定不用自己写。** 把 `JsonElement` 值直接放进
+     `AIFunctionArguments`，MEAI 会按目标参数的类型转换（字符串、整数、布尔、
+     字符串数组都实测通过）。所以工具层只需要一个 JSON 入口，不必再写一套绑定。
+
+  9. **工具层的错误码与命令层的错误码分开。** 命令层那张错误码表由界面呈现的用例
+     逐行核对，把工具层的码加进去会把它判红；而且两者的处置不同——命令层的
+     「字段值不合法」是去改文档，工具层的「参数不合法」是去改这一次调用。
+
+  10. **八个工具的 handler 在这一条里一律返回结构化的「尚未接线」。** P3-06 起逐个接上，
+      届时 `DiagramToolset.cs` 会进那几条任务的改动清单（它们现在的 `files.modify`
+      里没有它）。这是有意的：与其在这里先造一层可插拔的实现登记，不如让接上的那一条
+      直接把执行体写进同一个文件——多出来的那层间接没有任何别的用途。
+
+  11. **`Directory.Packages.props` 里那句「仍待引入的包」要改。** MEAI 与 MCP 现在都有人用了，
+      再挂着那句话，下一个读者会以为这两个包还没引入。
+
+result:
+  summary: |
+    `DuetDiagram.Llm` 与 `DuetDiagram.Llm.Tests` 建起来了，八个粗粒度工具的定义、
+    参数 schema 与参数校验落地。执行体一律返回结构化的「尚未接上」，参数表与说明先定死。
+
+    落地的东西：
+
+    - `Tools/ToolResult.cs`：工具层的五个错误码（`TOOL_UNKNOWN` / `TOOL_ARGUMENT_MISSING` /
+      `TOOL_ARGUMENT_INVALID` / `TOOL_ARGUMENT_UNKNOWN` / `TOOL_NOT_SUPPORTED`）、
+      结构化的 `ToolError` 与 `ToolResult`，以及结果类型的序列化上下文。
+    - `Tools/SchemaBuilder.cs`：`[Pattern]` 标注与两个取值形态常量（标识、带端口的端点）、
+      schema 的回填（标量落在参数上、数组落在元素上）、以及按 schema 的参数校验。
+    - `Tools/ToolDescriptor.cs`：由一个方法签名建出工具定义，并派生出一个走同一执行体的
+      `AIFunction`，让模型侧的调用也经过参数校验。
+    - `Tools/ToolRegistry.cs`：登记、按名调用、`ToMeaiFunctions`、`ToMcpTools`。
+    - `Tools/DiagramToolset.cs`：八个工具的名称、说明与参数表。
+
+    核对与实现过程中改掉的两处事实：
+
+    - 参数约束**不能**靠依赖库的 schema 变换回调注入（路径与参数特性提供者恒为空），
+      改成按声明方法的参数表回填。
+    - `Directory.Packages.props` 里「仍待引入的包」那句话删掉了，两个包现在都有人用。
+
+  gates:
+    - command: dotnet build DuetDiagram.slnx -c Release
+      result: 0 警告 0 错误
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj
+      result: 37 通过
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolRegistry"
+      result: 11 通过
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolSchema"
+      result: 26 通过
+    - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommentDiscipline"
+      result: 1 通过
+    - command: dotnet run --project tools/LocCounter -- --root . --check
+      result: 通过
+
+  followups:
+    - "P3-06 ~ P3-09 落地执行体时要改的是各自的方法体，参数表不动；`DiagramToolset.cs` 要进它们的 `files.modify`。"
+    - "P3-08 开工时改掉自己验收里那句「pin 与 unpin 走命令层」：命令层没有这条命令，固定位置落在 sidecar。"
+    - "工具层的错误码还没有进错误码文档；P3-10 做修复建议映射表时一并补上，那张表要覆盖全部码。"

@@ -34,12 +34,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | LLM 集成：八个工具的定义、上下文摘要、错误回环、MEAI 接入 | Phase 3 计划中（P3-05 起） |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生 | Phase 3 P3-05 已落地；动作分发表（P3-06 起）与上下文摘要、错误回环、模型接入未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表与参数约束的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-04（命令层）已落地，P3-05 起未开工。
+P3-01 ~ P3-05（命令层与工具定义）已落地，P3-06 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -145,6 +146,7 @@ dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj
 
 # 端到端（无头模式，起窗口、送输入、抓一帧；需要绘图后端，本机可直接跑）
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
@@ -171,6 +173,14 @@ dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --fi
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslCorpus"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslMapping"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslLayoutIntent"
+
+# 工具表：八个工具全部登记、名称唯一、说明与参数 schema 非空；
+# 模型侧与代理侧的名称、说明、参数 schema 逐字相同
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolRegistry"
+
+# 参数约束：标量参数上的正则进 schema 的 pattern、数组参数的进 items；
+# 越界的标识被拒，错误里带上参数名与期望形式，且一条命令都没发出去
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolSchema"
 
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
@@ -294,7 +304,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`
 
 ## 新增一个命令的检查清单
 
@@ -373,3 +383,9 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `add-action` / `remove-action` 的两个变更标志 | 都报假，**而那不是无操作** | 动作不进任何哈希：不影响坐标，也不影响像素，只影响交互。报成视觉变更会让宿主白白重绘一次。版本照推、历史照进、广播照发，变的只是宿主那一侧不必重排也不必重绘——所以判断要不要触发副作用一律用 `IsEffectiveSuccess`，它只看 `IsNoOp`，不看那两个标志 |
 | `set-canvas-settings` 的形状 | 六个成员各自可选，背景色用**空串表示清除**、空引用表示不动 | 与 `set-spacing` 同一口径：整份替换会逼调用方先把没打算改的项读回来再写回去，而那份读回来的值可能已经过期——一次「只改网格」的调用会把背景色悄悄改回旧值。清除只能另给一个信号，而空引用在可选参数里已经占了「这一项不动」的意思；空串在字段写入那条路上本来就是「这个字段没有值」的写法，两处一致。六个成员各登记一个 `canvas.*` 字段名，好让变更明细的粒度落到成员上：只用一个 `canvas` 的话，一边改网格、一边改背景色会被判成冲突 |
 | 页面、标签、动作的消费方 | 三样都能经命令层增删了，但渲染层与界面都还没读它们 | 翻页、标签着色、动作触发都还没有接线，图层的可见与锁定也仍然没有命令能改。IR 与命令先就位，是为了让「一份带页面与标签的文档能存下来、能往返」这件事先成立；消费方开工时再定它们各自的界面语义 |
+| §6.3 的 `ToolRegistry.ToMcpTools` | 与 `ToMeaiFunctions` 同处一地，都在 `DuetDiagram.Llm` 里；代理侧的**传输**仍然留在 `DuetDiagram.Mcp`（P3-13） | 派生代理侧的工具需要代理侧的包，而这一层只有这一个用途；把它挪到 P3-13 的话，P3-11 那条「两侧的 schema 逐字相同」的断言就只能自己拼一个代理侧工具出来，而那正是「定义只写一份」要避免的 |
+| 工具层的 action 数少于命令数 | 节点与边的属性各合成一条按字段名分发的命令，所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条 | 字段表落地时就定下了这个口径。工具层把它拆回一条一个 action 的话，同一个效果会有两条路，而其中一条不进结构哈希——判据是**被改的值挂在元素上还是挂在文档上** |
+| 工具层的错误码与命令层的错误码分成两套 | 工具层自己一份（`TOOL_` 前缀），不进 `ErrorCodes` | 命令层那张表由界面呈现的用例逐行核对，把工具层的码并进去会把它判红；而且两者的处置不同——命令层的「字段值不合法」是去改文档，工具层的「参数不合法」是去改这一次调用 |
+| 参数约束的注入方式 | 不用 `AIJsonSchemaCreateOptions.TransformSchemaNode`，改成在 schema 生成之后按声明方法的参数表回填 | 实测那个回调对每个 schema 节点都被调用，但路径恒为空、参数特性提供者恒为空，认不出当前节点属于哪个参数。按参数表回填是确定的，也不依赖回调次序 |
+| `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | P3-08 起草时写的「pin 与 unpin 走命令层」与命令层的现状对不上，那一条要在开工时改掉 |
+| P3-05 的八个工具一律返回结构化的「尚未接上」 | 参数表与说明先定死，执行体分批接上 | 参数表是接口，分两次定的话先接上的那些调用方要跟着改。接上时替换的是各自的方法体，`DiagramToolset.cs` 会进 P3-06 ~ P3-09 的改动清单（它们现在的 `files.modify` 里还没有它） |

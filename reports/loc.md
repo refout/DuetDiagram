@@ -15,12 +15,14 @@
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
+| DuetDiagram.Llm | 5 | 908 | 479 | 298 | 131 |
+| DuetDiagram.Llm.Tests | 2 | 451 | 345 | 17 | 89 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **317** | **65046** | **40930** | **13392** | **10724** |
+| **合计** | **324** | **66405** | **41754** | **13707** | **10944** |
 
 ## 明细
 
@@ -297,6 +299,23 @@
 | LayoutRequestFactoryTests.cs | 176 |
 | LayoutTests.cs | 327 |
 | OrderTests.cs | 145 |
+
+### DuetDiagram.Llm
+
+| 文件 | 代码 |
+|---|---:|
+| DiagramToolset.cs | 123 |
+| SchemaBuilder.cs | 127 |
+| ToolDescriptor.cs | 99 |
+| ToolRegistry.cs | 50 |
+| ToolResult.cs | 80 |
+
+### DuetDiagram.Llm.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| SchemaTests.cs | 180 |
+| ToolRegistryTests.cs | 165 |
 
 ### DuetDiagram.Mermaid
 

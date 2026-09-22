@@ -6,9 +6,6 @@
 
     已核实（2026-09-20，nuget.azure.cn）：本文件里出现的每个版本都真实存在。
 
-    仍待引入的包（用到时再登记，不要提前加）：
-      Microsoft.Extensions.AI / ModelContextProtocol → 外部代理接入阶段
-
     注意：布局引擎最终采用 Mostlylucid.Dagre 而不是 Mermaider 依赖的 Sugiyama，
     理由与并排数据见 reports/phase0a-layout.md。
 
@@ -16,6 +13,8 @@
     验证阶段核实过存在但最终没选上的，删掉登记而不是留着"以防万一"。
     留着的代价不是占几行，而是让"有哪些依赖"这个问题失去准确答案——
     我们连 Mermaider 是布局库还是解析器都判断错过一次。
+
+    按这条规则，下面每一项都有一处真实的引用：清单里没有"将来可能要用"的条目。
   -->
 
   <PropertyGroup>
@@ -52,7 +51,8 @@
 
     <!--
       内部模型集成。MCP 的工具类型与它共用同一套函数抽象，
-      因此一份工具定义有可能同时供内部模型与外部代理使用。
+      因此一份工具定义同时供内部模型与外部代理使用——这件事已经落地，
+      落点是把模型侧的函数交给代理侧派生工具。
     -->
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.7.0" />
 

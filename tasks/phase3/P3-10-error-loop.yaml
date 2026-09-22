@@ -1,0 +1,37 @@
+id: P3-10
+title: 错误回环——结构化错误与修复建议回灌模型
+phase: 3
+status: pending
+depends_on: [P3-09, P1-04, P1-05]
+estimated_loc: 360
+files:
+  create:
+    - DuetDiagram.Llm/Loop/ErrorEnvelope.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
+    - DuetDiagram.Llm/Loop/ErrorLoop.cs
+    - DuetDiagram.Llm.Tests/ErrorLoopTests.cs
+    - DuetDiagram.Llm.Tests/RepairHintTests.cs
+  modify:
+    - docs/Error-Codes.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ErrorLoop"
+    expect: 全通过；每一类错误都带上错误码、出错参数、可用取值与一句可执行的修复建议
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=RepairHint"
+    expect: 全通过；错误码文档里那张表与代码里的映射逐行一致，覆盖全部错误码
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ErrorLoop"
+    expect: 同一个错误连续出现两次时，回灌的内容不一样（第二次带上「上一次这么改也不行」）
+constraints:
+  - "**回灌给模型的是结构化错误，不是异常栈。** 异常类型名只写应用日志，不写回灌内容也不写审计日志。异常栈对模型没有信息量，还会把内部实现暴露给外部代理"
+  - "**修复建议要可执行。** 「参数非法」不是建议，「`nodeId` 必须匹配 `^[a-z0-9-]+$`，你给的是 `Node 1`」才是。不可执行的话，模型只能靠猜重试，而重试的代价是一轮往返"
+  - "**同一类错误连续出现时，第二次要带上「上一次这么改也不行」。** 不带的话，模型会原样重试——这一条是回环里最容易缺的，而缺了之后表现为「模型卡在一个错误上反复撞」"
+  - "回环要有次数上限，到上限就停下并把整段往返记录写进应用日志。不设上限的话，一次参数错误会变成无限次调用，而账单上看得出来、日志里看不出来"
+  - "错误码到修复建议的映射表放在**一处**，界面与工具层都读它。散在各处的话，同一个错误码会给用户和模型两种说法"
+context:
+  - 方案 §6.2 的确定性增强；§9.6 的错误码 GUI 处理表与「呈现方式落在一处」的口径
+  - "`docs/Error-Codes.md` 的错误码表"
+  - P2-11 的 `ErrorPresenterTable` 是同一形状的现成做法（面向界面那一侧）
+scope_note: |
+  **这一条与 P2-11 是同一个形状、两个出口。** P2-11 把错误码映射成界面上的呈现，
+  这一条把它映射成给模型看的话。两处都从错误码出发，所以映射表都放在一处、
+  都由一条「逐行核对」的测试兜住——分开维护的话，用户看到的和模型看到的是两套说法，
+  而两边各自都自洽，查不出来。

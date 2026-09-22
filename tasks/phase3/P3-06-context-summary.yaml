@@ -1,0 +1,31 @@
+id: P3-06
+title: diagram_read 与归一化上下文摘要
+phase: 3
+status: pending
+depends_on: [P3-05]
+estimated_loc: 380
+files:
+  create:
+    - DuetDiagram.Llm/Context/DiagramSummary.cs
+    - DuetDiagram.Llm/Context/SummaryBuilder.cs
+    - DuetDiagram.Llm/Context/SummaryFormatter.cs
+    - DuetDiagram.Llm.Tests/SummaryTests.cs
+  modify:
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+    expect: 全通过；摘要含节点、边、布局、锁定、可用样式、最近修改六块，不含原始坐标；同一份文档生成的摘要逐字节相同，改了样式令牌时「最近修改」那一段跟着变
+constraints:
+  - "**不注入原始坐标、不注入 sidecar、不注入完整 DSL。** 坐标用「第几层第几列」量化表达。注入原始坐标的后果是模型学会了照着数字微调位置，而那些数字下次重排就全变了——它学到的是一条不存在的能力"
+  - "**摘要要归一化。** 同一份文档无论集合的插入顺序如何，生成的摘要逐字节相同。不归一化的话，摘要没法进快照测试，也没法用来判断「这份文档变了吗」"
+  - "**最近修改那一段读命令总线的变更通知，不由摘要自己去比较文档。** 自己去比较的话，只能看到两次调用之间的差，而模型的调用间隔是不定的；读变更通知则不受间隔影响"
+  - "「可用样式令牌」要列全，并按文档的调色板实时取。写死一份的话，用户改了调色板之后模型会照着一个不存在的令牌去设样式"
+  - "摘要是给人看的文本还是结构化对象要定一处：结构化对象便于测试，文本便于直接进上下文。两者都要的话，由结构化对象渲染出文本，不要各写一份"
+context:
+  - 方案 §6.4 的上下文注入清单（节点列表、边列表、布局摘要、锁定列表、可用样式令牌、最近修改）
+  - 方案 §6.5 的摘要示例，那一段就是目标格式
+  - 方案 §6.4 明确「不注入原始坐标、sidecar 或完整 DSL」
+scope_note: |
+  **摘要是这套设计里最容易被写歪的一处。** 它看着像「把文档转成文字」，
+  实际要求是「只注入决策所需的最小信息」——多注入一样，模型就会去用它。
+  所以判据里有一条是**不含原始坐标**，而不只是「含六块内容」。

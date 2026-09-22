@@ -1,0 +1,44 @@
+id: P3-13
+title: MCP Server——网络传输、安全与主动推送
+phase: 3
+status: pending
+depends_on: [P3-12]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Mcp/Server/HttpHost.cs
+    - DuetDiagram.Mcp/Server/BearerAuth.cs
+    - DuetDiagram.Mcp/Server/RateLimiter.cs
+    - DuetDiagram.Mcp/Server/WorkspaceGuard.cs
+    - DuetDiagram.Mcp/Server/ChangePush.cs
+    - DuetDiagram.Mcp.Tests/HttpTransportTests.cs
+    - DuetDiagram.Mcp.Tests/SecurityTests.cs
+    - DuetDiagram.Mcp.Tests/ChangePushTests.cs
+  modify:
+    - docs/Architecture.md
+    - docs/Error-Codes.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpHttp"
+    expect: 全通过；无状态模式下工具调用成功，服务端换实例之后同一个请求仍然成立
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSecurity"
+    expect: 全通过；无令牌 401、越权 403、超限 429、路径逃逸被拒、单次调用超时被取消
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ChangePush"
+    expect: 全通过；文档变更被推给已连接的代理，断线之后重连仍能拿到当前版本
+constraints:
+  - "**网络传输默认用无状态模式。** 有状态会让请求必须落到同一个实例上，运维成本高得多。而无状态模式下服务端不持有服务容器，非基础类型参数会被当成工具参数——所以会话状态必须显式传入"
+  - "**认证、限流、路径逃逸三样都要有独立的拒绝路径与独立的错误码。** 合成一个「拒绝」的话，代理侧没法区分「令牌过期了」和「你调得太快」——而这两件事的处置完全不同（一个去换令牌，一个退避重试）"
+  - "**`--workspace` 限定的路径逃逸检测要在解析之后、打开之前做**，不要只在字符串层做前缀比较。字符串比较挡不住 `..` 与符号链接，而这两种都是最普通的写法"
+  - "**单次调用 30 秒超时。** 超时要把命令执行取消掉，不能只是返回一个超时响应而让命令在后台跑完——那样文档会被改，而调用方以为没改成"
+  - "**审计日志脱敏。** 令牌、完整文件路径不进审计日志；审计日志与 `AuditLog` 是两份东西，前者记调用，后者记文档变更"
+  - "**主动推送要能处理断线。** 连接断了之后变更仍在发生，重连时按版本号补差，不是重放全部通知"
+  - "限流是每令牌每分钟 N 次，超限返回 429 并带上重试间隔"
+context:
+  - 方案 §7.1 的传输与 long-polling 超时；§7.2 的安全设计表（传输、认证、授权、速率限制、审计、输入校验、工作区隔离、资源限制）
+  - 方案 §7.5 的权限分级（read / edit / full 加图层级）
+  - "`reports/phase0a-mcp.md` 的「尚未验证」表：断线重连、服务端主动推送、认证与授权、跨机器网络传输"
+scope_note: |
+  **这一条把 P0-05 里四项「尚未验证」补掉三样**（断线重连、主动推送、认证与授权），
+  跨机器网络传输仍然留空——那需要真机与真网络，不是代码层的事。
+
+  长轮询那一条风险已经消解：SDK 自带网络传输与流式传输，不用自建。方案 §7.1 里
+  关于 linked CTS 的写法是自建长轮询时代的产物，这一条改为验 SDK 传输的行为。

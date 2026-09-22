@@ -1,0 +1,42 @@
+id: P3-04
+title: 补齐命令层——页面、标签、动作与文档
+phase: 3
+status: pending
+depends_on: [P1-03, P1-04]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/CreatePageCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/DeletePageCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/AddTagCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveTagCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/AddActionCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveActionCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetKindCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetCanvasSettingsCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - docs/Command-List.md
+  test:
+    - DuetDiagram.Core.Tests/PageTagActionCommandTests.cs
+    - DuetDiagram.Core.Tests/DocumentSettingCommandTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrHashing"
+    expect: 全通过；`actions` 不进任何哈希，`canvas` 只进视觉哈希，`pages` / `tags` 进视觉哈希
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 全通过
+constraints:
+  - "**`actions` 不进任何哈希，`canvas` 只进视觉哈希。** 这两条写在 `docs/IR-Schema.md` 的覆盖表里，而它们最容易在这里被弄错——把 `add-action` 算进结构哈希的话，加一个交互动作会让所有 agent 的版本检查报冲突，而画面上什么都没变"
+  - "`delete-page` 要挡住删掉最后一页：文档至少要有一页，否则渲染层拿到空页面集合时的行为没有定义"
+  - "`set-kind` 改的是文档类型（流程图 / 框图 / 时序图）。改了之后布局方向与可用形状都可能变，所以它算**结构**变更"
+  - "`remove-tag` / `remove-action` 要处理「元素上还挂着它」的情况：要么一并摘掉并记在 memento 里，要么返回结构化错误。两条路都行，但不能留下悬空引用"
+  - "新增 Memento 记录补 `[JsonDerivedType]`；`CaptureMemento` 与 `Apply` 索引一致"
+context:
+  - "`docs/IR-Schema.md` 的哈希覆盖表与「三样刻意不覆盖的东西」"
+  - 方案 §4.1 的九个集合与三个子对象
+scope_note: |
+  这一条是四条命令层任务里最没有耦合的一条：八个命令各自独立，不依赖前三条。
+  放在最后写，是因为工具层用到它们的只有 `diagram_edit` 的几个 action 与
+  `diagram_validate`，不像节点 / 边 / 样式那几组那样卡住整条工具链。

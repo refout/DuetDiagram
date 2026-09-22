@@ -1,0 +1,39 @@
+id: P3-15
+title: Skill 机制与渐进式披露
+phase: 3
+status: pending
+depends_on: [P3-11, P3-12, P3-13, P1-16, P1-17]
+estimated_loc: 380
+files:
+  create:
+    - DuetDiagram.Mcp/Skills/diagram-workflow.md
+    - DuetDiagram.Mcp/Skills/diagram-syntax.md
+    - DuetDiagram.Mcp/Skills/SkillCatalog.cs
+    - DuetDiagram.Mcp/Skills/SkillResource.cs
+    - DuetDiagram.Mcp.Tests/SkillTests.cs
+    - DuetDiagram.Mcp.Tests/ProgressiveDisclosureTests.cs
+  modify:
+    - DuetDiagram.Llm/Chat/ChatOptionsFactory.cs
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Skill"
+    expect: 全通过；两个 Skill 都能按 `skill://` URI 取到，正文非空且带版本
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=SkillDisclosure"
+    expect: 全通过；三层各自的内容边界清楚——工具描述不含操作顺序，Skill 正文不含精确语法，资源文件才含精确语法
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Skill"
+    expect: 语法 Skill 里的例子能被真的解析器解析通过（文档与实现不分叉）
+constraints:
+  - "**三层的内容边界要守住。** 工具描述只写「一句话做什么 + 何时用 + 限制」，Skill 正文写「操作顺序 + 常见错误」，资源文件写「精确语法 + 罕见形状」。边界破了的话，工具描述会被撑到几百字，而它**始终在上下文里**——每一条描述都在为 80% 的场景付费"
+  - "**Skill 正文里的例子要能被真的解析器解析通过，并由测试核。** 文档里的例子过期了不会报错，只会让模型照着写错的东西——本仓在错误码名上已经踩过一次同样的坑"
+  - "**`skill://` URI 的路径不能逃出 Skills 目录。** 与 §7.2 的工作区隔离同一条口径：解析之后再做检查，不做字符串前缀比较"
+  - "Skill 的加载要按任务匹配，不是全部塞进上下文。全塞的话，渐进式披露就退化成「一次性全给」，而三层结构的意义正在于按需"
+  - "Skill 正文里不写具体版本号以外的可变事实（节点标识、文件路径）。写进去之后它就成了一个会过期的断言"
+context:
+  - 方案 §8 的 Skill 机制：两个 Skill、渐进式披露三层、SEP-2640、`skill://` URI
+  - "`docs/DSL-Syntax.md` 是 `diagram-syntax` 的资源来源"
+  - "`reports/phase0a-mcp.md` 里「技能扩展未验证」那一条"
+scope_note: |
+  **这一条把 P0-05 里「技能扩展未验证」补掉。** 装置上它只需要一条资源读取路径，
+  真正花时间的是两个 Skill 的正文：操作顺序要对着工具层真实的行为写，
+  语法例子要对着真的解析器写。两样都容易写成「看起来对」——
+  所以判据里有一条是拿解析器把例子跑一遍。

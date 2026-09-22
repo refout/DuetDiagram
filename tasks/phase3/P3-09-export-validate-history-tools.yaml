@@ -1,0 +1,39 @@
+id: P3-09
+title: diagram_export、diagram_validate 与 diagram_undo_redo
+phase: 3
+status: pending
+depends_on: [P3-05, P1-04, P1-10, P1-02]
+estimated_loc: 380
+files:
+  create:
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.Llm/Tools/ValidateTool.cs
+    - DuetDiagram.Llm/Tools/HistoryTool.cs
+    - DuetDiagram.Llm.Tests/ExportToolTests.cs
+    - DuetDiagram.Llm.Tests/ValidateToolTests.cs
+    - DuetDiagram.Llm.Tests/HistoryToolTests.cs
+  modify:
+    - docs/Command-List.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；DSL 与 Mermaid 两种文本导出各有用例，位图类导出返回结构化「尚未支持」
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ValidateTool"
+    expect: 全通过；结构化错误逐条带上错误码、位置与修复建议
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=HistoryTool"
+    expect: 全通过；撤销重做走的是同一条历史栈，人改的和模型改的混在一起时顺序正确
+constraints:
+  - "**`diagram_undo_redo` 走的是同一条历史栈。** 人和模型共用一个撤销栈，不是两条。分成两条的话，用户按 Ctrl+Z 撤掉的可能是模型十步之前的改动，而界面上看不出这件事——这条正是「人和 LLM 能力对等」的直接体现"
+  - "**撤销到模型自己的改动时，返回里要说清撤掉的是哪一条。** 模型需要知道自己刚才那一步被撤了，否则它会以为文档还停在自己写完之后的状态"
+  - "**`diagram_validate` 返回的是结构化错误加修复建议，不是一句「校验失败」。** 修复建议由错误码映射到一句可执行的话，映射表放在一处；散在各处的话，同一个错误码在两个入口会给出两种建议"
+  - "位图 / PDF 导出在 Phase 3 还没有实现，返回结构化「尚未支持」并说明缺什么。返回一张空图或者静默成功，比返回「尚未支持」糟得多"
+  - "导出不改变文档，所以它不得触发版本号变化，也不得进撤销栈"
+context:
+  - 方案 §6.1 的工具表：`diagram_export` 是 SVG/PNG/PDF/DSL 的统一入口，`diagram_validate` 返回结构化错误加修复建议
+  - "`docs/Error-Codes.md` 的错误码表与修复建议列"
+  - P1-10 的 Mermaid 导出与 P1-17 之后的 DSL 导出是现成能力
+scope_note: |
+  **`diagram_export` 在 Phase 3 只做文本两种格式。** 方案把 SVG/PNG/PDF 写在同一个工具里，
+  但那三样要么依赖渲染层（位图）、要么依赖一个排版库（PDF），而 §2 的选型表把它们
+  标成「Phase 4 验证」。所以这一条做的是「统一入口 + 已有的两种格式」，
+  位图那几种按同一入口留位、返回「尚未支持」。接口一次定死，实现分批填——
+  分两次定接口的话，第一批的调用方要跟着改。

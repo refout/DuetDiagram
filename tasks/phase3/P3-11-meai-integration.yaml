@@ -1,0 +1,39 @@
+id: P3-11
+title: MEAI 集成与内外部工具共用
+phase: 3
+status: pending
+depends_on: [P3-05, P3-06, P3-10]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Llm/Chat/DiagramChatClient.cs
+    - DuetDiagram.Llm/Chat/ChatOptionsFactory.cs
+    - DuetDiagram.Llm/Chat/ScriptedChatClient.cs
+    - DuetDiagram.Llm.Tests/ChatClientTests.cs
+    - DuetDiagram.Llm.Tests/ToolParityTests.cs
+  modify:
+    - DuetDiagram.slnx
+    - Directory.Packages.props
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ChatClient"
+    expect: 全通过；工具调用往返走通，错误回环把结构化错误回灌给模型
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolParity"
+    expect: 全通过；模型侧与代理侧的名称、描述、参数 schema 逐字相同
+  - command: dotnet run --project tools/Poc/SharedTools -c Release
+    expect: 仍然通过；它验的是依赖本身的行为，这一条验的是我们的用法
+constraints:
+  - "**一份定义、两处派生。** 模型侧与代理侧引用的是同一批 `AIFunction` 对象，不是两份长得一样的声明。两份的话，某天升级依赖之后会静默分叉，表现为「模型能调通的工具代理调不通」"
+  - "**两侧的 schema 逐字相同要有断言兜住。** 即使当前是共用的，也要留一条测试比对两侧序列化出来的 schema 字符串——共用这件事一旦被谁改成各自维护，只有这条断言会报错"
+  - "**可空参数生成的是 JSON Schema 的数组形式**（`\"type\": [\"string\", \"null\"]`）。这是较新的写法，外部代理用别的实现接入时可能被拒。接入阶段要实测一次；不接受的话要么改写形式、要么在文档里要求对端升级"
+  - "**每次调用前注入归一化摘要，只注入决策所需的最小信息。** 注入整份文档的话，上下文会被坐标填满，而模型真正要看的层数与分组被淹掉"
+  - "**测试不许打真实模型。** 用脚本化的假客户端把往返序列固定下来。打真模型的话，同一个用例每次结果不同，而失败时看不出是工具的问题还是模型那天心情不好"
+  - "凭据只从 `secrets/` 下读，不进版本库，也不进日志。日志脱敏按 §7.2 那一行办"
+context:
+  - 方案 §6.3 的 ToMeaiFunctions；§6.4 的上下文注入；§7.6「内部 LLM 和外部 agent 共用同一份 ToolRegistry」
+  - "`reports/phase0a-shared-tools.md` 的结论与三条约束"
+  - "`Microsoft.Extensions.AI` 的版本见 `Directory.Packages.props`"
+scope_note: |
+  **脚本化的假客户端不是偷懒，是这一层的判据所要求的。** §14.3 的 Phase 3 判据里有一条是
+  「内外部工具行为一致」——它比的是两侧的**声明与行为**，与模型的输出无关。
+  打真模型只会把噪声引进来。真模型的端到端那一条在 P3-16，与这一条分开。

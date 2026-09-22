@@ -1,0 +1,46 @@
+id: P3-14
+title: 并发三层——乐观并发、文档软锁与图层级权限
+phase: 3
+status: pending
+depends_on: [P3-12, P1-05, P1-02]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Core/Concurrency/SoftLock.cs
+    - DuetDiagram.Core/Concurrency/SoftLockOptions.cs
+    - DuetDiagram.Core/Concurrency/PermissionSet.cs
+    - DuetDiagram.Core/Concurrency/LayerAcl.cs
+    - DuetDiagram.Mcp/Server/ConflictResponder.cs
+    - DuetDiagram.Core.Tests/SoftLockTests.cs
+    - DuetDiagram.Core.Tests/PermissionTests.cs
+    - DuetDiagram.Mcp.Tests/ConflictResponseTests.cs
+  modify:
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.Core/Workspace/DiagramWorkspace.cs
+    - docs/Error-Codes.md
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=SoftLock"
+    expect: 全通过；拿锁、续期、无操作到期自动释放、被他人持有时的行为各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Permission"
+    expect: 全通过；read 改不动、edit 改不动图层级禁止的部分、full 不受限
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Conflict"
+    expect: 全通过；四种冲突返回策略（FullSnapshot / Empty / Reference / FullSnapshot）逐条对上
+constraints:
+  - "**软锁与文档锁是两件事，不要合并。** 文档锁（P2-12）管的是「这个进程在编辑这份文件」，粒度是进程与文件，用独占句柄；软锁管的是「这个 agent 正在改这份文档」，粒度是文档，TTL 30 秒、无操作自动释放。合并的话，一个卡住的 agent 会让整个进程连只读都退不进去"
+  - "**软锁到期要真的自动释放，且释放前要确认持有者没有再动。** 只看时间戳的话，一个每 29 秒动一次的 agent 会被判定为过期，而它其实正在写"
+  - "**四种冲突返回策略逐条实现，不合并。** 「Agent 未声明 clientState → FullSnapshot」「版本相等 → Empty」「在日志范围内且 hash 匹配 → Reference」「超范围或 hash 不匹配 → FullSnapshot」——四种的分界是能不能只回差异，合并任意两种都会让某一类调用方拿到它不需要的全量或者拿不到它需要的差异"
+  - "**`409` 必须带上差异。** 只回一句「版本冲突」的话，代理无从知道冲突在哪，只能整份重读再重试，而重试大概率还是冲突"
+  - "**权限判定在会话那一层，不只在界面上。** 界面上的入口有七处（P2-12 已经踩过一次），漏掉哪一处都不会报错，只会留下一条能造成损坏的路。工具层与代理层同样要判"
+  - "**图层级 ACL 绑定认证主体**，不是绑定连接。绑定连接的话，同一个令牌换一条连接就能绕过限制"
+  - "新增错误码要同时补 `docs/Error-Codes.md` 的表与呈现映射；`Category=ErrorPresentation` 会逐行核对"
+context:
+  - 方案 §7.5 的并发三层表（乐观并发 / 文档软锁 / 权限分级）
+  - 方案 §7.4 的冲突返回策略四种情形
+  - 方案 §7.2 的「授权：图层级 ACL 绑定认证主体」
+  - P2-12 的 `DocumentLock` 与 `DOCUMENT_READ_ONLY` 是同一条线上的既有实现
+scope_note: |
+  **软锁不是文档锁的替代品，两者必须并存。** 前者挡的是「两个 agent 同时改同一份文档」，
+  后者挡的是「两个进程同时开同一个文件」。粒度、寿命、判据都不同：
+  文档锁靠独占句柄，抢不到就退只读；软锁靠时间戳，到期自动放。
+  把它们合成一个的话，一个 agent 卡住会把整个进程锁在只读上，而用户看到的是一份改不动的文档。

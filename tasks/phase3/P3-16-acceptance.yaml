@@ -1,0 +1,45 @@
+id: P3-16
+title: Phase 3 收尾——实机验收与多 agent 并发
+phase: 3
+status: pending
+depends_on: [P3-01, P3-02, P3-03, P3-04, P3-05, P3-06, P3-07, P3-08, P3-09, P3-10, P3-11, P3-12, P3-13, P3-14, P3-15]
+estimated_loc: 420
+files:
+  create:
+    - tools/McpHarness/McpHarness.csproj
+    - tools/McpHarness/Program.cs
+    - tools/McpHarness/Session.cs
+    - tools/McpHarness/Scenarios.cs
+    - tools/McpHarness/Agents.cs
+    - DuetDiagram.Mcp.Tests/ConcurrencyTests.cs
+    - reports/phase3-mcp.md
+  modify:
+    - AGENTS.md
+    - tasks/README.md
+    - .github/workflows/ci.yml
+acceptance:
+  - command: dotnet run --project tools/McpHarness -c Release -- protocol
+    expect: 用协议层的客户端把八条判据逐条跑一遍，全部通过
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=MultiAgent"
+    expect: 全通过；十个 agent 并发写入无损坏，版本单调递增，冲突按策略返回且带差异
+  - command: 用真的 Codex CLI 或 Claude Code 接上标准输入输出服务端，读写一份文档
+    expect: 读得到、改得动、撤销得了；同一条命令经内部模型与经外部代理得到同样的结果
+constraints:
+  - "**实机验收要跑真的代理，不能只用自建客户端。** 自建客户端验的是「协议层能通」，
+    而 §14.3 的判据写的是「Codex CLI / Claude Code 可读写」——那两样是别人的实现，
+    它们对可空参数的 schema 形式、对扩展位的读法各有各的容忍度。这一条是 P0-05 报告里
+    「接入外部代理时要实测可空参数的 schema 形式」的落点"
+  - "**多 agent 并发要真的起十个并发调用，不是顺序跑十次。** 顺序跑验不到版本检查的竞态，而竞态正是这一条要挡的东西"
+  - "**「无损坏」的判据是文档仍然校验通过且版本号单调递增**，不是「没有抛异常」。抛异常的那条路早就被挡住了，漏网的是「两个都成功但后一个覆盖了前一个」"
+  - "**内外部一致要比对的是结果而不是过程。** 同一条命令经内部模型与经外部代理走完，文档的结构哈希必须相同；日志与往返次数可以不同"
+  - "报告里要写明哪几项是自建客户端验的、哪几项是真实代理验的。混在一起写的话，读的人会以为全部经过了真实代理"
+context:
+  - 方案 §14.3 的 Phase 3 六条判据：Codex CLI / Claude Code 可读写、多 agent 并发无损坏、409 + diff、软锁 TTL、Skill 加载、内外部工具行为一致
+  - 方案 §15.2 的 MCP 测试清单：协议一致、8 工具参数校验、10 agent 并发无损坏、409 + diff、只读无法写、速率限制、审计日志、clientState 握手、accepted=false 处理
+  - "`tools/CompareHarness` 是不进 sln 的调查工具的现成形状"
+scope_note: |
+  **真实代理那一步可能需要人。** 与 P1-14 的人工评分、P2-13 的真人数据同一类：
+  Codex CLI / Claude Code 要装、要凭据、要有人看着跑。所以这一条拆成两半：
+  `tools/McpHarness` 把八条判据在协议层逐条验掉（编码 agent 做得了），
+  真实代理那一步如果这台机器上做不了，就照实记成「未验」，不写成「通过」。
+  装置齐了不等于测过了——这一条在对比测试与用户测试上已经踩过两次。

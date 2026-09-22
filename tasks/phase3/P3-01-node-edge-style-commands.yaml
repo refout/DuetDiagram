@@ -1,0 +1,53 @@
+id: P3-01
+title: 补齐命令层——节点、边与样式
+phase: 3
+status: pending
+depends_on: [P1-03, P1-05]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/UpdateNodeLabelCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/MoveNodeLayerCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetNodeShapeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ReorderNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/DisconnectEdgeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetEdgeRouteCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/AddEdgeWaypointsCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ApplyStyleTokenCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetNodeStyleCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetTextStyleCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetEdgeStyleCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - docs/Command-List.md
+  test:
+    - DuetDiagram.Core.Tests/NodeAndEdgeCommandTests.cs
+    - DuetDiagram.Core.Tests/StyleCommandTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；新命令的失败路径与成功路径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 新增的 Memento 记录都补了 [JsonDerivedType]，与程序集里的具体类型集合一致
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+    expect: 十一条命令全部注册且 CommandId 与命令清单逐条一致
+constraints:
+  - "**这一条是 P1-03 的遗留，不是新功能。** P1-03 的 result 里记着 remaining_groups，其中节点、边与样式三组就在这里补上。工具层的 diagram_edit 与 diagram_style 要按 action 分发到这些命令，缺哪一条对应的 action 就只能返回「尚未支持」"
+  - "`Validate` 覆盖全部前置条件并返回**结构化** `CommandError`，不要在 `Apply` 里抛异常表达业务失败"
+  - "`CaptureMemento` 与 `Apply` 对同一文档必须给出**一致**的索引/位置。`reorder-node` 与 `add-edge-waypoints` 都是按索引定位的，这一条最容易在这里出错"
+  - "`RestoreCore` 必须能还原顺序（折点按原索引升序插回）"
+  - "新增 Memento 记录必须同时补 `[JsonDerivedType]`，否则原生编译下反序列化失败，而普通测试全绿"
+  - "命令内部不得异步调用 `Execute`；需要异步触发时由宿主在命令外调度"
+  - "样式类命令的参数走**白名单**：样式令牌必须在文档的调色板里有定义，不在就返回结构化错误并把可用令牌列在错误里。放行未知令牌的话，渲染层拿到一个不认识的名字只会静默按默认样式画，而用户以为样式已经生效"
+context:
+  - 方案 §6.1 的 diagram_edit 覆盖全部结构编辑、diagram_style 覆盖全部样式编辑，两者内部按 action 分发
+  - 方案 §6.2 要求结构化输入校验、默认值填充、样式白名单、原子性
+  - "`docs/Command-List.md` 里那张分组表是目标；`tasks/phase1/P1-03-builtin-commands.yaml` 的 result.remaining_groups 记着实际缺口"
+  - "`DuetDiagram.Core/Commands/Builtin/` 下已有八条命令可以照抄骨架"
+scope_note: |
+  **为什么它在 Phase 3 的第一位，而不是 Phase 1 的收尾。** 命令层缺哪一组，
+  对应的工具 action 就只能返回「尚未支持」——而 §14.3 的 Phase 3 判据第一条是
+  「Codex CLI / Claude Code 可读写」。八个工具里有三个（edit / style / layout）
+  全靠这一层，先把它们补齐，工具层才有东西可分发。
+
+  与 P2-10 同一条口径：一类的增删动作形状相同就合成一条命令、由参数给出种类；
+  形状不同的才各写一条。这里十一条的形状各不相同，所以是十一条。

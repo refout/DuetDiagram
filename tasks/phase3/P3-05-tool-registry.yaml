@@ -1,0 +1,45 @@
+id: P3-05
+title: ToolRegistry 与八个工具的描述与参数校验
+phase: 3
+status: pending
+depends_on: [P3-01, P3-02, P3-03, P3-04, P1-05]
+estimated_loc: 450
+files:
+  create:
+    - DuetDiagram.Llm/DuetDiagram.Llm.csproj
+    - DuetDiagram.Llm/Tools/ToolDescriptor.cs
+    - DuetDiagram.Llm/Tools/ToolRegistry.cs
+    - DuetDiagram.Llm/Tools/ToolResult.cs
+    - DuetDiagram.Llm/Tools/SchemaBuilder.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj
+    - DuetDiagram.Llm.Tests/ToolRegistryTests.cs
+    - DuetDiagram.Llm.Tests/SchemaTests.cs
+  modify:
+    - DuetDiagram.slnx
+    - Directory.Packages.props
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolRegistry"
+    expect: 全通过；八个工具全部注册、名称唯一、描述非空、参数 schema 非空
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolSchema"
+    expect: 全通过；节点标识的 pattern 约束真的被写进 schema，且越界参数在进入命令层之前就被拒
+constraints:
+  - "**工具只定义一次。** 定义放在命令层之上、模型侧与代理侧之下，由模型侧的函数向代理侧派生。两边各写一份的话，某天升级依赖之后会静默分叉，表现为「模型能调通的工具代理调不通」"
+  - "**参数约束用 JSON Schema 的 pattern 硬约束，不只靠描述文字。** 节点标识必须匹配 `^[a-z0-9-]+$` 这类约束要进 schema，让校验发生在模型生成参数之后、命令层之前。只写在描述里的话，模型偶尔不照做，而错误会在命令层以一个看不懂的形式冒出来"
+  - "**工具层不直接改文档。** 每个 handler 只做参数解析与分发，真正的变更走命令总线。绕开总线的话，撤销栈、版本号、审计日志与变更广播全都不经过，而这几样正是「人和 LLM 能力对等」所依赖的"
+  - "工具描述要写全三样：一句话做什么、**何时用**、限制。只写「做什么」的话，模型会在该用别的工具时用这一个"
+  - "handler 的异步只用于 IO（日志、网络、外部模型）。命令执行本身走同步入口，不得在命令内部异步调用 `Execute`"
+  - "参数校验失败返回**结构化** `ToolResult`，把出错参数名与期望形式写清楚。抛异常的话，代理侧看到的是一个内部错误而不是「你给错了参数」"
+context:
+  - 方案 §6.1 的八个粗粒度工具表（diagram_read / edit / style / layout / composite / export / validate / undo_redo）
+  - 方案 §6.3 的 ToolDescriptor 记录与 ToolRegistry 类（Tools / ToMeaiFunctions / ToMcpTools）
+  - "`reports/phase0a-shared-tools.md` 的结论：共用可行且应当共用，桥梁是 `McpServerTool.Create(AIFunction, options)`"
+  - 方案 §2 的技术选型表里 `Microsoft.Extensions.AI` 与 `ModelContextProtocol` 的版本
+scope_note: |
+  **这是 Phase 3 唯一引入新工程的一条。** `DuetDiagram.Llm` 依赖 MEAI 与命令层；
+  `DuetDiagram.Mcp` 留到 P3-13（MCP Server）再建，理由是工具定义与传输是两件事，
+  而工具定义要先能被模型侧用起来才算数——先把传输建起来的话，会有一段时间里
+  那份定义只有代理侧在用，共用这件事就没被验到。

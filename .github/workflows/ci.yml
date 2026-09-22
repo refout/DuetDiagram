@@ -67,6 +67,26 @@ jobs:
       - name: 用户测试装置自检
         run: dotnet run --project tools/UserStudy -c ${{ env.CONFIGURATION }} -- verify
 
+      # 任务 YAML 必须能被解析。它们是给 agent 读的，读不了等于任务不存在。
+      # 已经踩过两次：一次是 expect 值里有未加引号的冒号加空格，
+      # 一次是正文里有未加引号的引号。两次都是整个文件解析失败，而没有任何东西会报错。
+      - name: 任务 YAML 可解析
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, sys, yaml
+          broken = []
+          for path in sorted(glob.glob('tasks/**/*.yaml', recursive=True)):
+              try:
+                  yaml.safe_load(open(path, encoding='utf-8'))
+              except Exception as error:
+                  broken.append(f'{path}: {error}')
+          if broken:
+              print('\n'.join(broken))
+              sys.exit(1)
+          print('任务 YAML 全部可解析')
+          PY
+
       # 布局的不变量：固定坐标精确、无残留重叠、四个方向。方案 §10 的布局判据。
       - name: 布局不变量门禁
         run: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Layout"

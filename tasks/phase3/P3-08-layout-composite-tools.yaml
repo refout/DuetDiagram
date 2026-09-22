@@ -1,0 +1,37 @@
+id: P3-08
+title: diagram_layout 与 diagram_composite
+phase: 3
+status: pending
+depends_on: [P3-05, P3-02, P3-03]
+estimated_loc: 430
+files:
+  create:
+    - DuetDiagram.Llm/Tools/LayoutTool.cs
+    - DuetDiagram.Llm/Tools/CompositeTool.cs
+    - DuetDiagram.Llm/Tools/PortParser.cs
+    - DuetDiagram.Llm.Tests/LayoutToolTests.cs
+    - DuetDiagram.Llm.Tests/CompositeToolTests.cs
+  modify:
+    - docs/Layout-Constraints.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=LayoutTool"
+    expect: 全通过；端口写法解析正确、pin 与 unpin 走命令层、改完之后调度了一次重布局
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
+    expect: 全通过；四种组合的创建、解散与移入各有用例，成环被拒
+  - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=LayoutFallback"
+    expect: 全通过；经工具层改过布局提示之后，四级降级仍然按级别唯一
+constraints:
+  - "**端口要自动解析。** 模型写 `A.bottom -> B.top` 这类写法时要能解析成端口，解析不了就按默认端口并**在结果里说明**。默默按默认端口处理的话，模型以为端口生效了，而画出来的连线方向不对"
+  - "**`diagram_layout` 改完必须触发重布局，而触发由宿主决定。** 命令的 `CommandResult` 报出「结构变更」，工具层把它翻译成一次布局调度。工具层自己调布局引擎的话，`DuetDiagram.Llm` 就依赖了布局引擎，而布局引擎是第三方组件——这一层不该有它"
+  - "**pin 与 sidecar 的固定位置是两回事，合并规则要写进文档。** 命令层的 pin 进 IR，拖拽的固定位置进 sidecar；布局求解时两者都要看，谁优先得定死。不定的话，同一个节点会有两个互相矛盾的固定位置，而表现是「有时按这个、有时按那个」"
+  - "组合的嵌套深度上限从命令层读，不在工具层另写一个数。写两处之后对不上，而对不上时的表现没有规律"
+  - "`diagram_composite` 的动作表在 Phase 3 就按命令层已有的能力给全；命令层没有的动作返回结构化「尚未支持」并说明缺什么"
+context:
+  - 方案 §6.1 的工具表；§6.2 的「端口自动解析、处理 pin、调度重布局」
+  - 方案 §5.3 ApplyFallback 与四级降级
+  - "`docs/Layout-Constraints.md` 里三类约束与 set-place 的合并口径"
+scope_note: |
+  **工具层不引布局引擎，这一条要守住。** 「改完布局提示之后重排」这件事有两种做法：
+  工具层自己调引擎，或者把「需要重排」这个事实报给宿主。方案 §4.9 的已知差异里已经
+  为后者定过口径——命令上下文不带服务引用，重排由 `CommandResult` 的两个布尔标志外化。
+  工具层跟着这条走，`DuetDiagram.Llm` 就只依赖 Core 与 MEAI。

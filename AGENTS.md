@@ -33,7 +33,14 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
-| `DuetDiagram.Llm` / `.Mcp` | 后续 Phase | 未创建 |
+| `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
+| `DuetDiagram.Llm` | LLM 集成：八个工具的定义、上下文摘要、错误回环、MEAI 接入 | Phase 3 计划中（P3-05 起） |
+| `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
+
+**阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
+分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，尚未开工。
+两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
+**那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
 
@@ -271,6 +278,10 @@ dotnet run --project tools/UserStudy -c Release -- analyze
 
 # LOC 一致性
 dotnet run --project tools/LocCounter -- --root . --check
+
+# 任务 YAML 必须能被解析。它们是给 agent 读的，读不了等于任务不存在——
+# 已经踩过两次（未加引号的冒号加空格、未加引号的引号），两次都是整个文件静默失效
+python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in glob.glob('tasks/**/*.yaml',recursive=True)]; print('ok')"
 ```
 
 ### 已有测试分类

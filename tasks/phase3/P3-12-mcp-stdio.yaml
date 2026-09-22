@@ -1,0 +1,46 @@
+id: P3-12
+title: MCP Server——标准输入输出
+phase: 3
+status: pending
+depends_on: [P3-05, P3-11]
+estimated_loc: 450
+files:
+  create:
+    - DuetDiagram.Mcp/DuetDiagram.Mcp.csproj
+    - DuetDiagram.Mcp/Program.cs
+    - DuetDiagram.Mcp/Server/DiagramMcpServer.cs
+    - DuetDiagram.Mcp/Server/SessionState.cs
+    - DuetDiagram.Mcp/Server/StdioLogging.cs
+    - DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj
+    - DuetDiagram.Mcp.Tests/StdioTests.cs
+    - DuetDiagram.Mcp.Tests/SessionStateTests.cs
+  modify:
+    - DuetDiagram.slnx
+    - Directory.Packages.props
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpStdio"
+    expect: 全通过；起一个子进程走标准输入输出，工具发现与工具调用都走通
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSession"
+    expect: 全通过；每次请求都自带会话状态，服务端不保留上下文也能正确应答
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpProtocol"
+    expect: 全通过；不按 `initialize` 做分支，会话建立方法改名之后断言仍然有效
+constraints:
+  - "**不要按 `initialize` 做分支。** 当前协议版本用服务发现请求取代了初始化请求，按方法名匹配的代码会**静默失效**——服务端不报错，只是那条分支永远不走。断言要按「第一条请求」取样本，不按方法名匹配"
+  - "**标准输入输出下日志必须改道标准错误。** 标准输出被协议占用，一条日志写进去就会让对端解析失败，而症状是解析错误而不是超时，很容易被误判成消息格式有问题"
+  - "**自定义字段放能力声明的扩展位**（`clientCapabilities.extensions` 与 `serverCapabilities.extensions`），不放协议给自定义字段留的元数据位——那个位置在当前版本下没有入口"
+  - "**扩展位的值读取时要两种都认**：声明上是对象，往返之后拿到的是 JSON 节点，也可能被对端当成字符串。只认一种的话，会出现「字段明明在但读出来是空」这种很难查的现象"
+  - "**会话状态作为显式参数传入，不依赖服务端注入。** 无状态传输下服务端不持有服务容器，非基础类型参数会被当成「必须由调用方提供」的工具参数，调用直接失败——而客户端只看到「调用出错」，原因只在服务端日志里"
+  - "**不要按协议版本号硬编码分支。** 版本会变，而改名是静默的"
+context:
+  - 方案 §7.1 的传输；§7.3 的会话初始化与 clientState；§7.4 的冲突返回策略
+  - "`reports/phase0a-mcp.md` 的五条约束，那五条是实测结论不是推测"
+  - "`tools/Poc/McpTransport` 里已有可跑的协议链路代码可以照抄"
+scope_note: |
+  **这一条的验收命令起子进程，不只在内存里对拍。** 内存流对拍验不到两件事：
+  日志有没有跑到标准输出上，以及服务端重启之后调用还能不能成。
+  前者的症状是解析错误，后者的症状是「换个实例就不认了」——两样都只在真进程里看得出来。
+
+  `reports/phase0a-mcp.md` 里那条「服务端主动推送未覆盖」留在这里处理：
+  变更广播要能推给已连接的代理，但 stdio 是请求-应答式的，推不了主动消息。
+  这一条先只做应答；推送归 P3-13 的网络传输。

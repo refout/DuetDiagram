@@ -1,0 +1,37 @@
+id: P3-07
+title: diagram_edit 与 diagram_style 的 action 分发
+phase: 3
+status: pending
+depends_on: [P3-05, P3-06, P3-01, P3-02]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Llm/Tools/EditTool.cs
+    - DuetDiagram.Llm/Tools/StyleTool.cs
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/StyleResolver.cs
+    - DuetDiagram.Llm.Tests/EditToolTests.cs
+    - DuetDiagram.Llm.Tests/StyleToolTests.cs
+  modify:
+    - docs/Command-List.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
+    expect: 全通过；每个 action 都能落到一条命令上，action 表与命令清单逐条一致
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=StyleWhitelist"
+    expect: 全通过；不在调色板里的令牌被拒，错误里列出可用令牌；调色板改了之后白名单跟着变
+constraints:
+  - "**action 表与命令清单必须逐条对得上，并由测试核。** 两边分头维护的话，加了一条命令而忘了挂 action，表现是模型调用时得到「未知动作」——而命令本身是好的，查起来要绕一大圈"
+  - "**未知 action 的错误里要列出可用 action。** 只回一句「未知动作」的话，模型只能靠猜重试，而猜错的代价是一轮往返"
+  - "**样式走白名单，不在白名单里的令牌结构化拒绝。** 放行未知令牌的话，渲染层拿到不认识的名字会静默按默认样式画，而用户以为样式生效了"
+  - "`diagram_style` 只做样式，不做结构。改标签文字算结构（走 `diagram_edit`），改标签字体字号算样式——这条边界要写清楚，否则同一个效果有两条路，而其中一条不进结构哈希"
+  - "**一个工具调用要么全部成功要么全部回滚。** 内部要改多处时，把它们放在同一次命令里，或按顺序执行并在任一步失败时撤销前面已成功的那些。半途失败留下一半改动的文档，比整条失败更难收拾"
+  - "幂等键：同一个键重复调用返回第一次的结果，不重复施加变更。代理侧重试是常态，没有幂等键的话一次网络抖动会变成两次编辑"
+  - "工具层不直接改文档，一切走命令总线"
+context:
+  - 方案 §6.1 的八个工具表；§6.2 的确定性增强措施（结构化校验、默认值填充、样式白名单、原子性、幂等键）
+  - "`docs/Command-List.md` 的分组表就是 action 表的来源"
+scope_note: |
+  **幂等键是这一条里唯一没有现成实现的东西。** 命令总线有版本检查与冲突策略，
+  但没有幂等键。方案 §6.2 点名要它，而代理侧重试确实是常态。
+  最小做法是把键与结果存在工具层的一张有界表里，不进 IR——它是调用侧的属性，
+  与文档结构无关，进 IR 会让同一份文档在不同调用历史下得到不同的哈希。

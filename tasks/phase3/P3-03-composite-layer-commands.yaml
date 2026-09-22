@@ -1,0 +1,45 @@
+id: P3-03
+title: 补齐命令层——组合与图层
+phase: 3
+status: pending
+depends_on: [P1-03, P1-04]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/CreateCompositeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/DissolveCompositeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/MoveIntoCompositeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/CreateLayerCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RenameLayerCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ReorderLayerCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/AssignLayerCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - docs/Command-List.md
+    - docs/IR-Schema.md
+  test:
+    - DuetDiagram.Core.Tests/CompositeCommandTests.cs
+    - DuetDiagram.Core.Tests/LayerCommandTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Composite"
+    expect: 全通过；四种组合的成员形状、嵌套、解散之后成员回到父级都各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 全通过；组合的嵌套深度与环引用被校验器挡住
+constraints:
+  - "**九个集合共用一个命名空间。** 新建组合之前要做整体的标识占用检查，而不是只查 `composites` 那一张表。只查自己那一张的话，一个组合会拿到与某个节点相同的标识，而校验器要到很久之后才发现"
+  - "**组合不能成环。** `move-into-composite` 把一个组合移进它自己的后代里时必须返回结构化错误。不挡的话布局会无限递归，而栈溢出的现场离肇事的那一条命令很远"
+  - "组合的嵌套深度要有上限并返回结构化错误。上限写在一处，界面与工具层都读它"
+  - "`dissolve-composite` 之后成员回到父级而不是顶层——多层嵌套时回到顶层会把层级结构悄悄压平"
+  - "`reorder-layer` 与 `assign-layer` 按索引定位，`CaptureMemento` 与 `Apply` 必须给出**一致**的索引"
+  - "新增 Memento 记录补 `[JsonDerivedType]`"
+context:
+  - "`docs/IR-Schema.md` 的九个集合与 CompositeDef 派生类型"
+  - 方案 §13.8 把组合放在 Phase 4，但 `diagram_composite` 是 Phase 3 的八个工具之一——所以命令先落地，界面入口留到 Phase 4
+  - "`DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs` 是标识占用检查的现成写法"
+scope_note: |
+  **这一条把 §13.8 的一部分提前了，理由要写在报告里。** 方案把「组合」放在 Phase 4，
+  但 §6.1 的八个工具里有 `diagram_composite`，而 §14.3 的 Phase 3 判据要求八个工具都能用。
+  两条放在一起读，只能是命令层先落地、界面入口留到 Phase 4——Phase 4 再做「画布上怎么拖出
+  一个泳道」，那时它面对的是已经能用的命令，而不是从零开始。

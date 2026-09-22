@@ -6,21 +6,21 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 9 | 1667 | 982 | 391 | 294 |
+| DuetDiagram.App | 11 | 2237 | 1275 | 576 | 386 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 55 | 6597 | 3517 | 2078 | 1002 |
 | DuetDiagram.Core.Tests | 22 | 4214 | 3017 | 466 | 731 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 3 | 745 | 457 | 134 | 154 |
+| DuetDiagram.E2E.Tests | 4 | 980 | 613 | 162 | 205 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 16 | 2410 | 1229 | 817 | 364 |
-| DuetDiagram.Render.Tests | 9 | 2114 | 1513 | 191 | 410 |
+| DuetDiagram.Render | 18 | 2661 | 1350 | 915 | 396 |
+| DuetDiagram.Render.Tests | 10 | 2408 | 1712 | 217 | 479 |
 | tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **217** | **40982** | **25917** | **8493** | **6572** |
+| **合计** | **223** | **42332** | **26686** | **8830** | **6816** |
 
 ## 明细
 
@@ -35,13 +35,15 @@
 | 文件 | 代码 |
 |---|---:|
 | App.axaml.cs | 16 |
-| DiagramCanvas.cs | 453 |
-| FrameBenchmark.cs | 149 |
-| MainWindow.axaml.cs | 20 |
-| Program.cs | 34 |
-| SampleDiagram.cs | 41 |
+| DiagnosticsPanel.axaml.cs | 12 |
+| DiagramCanvas.cs | 471 |
+| FrameBenchmark.cs | 215 |
+| MainWindow.axaml.cs | 38 |
+| Program.cs | 36 |
+| SampleDiagram.cs | 60 |
 | SelfTest.cs | 128 |
-| CanvasViewModel.cs | 108 |
+| CanvasViewModel.cs | 111 |
+| DiagnosticsViewModel.cs | 155 |
 | RenderModeViewModel.cs | 33 |
 
 ### DuetDiagram.Benchmarks
@@ -173,7 +175,8 @@
 | 文件 | 代码 |
 |---|---:|
 | CanvasSmokeTests.cs | 202 |
-| HeadlessFixture.cs | 57 |
+| DiagnosticsPanelTests.cs | 151 |
+| HeadlessFixture.cs | 62 |
 | ModeSwitchTests.cs | 198 |
 
 ### DuetDiagram.Layout
@@ -248,6 +251,8 @@
 |---|---:|
 | CullingIndex.cs | 72 |
 | CullingPolicy.cs | 19 |
+| DiagnosticsFrame.cs | 14 |
+| DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 80 |
 | DrawList.cs | 54 |
 | ITextMeasurer.cs | 6 |
@@ -268,6 +273,7 @@
 | 文件 | 代码 |
 |---|---:|
 | CullingPolicyTests.cs | 216 |
+| DiagnosticsSamplerTests.cs | 199 |
 | DrawListTests.cs | 237 |
 | FakeTextMeasurer.cs | 17 |
 | Layouts.cs | 59 |

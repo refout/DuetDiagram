@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DuetDiagram.App.ViewModels"
+             x:Class="DuetDiagram.App.Controls.DiagnosticsPanel"
+             x:DataType="vm:CanvasViewModel">
+
+  <!--
+    面板浮在画布上方，不是分栏。分栏会改变画布的尺寸，而画布一改尺寸视口就跟着变——
+    开关一次面板图就跳一下，那样看到的数字也不再是"同一份视图下"的数字。
+  -->
+  <Border Padding="12,10"
+          Background="#f2ffffff"
+          BorderBrush="#c8d0dc"
+          BorderThickness="1"
+          CornerRadius="4">
+    <StackPanel Orientation="Vertical" Spacing="6">
+
+      <!--
+        等宽字体。面板上的数字按列对齐，比例字体下标签长度一变整张表就歪了；
+        数字对不齐时读的人得逐个数位去看，而它正是用来一眼看出异常的。
+        第一个字体不在时往后找，最后退回默认。
+      -->
+      <TextBlock FontFamily="Consolas,DejaVu Sans Mono,Liberation Mono,monospace"
+                 FontSize="12"
+                 Foreground="#2b3440"
+                 Text="{Binding Diagnostics.Text}" />
+
+      <Button HorizontalAlignment="Right"
+              Padding="8,2"
+              Click="OnClose"
+              Content="关闭" />
+    </StackPanel>
+  </Border>
+</UserControl>

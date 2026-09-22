@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -32,6 +33,11 @@ namespace DuetDiagram.App.Controls;
 /// <para>
 /// 颜色、字体、笔刷按值缓存。千节点的图上每条指令都要一个笔刷，
 /// 每帧新建两千个对象，光分配就够把帧率拖下去，而它们的取值其实只有几十种。
+/// </para>
+/// <para>
+/// **计时也在这里**，因为"一帧"的边界就是 <see cref="Render"/>。
+/// 剔除那一段与光栅化那一段分开记：出问题时第一件要判断的是该改哪儿，
+/// 而一个总数回答不了它。诊断关着时只多做一次判断。
 /// </para>
 /// </remarks>
 public sealed partial class DiagramCanvas : UserControl
@@ -87,6 +93,12 @@ public sealed partial class DiagramCanvas : UserControl
             return;
         }
 
+        // 诊断关着的时候这里只多做一次判断，取时钟与记账全部跳过。
+        // 这一行每帧都会走到，所以它自己不能有开销——诊断工具自己成了开销就没法用了。
+        var diagnostics = model.Diagnostics;
+        var measuring = diagnostics.Enabled;
+        var frameStart = measuring ? Stopwatch.GetTimestamp() : 0L;
+
         // 这一帧画哪几条由它定：整份列表，或者是按视口剔过的一份子序列。
         // 画布自己不判断该不该剔除——那条判据只此一处，放在画布上就会与别处对不上。
         model.BeginFrame();
@@ -97,6 +109,9 @@ public sealed partial class DiagramCanvas : UserControl
         {
             return;
         }
+
+        var cull = measuring ? Elapsed(frameStart) : 0;
+        var rasterStart = measuring ? Stopwatch.GetTimestamp() : 0L;
 
         var transform = model.Viewport.Transform;
         var viewport = new Rect(Bounds.Size);
@@ -112,7 +127,22 @@ public sealed partial class DiagramCanvas : UserControl
                 _drawnCommands++;
             }
         }
+
+        if (!measuring)
+        {
+            return;
+        }
+
+        diagnostics.Record(new DiagnosticsFrame(
+            Elapsed(frameStart),
+            cull,
+            Elapsed(rasterStart),
+            _drawnCommands,
+            model.DrawList.Commands.Count - commands.Count,
+            model.Mode.Mode));
     }
+
+    private static double Elapsed(long start) => Stopwatch.GetElapsedTime(start).TotalMilliseconds;
 
     #region 指令分发
 

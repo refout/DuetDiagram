@@ -15,8 +15,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档 | Phase 2 P2-01 / P2-03 已落地（画布控件在主程序） |
-| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、剔除判据与换档编排 | 已落地 |
+| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档、帧时采样器 | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序） |
+| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、剔除判据、换档编排与帧时采样 | 已落地 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
@@ -149,6 +149,7 @@ dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=Viewport"
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CullingPolicy"
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=ModeSwitch"
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DiagnosticsSampler"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidParsing"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidImport"
 dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidExport"
@@ -168,6 +169,9 @@ dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phas
 # 界面帧率测量（真实绘制列表：造文档、求解布局、翻译成绘制列表，再两种模式各测一遍）
 # 判据是虚拟化那一档的帧率与剔除率，回退档的数字是对照。取证见 reports/phase2-render.md
 dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120
+
+# 加一个开关就把诊断面板挂上，交替量关、开两遍，判面板代价不超过一成
+dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 --diagnostics
 
 # 原生编译冒烟（需要 VS「使用 C++ 的桌面开发」工作负载，见 reports/phase0a.md）
 dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
@@ -200,6 +204,9 @@ dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -
 # 换档在真实窗口里的样子：那一帧的耗时，以及换档前后画布区域逐像素一致
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ModeSwitch"
 
+# 诊断面板在真实窗口里的样子：快捷键开关、面板上的数字跟着帧更新、关着时不记
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Diagnostics"
+
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release
 dotnet run --project tools/Poc/McpTransport -c Release
@@ -215,7 +222,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DrawList`、`SceneSnapshot`、`Canvas`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 

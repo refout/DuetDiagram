@@ -24,7 +24,8 @@ internal static class Program
         {
             return FrameBenchmark.Run(
                 ReadInt(args, "--nodes", 1000),
-                ReadInt(args, "--frames", 60));
+                ReadInt(args, "--frames", 60),
+                args.Contains(DiagnosticsSwitch, StringComparer.Ordinal));
         }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
@@ -33,6 +34,9 @@ internal static class Program
 
     /// <summary>进入帧率测量模式的开关。</summary>
     public const string FrameBenchmarkSwitch = "--benchmark-frames";
+
+    /// <summary>帧率测量时顺带把诊断面板开一遍，跟关着的时候比。</summary>
+    public const string DiagnosticsSwitch = "--diagnostics";
 
     private static int ReadInt(string[] args, string name, int fallback)
     {

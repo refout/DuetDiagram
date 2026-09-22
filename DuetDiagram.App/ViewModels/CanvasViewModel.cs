@@ -30,13 +30,14 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     private DrawPoint _pointer;
     private bool _pointerInside;
 
-    public CanvasViewModel(Theme? theme = null, CullingPolicy? culling = null)
+    public CanvasViewModel(Theme? theme = null, CullingPolicy? culling = null, DiagnosticsViewModel? diagnostics = null)
     {
         Theme = theme ?? Theme.Default;
         _culling = culling ?? CullingPolicy.Default;
         _switch = new ModeSwitch(_culling);
 
         Mode = new RenderModeViewModel();
+        Diagnostics = diagnostics ?? new DiagnosticsViewModel();
         _viewport = Viewport.For(Theme);
     }
 
@@ -48,6 +49,9 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
 
     /// <summary>这一帧走哪一档、剔掉了多少。</summary>
     public RenderModeViewModel Mode { get; }
+
+    /// <summary>性能诊断面板的状态与采样窗口。</summary>
+    public DiagnosticsViewModel Diagnostics { get; }
 
     /// <summary>
     /// 这一帧要画的指令。
@@ -102,6 +106,10 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     /// 而"模式已经是虚拟化、索引却是空的"这种状态会让画布退回整份遍历，
     /// 看起来像剔除失效了。
     /// </para>
+    /// <para>
+    /// 帧窗口也一起清掉：上一份文档的帧时对新文档没有意义，
+    /// 混在一起算出来的分位数既不是这一份也不是那一份。
+    /// </para>
     /// </remarks>
     public void Load(DrawList drawList)
     {
@@ -109,6 +117,8 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
 
         _index = null;
         _switch.Reset(RenderMode.Immediate);
+
+        Diagnostics.Reload();
 
         DrawList = drawList;
         Viewport = _viewport.FitTo(ContentBounds);

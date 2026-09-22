@@ -62,9 +62,9 @@ P0-08 LLM 客户端（从 Day 1 并行，不阻塞）
 两份清单必然分叉，而分叉之后没人知道该信哪一份——本文件原先就只写着
 「P1-01 / P1-02 / P1-03 已落地」，那时已经有十四个任务完成了。
 
-当前（2026-09-21）：Phase 0a / 0b 除 P0-02 标 `blocked` 外全部 `done`；
+当前（2026-09-22）：Phase 0a / 0b 除 P0-02 标 `blocked` 外全部 `done`；
 Phase 1 除 P1-14 外全部 `done`——P1-01 ~ P1-13、P1-15 ~ P1-18 已落地。
-Phase 2 已开工：P2-01、P2-02、P2-03 与 P2-09 落地，其余待做。
+Phase 2 已开工：P2-01、P2-02、P2-03、P2-04 与 P2-09 落地，其余待做。
 
 **P1-14 的装置全齐了，缺的是人。** `tools/CompareHarness` 七条命令
 （`generate` / `listings` / `semantic` / `score` / `verify` / `sample` / `agreement`）

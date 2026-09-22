@@ -29,6 +29,16 @@
       </Grid>
     </Border>
 
-    <controls:DiagramCanvas />
+    <!--
+      画布与诊断面板叠在同一格里。面板不进 DockPanel 的停靠位：
+      停靠会改变画布的尺寸，而画布一改尺寸视口就跟着变——开关一次面板图就跳一下。
+    -->
+    <Grid>
+      <controls:DiagramCanvas />
+      <controls:DiagnosticsPanel HorizontalAlignment="Right"
+                                 VerticalAlignment="Top"
+                                 Margin="12"
+                                 IsVisible="{Binding Diagnostics.IsOpen}" />
+    </Grid>
   </DockPanel>
 </Window>

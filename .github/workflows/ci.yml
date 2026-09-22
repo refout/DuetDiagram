@@ -88,6 +88,12 @@ jobs:
       - name: 换档编排门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ModeSwitch"
 
+      # 帧时采样：环形窗口、分位数、空窗口、关着时不记。
+      # 采样器分配的话，垃圾回收本身会出现在面板显示的数字里——量的是自己，
+      # 而面板上那几个数字看起来完全正常。
+      - name: 采样器门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DiagnosticsSampler"
+
       # 词法层：定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，
       # 按标识切会让它们全变成「不认识的东西」。
       - name: Mermaid 词法门禁
@@ -133,10 +139,17 @@ jobs:
 
       # 无头模式下起窗口、送输入、抓一帧。绘制列表对不对由快照管，
       # 这里盯的是两者在真实窗口里有没有接上。
-      # 这一条同时覆盖 Canvas（缩放、平移、状态栏）与 ModeSwitch
-      # （换档那一帧的耗时、换档前后画布区域逐像素一致）。
+      # 这一条同时覆盖 Canvas（缩放、平移、状态栏）、ModeSwitch
+      # （换档那一帧的耗时、换档前后画布区域逐像素一致）与 Diagnostics
+      # （快捷键开关面板、面板上的数字跟着帧更新、面板关着时一条都不记）。
       - name: 端到端测试
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }}
+
+      # 诊断面板：开关走同一个入口，数字来自画布真正画了什么。
+      # 面板自己读一遍文档来凑数字的话，它报的就不是屏幕上发生的事——
+      # 而那种偏差在面板上完全看不出来。
+      - name: 诊断面板门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Diagnostics"
 
       # 脱屏渲染一帧后退出，用退出码表达结果；同时产出可人工核对的证据图。
       - name: 界面栈自检

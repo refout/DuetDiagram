@@ -1,7 +1,7 @@
 id: P2-04
 title: 性能诊断面板
 phase: 2
-status: pending
+status: done
 depends_on: [P2-02]
 estimated_loc: 350
 files:
@@ -17,7 +17,15 @@ files:
     - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/MainWindow.axaml.cs
     - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/SampleDiagram.cs
+    - DuetDiagram.App/FrameBenchmark.cs
+    - DuetDiagram.App/Program.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
     - AGENTS.md
+    - docs/GUI.md
+    - .github/workflows/ci.yml
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DiagnosticsSampler"
     expect: 全通过；环形窗口、分位数、空样本都在里面
@@ -42,3 +50,78 @@ scope_note: |
   出问题时必须能立刻判断该换引擎还是该改算法，处置完全不同。
   面板沿用同一条：布局、绘制列表构建、剔除、光栅化、哈希各占一行，
   只给一个总帧时的话，面板好看但不解决问题。
+result:
+  verdict: 完成
+  delivered:
+    frame: DiagnosticsFrame 把一帧的整帧、剔除、光栅化三段耗时，画与剔的指令数，以及当前档位装成一条记录
+    sampler: DiagnosticsSampler 是定长环形窗口，记的时候写预分配数组，读数时才排序；分位取窗口里真实存在的那个样本，不插值
+    stages: 布局、绘制列表构建、哈希三段单独记，且不受开关限制——它们在打开面板之前就已经发生过
+    viewmodel: 面板上的字按帧数节流（八帧一次），刷新排到队列里，数值按显示宽度补齐到等宽列
+    panel: 浮层与画布叠在同一个格子里，不进停靠位；关闭按钮与快捷键走同一个开关入口
+    canvas: 画布在渲染回调里记一帧，关着的时候只多一次判断，一次时钟读取都不发生
+    benchmark: 帧率基准多一个开关，把面板挂上交替量几轮，判面板代价
+    e2e: 端到端八条：面板默认关着、快捷键开关、快捷键要三个键齐、关闭按钮走同一个入口、空窗口的说法、数字跟着帧走、数字来自画布真正画了什么、关着时一条都不记
+  design_decisions:
+    ring_buffer: 定长环形窗口，记的时候写预分配数组。每帧建列表的话，垃圾回收本身就会出现在面板显示的数字里——量的是自己，而面板上那几个数字看起来完全正常
+    sort_at_read: 读数时才排序。写的时候排等于每帧排一遍，而面板八帧才刷一次
+    nearest_rank: 分位取窗口里真实存在的那个样本，不插值。插出来的数不是任何一帧的实测值，排查时会照着它去查一个不存在的帧
+    fixed_capacity: 窗口长度固定，与运行时长无关。随时间增长的窗口最后会把内存吃光，而面板上那几个数字照样正常
+    stages_outside_window: 布局、绘制列表构建、哈希不塞进按帧窗口。它们是一次性的，混进去会把分位数整个拽偏，而那几帧根本不是「帧慢」
+    stages_ignore_switch: 重活那一段不受开关限制。用户在按下快捷键那一刻想看的正是「刚才那次打开为什么慢」，而那时面板还没开
+    read_only: 面板只读，不做自动优化也不改渲染档位。诊断工具自己动手改状态之后，看到的数字就不再是用户实际遇到的那一份
+    throttle_by_frames: 按帧数节流而不是按时间。低帧率下按时间可能一帧都刷不到，而帧率低的时候正是用户最需要看到数字在动
+    post_notify: 刷新通知排到队列里。它发生在渲染过程内部，当场通知会让面板在渲染过程中被作废
+    one_text_control: 面板上只有一个文本控件，整块文字一次换掉。拆成一行一个控件的话，每次刷新要动的控件数与行数一样多，而这一块的每一分开销都记在它自己头上
+    same_entry: 快捷键与关闭按钮走同一个开关入口。两处各写一套之后，两边迟早不一致
+    monospace_columns: 等宽字体加按显示宽度补齐。一个中日韩字符占两列，按字符个数补的话两个字的标签与四个字的标签会差出两列，整张表就歪了
+    overlay_not_dock: 面板与画布叠在同一个格子里。进停靠位会改画布尺寸，而尺寸一变视口就跳，开关一次面板图就换个位置
+    hand_written_percent: 百分号手写而不是走格式串。不变文化会在数字与百分号之间插一个空格，而列宽是按字符数算的
+    alternating_rounds: 面板代价按「关、开」交替量七轮，每轮自己算一次比值，再取各轮的中位。先把关着的量完再量开着的，两段之间机器状态已经不同了，量出来的比值在两个方向上都能差出两成
+    median_frame_time: 每一轮内部取窗口里的中位帧时，不取均值。均值会被一次垃圾回收或一次系统调度整个拽走，而那个停顿与面板无关——它在关着的那一遍里同样会发生
+    paired_ratio_not_ratio_of_totals: 比的是每一轮里的比值，不是「关着的总中位对开着的总中位」。后者把两边的样本混在一起，机器在整段测量里慢下来这件事会全部落到先量的那一边
+    field_enum_not_delegate: 读数按字段枚举取，不传委托。每次读数造一个闭包，面板八帧刷一次也会攒下垃圾
+  fixed:
+    ambiguous_size: 基准里 Avalonia.Size 与 IR 的 Size 同名，编译报「不明确的引用」，加类型别名区分
+    build_overload: 造文档的入口原来只收两个参数，基准要传文本度量，补一个三参重载，两参版本转发过去
+    comment_gate_self_trip: 基准的注释里写了方案章节号，被注释门禁自己判红。改成直接说清这一段在判什么
+    reflection_binding_rejected: 基准里想用反射式绑定把面板显隐挂到开关上，编译器直接当错误拦下来——程序集要能原生编译，反射绑定在裁剪与原生编译下都不可用。改成每次测量前显式设一次显隐，真实窗口里那一处绑定由端到端用例覆盖
+    panel_always_visible_in_benchmark: 基准原来没设面板显隐，于是「关着」那一遍照样在画面板，量到的差别只剩「文字有没有在变」——而验收要判的是「面板开着要付多少」
+    benchmark_bitmap_reuse: 基准原来每帧新建一块目标位图，八兆一块，一段测量下来要分配上吉字节，垃圾回收的代价随时间爬升，而后量到的那一遍总是更吃亏。改成整段复用一块之后两种模式的帧时都差不多减半，跨轮漂移也基本消失——判据才有得判
+    short_panel_window: 面板代价一开始每轮只量三十帧，一次停顿就能把那一轮的比值拉到 +262%，中位再稳也架不住多数轮被污染。窗口加到与主测量同长
+  findings:
+    closed_panel_costs_nothing: 面板关着时渲染回调里只多一次布尔判断，一次时钟读取都不发生。它在视觉树上整个不存在，一条指令都不画
+    notify_during_render_again: 与状态栏那一格同一个原因：刷新发生在渲染过程内部，当场通知会被界面框架拒绝。这一条在小文档上同样看不出来，因为面板默认关着
+    empty_window_must_say_so: 空窗口报「还没有样本」而不是一排零。一排零看上去像「耗时为零」，而实际是「还没量过」——这两件事的处置完全不同
+    benchmark_measured_itself: 基准原先报出的帧时里有一半是它自己的分配开销，而画面上、剔除率上都看不出任何异常。这类偏差只会在「两种配置比一比」的时候露出来：单看任何一个绝对值都像模像样
+    frame_noise_dominates: 这台机器上单窗口帧时的噪声与面板开销同一量级。判据留的那一成余量不是「面板可以再花这么多」，而是「量到这个精度为止」
+  verified:
+    - Category=DiagnosticsSampler 17 项全通过（环形覆盖后最新的那条还在、分位取的是样本本身、空窗口报零帧、关着时不记、容量下界被拒）
+    - Category=Diagnostics 8 项全通过
+    - 帧率基准（面板开关两种情况下同一条命令，交替七轮）：面板代价中位 +3.4% / +7.5% / −11.7%，判据不超过一成
+    - 导出的一帧截图人眼核对：面板浮在画布右上角、等宽列对齐、状态栏与图都在
+    - 全量单元测试无退化；端到端全通过
+    - 编译 0 警告
+  not_verified:
+    - 阈值仍然只能在代码里改，面板只显示当前档位与剔除率
+    - 面板没有滚动或折叠，行数多了会一直往下长
+    - 面板代价只在这一台机器上量过，且量到的分辨率只到一成
+    - 原生编译下的表现没有验收（本机缺 C++ 工作负载）
+open_questions:
+  - id: threshold-from-panel
+    question: 阈值要不要能在面板上改？
+    detail: |
+      方案只要求面板由快捷键呼出，没要求它可写。这一轮按只读做，
+      理由是诊断工具自己动手改状态之后，看到的数字就不再是用户实际遇到的那一份。
+      但「阈值取五百合不合适」这个问题（见 P2-03）要靠扫一遍元素数才答得了，
+      而扫描目前只能改代码重编译。真要做的话，改的应该是基准而不是面板——
+      面板是给用户看现场用的，不是给调参用的。
+    blocked_on: P2-13
+    status: open
+  - id: panel-row-set
+    question: 面板该显示哪几段？
+    detail: |
+      现在列了整帧、剔除、光栅化、指令计数、档位，以及布局、绘制列表、哈希三段重活。
+      少的是文本度量、命中测试与序列化——前两个现在没有独立入口，
+      序列化虽然有测量入口但这一轮没有触发它的路径。等它们各自落地再补行。
+    blocked_on: P2-05
+    status: open

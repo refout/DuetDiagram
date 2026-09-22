@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
@@ -55,9 +56,16 @@ internal static class SampleDiagram
     /// 给定文档走完整条链路，给出可画的绘制列表。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 度量器由调用方传进来并在用完后释放：它按字体家族缓存字体对象，
     /// 而字体对象持有原生资源。让这个方法自己 new 一个再丢掉，
     /// 就是把"什么时候释放原生资源"这件事交给垃圾回收决定。
+    /// </para>
+    /// <para>
+    /// 两段重活的耗时在这里量，而不是由调用方在外面量：布局与绘制列表构建
+    /// 是这里面的两步，从外面看它们是一件事。要分开就得把整条链路拆成两个公开方法，
+    /// 而那样调用方迟早会只调其中一个。
+    /// </para>
     /// </remarks>
     public static SampleScene Build(DiagramDocument document, Theme theme, ITextMeasurer measurer)
     {
@@ -69,14 +77,42 @@ internal static class SampleDiagram
             document,
             node => SceneBuilder.MeasureNode(node, theme, measurer));
 
-        var layout = new LayoutCoordinator(new ConstraintLayoutEngine()).Compute(job);
+        var layoutWatch = Stopwatch.StartNew();
+        var result = new LayoutCoordinator(new ConstraintLayoutEngine()).Compute(job);
+        layoutWatch.Stop();
 
-        return new SampleScene(document, layout.Layout, SceneBuilder.Build(document, layout.Layout, theme, measurer));
+        var drawListWatch = Stopwatch.StartNew();
+        var drawList = SceneBuilder.Build(document, result.Layout, theme, measurer);
+        drawListWatch.Stop();
+
+        return new SampleScene(
+            document,
+            result,
+            drawList,
+            layoutWatch.Elapsed.TotalMilliseconds,
+            drawListWatch.Elapsed.TotalMilliseconds);
     }
 }
 
-/// <summary>示例场景的三个阶段产物。自检要按它们报数，所以一并给出来。</summary>
+/// <summary>
+/// 示例场景的各阶段产物。
+/// </summary>
+/// <remarks>
+/// 布局那一步的结果整份带出来，不只带坐标：降级落在哪一级、试了几次都在里面，
+/// 而诊断面板要显示它们。只留坐标的话，调用方就再也问不到那两件事了。
+/// </remarks>
 /// <param name="Document">文档。</param>
-/// <param name="Layout">布局结果。</param>
+/// <param name="Result">布局结果，含所应用的降级级别与尝试记录。</param>
 /// <param name="DrawList">绘制列表。</param>
-internal sealed record SampleScene(DiagramDocument Document, EngineLayoutResult Layout, DrawList DrawList);
+/// <param name="LayoutMilliseconds">求解布局用的毫秒数。</param>
+/// <param name="DrawListMilliseconds">构建绘制列表用的毫秒数。</param>
+internal sealed record SampleScene(
+    DiagramDocument Document,
+    LayoutResult Result,
+    DrawList DrawList,
+    double LayoutMilliseconds,
+    double DrawListMilliseconds)
+{
+    /// <summary>布局给出的坐标、折线与内容范围。</summary>
+    public EngineLayoutResult Layout => Result.Layout;
+}

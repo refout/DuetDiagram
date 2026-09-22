@@ -92,6 +92,14 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<DiagramCanvas>().Single();
     }
 
+    /// <summary>窗口里那个诊断面板。</summary>
+    public static DiagnosticsPanel Panel(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<DiagnosticsPanel>().Single();
+    }
+
     /// <summary>画布中心，按画布自己的坐标算。</summary>
     public static Point CenterOf(DiagramCanvas canvas)
     {

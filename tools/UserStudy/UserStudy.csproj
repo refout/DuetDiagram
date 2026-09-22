@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Tools.UserStudy</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    用户测试的分析装置与协议生成器。用命令行运行，加上 verify、template 或 analyze 参数。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件。
+  -->
+
+  <!--
+    四条统计量全部自己算，不引第三方统计库。它们各自只有几十行，而判定门的数字
+    必须逐字节可复现——多一个依赖就多一处会随版本变的行为。
+  -->
+
+</Project>

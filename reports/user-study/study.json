@@ -1,0 +1,180 @@
+{
+  "title": "变更高亮的三种手段",
+  "arms": [
+    "脉冲",
+    "角标",
+    "虚线轮廓"
+  ],
+  "scaleMin": 1,
+  "scaleMax": 5,
+  "raters": [
+    {
+      "id": "R01",
+      "order": [
+        "脉冲",
+        "角标",
+        "虚线轮廓"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R02",
+      "order": [
+        "角标",
+        "虚线轮廓",
+        "脉冲"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R03",
+      "order": [
+        "虚线轮廓",
+        "脉冲",
+        "角标"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R04",
+      "order": [
+        "脉冲",
+        "角标",
+        "虚线轮廓"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R05",
+      "order": [
+        "角标",
+        "虚线轮廓",
+        "脉冲"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R06",
+      "order": [
+        "虚线轮廓",
+        "脉冲",
+        "角标"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R07",
+      "order": [
+        "脉冲",
+        "角标",
+        "虚线轮廓"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R08",
+      "order": [
+        "角标",
+        "虚线轮廓",
+        "脉冲"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R09",
+      "order": [
+        "虚线轮廓",
+        "脉冲",
+        "角标"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R10",
+      "order": [
+        "脉冲",
+        "角标",
+        "虚线轮廓"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R11",
+      "order": [
+        "角标",
+        "虚线轮廓",
+        "脉冲"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    },
+    {
+      "id": "R12",
+      "order": [
+        "虚线轮廓",
+        "脉冲",
+        "角标"
+      ],
+      "scores": {
+        "脉冲": null,
+        "角标": null,
+        "虚线轮廓": null
+      },
+      "notes": null
+    }
+  ]
+}

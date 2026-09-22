@@ -19,8 +19,8 @@
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
-| tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **278** | **56176** | **35154** | **11886** | **9136** |
+| tools | 40 | 9436 | 6420 | 1484 | 1532 |
+| **合计** | **284** | **58144** | **36462** | **12169** | **9513** |
 
 ## 明细
 
@@ -376,4 +376,10 @@
 | ApiDump.cs | 59 |
 | Checks.cs | 91 |
 | Program.cs | 33 |
+| Analysis.cs | 381 |
+| Checks.cs | 181 |
+| Program.cs | 75 |
+| Statistics.cs | 428 |
+| Study.cs | 111 |
+| Template.cs | 132 |
 

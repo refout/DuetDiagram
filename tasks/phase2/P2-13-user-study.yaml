@@ -1,17 +1,23 @@
 id: P2-13
 title: 用户测试——装置与协议
 phase: 2
-status: pending
+status: done
 depends_on: [P2-01, P2-02, P2-03, P2-04, P2-05, P2-06, P2-07, P2-08, P2-09, P2-10, P2-11, P2-12]
 estimated_loc: 400
 files:
   create:
     - tools/UserStudy/（分析脚本，不进 sln）
+    - tools/UserStudy/UserStudy.csproj
     - tools/UserStudy/Program.cs
     - tools/UserStudy/Analysis.cs
     - tools/UserStudy/Checks.cs
+    - tools/UserStudy/Study.cs
+    - tools/UserStudy/Template.cs
+    - tools/UserStudy/Statistics.cs
     - docs/User-Study.md
-    - reports/phase2-user-study.md
+    - reports/user-study/scale.md
+    - reports/user-study/assignment.md
+    - reports/user-study/study.json
   modify:
     - AGENTS.md
 acceptance:
@@ -39,3 +45,46 @@ scope_note: |
 
   因此 `reports/phase2-user-study.md` 在数据收上来之前**不生成**。
   这与对比测试那一项的处理一致。
+result:
+  summary: |
+    - 装置落在 `tools/UserStudy`（不进 sln），三个子命令：`verify` 自检、
+      `template` 出量表与顺序分配表与录入模板、`analyze` 读数据算判定写报告。
+    - **统计量全部自己算，不引第三方统计库。** 它们各自只有几十行，而判定门的数字必须
+      逐字节可复现，多一个依赖就多一处会随版本变的行为。
+      - Friedman 走**条件置换检验**：把每个评分者那一组秩的全部排列都过一遍，
+        数出统计量不低于实测值的组合占多少。并列按平均秩算，**并且并列本身进置换分布**
+        （每个评分者各自的秩向量决定他自己那一组可能取值），没有并列时退化成教科书上的
+        精确 Friedman。卡方那一档同时列出来做对照——两个数摆在一起，读的人自己看得出
+        近似偏在哪边。被测项超过四个时状态数爆炸，才退回卡方并在结果里标明用的是哪一档。
+      - Wilcoxon 精确那一档按符号的全部组合数算（子集和计数），不是查表；差为零的对
+        按惯例丢掉，样本量跟着变小。
+      - 卡方上尾用级数加连分式，配 Lanczos 对数伽马。
+    - **四条判定逐条给出算出来的值**：Friedman p、领先项两条配对里最松的那条 p 与
+      最紧的 Holm 阈值、Kendall's W、领先项平均分。报告里三组配对的原始 p 与 Holm 阈值
+      都逐条列出，所以换一种读法也能从报告里重新推出来。
+    - **第二条判定的口径**取"领先项与其余每一项的配对比较经 Holm 校正后都达标"，
+      不是"三组配对里至少有一组达标"——保留一个设计要说明的是它比替代品好。
+    - **结论换算**：达标 ≥3 条保留；恰好 2 条交三人评审组（一名设计师、一名工程师、
+      一名产品）多数决；不足 2 条砍掉。最后一档协议没写，报告与文档里都注明了这一点。
+    - **顺序效应靠轮转拉丁方抵消**：每连续三人构成一个完整拉丁方，每个手段在三个位置上
+      各出现一次。十二人与十五人都是三的整数倍，整块分得完。分配表与均衡核对表由
+      `template` 产出，`analyze` 每次还会重新核一遍并写进报告。
+    - **没有数据时不生成报告。** `analyze` 在数据文件不在、或没有一条录入填完整时，
+      明确报"还没有数据"并什么都不写，退出码为零（那不是错误，是当前的真实状态）。
+      `reports/phase2-user-study.md` 现在不存在，这是有意的。
+    - 报告正文里**不写生成时间**，只写数据文件的指纹：同一份数据每次跑出同一份文件，
+      比对才有意义；"这份报告是哪天跑的"在提交记录里查得到。
+    - 定性反馈不参与统计判定，但原样汇总进报告——某一种手段分数低是因为看不见还是
+      因为看得见但嫌吵，这两件事的处置完全相反。
+  gates:
+    - "dotnet run --project tools/UserStudy -c Release -- verify => 44 条全通过（平均秩与并列、Friedman 三个已知答案、Wilcoxon 三个、Kendall's W 两个、Holm 三个、卡方上尾四个、顺序均衡、结论换算五条、端到端九条）"
+    - "dotnet run --project tools/UserStudy -c Release -- template => 写出 scale.md / assignment.md / study.json，12 人与 15 人的分配都均衡（每个位置每项各 4 次与 5 次）"
+    - "dotnet run --project tools/UserStudy -c Release -- analyze => 报「还没有数据」，不生成 reports/phase2-user-study.md"
+    - "端到端自检：十二人一致的数据四条全达标、结论为保留；同一份数据两次跑出逐字节相同的报告；没填完的录入被跳过并数出来"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommentDiscipline => 通过"
+    - "dotnet run --project tools/LocCounter -- --root . --check => 通过"
+  followups:
+    - "**真人数据。** 十二到十五个人的测试不可能由编码 agent 完成，四条判定的结论必须由人给出。收上来之后跑 `analyze` 才会出现 `reports/phase2-user-study.md`。"
+    - "**三人评审组。** 规则写进了协议，但「恰好两条达标」时具体请谁、怎么记票，等真的走到那一步再定。"
+    - "**过程指标没有装置。** 这一轮只收打分与定性反馈；完成时间、求助次数这类指标对「哪一种手段更省事」有用，但会带来另一套知情同意与数据留存的要求。"
+    - "**边栏 diff 不在被测项里。** 它是折叠面板而不是画布上的标记，量的是另一件事，混进同一个量表会让受试者拿两把尺子打同一组分。"

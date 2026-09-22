@@ -35,6 +35,8 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(LayoutConstraintMemento), "layout-constraint")]
 [JsonDerivedType(typeof(SetDirectionMemento), "set-direction")]
 [JsonDerivedType(typeof(PaletteMemento), "palette")]
+[JsonDerivedType(typeof(CompositeMemento), "composite")]
+[JsonDerivedType(typeof(LayerMemento), "layer")]
 public abstract record CommandMemento
 {
     /// <summary>本次变更波及的元素标识，用于增量同步时告诉对端"重取这些元素"。</summary>
@@ -216,6 +218,52 @@ public sealed record PaletteMemento : CommandMemento
 {
     /// <summary>改之前的调色板。</summary>
     public required Palette Previous { get; init; }
+}
+
+/// <summary>
+/// 一个成员（节点或组合）在改之前的父级。
+/// </summary>
+/// <remarks>
+/// 成员关系有两处表达：容器的成员列表，与成员自己的父级字段。父级字段是冗余的那一份，
+/// 但它同样要跟着还原——只把成员列表换回去而不管父级，文档就成了一份自相矛盾的东西，
+/// 而这种矛盾只有整体校验器会报。
+/// </remarks>
+public sealed record MemberPlacement(string Id, string? Parent);
+
+/// <summary>
+/// 组合增删与成员搬移的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 记的是**改之前的整份组合集合**，而不是"这一个组合"。三条组合命令一次都会动到多个组合：
+/// 把成员搬进一个新组合，除了新组合之外，原来那个容器的成员列表也跟着变了。
+/// 只记一个的话，还原时要按种类再拼一次列表，而那一次拼接必须与命令里的拼接逐字一致——
+/// 两处一旦分叉，撤销出来的成员关系与原来那份会有细微差别，而差异只体现在哈希上。
+/// </para>
+/// <para>
+/// 组合数量是"一屏能看完"的量级，整份记下来的代价可以忽略。
+/// </para>
+/// </remarks>
+public sealed record CompositeMemento : CommandMemento
+{
+    /// <summary>改之前的组合集合，顺序原样保留。</summary>
+    public required CompositeDef[] PreviousComposites { get; init; }
+
+    /// <summary>改之前各成员的父级。</summary>
+    public MemberPlacement[] PreviousParents { get; init; } = [];
+}
+
+/// <summary>
+/// 图层增删改的逆变更。
+/// </summary>
+/// <remarks>
+/// 记的是**改之前的整份图层集合**。三条图层命令里，重排一次会改到每一个图层的次序，
+/// 只记被点名的那个的话，还原之后其余图层的次序还停在改动之后的样子。
+/// </remarks>
+public sealed record LayerMemento : CommandMemento
+{
+    /// <summary>改之前的图层集合，顺序与次序原样保留。</summary>
+    public required LayerDef[] PreviousLayers { get; init; }
 }
 
 /// <summary>

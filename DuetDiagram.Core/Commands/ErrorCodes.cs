@@ -22,8 +22,25 @@ public static class ErrorCodes
     /// <summary>组合的成员不存在。</summary>
     public const string GroupMemberMissing = "GROUP_MEMBER_MISSING";
 
+    /// <summary>要操作的组合不存在。</summary>
+    public const string CompositeMissing = "COMPOSITE_MISSING";
+
     /// <summary>组合的父子关系成环。</summary>
     public const string GroupCycle = "GROUP_CYCLE";
+
+    /// <summary>
+    /// 组合的嵌套深度超过上限。
+    /// </summary>
+    /// <remarks>
+    /// 上限见 <c>CompositeLimits.MaxDepth</c>，命令层与整体校验器读的是同一个常量。
+    /// 单独一个码而不是复用成环那一个：成环是"这条归属关系本身不成立"，
+    /// 而超深是"每一条归属关系都成立，只是整体太深了"——前者的处置是断开那一环，
+    /// 后者是别再往里套。
+    /// </remarks>
+    public const string CompositeTooDeep = "COMPOSITE_TOO_DEEP";
+
+    /// <summary>要操作的图层不存在。</summary>
+    public const string LayerMissing = "LAYER_MISSING";
 
     /// <summary>调用方持有的版本落后于当前版本，需要先同步。</summary>
     public const string VersionConflict = "VERSION_CONFLICT";

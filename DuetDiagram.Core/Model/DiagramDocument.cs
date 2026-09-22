@@ -316,7 +316,14 @@ public sealed class DiagramDocument
     /// <summary>页面集合。顺序有意义。</summary>
     public IReadOnlyList<PageDef> Pages => _pages.ReadOnly;
 
-    /// <summary>图层集合。顺序有意义：排列次序决定叠放次序。</summary>
+    /// <summary>
+    /// 图层集合。
+    /// </summary>
+    /// <remarks>
+    /// 集合本身是**加入顺序**，不表达叠放次序。真正决定叠放次序的是
+    /// <see cref="LayerDef.Order"/> 字段——集合在哈希里是按标识排序后遍历的，
+    /// 所以在这里换个位置进不了任何哈希，也就没有人能看出来。
+    /// </remarks>
     public IReadOnlyList<LayerDef> Layers => _layers.ReadOnly;
 
     /// <summary>节点集合。顺序有意义：节点在集合中的位置就是它的层内次序依据。</summary>

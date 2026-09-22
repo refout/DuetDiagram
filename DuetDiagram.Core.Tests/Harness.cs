@@ -71,6 +71,15 @@ internal sealed class Harness : IDisposable
     /// </summary>
     public string Snapshot() => DiagramSerializer.Normalize(Document);
 
+    /// <summary>按标识取一个节点。找不到时直接抛——用例里的标识都是自己写下的。</summary>
+    public NodeDef Node(string id) => Document.Nodes.Single(n => n.Id == id);
+
+    /// <summary>按标识取一个组合。</summary>
+    public CompositeDef Composite(string id) => Document.Composites.Single(c => c.Id == id);
+
+    /// <summary>按标识取一个图层。</summary>
+    public LayerDef Layer(string id) => Document.Layers.Single(l => l.Id == id);
+
     public CommandResult AddNode(string id, string label = "", NodeShape shape = NodeShape.Rect, ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new AddNodeCommand(new NodeDef { Id = id, Label = label, Shape = shape })
             .WithContext(ChangeContext.For(source, "tester")));
@@ -161,6 +170,50 @@ internal sealed class Harness : IDisposable
     /// <summary>给一个节点挂上样式令牌。走字段写入那条命令，与界面走的是同一条路。</summary>
     public CommandResult SetStyleToken(string nodeId, string token, ChangeSource source = ChangeSource.Human)
         => SetField(nodeId, FieldNames.StyleToken, token, source);
+
+    /// <summary>新建一个组合。</summary>
+    public CommandResult CreateComposite(CompositeDef composite, int? index = null, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new CreateCompositeCommand(composite, index)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>建一个分组，成员一次给全。</summary>
+    public CommandResult CreateGroup(
+        string id,
+        IReadOnlyList<string> members,
+        string? parent = null,
+        string label = "",
+        ChangeSource source = ChangeSource.Human)
+        => CreateComposite(
+            new GroupDef { Id = id, Members = members, Parent = parent, Label = label },
+            source: source);
+
+    /// <summary>解散一个组合。</summary>
+    public CommandResult DissolveComposite(string compositeId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new DissolveCompositeCommand(compositeId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>把一个节点或组合搬进另一个组合。目标传空表示搬到顶层。</summary>
+    public CommandResult MoveIntoComposite(
+        string memberId,
+        string? targetCompositeId,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new MoveIntoCompositeCommand(memberId, targetCompositeId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>新建一个图层。</summary>
+    public CommandResult CreateLayer(string layerId, string name = "", ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new CreateLayerCommand(layerId, name)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>给图层改名。</summary>
+    public CommandResult RenameLayer(string layerId, string name, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RenameLayerCommand(layerId, name)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>把图层挪到第几位。</summary>
+    public CommandResult ReorderLayer(string layerId, int index, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new ReorderLayerCommand(layerId, index)
+            .WithContext(ChangeContext.For(source, "tester")));
 
     public void Dispose()
     {

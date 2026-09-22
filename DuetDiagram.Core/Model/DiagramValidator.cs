@@ -33,6 +33,7 @@ public static class DiagramValidator
         CheckEdgeEndpoints(document, issues);
         CheckCompositeMembership(document, issues);
         CheckCompositeCycles(document, issues);
+        CheckCompositeDepth(document, issues);
         CheckReferences(document, issues);
         CheckLayoutHints(document, issues);
 
@@ -266,6 +267,21 @@ public static class DiagramValidator
                 issues.Add(Mismatch($"{node.Id}（节点）", node.Parent, node.Parent));
             }
         }
+
+        // 组合也要反向查一遍。只查节点的话，"一个组合记着外层是谁、而那个外层的成员列表里
+        // 根本没有它"这种文档不会被报出来——解散那个外层时它也就不会被放出来，
+        // 于是用户拆了一个分组，却发现里面少了一层。
+        foreach (var composite in document.Composites)
+        {
+            if (composite.Parent is not { } parentId
+                || !composites.TryGetValue(parentId, out var parent)
+                || parent.Members.Contains(composite.Id, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            issues.Add(Mismatch($"{composite.Id}（组合）", parentId, composite.Parent));
+        }
     }
 
     private static ValidationIssue Mismatch(string member, string compositeId, string? declaredParent) => new()
@@ -317,6 +333,52 @@ public static class DiagramValidator
                 }
 
                 current = composites.TryGetValue(current, out var composite) ? composite.Parent : null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 组合的嵌套深度不能超过上限。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 命令层在建组合、往里搬东西的时候已经查过一遍，这里再查一次是因为**文件是从外面进来的**：
+    /// 命令层的检查管不到别人手写或另一个工具生成的文档。
+    /// </para>
+    /// <para>
+    /// 上限读的是 <see cref="CompositeLimits.MaxDepth"/>，与命令层同一个常量。
+    /// 两处各写一个数的话，会出现"命令放得进去、校验器却报错"这种自相矛盾的状态。
+    /// </para>
+    /// <para>
+    /// 向上走的时候带上已访问的集合：成环的文档已经由成环那一条报过，这里不能再陷进去，
+    /// 否则一次校验就会变成死循环。
+    /// </para>
+    /// </remarks>
+    private static void CheckCompositeDepth(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        var composites = document.Composites.ToDictionary(c => c.Id, StringComparer.Ordinal);
+
+        foreach (var start in document.Composites)
+        {
+            var depth = 1;
+            var visited = new HashSet<string>(StringComparer.Ordinal) { start.Id };
+            var current = start.Parent;
+
+            while (current is not null && visited.Add(current))
+            {
+                depth++;
+                current = composites.TryGetValue(current, out var parent) ? parent.Parent : null;
+            }
+
+            if (depth > CompositeLimits.MaxDepth)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.CompositeTooDeep,
+                    Message = $"组合 {start.Id} 的嵌套深度是 {depth}，超过了上限 {CompositeLimits.MaxDepth}。",
+                    RelatedId = start.Id,
+                    Suggestion = $"把 {start.Id} 往外提一层，或者减少它外面套着的组合。",
+                });
             }
         }
     }

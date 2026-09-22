@@ -101,3 +101,27 @@ public sealed record SubflowDef : CompositeDef;
 
 /// <summary>组合框：不参与布局的纯标注性边框，用于在图上圈出一块区域加以说明。</summary>
 public sealed record ComboDef : CompositeDef;
+
+/// <summary>
+/// 组合的规模限制。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 上限只写在这一处：命令层的前置检查与整体校验器读的是同一个常量。
+/// 两处各写一个数的话，改了一处而忘了另一处，会出现"命令放得进去、校验器却报错"
+/// 或者反过来"文件里的内容校验器认，但改一下就改不回去"这种自相矛盾的状态。
+/// </para>
+/// <para>
+/// 成环已经由校验器挡住，所以嵌套深度天然有界。真正要防的是**深而窄**的链：
+/// 一千层逐级嵌套的合法文档会让任何按层递归的遍历（布局、渲染、轮廓计算）
+/// 一路压到栈底，而栈溢出的现场离肇事的那条命令很远。
+/// </para>
+/// <para>
+/// 取 8 是因为它在画布上已经深到看不清——再深的嵌套，用户自己也读不出层级关系了。
+/// </para>
+/// </remarks>
+public static class CompositeLimits
+{
+    /// <summary>组合的嵌套深度上限。顶层组合的深度是 1。</summary>
+    public const int MaxDepth = 8;
+}

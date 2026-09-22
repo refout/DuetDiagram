@@ -53,6 +53,9 @@
 | `LAYOUT_CONSTRAINT_MISSING` | 校验失败 | 要删除的布局约束不存在 | 状态栏一句话 |
 | `PALETTE_ENTRY_MISSING` | 校验失败 | 要改或要删的调色板条目不存在 | 状态栏一句话 |
 | `PALETTE_ENTRY_IN_USE` | 校验失败 | 这条调色板条目还被样式令牌引用着，删除会让那些元素悄悄变样 | 高亮引用它的元素 |
+| `COMPOSITE_MISSING` | 校验失败 | 要操作的组合不存在 | 状态栏一句话 |
+| `COMPOSITE_TOO_DEEP` | 校验失败 | 组合的嵌套深度超过上限 | 状态栏一句话 |
+| `LAYER_MISSING` | 校验失败 | 要操作的图层不存在 | 状态栏一句话 |
 | `DOCUMENT_READ_ONLY` | 所有权 | 另一个进程正拿着这份文档，这一份只读 | 状态栏灰显一句话 |
 
 `PALETTE_ENTRY_IN_USE` 与删边那一处留下的悬空引用**刻意不同**：删边之后约束指向一条
@@ -130,6 +133,9 @@
 | `LAYOUT_CONSTRAINT_MISSING` | `StatusBar` |
 | `PALETTE_ENTRY_MISSING` | `StatusBar` |
 | `PALETTE_ENTRY_IN_USE` | `HighlightTargets` |
+| `COMPOSITE_MISSING` | `StatusBar` |
+| `COMPOSITE_TOO_DEEP` | `StatusBar` |
+| `LAYER_MISSING` | `StatusBar` |
 | `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
 
 呈现方式只有这几种，因为用户能做的事只有这几种：

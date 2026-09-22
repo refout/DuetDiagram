@@ -250,6 +250,46 @@ public sealed class ValidatorTests
 
     [Fact]
     [Trait("Category", "IrValidator")]
+    public void A_composite_chain_exactly_at_the_limit_is_clean()
+    {
+        var issues = DiagramValidator.Validate(IrFixtures.WithComposites(IrFixtures.Base(), Chain(CompositeLimits.MaxDepth)));
+
+        // 上限是"允许到第几层"，不是"从第几层开始报"。差一位的错会让最后一个合法层级被拒，
+        // 而那条命令看起来只是"没生效"。
+        issues.Should().NotContain(i => i.Code == ErrorCodes.CompositeTooDeep);
+    }
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void A_composite_chain_deeper_than_the_limit_is_reported()
+    {
+        var issues = DiagramValidator.Validate(
+            IrFixtures.WithComposites(IrFixtures.Base(), Chain(CompositeLimits.MaxDepth + 1)));
+
+        // 命令层在建组合的时候已经查过一遍，这里再查一次是因为**文件是从外面进来的**：
+        // 命令层的检查管不到别人手写或另一个工具生成的文档。
+        issues.Should().Contain(i => i.Code == ErrorCodes.CompositeTooDeep);
+    }
+
+    /// <summary>一条逐级嵌套的组合链，第 1 个在最外层。</summary>
+    private static List<CompositeDef> Chain(int depth)
+    {
+        var composites = new List<CompositeDef>(depth);
+
+        for (var level = 1; level <= depth; level++)
+        {
+            composites.Add(new GroupDef
+            {
+                Id = $"g{level}",
+                Parent = level == 1 ? null : $"g{level - 1}",
+            });
+        }
+
+        return composites;
+    }
+
+    [Fact]
+    [Trait("Category", "IrValidator")]
     public void Missing_tag_member_and_action_target_are_reported()
     {
         var document = IrFixtures.WithAction(

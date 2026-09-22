@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 起补命令层（断边、布局、调色板） |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 起补命令层（断边、布局、调色板、组合与图层） |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -151,6 +151,7 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Composite"
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayoutConstraint"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
@@ -291,7 +292,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 
@@ -360,3 +361,8 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 计划中命令清单里的 `pin-node` / `unpin-node` | 不做，也没有对应的任务 | IR 里没有任何地方能存节点的绝对坐标：`NodeDef` 的字段里没有位置，`LayoutHints` 的四个列表全是相对约束。DSL 的 `pin` 意图早就落到 sidecar 的 `pinnedNodes` 了，理由是**坐标属于渲染结果**——存进 IR 会让同一份语义在不同机器上产生不同的文档内容。命令层再立一条 pin 会与这条原则直接冲突，同一个节点还会因此有两个互相矛盾的固定位置 |
 | §4.1 的约束列表 | 多一类**相对位置**（`LayoutHints.Place`）与它自己的命令 `set-place`，不并进 `add-layout-constraint` / `remove-layout-constraint` | 前三类的形状是「一组平级的成员」，增与删是两个动作；相对位置是「一对节点加一个方向」，设置与清除是同一个动作的两个方向。并进去的话，调用方要表达「把这个节点摆到那个节点右边」得先判断该调增还是调删，而那个判断本来就在命令里。同一对节点、同一归属方只留一条（再设一次是替换），因为求解器取的是列表里的第一条，追加会让生效的永远是最早那一次 |
 | 相对位置约束的求解 | `set-place` 能写进 IR、进结构哈希、进整体校验、进降级计划的计数，但**求解器不消费它**——设完之后坐标不变 | 这一类约束要落到坐标上，得先定「一侧」在分层布局里是哪个自由度，而那与前三类的关系还没理清。先让命令层与 IR 就位、把「不消费」这一点显式告诉调用方，比硬猜一个语义再改掉要好。调用方不知道的话，会把「命令没生效」当成一次失败 |
+| 计划中命令清单里的 `assign-layer` | 不做，由 `set-node-field` 的 `layer` 字段覆盖 | `NodeDef.Layer` 登记在节点名下，`NodeFieldValue` 里有读写分支，属性面板也认它。再立一条会让同一个效果有两条路。**它与 `parent` 不同**：父级字段是冗余的那一份（真正说了算的是容器的成员列表），所以归属要有一条自己的命令 `move-into-composite`；图层归属只有一个存放处，走字段表就够了 |
+| 计划中命令清单里的 `create-group` / `create-lane` / `create-subflow` / `create-combo` | 合成一条 `create-composite`，种类由传进来的记录类型表达 | 四个派生记录的字段形状完全一样，差别只在类型名。四类各立一条的话，校验、原子性与撤销三套逻辑要各写四遍，而抄漏的那一遍不会报错，只会让某一种组合在某个入口下改不动。再引入一个种类枚举的话，同一个意思会有两种写法，两者还可能对不上 |
+| 组合的嵌套深度 | 新加一条上限（`CompositeLimits.MaxDepth`，顶层是第 1 层），命令层与整体校验器都读它，超了报 `COMPOSITE_TOO_DEEP` | 成环已经单独挡住，所以深度天然有界；上限要防的是**深而窄**的链——一千层逐级嵌套的合法文档会让任何按层递归的遍历一路压到栈底，而栈溢出的现场离肇事的那条命令很远。上限只写一处：两处各写一个数的话，会出现「命令放得进去、校验器却报错」这种自相矛盾的状态 |
+| 组合成员一致性的校验方向 | 除「成员列表里列了谁、而那个谁的父级不是本组合」之外，**反向也查**：父级指向某个组合、而那个组合的成员列表里没有它 | 只查前一个方向的话，这种文档不会被报出来——解散那个外层时它也就不会被放出来，于是用户拆了一个分组，却发现里面少了一层。而那条报错本该在写入那一刻就出现 |
+| 计划中命令清单里的 `reorder-layer` | 改的是 `LayerDef.Order` 字段，不是集合里的位置 | 图层集合在视觉哈希里按标识排序后遍历，所以集合位置进不了任何哈希——改位置是一条**效果不可观测**的命令，与 `reorder-node` 同一个坑。次序值整体重排成连续的 0、1、2……，顺带治好从文件里读进来的重复次序。`DiagramDocument.Layers` 上原先那句「排列次序决定叠放次序」说的是集合位置，一并改对了 |

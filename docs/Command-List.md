@@ -22,6 +22,12 @@
 | `define-palette-entry` | `DefinePaletteEntryCommand` | 条目名非空；条目名不重复 | 重名报 `DUPLICATE_ID` 而**不覆盖**：覆盖会把一个正被几百个节点引用的令牌悄悄换掉外观，而调用方以为自己只是加了个东西。只计外观，不触发重排 |
 | `update-palette-entry` | `UpdatePaletteEntryCommand` | 条目存在；字段名在已注册的调色板字段内（`palette.fill` / `palette.stroke` / `palette.text` / `palette.weight`）；值能解析成该字段要的类型 | 一次只改一个成员，与改节点、改边同一个形状。条目不存在时报 `PALETTE_ENTRY_MISSING` 而**不顺手新建**——顺手建会造出一个只有一半成员的条目 |
 | `remove-palette-entry` | `RemovePaletteEntryCommand` | 条目存在；**没有元素还在用这个样式令牌** | 被引用时报 `PALETTE_ENTRY_IN_USE` 并把引用者写进载荷，界面据此把它们标出来。这与删边留下的悬空引用**刻意相反**：那边有整体校验器会报，这边渲染层只是静默兜底，没有任何东西会报 |
+| `create-composite` | `CreateCompositeCommand` | 标识非空且**在九个集合里都没被占用**；外层存在；成员都存在；成员不含自己；不超深度上限 | 四种组合（分组 / 泳道 / 子流程 / 组合框）合成这一条，种类由记录类型表达。成员会被**从旧容器里摘出来**再挂到新组合上——一个节点只能属于一个组合。归属是两处表达（成员列表 + 父级字段），两处一起写 |
+| `dissolve-composite` | `DissolveCompositeCommand` | 组合存在 | 成员回到**父级**而不是顶层。成员在父级成员列表里的落点是原组合占的那一位——一律追加到末尾会改变条带次序，而这件事界面上看不出异常。只动归属，节点与组合一个都不删 |
+| `move-into-composite` | `MoveIntoCompositeCommand` | 成员存在（节点或组合）；目标存在（传空表示搬到顶层）；目标不是它自己也不是它的后代；整棵子树不超深度上限 | 归属的唯一入口。直接改父级字段会留下一份自相矛盾的文档。成环不挡的话布局会无限递归，而栈溢出的现场离这条命令很远 |
+| `create-layer` | `CreateLayerCommand` | 标识非空且**在九个集合里都没被占用** | 次序由命令算出来（当前最大值加一），不由调用方给——调用方手上那份列表可能已经过期，它算出来的次序可能与现有某个图层撞上 |
+| `rename-layer` | `RenameLayerCommand` | 图层存在 | 只改名字，不动标识与次序。标识是引用它的那个字段写的东西，改它会让所有引用一起失效 |
+| `reorder-layer` | `ReorderLayerCommand` | 图层存在 | 改的是**次序字段**而不是集合位置：图层集合在视觉哈希里按标识排序后遍历，集合位置进不了任何哈希。次序值整体重排成连续的 0、1、2……，顺带治好从文件里读进来的重复次序 |
 
 **结构还是纯外观，取决于被改的值进的是哪个哈希。**
 
@@ -30,6 +36,8 @@
   报成纯外观的话，宿主会只重绘不重排，而画面上的坐标根本没跟着约束变。
 - 改调色板是 `StructuralChanged = false`、`VisualChanged = true`。颜色不改变节点尺寸，
   已算出的坐标仍然有效；报成结构变更的话，换一次主题就要把整张图重排一遍。
+- **组合的归属进结构哈希，图层只进视觉哈希。** 归属变了要重排；而图层现在只是文档里的一条记录，
+  渲染层还没有读它，所以加一个图层、给图层改名、把图层挪个位都不改变任何坐标。
 
 **还有一类不是失败的成功：`IsNoOp`。** 命令合法、但没什么可做（值没变、要删的本来就不在）。
 它算成功，但不推进版本、不进历史、不广播。所以真正要触发副作用的判断用
@@ -49,7 +57,7 @@
 > **这张表是目标，不是承诺，而且它已经不准确了。** 实际创建以任务 YAML 为准，
 > 每完成一条就在本表登记实现状态。
 >
-> 已知的不准确有四处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
+> 已知的不准确有五处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
 >
 > - **节点与样式那两组里的多数条目不需要新命令。** P1-05 的字段注册表落地之后，
 >   `set-node-field` 按字段名分发，label、shape、parent、layer、styleToken、style、
@@ -57,6 +65,11 @@
 >   所以 `update-node-label`、`move-node-layer`、`set-node-shape`、`apply-style-token`、
 >   `set-node-style`、`set-text-style`、`set-edge-style` 都不必各立一条命令。
 >   判断标准是**被改的值挂在元素上还是挂在文档上**：挂在元素上的由字段表覆盖。
+> - **`assign-layer` 同样被字段表覆盖。** `NodeDef.Layer` 登记在节点名下，
+>   `NodeFieldValue` 里有它的读写分支，属性面板也认它。再立一条命令，
+>   同一个效果会有两条路。注意它与 `move-into-composite` 的区别：
+>   那个父级字段是**冗余的那一份**，真正说了算的是容器的成员列表，
+>   所以归属要有一条自己的命令；图层归属只有一个存放处，走字段表就够了。
 > - **`add-edge-waypoints` 与 `set-edge-route` 不该有命令。** 折点写在 sidecar 的
 >   `pinnedEdges`，不进 IR、不走命令总线——理由是折点是用户「拖这儿」的产物，
 >   走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。
@@ -82,8 +95,8 @@
 | 边 | 无。`set-edge-route`、`add-edge-waypoints` 不该有命令（折点走 sidecar，见上） |
 | 样式 | 无。`apply-style-token`、`set-node-style`、`set-text-style`、`set-edge-style` 四条都已由字段表覆盖（见上） |
 | 布局 | 无。`pin-node`、`unpin-node` 不该有命令（见上） |
-| 组合 | `create-group`、`create-lane`、`create-subflow`、`create-combo`、`dissolve-composite`、`move-into-composite` |
-| 图层 / 页面 | `create-layer`、`rename-layer`、`reorder-layer`、`assign-layer`、`create-page`、`delete-page` |
+| 组合 | 无。`create-group` / `create-lane` / `create-subflow` / `create-combo` 四类合成一条 `create-composite`（P3-03）；`dissolve-composite` 与 `move-into-composite` 已落地 |
+| 图层 / 页面 | `create-page`、`delete-page`。图层那三条已落地（P3-03）；`assign-layer` 由 `set-node-field` 的 `layer` 字段覆盖（见上） |
 | 调色板 | 无。三条已落地（P3-02） |
 | 标签 / 动作 | `add-tag`、`remove-tag`、`add-action`、`remove-action` |
 | 文档 | `set-kind`、`set-canvas-settings` |

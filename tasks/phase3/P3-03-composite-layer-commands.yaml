@@ -1,7 +1,7 @@
 id: P3-03
 title: 补齐命令层——组合与图层
 phase: 3
-status: pending
+status: done
 depends_on: [P1-03, P1-04]
 estimated_loc: 480
 files:
@@ -12,11 +12,17 @@ files:
     - DuetDiagram.Core/Commands/Builtin/CreateLayerCommand.cs
     - DuetDiagram.Core/Commands/Builtin/RenameLayerCommand.cs
     - DuetDiagram.Core/Commands/Builtin/ReorderLayerCommand.cs
-    - DuetDiagram.Core/Commands/Builtin/AssignLayerCommand.cs
   modify:
     - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.Core/Model/Composites.cs
+    - DuetDiagram.Core/Model/DiagramDocument.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
     - docs/Command-List.md
     - docs/IR-Schema.md
+    - docs/Error-Codes.md
+    - AGENTS.md
   test:
     - DuetDiagram.Core.Tests/CompositeCommandTests.cs
     - DuetDiagram.Core.Tests/LayerCommandTests.cs
@@ -27,19 +33,111 @@ acceptance:
     expect: 全通过；四种组合的成员形状、嵌套、解散之后成员回到父级都各有用例
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
     expect: 全通过；组合的嵌套深度与环引用被校验器挡住
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+    expect: 全通过；六条新命令都登记进了命令清单的「已实现」表
 constraints:
-  - "**九个集合共用一个命名空间。** 新建组合之前要做整体的标识占用检查，而不是只查 `composites` 那一张表。只查自己那一张的话，一个组合会拿到与某个节点相同的标识，而校验器要到很久之后才发现"
-  - "**组合不能成环。** `move-into-composite` 把一个组合移进它自己的后代里时必须返回结构化错误。不挡的话布局会无限递归，而栈溢出的现场离肇事的那一条命令很远"
-  - "组合的嵌套深度要有上限并返回结构化错误。上限写在一处，界面与工具层都读它"
-  - "`dissolve-composite` 之后成员回到父级而不是顶层——多层嵌套时回到顶层会把层级结构悄悄压平"
-  - "`reorder-layer` 与 `assign-layer` 按索引定位，`CaptureMemento` 与 `Apply` 必须给出**一致**的索引"
+  - "**九个集合共用一个命名空间。** 新建组合之前要用 `IsIdTaken` 做整体的标识占用检查，而不是只查 `composites` 那一张表。只查自己那一张的话，一个组合会拿到与某个节点相同的标识，而校验器要到很久之后才发现"
+  - "**组合不能成环。** `move-into-composite` 把一个组合移进它自己的后代里时必须返回结构化错误 `GROUP_CYCLE`。不挡的话布局会无限递归，而栈溢出的现场离肇事的那一条命令很远"
+  - "**嵌套深度要有上限并返回结构化错误 `COMPOSITE_TOO_DEEP`，上限只写一处（`CompositeLimits.MaxDepth`）。** 界面与工具层都读同一个常量。校验器也要查这一条——文件是从外面进来的，命令层的检查管不到它"
+  - "**`dissolve-composite` 之后成员回到父级而不是顶层。** 多层嵌套时回到顶层会把层级结构悄悄压平，而用户看到的只是「我把这个分组拆了」"
+  - "**组合的成员关系有两处表达，必须一起改。** `CompositeDef.Members` 是准，`NodeDef.Parent` / `CompositeDef.Parent` 是便于查询的冗余字段，两者必须一致（校验器报 `MEMBERSHIP_MISMATCH`）。所以增删成员要同时改组合的成员列表与成员的父级字段——只改一处会留下一份自相矛盾的文档"
+  - "**`reorder-layer` 改的是 `LayerDef.Order` 字段，不是集合位置。** 图层集合在视觉哈希里是按标识排序后遍历的，所以集合位置进不了任何哈希、也不改变任何坐标——改位置是一条**效果不可观测**的命令，与 `reorder-node` 同一个坑。`Order` 是进了哈希的字段，改它才是真的改"
+  - "**`assign-layer` 不做，这一条已被字段表覆盖。** `NodeDef.Layer` 是登记在节点名下的可写字段（`NodeFieldValue` 里有它的读写分支），`set-node-field` 带 `layer` 就完成这件事。再立一条会让同一个效果有两条路"
   - "新增 Memento 记录补 `[JsonDerivedType]`"
 context:
   - "`docs/IR-Schema.md` 的九个集合与 CompositeDef 派生类型"
   - 方案 §13.8 把组合放在 Phase 4，但 `diagram_composite` 是 Phase 3 的八个工具之一——所以命令先落地，界面入口留到 Phase 4
-  - "`DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs` 是标识占用检查的现成写法"
+  - "`DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs` 是标识占用检查与「插入索引夹紧」的现成写法"
+  - "`DuetDiagram.Core/Model/DiagramValidator.cs` 的 `CheckCompositeMembership` 与 `CheckCompositeCycles` 是成员一致性与成环的现成判据，命令层的前置检查要与它们同一口径"
+  - "`DuetDiagram.Core/Commands/Builtin/AddLayoutConstraintCommand.cs` 是「同类多型合成一条命令加一个种类字段」的现成写法，四种组合照它合成一条 `create-composite`"
 scope_note: |
-  **这一条把 §13.8 的一部分提前了，理由要写在报告里。** 方案把「组合」放在 Phase 4，
-  但 §6.1 的八个工具里有 `diagram_composite`，而 §14.3 的 Phase 3 判据要求八个工具都能用。
-  两条放在一起读，只能是命令层先落地、界面入口留到 Phase 4——Phase 4 再做「画布上怎么拖出
-  一个泳道」，那时它面对的是已经能用的命令，而不是从零开始。
+  **这一条原本写了七条命令，收成了六条，`assign-layer` 拿掉了。**
+
+  起草时按命令清单里那张「计划中」表把组合与图层那一组抄了下来，写成了
+  `create-group` / `create-lane` / `create-subflow` / `create-combo` / `dissolve-composite` /
+  `move-into-composite` / `create-layer` / `rename-layer` / `reorder-layer` / `assign-layer` 十组。
+
+  对着代码核下来有三处要改：
+
+  **四种组合合成一条命令。** `GroupDef` / `LaneDef` / `SubflowDef` / `ComboDef` 四个派生记录
+  的形状完全一样（同一份 `CompositeDef` 的字段），差别只在类型名。四类各立一条的话，
+  校验、原子性与撤销三套逻辑要各写四遍，而抄漏的那一遍不会报错，只会让某一种组合在某个
+  入口下改不动。这与 P2-10 把三类布局约束合成两条命令是同一个判断。
+
+  **`assign-layer` 被字段表吸收了。** `NodeDef.Layer` 早就登记在节点名下（`FieldNames.Layer`，
+  作用域视觉），`NodeFieldValue` 里有它的读写分支，属性面板也认它。所以
+  `set-node-field` 带 `layer` 就完成了这件事。再立一条命令，同一个效果会有两条路。
+
+  **`reorder-layer` 要改字段，不是改集合位置。** 这是第三次碰到同一个坑（前两次是
+  `reorder-node` 与折点）。图层集合在视觉哈希里是 `OrderBy(l => l.Id)` 之后遍历的，
+  所以集合里换个位置进不了任何哈希；而 `LayerDef.Order` 是哈希里有的字段。
+  也就是说「把图层挪到第 2 位」这句话必须落成 `Order` 的改动才算数。
+  顺带把 `DiagramDocument.Layers` 上那句「顺序有意义：排列次序决定叠放次序」改对——
+  它现在说的是集合位置，而真正决定叠放次序的是 `Order` 字段。
+
+  **这一轮仍然不做的：** `LayerDef.Visible` 与 `Locked` 没有命令。它们确实在视觉哈希里、
+  是文档内容的一部分，但这一轮的界面没有任何地方读图层（渲染层根本没碰 `document.Layers`），
+  而计划表里也没列。等图层面板开工时再补，那时才知道这两个开关该走字段表还是各立一条。
+
+result:
+  summary: |
+    - **六条命令，两组。** 组合三条：`CreateCompositeCommand`（四种组合合成一条，种类由传进来的
+      记录类型表达）、`DissolveCompositeCommand`、`MoveIntoCompositeCommand`。图层三条：
+      `CreateLayerCommand`、`RenameLayerCommand`、`ReorderLayerCommand`。
+    - **归属是两处表达，两处一起改。** 容器的成员列表是准，成员的父级字段是冗余索引，
+      两者必须一致。新加的 `CompositeMembership` 把「挂上」「摘下」「改父级」「换位置」
+      收在一处，三条命令与三条还原路径都走它——漏改一处的后果是一样的：文档能存下去、
+      界面上看不出异常，只有校验器会报，而报错的位置离肇事的那条命令很远。
+    - **写代码时抓到一个真 bug。** `create-composite` 第一版只写了「新组合记着外层是谁」，
+      没有把新组合加进外层的成员列表。后果是解散那个外层时它不会被放出来，
+      用户拆了一个分组却发现里面少了一层。用例当场红了（`Undo` 与嵌套那两条），
+      改成两处一起写之后才通过。
+    - **校验器补了反向检查。** 原先只查「成员列表里列了谁、而那个谁的父级不是本组合」，
+      不查「父级指向某个组合、而那个组合的成员列表里没有它」。只查一个方向的话，
+      上面那个 bug 那样的文档不会被报出来——而那条报错本该在写入那一刻就出现。
+      节点与组合两个方向现在都查。
+    - **嵌套深度上限是新加的一条。** `CompositeLimits.MaxDepth`（顶层是第 1 层），
+      命令层与整体校验器读同一个常量，超了报 `COMPOSITE_TOO_DEEP`。
+      成环已经单独挡住，所以深度天然有界；上限要防的是**深而窄**的链——
+      一千层逐级嵌套的合法文档会让任何按层递归的遍历一路压到栈底。
+      深度按**整棵子树**算：把一个浅组合搬进一个深容器时，跟着它一起沉下去的
+      还有它里面套着的所有东西。
+    - **`dissolve-composite` 的成员回到父级，并且落在原组合占的那一位。** 回到顶层会把
+      层级结构悄悄压平；一律追加到末尾会改变泳道的条带次序，而这件事界面上看不出异常。
+      用例里把内层组合夹在两个成员中间，拆完之后断言次序是 `x、a、b、y`。
+    - **`reorder-layer` 改的是次序字段，不是集合位置。** 这是第三次碰到同一个坑
+      （前两次是 `reorder-node` 与折点）：图层集合在视觉哈希里按标识排序后遍历，
+      集合位置进不了任何哈希。次序值整体重排成连续的 0、1、2……，顺带治好从文件里
+      读进来的重复次序——重复次序下「谁在上面」会变成由集合位置决定的偶然结果。
+      `DiagramDocument.Layers` 上原先那句「排列次序决定叠放次序」说的是集合位置，
+      一并改对了。
+    - **`assign-layer` 拿掉了，七条收成六条。** `NodeDef.Layer` 登记在节点名下，
+      `NodeFieldValue` 里有读写分支，属性面板也认它，所以 `set-node-field` 带 `layer`
+      就完成了这件事。它与 `parent` 的区别写进了命令清单：父级字段是冗余的那一份
+      （真正说了算的是容器的成员列表），所以归属要有一条自己的命令；
+      图层归属只有一个存放处，走字段表就够了。
+    - **图层三条都报纯外观变更。** 渲染层还没有读 `document.Layers`，所以加一个图层、
+      改名、挪位都不改变任何坐标。报成结构变更的话，每加一个图层都会触发一次全图重排。
+      这一条与「相对位置约束求解器还不消费」同一个口径：先让命令层与 IR 就位，
+      把「还不消费」显式写进文档。
+    - 用例：`CompositeCommandTests.cs`（14 条 `Category=Composite`，另有若干条落在
+      `Atomicity`）与 `LayerCommandTests.cs`。`ValidatorTests` 补了两条——
+      刚好到上限的链是干净的、超一层要报出来。`Harness` 补了六条命令的快捷方法与
+      `Node` / `Composite` / `Layer` 三个按标识取定义的辅助。
+  gates:
+    - "dotnet build DuetDiagram.slnx -c Release => 0 警告 0 错误"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Atomicity => 92/92 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Composite => 14/14 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=IrValidator => 25/25 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=MementoRegistration => 8/8 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommandGroups => 4/4 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=CommentDiscipline => 1/1 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=FieldMetadata => 6/6 通过"
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=ErrorPresentation => 10/10 通过"
+    - "核心 384/384、布局 75/75、渲染 145/145、Mermaid 179/179、DSL 158/158、端到端 81/81 全部通过"
+    - "dotnet run --project tools/LocCounter -- --root . --check => 一致（reports/loc.md 已重新生成）"
+  followups:
+    - "`LayerDef.visible` / `locked` 还没有命令，渲染层也还没有读图层。等图层面板开工时再定这两个开关走字段表还是各立一条——那时才知道它们在界面上的形状。"
+    - "`set-node-field` 带 `parent` 仍然只写那个冗余字段，会留下成员列表与父级不一致的文档。属性面板已经把这一项藏起来并写明理由，命令层也已经有 `move-into-composite` 这条正路，所以这一轮没有动它——要动的话得先定「字段表是不是原始的写入口」这条边界。"
+    - "组合的成员列表内部次序（泳道的条带次序）现在没有重排命令。`CompositeDef.members` 的先后是内容、进哈希，所以它不像 `reorder-layer` 那样不可观测——真要做的话是一个正常的缺口，不是「不该做」。"
+    - "命令清单的「已实现」表现在有 21 行。P3-04 落地时页面、标签、动作那两组也要落一条就从「计划中」挪一条过来，两边同时改。"

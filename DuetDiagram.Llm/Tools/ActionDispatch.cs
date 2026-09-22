@@ -59,13 +59,44 @@ public static class ActionTable
         new("remove-palette-entry", "remove-palette-entry"),
     ];
 
+    /// <summary>
+    /// 改布局的那一组动作。
+    /// </summary>
+    /// <remarks>
+    /// 增删约束的动作名比命令标识短，两者不同名是有意的：说明里举的例子就是
+    /// <c>add-constraint</c>，而命令标识带着「layout」这个前缀是为了在命令清单里与
+    /// 别的 add 区分开。
+    /// </remarks>
+    public static IReadOnlyList<ToolAction> Layout { get; } =
+    [
+        new("set-direction", "set-direction"),
+        new("set-spacing", "set-spacing"),
+        new("add-constraint", "add-layout-constraint"),
+        new("remove-constraint", "remove-layout-constraint"),
+        new("set-place", "set-place"),
+    ];
+
+    /// <summary>管理组合的那一组动作。</summary>
+    public static IReadOnlyList<ToolAction> Composite { get; } =
+    [
+        new("create", "create-composite"),
+        new("move-into", "move-into-composite"),
+        new("dissolve", "dissolve-composite"),
+    ];
+
     /// <summary>取某个工具的动作表。还没接上的工具返回空。</summary>
     public static IReadOnlyList<ToolAction> For(string tool) => tool switch
     {
         DiagramToolset.Edit => Edit,
         DiagramToolset.Style => Style,
+        DiagramToolset.Layout => Layout,
+        DiagramToolset.Composite => Composite,
         _ => [],
     };
+
+    /// <summary>动作表里已经接上的工具，用来逐个动作地调一遍。</summary>
+    public static IReadOnlyList<string> Wired { get; } =
+        [DiagramToolset.Edit, DiagramToolset.Style, DiagramToolset.Layout, DiagramToolset.Composite];
 
     /// <summary>某个工具的动作名，用来填「不认得这个动作」那条错误。</summary>
     public static string[] Names(string tool) => [.. For(tool).Select(action => action.Name)];

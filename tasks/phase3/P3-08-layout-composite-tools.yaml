@@ -1,33 +1,39 @@
 id: P3-08
 title: diagram_layout 与 diagram_composite
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05, P3-02, P3-03]
 estimated_loc: 430
 files:
   create:
     - DuetDiagram.Llm/Tools/LayoutTool.cs
     - DuetDiagram.Llm/Tools/CompositeTool.cs
-    - DuetDiagram.Llm/Tools/PortParser.cs
     - DuetDiagram.Llm.Tests/LayoutToolTests.cs
     - DuetDiagram.Llm.Tests/CompositeToolTests.cs
   modify:
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm.Tests/ToolRegistryTests.cs
+    - docs/Command-List.md
     - docs/Layout-Constraints.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=LayoutTool"
-    expect: 全通过；端口写法解析正确、pin 与 unpin 走命令层、改完之后调度了一次重布局
+    expect: 全通过；五个动作各落到一条命令上、约束种类与成员形状对得上、改完之后结构变更标志为真
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
-    expect: 全通过；四种组合的创建、解散与移入各有用例，成环被拒
+    expect: 全通过；四种组合的创建、解散与移入各有用例，成环与超深度被拒
   - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=LayoutFallback"
     expect: 全通过；经工具层改过布局提示之后，四级降级仍然按级别唯一
 constraints:
-  - "**端口要自动解析。** 模型写 `A.bottom -> B.top` 这类写法时要能解析成端口，解析不了就按默认端口并**在结果里说明**。默默按默认端口处理的话，模型以为端口生效了，而画出来的连线方向不对"
-  - "**`diagram_layout` 改完必须触发重布局，而触发由宿主决定。** 命令的 `CommandResult` 报出「结构变更」，工具层把它翻译成一次布局调度。工具层自己调布局引擎的话，`DuetDiagram.Llm` 就依赖了布局引擎，而布局引擎是第三方组件——这一层不该有它"
-  - "**端口不是逐字段写的，走重连命令。** `fromPort` / `toPort` 确实是边上的字段，但 `EdgeFieldValue` 的字段表里**只有 label 与 style**——端点四样（起点、终点、两个端口）必须作为一次操作一起生效，逐字段写会在中途留下一个端点对不上的边。所以「端口自动解析」这一步的结果要交给 `reconnect-edge`，不要想着给字段表加两个名字"
-  - "**pin 与 sidecar 的固定位置是两回事，合并规则要写进文档。** 命令层的 pin 进 IR，拖拽的固定位置进 sidecar；布局求解时两者都要看，谁优先得定死。不定的话，同一个节点会有两个互相矛盾的固定位置，而表现是「有时按这个、有时按那个」"
-  - "组合的嵌套深度上限从命令层读，不在工具层另写一个数。写两处之后对不上，而对不上时的表现没有规律"
-  - "`diagram_composite` 的动作表在 Phase 3 就按命令层已有的能力给全；命令层没有的动作返回结构化「尚未支持」并说明缺什么"
+  - "**端口解析这一条已经在 P3-07 做掉了，这一轮不再重复。** `fromPort` / `toPort` 确实是边上的字段，但 `EdgeFieldValue` 的字段表里**只有 label 与 style**——端点四样必须作为一次操作一起生效。P3-07 的 `connect-edge` / `reconnect-edge` 已经用 `PortParser` 把「标识.端口名」拆开交给重连类命令，所以 `diagram_layout` 与 `diagram_composite` 的参数表里根本没有端点。**不在这里给字段表加两个名字**：逐字段写会在中途留下一个端点对不上的边"
+  - "**`diagram_layout` 改完必须触发重布局，而触发由宿主决定。** 工具层把命令的 `CommandResult` 翻译成 `CommandOutcome`，里面的结构变更标志就是给宿主的那个信号。工具层自己调布局引擎的话，`DuetDiagram.Llm` 就依赖了布局引擎，而布局引擎是第三方组件——这一层不该有它。所以这一条在本任务里的可验形式是「结构变更标志为真」，真正的重排调度在宿主那一侧"
+  - "**`pin` / `unpin` 不做，也没有对应动作。** 命令层没有这两条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar 的 `pinnedNodes`。所以任务起草时写的「pin 与 sidecar 的固定位置两回事、合并规则要写进文档」这件事**不成立**：只有一处存放处，没有可合并的两份。写进文档的应当是「固定位置只有 sidecar 一处，工具层不为它开 action」，与折点同一口径"
+  - "**归属由调用方显式给出，而工具层只认 `llm`。** 命令层不给默认值，理由是默认值会让模型那条路径悄悄写出人工归属的约束，而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以 `owner` 缺省时写 `llm`（这是事实），而 `human` 被拒绝——放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。`auto` 放行：它是更弱的一档，模型表达「这只是个建议」是合理用法"
+  - "**组合的嵌套深度上限从命令层读，不在工具层另写一个数。** `CompositeLimits.MaxDepth` 是命令层的前置检查与整体校验器共用的那一个常量；工具层不判深度，让命令去报 `COMPOSITE_TOO_DEEP`"
+  - "`diagram_composite` 的动作表在 Phase 3 就按命令层已有的能力给全：命令层恰好有 create / dissolve / move-into 三条，所以动作表就是这三条，没有「尚未支持」的占位"
   - "**折点没有 action。** 折点写在 sidecar 的 `pinnedEdges`、不进 IR 也不走命令总线，所以它不该出现在 `diagram_layout` 或 `diagram_edit` 的 action 表里。工具层为它开一个 action 的话，那条 action 要么绕开总线直接改 sidecar（于是撤销栈与广播都不经过），要么给折点立一条命令（于是推翻 P2-07 的决定）"
+  - "**动作表与命令清单的对照要一起长。** P3-07 在文档里加了「工具 | 动作 | CommandId」那张表，这一轮往它后面追加 `diagram_layout` 与 `diagram_composite` 那八行；`Category=ToolDispatch` 的用例会逐行核，漏一行就红"
 context:
   - 方案 §6.1 的工具表；§6.2 的「端口自动解析、处理 pin、调度重布局」
   - 方案 §5.3 ApplyFallback 与四级降级
@@ -38,3 +44,121 @@ scope_note: |
   工具层自己调引擎，或者把「需要重排」这个事实报给宿主。方案 §4.9 的已知差异里已经
   为后者定过口径——命令上下文不带服务引用，重排由 `CommandResult` 的两个布尔标志外化。
   工具层跟着这条走，`DuetDiagram.Llm` 就只依赖 Core 与 MEAI。
+
+reconnaissance: |
+  **动手前对着命令层、参数表与 P3-07 立下的口径核了一遍，结论如下。**
+
+  1. **`diagram_layout` 的五个动作各自落到哪条命令，逐条定死。**
+     参数表在 P3-05 已经冻结（`action` / `kind` / `direction` / `nodeSpacing` /
+     `layerSpacing` / `id` / `relativeTo` / `relation` / `owner` / `memberIds` / `subject`），
+     这一轮只填执行体。
+
+     - `set-direction` → `SetDirectionCommand(Direction)`，方向从 `direction` 取。
+       取值 LR / TB / RL / BT。
+     - `set-spacing` → `SetSpacingCommand(nodeSpacing, layerSpacing)`，两个都可选，
+       至少要给一个（都不给时命令自己报 `FIELD_VALUE_INVALID`，工具层也先挡一道）。
+     - `add-constraint` → `AddLayoutConstraintCommand(LayoutConstraintSpec, ConstraintOwner)`。
+       三类约束的形状不同：同层与对齐是一组平级节点（`memberIds`），层内次序是一个主语
+       加它的出边（`subject` + `memberIds`）。所以 `kind` 决定走哪个工厂方法。
+     - `remove-constraint` → `RemoveLayoutConstraintCommand(同一个 spec, owner)`。
+       按内容找、不按序号——界面手上那份列表可能已经过期，按序号删会删掉另一条。
+     - `set-place` → `SetPlaceCommand(id, relativeTo, PlaceRelation?, owner)`。
+       `relation` 留空表示清除这一条；取值 right-of / left-of / above / below。
+
+     动作名与命令标识**不同名**是有意的：`add-constraint` / `remove-constraint` 比
+     `add-layout-constraint` / `remove-layout-constraint` 短，而 P3-05 冻结的说明里
+     举的例子就是 `add-constraint`。说明里要补上 `remove-constraint`（原来只举了加）。
+
+  2. **`set-place` 写进 IR 但求解器不消费它。**
+     命令层已经写明「设完之后坐标不变」，这一点要让调用方知道，否则它会把「命令没生效」
+     当成一次失败。工具层的答复里带命令自己那句话，另外在动作说明里写清楚。
+
+  3. **`pin` / `unpin` 不存在，这一轮也不做。**
+     命令层没有这两条命令（`docs/Command-List.md` 的「已实现」表里没有，计划中的清单里
+     也没有对应的任务），IR 里也没有能存绝对坐标的地方：`NodeDef` 的字段里没有位置，
+     `LayoutHints` 的四个列表全是相对约束。节点的固定位置落在 sidecar 的 `pinnedNodes`。
+     **所以起草时写的「pin 与 sidecar 是两回事、合并规则要定死」不成立**——只有一处
+     存放处，没有两份要合并。文档里该写的是「固定位置只有 sidecar 一处，工具层不为它开
+     action」，与折点同一口径。这一条要一并改掉上面 `acceptance` 里那句。
+
+  4. **`diagram_composite` 的三个动作，逐条定死。**
+     参数表是 `action` / `id` / `kind` / `memberIds` / `targetId` / `label`。
+
+     - `create` → `CreateCompositeCommand(CompositeDef, index?)`。**种类由记录类型表达**，
+       所以 `kind` 要在工具层翻译成 `GroupDef` / `LaneDef` / `SubflowDef` / `ComboDef`
+       四个派生记录之一。四个记录的字段形状完全一样，差别只在类型名。
+       参数表里没有「父级」——新建的一律在顶层，要嵌进别的组合就再发一次 `move-into`。
+     - `move-into` → `MoveIntoCompositeCommand(memberId, targetId?)`。
+       `targetId` 留空表示搬到顶层。成环与超深度都由命令挡。
+     - `dissolve` → `DissolveCompositeCommand(id)`。成员回到**父级**而不是顶层。
+
+  5. **嵌套深度上限只写一处。**
+     `CompositeLimits.MaxDepth`（顶层是第 1 层）是命令层的前置检查与整体校验器共用的那个
+     常量。工具层**不判深度**，让命令去报 `COMPOSITE_TOO_DEEP`。工具层再写一个数的话，
+     会出现「工具层放行、命令层拒绝」或者反过来，而对不上时的表现没有规律。
+
+  6. **归属（`owner`）工具层只认 `llm`，缺省也是 `llm`。**
+     命令层不给默认值的理由是：默认值会让模型那条路径悄悄写出人工归属的约束，
+     而降级时被当成「用户设的」保住——用户根本没设过它。工具层**就是**模型那条路径，
+     所以缺省写 `llm` 是事实而不是猜测；而 `human` 要**拒绝**：放行的话模型可以伪造
+     最高优先级的归属，把用户自己设的约束在降级时挤掉。`auto` 放行——它是更弱的一档，
+     模型表达「这只是个建议」是合理用法。
+
+  7. **`diagram_layout` 改完之后「重排」这件事在本层只体现为结构变更标志。**
+     `ActionDispatch` 已经把 `CommandResult.StructuralChanged` 翻译进 `CommandOutcome`。
+     工具层不引布局引擎、也没有宿主可以回调，所以「调度了一次重布局」这件事在本工程里
+     验不了——能验的是标志为真。真正的调度在宿主那一侧（`DuetDiagram.App`）。
+
+  8. **`ToolRegistryTests` 里那条「未接线工具」的用例要换一个工具。**
+     它现在拿 `diagram_layout` + `set-direction` 当例子，而这一轮之后 Layout 接上了，
+     那条用例会红。换成还没接的 `diagram_export`（`format`），仍然是同一件事。
+
+  9. **动作表与命令清单的对照表要一起长。**
+     P3-07 在 `docs/Command-List.md` 里加了「工具 | 动作 | CommandId」那张表，
+     `Category=ToolDispatch` 的用例拿它跟 `ActionTable` 逐行比。这一轮往 `ActionTable`
+     里加 `Layout` 与 `Composite` 两张表，同时往文档里追加那八行——漏一行就红。
+
+  10. **`docs/Layout-Constraints.md` 要补的是「工具层怎么用这些约束」。**
+      那份文档现在写的是算法与不变量，没有一句讲模型侧怎么表达这三类约束与相对位置。
+      补一节：动作名、`kind` 的三个取值、层内次序的主语与出边、相对位置的四个方向、
+      以及「相对位置求解器不消费」这一条要在工具层的答复里说出来。
+
+result: |
+  **落地。** 两个工具的 8 个动作各自落到一条命令上，归属方的判据与深度上限都定了。
+
+  - 新增 `LayoutTool.cs`（方向、间距、三类约束、相对位置）与 `CompositeTool.cs`
+    （四种组合的创建、移入、解散）。
+  - `ActionDispatch.cs` 的 `ActionTable` 加 `Layout`（5 条）与 `Composite`（3 条）两张表，
+    并加一个 `Wired` 列表——已经接上的工具列在这里，逐动作调用与文档对照都由它驱动，
+    P3-09 接上之后只要往这个列表里加一个名字。
+  - `DiagramToolset.cs`：`Layout` 与 `Composite` 接上；`Layout` 的说明补上
+    `remove-constraint` 与「相对位置求解器还不消费它」；`owner` 的说明从
+    「auto、llm 或 human」改成「auto 或 llm」，`relation` 的说明补上「留空表示清除」。
+  - `docs/Command-List.md` 的动作对照表追加 8 行，并补一段讲
+    「为什么这里没有 pin / unpin，也没有折点」。
+  - `docs/Layout-Constraints.md` 新增「模型侧怎么表达这些约束」一节。
+  - `ToolRegistryTests` 里那条「未接线工具」的用例改用 `diagram_export`——
+    Layout 接上之后原来那条会红。
+
+  **核掉的起草假设**
+
+  - 「pin 与 unpin 走命令层」不成立：命令层没有这两条，IR 里也没有能存绝对坐标的地方。
+    连带的「pin 与 sidecar 的固定位置要定合并规则」也不成立——只有一处存放处。
+  - 「端口要自动解析」在 P3-07 就做掉了：端点四样必须一次生效，而字段表里只有 label 与 style。
+    所以这一轮的两个工具参数表里根本没有端点。
+
+  **门禁**
+
+  - `Category=LayoutTool`：20 条，全通过。
+  - `Category=CompositeTool`：16 条，全通过。
+  - 全量：Core 430、Layout 75、Render 145、Mermaid 179、Dsl 158、Llm **129**、E2E 81，全通过。
+  - `Category=LayoutFallback`、`Category=CommentDiscipline`、`Category=ToolDispatch` 全通过；
+    `dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；`tools/LocCounter --check` 退出码 0；
+    全部任务 YAML 可解析。
+
+  **后续**
+
+  - 「改完之后调度一次重布局」在本工程里只验到结构变更标志为真，真正的调度在宿主那一侧
+    （`DuetDiagram.App`）。工具层不引布局引擎，所以这条到此为止。
+  - P3-09 接上 `diagram_export` / `diagram_validate` / `diagram_undo_redo` 时，
+    往 `ActionTable` 加三张表、往 `Wired` 加三个名字、往文档的对照表里追加它们那几行。

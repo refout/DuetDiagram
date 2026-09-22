@@ -34,13 +34,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` 的动作分发与幂等键 | Phase 3 P3-05 ~ P3-07 已落地；其余六个工具的动作分发（P3-08 起）与错误回环、模型接入未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发与样式白名单的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` / `diagram_layout` / `diagram_composite` 的动作分发、样式白名单与幂等键 | Phase 3 P3-05 ~ P3-08 已落地；其余两个工具的动作分发（P3-09 起）与错误回环、模型接入未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单与布局组合动作的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-07（命令层、工具定义、上下文摘要与两条工具的动作分发）已落地，P3-08 起未开工。
+P3-01 ~ P3-08（命令层、工具定义、上下文摘要与四条工具的动作分发）已落地，P3-09 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -195,6 +195,14 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # set-style 与 set-text 各认自己的字段前缀；画布六个成员各改各的
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=StyleWhitelist"
 
+# 布局动作：方向、间距、三类约束与相对位置各落到一条命令上；约束种类与成员形状对得上；
+# 归属方只认 llm 与 auto，human 被拒；改完之后结构变更标志为真
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=LayoutTool"
+
+# 组合动作：四种组合各建出自己的记录类型、移入会把成员从旧容器摘出来、
+# 解散把成员交给父级；成环与超深度由命令层拒掉
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -317,7 +325,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`
 
 ## 新增一个命令的检查清单
 
@@ -400,7 +408,9 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 工具层的 action 数少于命令数 | 节点与边的属性各合成一条按字段名分发的命令，所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条 | 字段表落地时就定下了这个口径。工具层把它拆回一条一个 action 的话，同一个效果会有两条路，而其中一条不进结构哈希——判据是**被改的值挂在元素上还是挂在文档上** |
 | 工具层的错误码与命令层的错误码分成两套 | 工具层自己一份（`TOOL_` 前缀），不进 `ErrorCodes` | 命令层那张表由界面呈现的用例逐行核对，把工具层的码并进去会把它判红；而且两者的处置不同——命令层的「字段值不合法」是去改文档，工具层的「参数不合法」是去改这一次调用 |
 | 参数约束的注入方式 | 不用 `AIJsonSchemaCreateOptions.TransformSchemaNode`，改成在 schema 生成之后按声明方法的参数表回填 | 实测那个回调对每个 schema 节点都被调用，但路径恒为空、参数特性提供者恒为空，认不出当前节点属于哪个参数。按参数表回填是确定的，也不依赖回调次序 |
-| `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | P3-08 起草时写的「pin 与 unpin 走命令层」与命令层的现状对不上，那一条要在开工时改掉 |
+| `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | 起草 P3-08 时写的「pin 与 unpin 走命令层」与命令层的现状对不上，P3-08 开工时改掉了。连带着那一轮写的「pin 与 sidecar 的固定位置两回事、合并规则要定死」也不成立：只有一处存放处，没有两份要合并 |
+| `diagram_layout` 的 `owner` | 缺省写 `llm`；`auto` 放行，**`human` 被拒绝** | 命令层要求显式给出归属，理由是默认值会让模型那条路径悄悄写出人工归属的约束、而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以缺省写 `llm` 是事实；而 `human` 放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。用户从面板上设的约束由面板自己写，不经过这一层 |
+| 增删布局约束的动作名 | 动作叫 `add-constraint` / `remove-constraint`，命令标识是 `add-layout-constraint` / `remove-layout-constraint`，两者不同名 | 动作名短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。冻结的参数表说明里举的例子就是 `add-constraint`，照它写才不至于让说明与实际动作名对不上 |
 | P3-05 的八个工具一律返回结构化的「尚未接上」 | 参数表与说明先定死，执行体分批接上 | 参数表是接口，分两次定的话先接上的那些调用方要跟着改。接上时替换的是各自的方法体，`DiagramToolset.cs` 会进 P3-06 ~ P3-09 的改动清单（它们现在的 `files.modify` 里还没有它） |
 | §6.4 的布局摘要（方向、层数、同层分组） | 方向取自 IR；层数与同层分组由宿主从布局结果量化成层号传进来，缺省时只写方向 | 工具层不引布局引擎（P3-08 定的口径）。自己按拓扑算一个的话，摘要里的层数与实际画面各按一套算法，对不上时没有任何东西会报错，而模型会照着一个错的层数去提要求 |
 | §6.4 的锁定列表 | 由宿主传入被固定节点的**标识**，摘要层不读 sidecar 文件 | 固定位置那份人工产物归宿主管。只收标识不收坐标，正好避开「模型照着会过期的数字微调位置」那条 |

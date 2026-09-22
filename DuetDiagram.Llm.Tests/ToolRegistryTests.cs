@@ -215,12 +215,12 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void An_unwired_tool_says_so_without_blaming_the_caller()
     {
-        var result = Invoke(Registry(), DiagramToolset.Layout, """{"action":"set-direction","direction":"LR"}""");
+        var result = Invoke(Registry(), DiagramToolset.Export, """{"format":"dsl"}""");
 
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].Code.Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Message.Should().Contain(DiagramToolset.Layout).And.Contain("set-direction");
+        result.Errors[0].Message.Should().Contain(DiagramToolset.Export).And.Contain("dsl");
     }
 
     #endregion

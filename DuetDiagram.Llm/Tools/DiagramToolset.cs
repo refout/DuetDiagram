@@ -60,12 +60,14 @@ public static class DiagramToolset
     private const string LayoutDescription =
         "按动作调整布局：主方向、同层与层间间距、同层 / 层内次序 / 对齐三类约束，以及一对节点的相对位置。"
         + "用户说「排得不好看」「这两个要并排」时用它。"
-        + "它只改布局参数，不搬运坐标；改完之后要不要重排由返回结果里的结构变更标志告诉宿主。";
+        + "它只改布局参数，不搬运坐标；改完之后要不要重排由返回结果里的结构变更标志告诉宿主。"
+        + "相对位置这一类约束求解器还不消费它，设完之后坐标不会变。";
 
     private const string CompositeDescription =
         "按动作管理组合：把一批元素收进分组、泳道、子流程或组合框，把成员移进另一个组合，或解散一个组合。"
         + "要表达「这几个是一伙的」时用它。"
-        + "一个元素只能属于一个组合，移入会把它从原容器里摘出来；成环与超过嵌套深度上限都会被拒绝。";
+        + "一个元素只能属于一个组合，移入会把它从原容器里摘出来；成环与超过嵌套深度上限都会被拒绝。"
+        + "新建的组合一律在顶层，要嵌套就再发一次移入。";
 
     private const string ExportDescription =
         "把当前图导出成文本格式：自有 DSL 或 Mermaid。"
@@ -195,18 +197,19 @@ public static class DiagramToolset
         #region diagram_layout
 
         public Task<ToolResult> Layout(
-            [Description("要做的事，例如 set-direction、set-spacing、add-constraint、set-place。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("要做的事，例如 set-direction、set-spacing、add-constraint、remove-constraint、set-place。")][Pattern(Patterns.DiagramId)] string action,
             [Description("约束种类：same-rank、align 或 order。")] string? kind = null,
             [Description("主方向：LR、TB、RL、BT。")] string? direction = null,
             [Description("同层节点间距。")] double? nodeSpacing = null,
             [Description("层与层之间的间距。")] double? layerSpacing = null,
             [Description("要摆位的节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? id = null,
             [Description("参照节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? relativeTo = null,
-            [Description("相对位置：right-of、left-of、above、below。")] string? relation = null,
-            [Description("这条约束归谁：auto、llm 或 human。")] string? owner = null,
+            [Description("相对位置：right-of、left-of、above、below。留空表示清除这一条。")] string? relation = null,
+            [Description("这条约束归谁：auto 或 llm。留空按 llm 算。")] string? owner = null,
             [Description("约束的成员：同层与对齐是节点，层内次序是出边。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
             [Description("层内次序的主语节点。")][Pattern(Patterns.DiagramId)] string? subject = null) =>
-            Pending(DiagramToolset.Layout, action);
+            Task.FromResult(LayoutTool.Run(_context, new LayoutArguments(
+                action, kind, direction, nodeSpacing, layerSpacing, id, relativeTo, relation, owner, memberIds, subject)));
 
         #endregion
 
@@ -219,7 +222,8 @@ public static class DiagramToolset
             [Description("成员标识。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
             [Description("移入的目标组合。留空表示搬到顶层。")][Pattern(Patterns.DiagramId)] string? targetId = null,
             [Description("组合的显示名。")] string? label = null) =>
-            Pending(DiagramToolset.Composite, action);
+            Task.FromResult(CompositeTool.Run(_context, new CompositeArguments(
+                action, id, kind, memberIds, targetId, label)));
 
         #endregion
 

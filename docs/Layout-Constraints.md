@@ -38,6 +38,41 @@ IR 里的约束列表后来多了一类**相对位置**（`LayoutHints.Place`）
 也就是说调用方设完之后节点不会动，这一点必须让调用方知道，
 否则它会把"命令没生效"当成一次失败。
 
+## 模型侧怎么表达这些约束
+
+人和模型走同一套命令层，所以工具层（`diagram_layout`）不新增任何能力，只把参数摆成命令要的形状。
+
+| 动作 | 落到 | 参数 |
+|---|---|---|
+| `set-direction` | `set-direction` | `direction`：`LR`、`TB`、`RL`、`BT` |
+| `set-spacing` | `set-spacing` | `nodeSpacing` 与 `layerSpacing`，至少给一个 |
+| `add-constraint` | `add-layout-constraint` | `kind` 加成员 |
+| `remove-constraint` | `remove-layout-constraint` | 同一条约束的 `kind` 加成员，按内容找不按序号 |
+| `set-place` | `set-place` | `id` + `relativeTo` + `relation`，`relation` 留空表示清除 |
+
+`kind` 的三个取值对应上表的三类约束，**成员形状不同**：
+
+- `same-rank` 与 `align`：`memberIds` 是一组平级节点。
+- `order`：`subject` 是主语节点，`memberIds` 是它的**出边标识**，按先后排列。
+  次序存的是出边而不是目标节点——同一个终点可以有好几条边，"这几条谁先谁后"
+  用节点标识表达不出来。
+
+`relation` 的四个取值是 `right-of`、`left-of`、`above`、`below`。
+
+**归属方（`owner`）由工具层定成 `llm`。** 命令层要求显式给出，理由是给默认值会让模型那条路径
+悄悄写出人工归属的约束，而降级时被当成"用户设的"保住。工具层就是模型那条路径，所以缺省写 `llm`
+是事实而不是猜测；`human` 被拒绝——放行的话模型可以伪造最高优先级的归属，把用户自己设的约束
+挤掉。`auto` 放行，它是更弱的一档。
+
+**改完之后重排由宿主决定。** 命令的 `CommandResult` 报出"结构变更"，工具层把它翻译成
+返回结果里的一个标志。工具层不引布局引擎，也没有宿主可以回调——自己调引擎的话，
+这一层就依赖了第三方组件。相对位置那一条还有个额外的话要说：设完之后坐标不变。
+
+**固定位置与折点不在这一层。** 节点的固定位置写在 sidecar 的 `pinnedNodes`、折点写在
+`pinnedEdges`，两者都不进 IR、不走命令总线，所以工具层不为它们开动作。开一个的话，
+那条动作要么绕开总线直接改 sidecar（撤销栈与广播都不经过），要么给它们立一条命令
+（于是推翻"坐标属于渲染结果"这条口径）。
+
 ## 三个待定问题的决定
 
 ### 一、让位是否保证无重叠

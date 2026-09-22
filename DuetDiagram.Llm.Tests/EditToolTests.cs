@@ -21,7 +21,7 @@ public sealed partial class EditToolTests
     {
         var registry = Harness.Registry();
 
-        foreach (var tool in new[] { DiagramToolset.Edit, DiagramToolset.Style })
+        foreach (var tool in ActionTable.Wired)
         {
             foreach (var action in ActionTable.For(tool))
             {
@@ -40,7 +40,7 @@ public sealed partial class EditToolTests
     {
         var implemented = ImplementedCommands();
 
-        foreach (var action in ActionTable.Edit.Concat(ActionTable.Style))
+        foreach (var action in ActionTable.Wired.SelectMany(ActionTable.For))
         {
             implemented.Should().Contain(
                 action.CommandId,
@@ -56,8 +56,7 @@ public sealed partial class EditToolTests
         var documented = DocumentedActions();
 
         documented.Should().Equal(
-            [.. ActionTable.Edit.Select(action => (DiagramToolset.Edit, action)),
-             .. ActionTable.Style.Select(action => (DiagramToolset.Style, action))],
+            [.. ActionTable.Wired.SelectMany(tool => ActionTable.For(tool).Select(action => (tool, action)))],
             "动作表与命令清单里的对照表要逐行一致，两边分头维护之后没人知道该信哪一份");
     }
 

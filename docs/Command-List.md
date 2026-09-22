@@ -154,10 +154,27 @@
 | `diagram_style` | `define-palette-entry` | `define-palette-entry` |
 | `diagram_style` | `update-palette-entry` | `update-palette-entry` |
 | `diagram_style` | `remove-palette-entry` | `remove-palette-entry` |
+| `diagram_layout` | `set-direction` | `set-direction` |
+| `diagram_layout` | `set-spacing` | `set-spacing` |
+| `diagram_layout` | `add-constraint` | `add-layout-constraint` |
+| `diagram_layout` | `remove-constraint` | `remove-layout-constraint` |
+| `diagram_layout` | `set-place` | `set-place` |
+| `diagram_composite` | `create` | `create-composite` |
+| `diagram_composite` | `move-into` | `move-into-composite` |
+| `diagram_composite` | `dissolve` | `dissolve-composite` |
 
 三个成员动作（形状、样式、文本）落在同一条命令上，区别只在前缀：`set-style` 认
 `style.` 开头的成员，`set-text` 认 `text.` 开头的。不查前缀的话，把 `text.fontSize`
 传给 `set-style` 也会成功，而两个动作各自的说明就成了一句空话。
+
+`add-constraint` / `remove-constraint` 与它们的命令标识不同名，这是有意的：动作名比
+`add-layout-constraint` 短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。
+三类约束由 `kind` 给出，形状不同：同层与对齐是一组平级节点，层内次序是一个主语加它的出边。
+
+**`diagram_layout` 与 `diagram_composite` 里没有 pin / unpin，也没有折点。** 固定位置写在
+sidecar 的 `pinnedNodes`、折点写在 `pinnedEdges`，两者都不进 IR、不走命令总线。给它们开
+action 的话，那条 action 要么绕开总线直接改 sidecar（于是撤销栈与广播都不经过），
+要么给它们立一条命令（于是推翻已有的决定）。
 
 **动作数少于命令数，这是对的。** 节点与边的属性各合成一条按字段名分发的命令，
 所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条。工具层不把它拆回去——

@@ -79,6 +79,31 @@ internal sealed class Harness : IDisposable
         => Bus.Execute(new ConnectEdgeCommand(new EdgeDef { Id = id, From = from, To = to, Label = label })
             .WithContext(ChangeContext.For(source, "tester")));
 
+    /// <summary>改一个节点的一个字段。</summary>
+    public CommandResult SetField(
+        string nodeId,
+        string field,
+        string? value,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetNodeFieldCommand(nodeId, field, value)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>加一条布局约束。归属默认人工，与界面走的那条路一致。</summary>
+    public CommandResult AddConstraint(
+        LayoutConstraintSpec spec,
+        ConstraintOwner owner = ConstraintOwner.Human,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new AddLayoutConstraintCommand(spec, owner)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>删一条布局约束。</summary>
+    public CommandResult RemoveConstraint(
+        LayoutConstraintSpec spec,
+        ConstraintOwner owner = ConstraintOwner.Human,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RemoveLayoutConstraintCommand(spec, owner)
+            .WithContext(ChangeContext.For(source, "tester")));
+
     public void Dispose()
     {
         Bus.Dispose();

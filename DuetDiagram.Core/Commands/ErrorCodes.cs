@@ -55,6 +55,19 @@ public static class ErrorCodes
     /// <summary>标识为空或全是空白字符。</summary>
     public const string InvalidId = "INVALID_ID";
 
+    /// <summary>
+    /// 要改的字段没有登记在字段表里。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是并进 <see cref="FieldValueInvalid"/>：两者的处置完全不同——
+    /// 字段名认不出说明调用方拿的是另一套字段表（版本对不上或拼错了），
+    /// 而值不合法只说明这一次输入有问题，字段本身是对的。
+    /// </remarks>
+    public const string FieldUnknown = "FIELD_UNKNOWN";
+
+    /// <summary>字段的值解析不出该字段要的类型。</summary>
+    public const string FieldValueInvalid = "FIELD_VALUE_INVALID";
+
     #region 整体校验器使用的码
     //
     // 上面那些由命令的前置检查产生，下面这些由加载文件、接收同步结果时的整体校验产生。
@@ -84,6 +97,28 @@ public static class ErrorCodes
 
     /// <summary>动作的目标不存在。</summary>
     public const string ActionTargetMissing = "ACTION_TARGET_MISSING";
+
+    /// <summary>
+    /// 布局约束本身不成立：成员不够、主语缺失或多余、成员重复。
+    /// </summary>
+    /// <remarks>
+    /// 与"引用的元素不存在"分开：那两种码说明图里少了东西，而这个码说明这条约束
+    /// 从一开始就描述不出任何东西。前者的处置是补上缺的元素，后者是改这条约束的写法。
+    /// </remarks>
+    public const string LayoutConstraintInvalid = "LAYOUT_CONSTRAINT_INVALID";
+
+    /// <summary>要删除的布局约束不存在。</summary>
+    public const string LayoutConstraintMissing = "LAYOUT_CONSTRAINT_MISSING";
+
+    /// <summary>
+    /// 这份文档这一份是只读的：另一个进程正拿着它。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是复用"版本冲突"：版本冲突是"你手上的副本旧了，同步一下再来"，
+    /// 而这个码是"这一次操作在这份文档上根本不允许"。前者的处置是同步，后者是去改那一份。
+    /// 报成版本冲突的话，用户会一遍遍重试，而重试永远不会成功。
+    /// </remarks>
+    public const string DocumentReadOnly = "DOCUMENT_READ_ONLY";
 
     #endregion
 }

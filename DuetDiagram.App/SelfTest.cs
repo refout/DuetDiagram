@@ -2,9 +2,11 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using DuetDiagram.App.Controls;
+using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Render;
 using SkiaSharp;
+using LayoutConstraintSpec = DuetDiagram.Core.Model.LayoutConstraintSpec;
 
 namespace DuetDiagram.App;
 
@@ -56,6 +58,7 @@ internal static class SelfTest
             Console.WriteLine($"  首帧渲染          {render.Elapsed.TotalMilliseconds,8:0.0} ms");
             Console.WriteLine($"  合计              {startup.Elapsed.TotalMilliseconds + render.Elapsed.TotalMilliseconds,8:0.0} ms");
             Console.WriteLine($"  节点 / 连线       {report.Nodes,8} / {report.Edges}");
+            Console.WriteLine($"  布局约束          {report.Constraints,8}");
             Console.WriteLine($"  绘制指令          {report.Commands,8}");
             Console.WriteLine($"  画布消费          {report.Drawn,8}");
             Console.WriteLine($"  视口缩放          {report.Scale,8:0.00}x");
@@ -109,6 +112,12 @@ internal static class SelfTest
             return "绘制列表里没有文本，位图上不会出现标签";
         }
 
+        if (report.Constraints < RequiredConstraints)
+        {
+            return $"文档里只有 {report.Constraints} 条布局约束，至少要有 {RequiredConstraints} 条——"
+                + "约束那条路没走通，位图上就看不到按约束排出来的样子";
+        }
+
         if (report.Drawn != report.Commands)
         {
             return $"画布只执行了 {report.Drawn} 条指令，列表里有 {report.Commands} 条——有指令没被消费";
@@ -116,6 +125,16 @@ internal static class SelfTest
 
         return null;
     }
+
+    /// <summary>
+    /// 自检这一帧要求文档里至少有这么多条约束。
+    /// </summary>
+    /// <remarks>
+    /// 约束是这一帧要验的东西：同层那一条会把本来在下一层的节点拉上来，
+    /// 对齐那一条会把并排的两个节点摆到同一列上。两条都不在时画面仍然能画出来，
+    /// 退出码也仍然是 0——于是这个自检就变成了一句"能出图"，而约束那段没验到。
+    /// </remarks>
+    private const int RequiredConstraints = 2;
 
     /// <summary>
     /// 把画布脱屏渲染成一帧位图并保存。
@@ -127,10 +146,15 @@ internal static class SelfTest
     /// </remarks>
     private static PixelSize RenderFrame(string outputPath, out FrameReport report)
     {
-        using var measurer = new SkiaTextMeasurer();
+        // 会话而不是"文档走一遍链路"：约束要经命令层写进去。直接往文档里塞约束的话，
+        // 这一帧验的只是"引擎认不认约束"，而约束是怎么进文档的那条路
+        // （校验、版本、哈希、重排）一段都没走到。
+        using var session = new DiagramSession(SampleDiagram.Document());
 
+        ApplyConstraints(session);
+
+        var scene = session.Scene;
         var model = new CanvasViewModel();
-        var scene = SampleDiagram.Build(model.Theme, measurer);
 
         model.Load(scene.DrawList);
 
@@ -157,10 +181,12 @@ internal static class SelfTest
         bitmap.Save(stream, new PngBitmapEncoderOptions());
 
         var commands = scene.DrawList.Commands;
+        var layout = scene.Document.Layout;
 
         report = new FrameReport(
             scene.Document.Nodes.Count,
             scene.Document.Edges.Count,
+            layout.SameRank.Count + layout.Order.Count + layout.Align.Count + layout.Place.Count,
             commands.Count,
             canvas.DrawnCommands,
             model.Viewport.Scale,
@@ -169,6 +195,24 @@ internal static class SelfTest
             commands.OfType<DrawText>().Count());
 
         return pixelSize;
+    }
+
+    /// <summary>
+    /// 往示例文档上加两条约束，两条都走命令层。
+    /// </summary>
+    /// <remarks>
+    /// 选这两条是因为它们都会在画面上留下看得见的差别：同层那一条把本来在下一层的
+    /// 结束节点拉到与"通过"同一层，对齐那一条把"通过"摆到"校验"那一列上。
+    /// 换成两条本来就成立的约束（例如让并排的两个节点同层）也能通过，但画面上看不出任何变化，
+    /// 于是"约束生效了没有"这件事就退化成一句空话。
+    /// </remarks>
+    private static void ApplyConstraints(DiagramSession session)
+    {
+        session.SetSelection(["pass", "end"]);
+        session.AddConstraint(LayoutConstraintSpec.SameRank(["pass", "end"]));
+
+        session.SetSelection(["check", "pass"]);
+        session.AddConstraint(LayoutConstraintSpec.Align(["check", "pass"]));
     }
 
     /// <summary>
@@ -203,6 +247,7 @@ internal static class SelfTest
     /// <summary>一帧渲染之后的读数。</summary>
     /// <param name="Nodes">文档里的节点数。</param>
     /// <param name="Edges">文档里的连线数。</param>
+    /// <param name="Constraints">文档里的布局约束数。</param>
     /// <param name="Commands">绘制列表里的指令数。</param>
     /// <param name="Drawn">画布实际执行掉的指令数。</param>
     /// <param name="Scale">这一帧用的缩放倍数。</param>
@@ -212,6 +257,7 @@ internal static class SelfTest
     private sealed record FrameReport(
         int Nodes,
         int Edges,
+        int Constraints,
         int Commands,
         int Drawn,
         double Scale,

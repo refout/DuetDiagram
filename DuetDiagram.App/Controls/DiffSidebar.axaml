@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.DiffSidebar">
+  <!--
+    右下角的变更边栏。默认折叠，只显示最近一次变更的摘要；展开看逐字段明细。
+    摘要常驻是因为它要回答"刚才那一下改了什么"，而点开才算看明细。
+  -->
+  <Border Background="#fbfcfe"
+          BorderBrush="#d8dee7"
+          BorderThickness="1"
+          CornerRadius="6"
+          Width="300">
+    <StackPanel Margin="10">
+      <DockPanel>
+        <Button x:Name="ToggleButton"
+                DockPanel.Dock="Right"
+                FontSize="11"
+                Padding="6,1"
+                Content="展开" />
+        <TextBlock x:Name="HeaderText"
+                   VerticalAlignment="Center"
+                   FontSize="12"
+                   FontWeight="SemiBold"
+                   Foreground="#39424f"
+                   Text="变更" />
+      </DockPanel>
+
+      <TextBlock x:Name="SummaryText"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#5b6675"
+                 TextWrapping="Wrap"
+                 Text="暂无变更" />
+
+      <TextBlock x:Name="DetailText"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#5b6675"
+                 TextWrapping="Wrap"
+                 IsVisible="False" />
+    </StackPanel>
+  </Border>
+</UserControl>

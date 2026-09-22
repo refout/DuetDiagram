@@ -1,23 +1,37 @@
 id: P2-10
 title: 中级布局约束的界面入口
 phase: 2
-status: pending
+status: done
 depends_on: [P2-09, P2-05]
 estimated_loc: 400
 files:
   create:
+    - DuetDiagram.Core/Model/LayoutConstraintSpec.cs
+    - DuetDiagram.Core/Commands/Builtin/AddLayoutConstraintCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveLayoutConstraintCommand.cs
+    - DuetDiagram.Core.Tests/LayoutConstraintTests.cs
     - DuetDiagram.App/Interaction/ConstraintGestures.cs
     - DuetDiagram.App/ViewModels/ConstraintEditorViewModel.cs
+    - DuetDiagram.App/Services/ConstraintEditorBinder.cs
     - DuetDiagram.E2E.Tests/ConstraintEditorTests.cs
+    - reports/phase2-constraints.md
   modify:
-    - DuetDiagram.App/Controls/PropertyPanel.axaml
+    - DuetDiagram.App/Controls/PropertyPanel.axaml.cs
     - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
-    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/ViewModels/PropertySectionViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
     - DuetDiagram.App/Interaction/DragController.cs
-    - DuetDiagram.Core/Commands/Builtin/（增删布局约束的命令）
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/SelfTest.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core.Tests/Harness.cs
+    - DuetDiagram.E2E.Tests/DragTests.cs
     - docs/Command-List.md
     - docs/GUI.md
     - AGENTS.md
+    - .github/workflows/ci.yml
 acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ConstraintEditor"
     expect: 全通过；面板上能加删顺序与对齐约束，改完之后下一次布局确实按约束走
@@ -41,3 +55,37 @@ scope_note: |
   三者在降级时被丢弃的次序不同（见布局那一节的保留项矩阵）。
   界面上不区分这三者的话，用户会以为自己加的约束在降级时被保住了，
   而实际丢掉的可能是他加的那一条。
+
+result:
+  summary: |
+    布局约束的界面入口落地：
+    - 三类约束合成**两条**命令（`add-layout-constraint` / `remove-layout-constraint`），
+      种类由参数给出。三类的成员形状不同（同层与对齐是节点，层内次序是出边），
+      但增删的动作一样；一类一条命令的话，校验、原子性与撤销三套逻辑要各写三遍，
+      而抄漏的那一遍不会报错，只会让某一类约束在某个入口下改不动。
+    - 层内次序是**每个主语一条**：同一主语上已有次序时换掉它而不是追加。
+      追加的话来回拖几次就积下几十条互相矛盾的次序，而求解器按列表顺序取第一条——
+      于是生效的永远是最早那一次，用户后来拖的几下全都白做。
+    - 属性面板那一节从"只读的一段文字"变成可增删的列表：每行写清哪一类、成员是谁、
+      归属是谁，人工加的那几行带删除按钮，下面三颗常驻按钮加同层 / 对齐 / 层内次序。
+      加不了的按钮是灰的——让用户点下去再收到一句"选得不够"，他会以为是自己点错了。
+    - 只有人工加的能删。引擎推出来的删了下一轮还会回来；模型提的被界面删掉之后，
+      模型那边不知道自己提的东西没了，下一轮还会再提一次。
+    - 加与删都走命令层，加完重排一次。约束本身不进坐标，但它决定坐标——
+      只重绘不重排的话，用户看到的是"我加了一条约束，画面纹丝不动"，然后会再点一次。
+    - 节点拖拽松手时指针底下压着谁决定落定成什么：压在另一个**兄弟节点**上落定的是一条
+      层内次序（不写固定位置），落在空白处才是绝对位置。合并以"上一次人工拖出来的次序"为底，
+      剔掉已删的边、接上还没排进去的出边。
+    - 约束指向的节点被删掉之后，那条约束留在列表上（它确实还在文档里），
+      既不会把界面搞崩，也不会悄悄消失——用户要能看到"这条没用了"，然后删掉它。
+    - 自检那一帧的文档带着两条约束，而且是经命令层加进去的；自检另外核对约束条数不低于两条，
+      否则"约束生效了没有"就退化成一句空话。
+  gates:
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=ConstraintEditor => 13/13 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Atomicity => 全通过"
+    - "端到端全量 71/71 通过；核心 270/270、布局 75/75、渲染 145/145、Mermaid 179/179、DSL 158/158"
+    - "dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase2-constraints.png => 自检通过（5 节点 / 5 连线 / 2 条约束，17 条绘制指令全部被消费）"
+  followups:
+    - "相对位置（`Place`）没有添加入口：属性面板把它读出来给人看，但加不了也删不了，等后续阶段。"
+    - "约束的次序对布局的影响只在引擎那一侧验到坐标，界面上没有把\"这条约束让谁动了\"指出来——排查时仍然要看画布。"
+    - "拖动生成次序要求被拖的正好是一个节点；多选拖动不成次序（\"把这一堆排到它旁边\"没有内容），按落空白处理。"

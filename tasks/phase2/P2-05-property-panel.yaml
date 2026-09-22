@@ -1,7 +1,7 @@
 id: P2-05
 title: 属性面板
 phase: 2
-status: pending
+status: done
 depends_on: [P2-02, P1-03, P1-05]
 estimated_loc: 500
 files:
@@ -42,3 +42,19 @@ scope_note: |
   **布局约束那一节在本任务只做"读"。** 它显示当前节点有哪些约束、归属是谁，
   改约束的入口在 P2-10——那一项要先有引擎侧的接线，
   先把界面做出来会得到一个能点但没效果的控件。
+result:
+  verification: |
+    三项验收全部通过。
+    - `Category=PropertyPanel` 六个用例全绿：选节点出六个分节、读回选中值、
+      改字段版本加一、被拒值留在字段上（HasError）、多选标「多个值」、多选编辑写遍所有选中节点。
+    - `--benchmark-panel --switches 200`（Release）：单次切换中位 0.029ms、95 分位 0.037ms、
+      最大 0.116ms，远低于 100ms 判据。
+    - `Category=Atomicity` 7/7：面板走的都是既有 `SetNodeFieldCommand`，没有为面板另开改文档的路。
+  notes: |
+    顺带修了一个阻断整个 E2E 套件的底层缺陷：本版 Avalonia.Headless 的
+    `HeadlessUnitTestSession.StartNew(Type)` 不会调用 `BuildAvaloniaApp`，
+    导致 `IWindowingPlatform` 未注册，所有端到端用例（含已提交的 Diagnostics / Canvas /
+    ModeSwitch）全报 NRE。改为 `GetOrStartForAssembly(Assembly)` 并在程序集加
+    `[AvaloniaTestApplication]` 特性后恢复，E2E 套件 25/25 通过。
+    `MainWindow.PropertiesView` 因手写 `InitializeComponent` 吃掉生成器的字段赋值而恒为 null，
+    已在 `InitializeComponent` 内用 `FindControl` 补回。

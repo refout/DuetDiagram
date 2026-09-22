@@ -1,11 +1,15 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using DuetDiagram.App;
 using DuetDiagram.App.Controls;
+using DuetDiagram.Render;
 using AppShell = DuetDiagram.App.App;
+
+[assembly: AvaloniaTestApplication(typeof(DuetDiagram.E2E.Tests.HeadlessFixture))]
 
 namespace DuetDiagram.E2E.Tests;
 
@@ -40,11 +44,17 @@ namespace DuetDiagram.E2E.Tests;
 public static class HeadlessFixture
 {
     private static readonly Lazy<HeadlessUnitTestSession> Session =
-        new(() => HeadlessUnitTestSession.StartNew(typeof(HeadlessFixture)));
+        new(() => HeadlessUnitTestSession.GetOrStartForAssembly(typeof(HeadlessFixture).Assembly));
 
     /// <summary>
     /// 组装无头应用。
     /// </summary>
+    /// <remarks>
+    /// 无头平台只换掉"窗口从哪来"，绘图后端仍然要自己装上。
+    /// 不装的话应用起不来，报的是"找不到字体管理器"——那句话与真正的原因
+    /// 隔了一层，容易让人去查字体而不是查后端。
+    /// </remarks>
+    /// <summary>组装无头应用。</summary>
     /// <remarks>
     /// 无头平台只换掉"窗口从哪来"，绘图后端仍然要自己装上。
     /// 不装的话应用起不来，报的是"找不到字体管理器"——那句话与真正的原因
@@ -98,6 +108,97 @@ public static class HeadlessFixture
         ArgumentNullException.ThrowIfNull(window);
 
         return window.GetVisualDescendants().OfType<DiagnosticsPanel>().Single();
+    }
+
+    /// <summary>窗口里那个属性面板。</summary>
+    public static PropertyPanel Properties(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<PropertyPanel>().Single();
+    }
+
+    /// <summary>
+    /// 某个字段在界面上对应的那个编辑器。
+    /// </summary>
+    /// <remarks>
+    /// 按控件类型加字段名去找，不按视觉树里的次序：次序一调整就会找错控件，
+    /// 而那种错不会让测试失败，只会让它去验另一个字段。
+    /// </remarks>
+    public static T Editor<T>(Window window, string field)
+        where T : Control
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants()
+            .OfType<T>()
+            .Single(control => AutomationProperties.GetAutomationId(control) == field);
+    }
+
+    /// <summary>
+    /// 某个元素在画布上的中心点，按画布坐标。
+    /// </summary>
+    /// <remarks>
+    /// 取它全部绘制指令的并集，与选中框用的是同一套口径。只取第一条的话，
+    /// 标签比形状宽时算出来的中心会偏出去，而点在那儿命中的是空白——
+    /// 于是用例失败在"没选中"上，看起来像选中坏了。
+    /// </remarks>
+    public static Point CenterOf(DiagramCanvas canvas, string elementId)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+
+        var model = canvas.Model
+            ?? throw new InvalidOperationException("画布还没有数据上下文");
+
+        SpatialRect? bounds = null;
+
+        foreach (var command in model.DrawList.Commands)
+        {
+            if (!string.Equals(command.ElementId, elementId, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var box = command switch
+            {
+                DrawShape shape => shape.Rect,
+                DrawText text => text.Box,
+                DrawPolyline polyline => Box(polyline.Points),
+                _ => (SpatialRect?)null,
+            };
+
+            if (box is { } value)
+            {
+                bounds = bounds is { } current ? current.Union(value) : value;
+            }
+        }
+
+        if (bounds is not { } rect)
+        {
+            throw new InvalidOperationException($"绘制列表里没有 {elementId} 这个元素");
+        }
+
+        var onScreen = model.Viewport.Transform.ToScreen(rect);
+
+        return new Point(onScreen.CenterX, onScreen.CenterY);
+    }
+
+    private static SpatialRect Box(IReadOnlyList<DrawPoint> points)
+    {
+        var left = points[0].X;
+        var top = points[0].Y;
+        var right = left;
+        var bottom = top;
+
+        foreach (var point in points)
+        {
+            left = Math.Min(left, point.X);
+            top = Math.Min(top, point.Y);
+            right = Math.Max(right, point.X);
+            bottom = Math.Max(bottom, point.Y);
+        }
+
+        return new SpatialRect(left, top, right - left, bottom - top);
     }
 
     /// <summary>画布中心，按画布自己的坐标算。</summary>

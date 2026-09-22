@@ -14,7 +14,7 @@
 | `VERSION_CONFLICT` | 并发冲突 | MCP 客户端版本落后 | 弹可视化 diff 对话框 |
 | `INVALID_EXPECTED_VERSION` | 参数错误 | 客户端版本 > 服务端版本 | 状态栏提示「内部错误，已记录日志」 |
 | `EXPECTED_VERSION_REQUIRED` | 参数错误 | MCP 模式未携带 `VersionCheckRequest` | 状态栏提示 |
-| `LAYOUT_ALL_LEVELS_TIMEOUT` | 布局失败 | — （Phase 1） | 状态栏红色提示 + 三选项 |
+| `LAYOUT_ALL_LEVELS_TIMEOUT` | 布局失败 | 各级降级全部失败 | 状态栏红色提示 + 三选项，画面保留上一次成功的结果 |
 | `MCP_UNAUTHORIZED` | 认证失败 | — （Phase 3） | 提示「认证失败」 |
 | `MCP_RATE_LIMITED` | 速率超限 | — （Phase 3） | 状态栏提示「请求过于频繁」 |
 | `INTERNAL_ERROR` | 内部错误 | `Apply` 抛异常 | 状态栏提示 + 日志 |
@@ -49,6 +49,16 @@
 | `ACTION_TARGET_MISSING` | 校验失败 | 动作的目标不存在 | 高亮该动作 |
 | `LAYOUT_NODE_MISSING` | 校验失败 | 四类布局约束引用的节点不存在 | 高亮该约束 |
 | `LAYOUT_ORDER_EDGE_MISSING` | 校验失败 | 层内次序引用的边不存在，或不是主语节点的出边 | 高亮该约束 |
+| `LAYOUT_CONSTRAINT_INVALID` | 校验失败 | 约束本身不成立：成员不够、主语缺失或多余、成员重复 | 状态栏一句话 |
+| `LAYOUT_CONSTRAINT_MISSING` | 校验失败 | 要删除的布局约束不存在 | 状态栏一句话 |
+| `DOCUMENT_READ_ONLY` | 所有权 | 另一个进程正拿着这份文档，这一份只读 | 状态栏灰显一句话 |
+
+`DOCUMENT_READ_ONLY` 与「版本冲突」分开：版本冲突是"你手上的副本旧了，同步一下再来"，
+处置是同步；这个码是"这一次操作在这份文档上根本不允许"，处置是去改那一份。
+报成版本冲突的话，用户会一遍遍重试，而重试永远不会成功。
+
+后两个码与「引用的元素不存在」分开：那两种说明图里少了东西，处置是补上缺的元素；
+这两个说明这条约束从一开始就描述不出任何东西（或已经不在了），处置是改这条约束的写法。
 
 `DUPLICATE_ID`、`EDGE_SOURCE_MISSING`、`EDGE_TARGET_MISSING`、`GROUP_MEMBER_MISSING`、
 `GROUP_CYCLE` 五个码两处都用，含义相同。
@@ -76,6 +86,60 @@
 |---|---|---|
 | `SIDECAR_HASH_MISMATCH` | `layout.json` 哈希与文档不符 | 加载时静默重布局 |
 | `SIDECAR_CORRUPT` | `user.json` 无法解析 | 加载时弹恢复对话框 |
+
+## 界面呈现（机器可读）
+
+界面按这张表决定一个错误码怎么呈现。表与 `DuetDiagram.App/Services/ErrorPresenterTable.cs`
+**逐行一致**，门禁是 `Category=ErrorPresentation`：拿错误码清单逐个查这张表，漏一个就红。
+
+| 码 | 呈现 |
+|---|---|
+| `DUPLICATE_ID` | `HighlightTargets` |
+| `EDGE_TARGET_MISSING` | `PromptCreate` |
+| `EDGE_SOURCE_MISSING` | `PromptCreate` |
+| `GROUP_MEMBER_MISSING` | `PromptCreate` |
+| `GROUP_CYCLE` | `HighlightTargets` |
+| `VERSION_CONFLICT` | `VersionDiffDialog` |
+| `INVALID_EXPECTED_VERSION` | `StatusBar` |
+| `EXPECTED_VERSION_REQUIRED` | `StatusBar` |
+| `LAYOUT_ALL_LEVELS_TIMEOUT` | `LayoutFailureDialog` |
+| `MCP_UNAUTHORIZED` | `AuthFailed` |
+| `MCP_RATE_LIMITED` | `StatusBar` |
+| `INTERNAL_ERROR` | `StatusBar` |
+| `NODE_MISSING` | `StatusBar` |
+| `EDGE_MISSING` | `StatusBar` |
+| `INVALID_ID` | `StatusBar` |
+| `FIELD_UNKNOWN` | `StatusBar` |
+| `FIELD_VALUE_INVALID` | `StatusBar` |
+| `EDGE_PORT_MISSING` | `HighlightTargets` |
+| `EDGE_PORT_ON_COMPOSITE` | `HighlightTargets` |
+| `LAYOUT_NODE_MISSING` | `HighlightTargets` |
+| `LAYOUT_ORDER_EDGE_MISSING` | `HighlightTargets` |
+| `MEMBERSHIP_MISMATCH` | `HighlightTargets` |
+| `PARENT_MISSING` | `PromptCreate` |
+| `TAG_MEMBER_MISSING` | `HighlightTargets` |
+| `ACTION_TARGET_MISSING` | `HighlightTargets` |
+| `LAYOUT_CONSTRAINT_INVALID` | `StatusBar` |
+| `LAYOUT_CONSTRAINT_MISSING` | `StatusBar` |
+| `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
+
+呈现方式只有这几种，因为用户能做的事只有这几种：
+
+| 呈现 | 用户看到什么 |
+|---|---|
+| HighlightTargets | 相关元素被标出来，不弹窗 |
+| PromptCreate | 被问一句「要不要创建」，由用户决定 |
+| VersionDiffDialog | 弹差异对话框，看得到冲突在哪 |
+| StatusBar | 状态栏给一句话 |
+| StatusBarMuted | 状态栏灰显一句话，**不弹窗**。无操作的失败走这一档 |
+| AuthFailed | 提示认证失败 |
+| LayoutFailureDialog | 弹布局失败提示，给重试 / 手动布局 / 简化图三个选项 |
+
+呈现方式**由这张表决定，不在各处就地判断**。就地判断的结果是同一个错误码在两个入口
+给出两种呈现，而用户以为遇到的是两个问题。
+
+`LAYOUT_ALL_LEVELS_TIMEOUT` 的呈现里还带一句补充：试了几级，以及这一轮降级丢掉了哪些约束。
+去掉哪一条是用户的判断，界面只负责把候选摆出来。
 
 ## 非错误消息（由 `NoOp` 返回）
 

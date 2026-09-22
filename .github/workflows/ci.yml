@@ -78,6 +78,11 @@ jobs:
       - name: 视口变换门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Viewport"
 
+      # 命中测试：点中节点、点中边、点中空白、重叠时谁在上、不受视口剔除影响。
+      # 这一条退化会让画布「点不中元素」，而偏差随缩放放大、画面上完全看不出来。
+      - name: 命中测试门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=HitTest"
+
       # 剔除的判据与范围：阈值边界、预取边距、跨边界元素。
       # 判据散成两处时的表现是「有时快有时慢」，看不出规律，也就无从查起。
       - name: 剔除判据门禁
@@ -93,6 +98,12 @@ jobs:
       # 而面板上那几个数字看起来完全正常。
       - name: 采样器门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DiagnosticsSampler"
+
+      # 变更高亮的三种手段：各自独立可辨、叠加时不互相盖住、颜色只是辅助线索。
+      # 这一条退化的表现是"色觉障碍用户看到的是一张没标过的图"——
+      # 只靠颜色区分的话，那一点无法事后补救。
+      - name: 变更高亮门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Highlight"
 
       # 词法层：定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，
       # 按标识切会让它们全变成「不认识的东西」。
@@ -140,8 +151,9 @@ jobs:
       # 无头模式下起窗口、送输入、抓一帧。绘制列表对不对由快照管，
       # 这里盯的是两者在真实窗口里有没有接上。
       # 这一条同时覆盖 Canvas（缩放、平移、状态栏）、ModeSwitch
-      # （换档那一帧的耗时、换档前后画布区域逐像素一致）与 Diagnostics
-      # （快捷键开关面板、面板上的数字跟着帧更新、面板关着时一条都不记）。
+      # （换档那一帧的耗时、换档前后画布区域逐像素一致）、Diagnostics
+      # （快捷键开关面板、面板上的数字跟着帧更新、面板关着时一条都不记）、
+      # ErrorPresentation（错误码怎么呈现）与 LayoutFailure（布局失败之后画面与提示）。
       - name: 端到端测试
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }}
 
@@ -150,6 +162,75 @@ jobs:
       # 而那种偏差在面板上完全看不出来。
       - name: 诊断面板门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Diagnostics"
+
+      # 属性面板：选中驱动、字段走命令层、多选统一赋值。面板自己写文档的话，
+      # 「人和 LLM 能力对等」当场不成立——LLM 那边没有面板可点，那条修改就缺入口。
+      # 这一条覆盖六个分节、改字段版本加一、多选「多个值」与被拒值留在字段上。
+      - name: 属性面板门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=PropertyPanel"
+
+      # 节点拖拽：拖动中不改文档、不调布局、不发命令；松手才作为一条操作落定
+      # （固定位置 + 重布局）。重叠固定节点的落点被挡下。这一条覆盖无命令、
+      # 只定一个、被拒、整次拖拽算一步撤销、画布预览偏移。
+      - name: 节点拖拽门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Drag"
+
+      # 连线：从端口拖出、拖到空白取消、拖到自身被拒。这一条退化的表现是
+      # 「明明从端口拖了线却连不上」，而界面上没有任何报错——端口判定错在坐标层。
+      - name: 连线门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Connect"
+
+      # 边的编辑：端点重连、折点增删、标签编辑各发一条命令。折点若被拆成
+      # 「删一条再加一条」，撤销要按两次而用户眼里是一次操作——这条验收的就是这个。
+      - name: 边编辑门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=EdgeEdit"
+
+      # 变更高亮：一条命令之后对应元素被标记，撤销之后标记继承原来源并带撤销符号。
+      # 这一条退化的表现是"LLM 改的东西不亮"或"撤销之后来源丢了"——
+      # 高亮若自己比较文档而不听通知，那条路径根本不经过界面。
+      - name: 变更高亮门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Highlight"
+
+      # 高亮全开时的帧率：给一批节点挂上三种手段，判据与不带高亮时同一条。
+      # 它验的是"高亮叠加层没有拖垮帧率"——混进绘制列表的几何会让每帧多算一遍，
+      # 而那种开销在画面上完全看不出来。
+      - name: 变更高亮帧率
+        run: dotnet run --project DuetDiagram.App -c ${{ env.CONFIGURATION }} --no-build -- --benchmark-frames --nodes 1000 --frames 120 --highlight
+
+      # 错误码到界面呈现的对照表必须覆盖全部错误码，且与文档里那张表逐行一致。
+      # 漏一个就是一次没有反馈的失败——用户点了一下，什么都没发生，也没有一句话。
+      # 两张表分头维护的话，外部代理照着文档写代码，实际行为却是另一套。
+      - name: 错误码呈现门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=ErrorPresentation"
+
+      # 布局全部降级失败之后：画面停在上一次成功的结果上、状态栏变红、三个选项都在。
+      # 清空画面的表现是用户以为图丢了，于是他去找备份——
+      # 而真正该做的是去掉那条算不出来的约束。
+      - name: 布局失败门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=LayoutFailure"
+
+      # 布局约束的界面入口：面板上能加能删，加完之后下一次布局真的按约束走。
+      # 只写进文档而不重排的话，画面上什么都不会变，而用户会再点一次。
+      # 另外两条：只有人工加的能删（引擎推的删了下一轮还会回来，模型提的被删掉它自己不知道），
+      # 拖到兄弟节点上落定的是次序且同一主语上只留一条（追加的话求解器取的是最早那一次）。
+      - name: 布局约束入口门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=ConstraintEditor"
+
+      # 多窗口：同一进程里两个窗口看同一份文档，一边改了另一边要跟着刷新且版本不分叉。
+      # 各开一份工作区的话改一边另一边不动，而用户以为在看同一份文件；
+      # 只读那一份要逐个写入口都禁掉——留一个能点的按钮就是一个能造成损坏的入口。
+      - name: 多窗口门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=MultiWindow"
+
+      # 跨进程所有权：独占、只读退档、心跳过期判定与"抢占前先试删锁文件"。
+      # 句柄是判据、心跳是补充——把心跳过期直接当成可抢占会撕掉一个活着进程正在写的文档。
+      - name: 文档所有权门禁
+        run: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=DocumentLock"
+
+      # 拖拽单帧处理耗时：一千节点上开一条拖拽、连续两百次采样每帧处理拖拽输入的中位。
+      # 判据是单帧不超过 16 毫秒——这是 §14.3「拖拽延迟 < 16ms」的取证。
+      - name: 拖拽帧时基准
+        run: dotnet run --project DuetDiagram.App -c ${{ env.CONFIGURATION }} --no-build -- --benchmark-drag --nodes 1000 --samples 200
 
       # 脱屏渲染一帧后退出，用退出码表达结果；同时产出可人工核对的证据图。
       - name: 界面栈自检

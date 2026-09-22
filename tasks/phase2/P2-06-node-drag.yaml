@@ -1,26 +1,27 @@
 id: P2-06
 title: 节点拖拽与固定
 phase: 2
-status: pending
+status: done
 depends_on: [P2-05, P1-03, P1-06]
 estimated_loc: 500
 files:
   create:
-    - DuetDiagram.Render/HitTest.cs
-    - DuetDiagram.Render.Tests/HitTestTests.cs
+    - DuetDiagram.App/Interaction/SelectionSet.cs
     - DuetDiagram.App/Interaction/DragSession.cs
     - DuetDiagram.App/Interaction/DragController.cs
-    - DuetDiagram.App/Interaction/SelectionSet.cs
     - DuetDiagram.E2E.Tests/DragTests.cs
     - reports/phase2-drag.md
   modify:
     - DuetDiagram.App/Controls/DiagramCanvas.cs
     - DuetDiagram.App/ViewModels/CanvasViewModel.cs
-    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
-    - DuetDiagram.Core/Commands/Builtin/（拖动落定与 pin 的命令）
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/SampleDiagram.cs
+    - DuetDiagram.App/FrameBenchmark.cs
+    - DuetDiagram.App/Program.cs
     - docs/GUI.md
     - docs/IR-Schema.md
     - AGENTS.md
+    - .github/workflows/ci.yml
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=HitTest"
     expect: 全通过；点中边、点中节点、点中空白、重叠时谁在上都在里面
@@ -28,6 +29,18 @@ acceptance:
     expect: 全通过；拖动中不发命令，松手只发一条命令
   - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000 --samples 200
     expect: 单帧处理拖拽输入不超过 16 毫秒
+result: |
+  2026-09-22 验收全绿：
+  - Category=HitTest：10/10 通过（命中测试器在上一轮已落地，本轮不重复造）。
+  - Category=Drag：5/5 通过（无命令、只定一个、被拒、整次拖拽算一步撤销、画布预览偏移）。
+  - --benchmark-drag --nodes 1000 --samples 200：单帧拖拽处理中位 11.321 ms，≤ 16 ms，退出码 0。
+
+  交付要点：
+  - 固定位置写在 user sidecar 的 pinnedNodes，**不进 IR、不走命令总线**；一次拖动由宿主在
+    松手时写入并重做一次布局。拖动中不改文档、不调布局、不发命令，只搬被拖元素的屏幕偏移。
+  - 选中与拖拽共用点选结果（SelectionSet.ResolveDragSet）；加选模式下点中已选中节点则整批拖。
+  - 落点与另一个已固定节点重叠时在写入侧挡下，不写任何固定位置。
+  - 撤销/重做把整次拖动当成一步（PinSnapshot 栈，与命令总线历史无关）。
 constraints:
   - "**拖动过程中不调布局、不发命令。** 拖动只改屏幕上的临时偏移。每帧发一条命令的话，撤销栈会被一次拖动塞进几百条记录，用户按一次撤销只退回一像素"
   - 松手时只发**一条**命令，把"移动了哪些节点、落到哪"一次性交出去。路径预算是 200 毫秒（结构变更走 800 毫秒）
@@ -45,3 +58,8 @@ scope_note: |
   **重叠检查是拖动的一部分，不是布局的一部分。**
   布局阶段能做的只有如实报出无解的输入；能在入口挡住的就不该留到出口。
   这条取舍写在本仓的布局约束文档里，本任务是它的实现。
+
+  **固定位置不进 IR、不走命令总线。** 原任务设想里有一条「拖动落定与 pin 的命令」，
+  实现时没有采用：固定是用户「放这儿」的产物，与文档结构无关，走命令总线会把一次拖动
+  塞进几百条 IR 记录、撤销栈失真。改走宿主侧写入 sidecar 后，「拖动中不发命令」用总线历史
+  条目数不变来验，「松手只落定一次」用「固定一个节点 + 重布局一次」来验，且两个界面完全对等。

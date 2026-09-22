@@ -7,7 +7,11 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Threading;
+using DuetDiagram.App.Interaction;
+using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
+using DuetDiagram.Layout;
 using DuetDiagram.Render;
 using ArrowStyle = DuetDiagram.Core.Model.ArrowStyle;
 using CoreFontWeight = DuetDiagram.Core.Model.FontWeight;
@@ -65,6 +69,26 @@ public sealed partial class DiagramCanvas : UserControl
     private Point _lastPointer;
     private int _drawnCommands;
 
+    /// <summary>文档那一侧。拖节点需要它来定选中、写固定位置；普通选中也走它。</summary>
+    public DiagramSession? Session { get; set; }
+
+    private DragController? _dragger;
+    private bool _nodeDragging;
+
+    // 脉冲动画的帧驱动。只有真的有脉冲在跑时才转——空闲时也在转的话，
+    // 省电模式下会被系统降频，而那个降频会被误读成性能退化。
+    private DispatcherTimer? _pulseTimer;
+
+    // 连线 / 重连 / 加折点的手势状态。它们与节点拖拽互斥：一次按下只进一条手势。
+    private bool _connecting;
+    private bool _reconnecting;
+    private string? _reconnectEdge;
+    private bool _reconnectStart;
+    private bool _bending;
+    private string? _bendEdge;
+    private int _bendSegment;
+    private DrawPoint _bendStart;
+
     public DiagramCanvas() => InitializeComponent();
 
     /// <summary>
@@ -101,6 +125,7 @@ public sealed partial class DiagramCanvas : UserControl
 
         // 这一帧画哪几条由它定：整份列表，或者是按视口剔过的一份子序列。
         // 画布自己不判断该不该剔除——那条判据只此一处，放在画布上就会与别处对不上。
+        FeedHighlights(model);
         model.BeginFrame();
 
         var commands = model.FrameCommands;
@@ -126,6 +151,8 @@ public sealed partial class DiagramCanvas : UserControl
                 Draw(context, transform, command);
                 _drawnCommands++;
             }
+
+            DrawSelection(context, transform, model.SelectionBounds);
         }
 
         if (!measuring)
@@ -143,6 +170,41 @@ public sealed partial class DiagramCanvas : UserControl
     }
 
     private static double Elapsed(long start) => Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+
+    #region 选中框
+
+    /// <summary>
+    /// 选中框的笔。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 虚线，不填色。填一层半透明底会把元素自己的填充色改掉，而用户正看着那个颜色
+    /// 判断这次改对了没有——选中框把要判断的东西盖住了，就没法判断了。
+    /// </para>
+    /// <para>
+    /// 在屏幕坐标下画，线宽与虚线的疏密因此不随缩放变。跟着缩放变的话，
+    /// 缩到两成时框线会细到看不见，放到四倍时那一段虚线会长得像个实框。
+    /// </para>
+    /// </remarks>
+    private static readonly Pen SelectionPen =
+        new(Avalonia.Media.Brush.Parse("#1f6feb"), 1, new DashStyle([4, 3], 0));
+
+    private static void DrawSelection(
+        DrawingContext context,
+        ViewportTransform transform,
+        SpatialRect? selection)
+    {
+        if (selection is not { } rect)
+        {
+            return;
+        }
+
+        // 往外撑一像素：贴着元素外沿画的话，框会压在元素自己的描边上，
+        // 那一圈描边看起来就变粗了。
+        context.DrawRectangle(null, SelectionPen, ToRect(transform.ToScreen(rect)).Inflate(1));
+    }
+
+    #endregion
 
     #region 指令分发
 
@@ -502,9 +564,82 @@ public sealed partial class DiagramCanvas : UserControl
 
     #endregion
 
+    #region 变更高亮
+
+    /// <summary>
+    /// 把当前的标记算成这一帧要叠的指令交给视图模型，并按脉冲是否在跑决定要不要继续出帧。
+    /// </summary>
+    /// <remarks>
+    /// 画布只认"有一份标记"与"相位是多少"，标记从哪来、怎么攒的不归它管。
+    /// 高亮是叠加层，不进绘制列表的几何——混进去之后动画的时间戳会污染快照测试，
+    /// 而那些快照本该是"同一份输入永远同一份输出"。
+    /// </remarks>
+    private void FeedHighlights(CanvasViewModel model)
+    {
+        // 没有会话（例如帧率基准直接把画布挂起来）时不碰高亮层：
+        // 那种情况下高亮由宿主自己设好，画布清掉它等于把要量的东西量没了。
+        if (Session is not { } session)
+        {
+            StopPulseTimer();
+            return;
+        }
+
+        if (!session.HasHighlights)
+        {
+            model.ClearHighlights();
+            StopPulseTimer();
+            return;
+        }
+
+        model.SetHighlights(HighlightOverlay.Commands(
+            session.HighlightSnapshot,
+            model.DrawList,
+            model.Theme,
+            session.HighlightPhase));
+
+        // 有脉冲在跑就继续出帧，跑完了就停。空闲时也转的话，省电模式下会被系统降频，
+        // 而那个降频会被误读成性能退化。
+        if (session.HasActivePulse)
+        {
+            StartPulseTimer();
+        }
+        else
+        {
+            StopPulseTimer();
+        }
+    }
+
+    private void StartPulseTimer()
+    {
+        if (_pulseTimer is null)
+        {
+            // 约三十帧每秒。脉冲是渐亮渐暗的慢动作，再密的帧也看不出差别，
+            // 而每一帧都要重算一遍高亮指令并重绘。
+            _pulseTimer = new DispatcherTimer(
+                TimeSpan.FromMilliseconds(33),
+                DispatcherPriority.Render,
+                (_, _) => InvalidateVisual());
+        }
+
+        if (!_pulseTimer.IsEnabled)
+        {
+            _pulseTimer.Start();
+        }
+    }
+
+    private void StopPulseTimer()
+    {
+        if (_pulseTimer is { IsEnabled: true })
+        {
+            _pulseTimer.Stop();
+        }
+    }
+
+    #endregion
+
     #region 尺寸与状态
 
-    protected override Size ArrangeOverride(Size finalSize)
+    protected override Avalonia.Size ArrangeOverride(Avalonia.Size finalSize)
     {
         var size = base.ArrangeOverride(finalSize);
 
@@ -571,12 +706,14 @@ public sealed partial class DiagramCanvas : UserControl
     {
         base.OnPointerPressed(e);
 
-        if (Model is null)
+        if (Model is not { } model)
         {
             return;
         }
 
         // 键盘消息只发给有焦点的控件，所以点一下就把焦点收过来，空格键才会被这里收到。
+        // 它必须在选中之前：焦点一移开，属性面板上正在编辑的那个框就失焦提交了，
+        // 而那次提交要落在点下去之前选中的那个元素上。
         Focus();
 
         var point = e.GetCurrentPoint(this);
@@ -585,6 +722,43 @@ public sealed partial class DiagramCanvas : UserControl
 
         if (!wantsPan)
         {
+            if (point.Properties.IsLeftButtonPressed)
+            {
+                var position = e.GetPosition(this);
+                var additive = e.KeyModifiers.HasFlag(KeyModifiers.Control)
+                    || e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+                // 先判连线类的把手：端口（新连线起点）、边的端点（重连）、边的中间（加折点）。
+                // 这几样优先级高于节点拖拽——按在把手上用户想的是编辑这条边，不是挪节点。
+                if (Session is not null && TryBeginEdgeGesture(model, position.X, position.Y))
+                {
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+
+                // 点中节点就进入拖拽：按下那一刻定下"动的是谁"，之后的移动只更新偏移，
+                // 松手才写一次固定位置。点中的不是节点（空白或边）走普通选中。
+                if (Session is not null)
+                {
+                    var startDoc = model.Viewport.Transform.ToDocument(position.X, position.Y);
+                    _dragger = new DragController(Session, model);
+
+                    if (_dragger.Press(model.Pick(position.X, position.Y), additive, startDoc))
+                    {
+                        _nodeDragging = true;
+                        e.Pointer.Capture(this);
+                        e.Handled = true;
+                        return;
+                    }
+
+                    _dragger = null;
+                }
+
+                model.RequestSelection(position.X, position.Y, additive);
+                e.Handled = true;
+            }
+
             return;
         }
 
@@ -608,6 +782,41 @@ public sealed partial class DiagramCanvas : UserControl
 
         model.MovePointer(position.X, position.Y);
 
+        // 拖拽进行中：移动只更新预览偏移，不碰文档、不碰布局。每一帧由画布把
+        // 选中节点整体挪一下，松手才由宿主一次性落定。
+        if (_nodeDragging && _dragger is not null)
+        {
+            _dragger.Move(model.Viewport.Transform.ToDocument(position.X, position.Y));
+            e.Handled = true;
+            return;
+        }
+
+        // 连线 / 重连手势：移动只更新预览线，不碰文档。
+        if ((_connecting || _reconnecting) && Session is not null)
+        {
+            var doc = model.Viewport.Transform.ToDocument(position.X, position.Y);
+            Session.UpdateConnect(doc);
+
+            if (Session.ConnectPreview is { } points)
+            {
+                model.SetOverlay(EdgeAdorner.ConnectPreview(points));
+            }
+
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        // 加折点手势：移动把预览的折点跟到光标。
+        if (_bending && Session is not null)
+        {
+            var doc = model.Viewport.Transform.ToDocument(position.X, position.Y);
+            model.SetOverlay(BendPreview(Session, _bendEdge!, _bendSegment, doc));
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
         if (!_panning)
         {
             return;
@@ -621,6 +830,30 @@ public sealed partial class DiagramCanvas : UserControl
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+
+        if (_nodeDragging)
+        {
+            // 松手时指针底下的那个元素决定这一拖落定成什么：压在一个兄弟节点上是一条层内次序，
+            // 落在空白处是一个绝对位置。拾取按布局坐标来，不按预览坐标——
+            // 预览只是画布把指令整体挪了一下，文档里的位置自始至终没动。
+            var drop = e.GetPosition(this);
+
+            _dragger?.Release(Model?.Pick(drop.X, drop.Y));
+            _nodeDragging = false;
+            _dragger = null;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
+
+        // 连线 / 重连 / 加折点：松手把这一手势落定，再清掉叠加层。
+        if (_connecting || _reconnecting || _bending)
+        {
+            CommitEdgeGesture(e);
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
 
         if (!_panning)
         {
@@ -638,6 +871,19 @@ public sealed partial class DiagramCanvas : UserControl
 
         // 指针被别处抢走（例如窗口失去激活）时也要收尾，
         // 否则下一次按下会被当成"还在拖"，图会突然跳一段。
+        if (_nodeDragging)
+        {
+            _dragger?.Cancel();
+            _nodeDragging = false;
+            _dragger = null;
+        }
+
+        // 连线类手势被打断同样作废：不创建边、不改端点、不加折点。
+        if (_connecting || _reconnecting || _bending)
+        {
+            CancelEdgeGesture();
+        }
+
         EndPan();
     }
 
@@ -677,6 +923,21 @@ public sealed partial class DiagramCanvas : UserControl
         // 焦点丢了就收不到抬起消息，空格会被永远记成"按着"，
         // 于是之后每一次左键按下都变成平移，用户以为选中坏了。
         _spaceHeld = false;
+
+        // 拖拽中丢了焦点，这一拖作废：不写固定位置，节点回到原处。
+        // 否则一次意外的失焦会把节点挪到用户没打算去的地方。
+        if (_nodeDragging)
+        {
+            _dragger?.Cancel();
+            _nodeDragging = false;
+            _dragger = null;
+        }
+
+        // 连线类手势同样作废：焦点丢了就收不到抬起消息，留着会卡在"还在连"的状态。
+        if (_connecting || _reconnecting || _bending)
+        {
+            CancelEdgeGesture();
+        }
     }
 
     private void EndPan()
@@ -689,6 +950,234 @@ public sealed partial class DiagramCanvas : UserControl
         _panning = false;
         Cursor = Cursor.Default;
     }
+
+    #region 连线与边编辑手势
+
+    /// <summary>
+    /// 按下那一刻决定这一手势是连线、重连还是加折点。
+    /// </summary>
+    /// <remarks>
+    /// 优先级：端口把手（新连线）&gt; 边端点（重连）&gt; 边中间（加折点）&gt; 节点拖拽。
+    /// 按在把手上用户想的是编辑这条边，不是挪节点，所以把手先于节点判定。
+    /// </remarks>
+    private bool TryBeginEdgeGesture(CanvasViewModel model, double screenX, double screenY)
+    {
+        var session = Session!;
+
+        // 只读时不进入连线、重连与折点手势。会话那边也会拒，但手势先于命令：
+        // 放它进来会在画布上留一条跟着光标走的预览线，用户松手才发现什么也没发生——
+        // 那比当场不动更难理解，也更像"软件卡了"。
+        if (session.IsReadOnly)
+        {
+            return false;
+        }
+
+        var layout = session.Scene.Layout;
+        var doc = model.Viewport.Transform.ToDocument(screenX, screenY);
+        var scale = model.Viewport.Scale <= 0 ? 1 : model.Viewport.Scale;
+        var tolerance = 6 / scale;
+
+        // 端口把手：开始一条新连线。端口位置来自布局算出的锚点，按下那一刻记死。
+        var port = EdgeHandleHitTest.HitPort(layout, session.Document, doc, tolerance);
+
+        if (port is { } p)
+        {
+            if (session.BeginConnect(p.NodeId, p.PortName, EndpointAnchor(session, p.NodeId, p.PortName)))
+            {
+                _connecting = true;
+                model.SetOverlay(EdgeAdorner.ConnectPreview(session.ConnectPreview!));
+                InvalidateVisual();
+                return true;
+            }
+        }
+
+        var edge = EdgeHandleHitTest.HitEdgeHandle(layout, doc, tolerance);
+
+        if (edge.Kind == EdgeHandleHitTest.EdgeHandleKind.None)
+        {
+            return false;
+        }
+
+        // 边中间：拖一下加一个折点。预览线把光标插到对应那段之间。
+        if (edge.Kind == EdgeHandleHitTest.EdgeHandleKind.Midpoint)
+        {
+            _bending = true;
+            _bendEdge = edge.EdgeId;
+            _bendSegment = edge.Segment;
+            _bendStart = doc;
+            model.SetOverlay(BendPreview(session, edge.EdgeId, edge.Segment, doc));
+            InvalidateVisual();
+            return true;
+        }
+
+        // 边端点：把另一端当"固定端点"开始一次重连预览。
+        var fixedEnd = edge.Kind == EdgeHandleHitTest.EdgeHandleKind.Start
+            ? OtherEnd(session, edge.EdgeId, start: false)
+            : OtherEnd(session, edge.EdgeId, start: true);
+
+        if (fixedEnd is null)
+        {
+            return false;
+        }
+
+        _reconnecting = true;
+        _reconnectEdge = edge.EdgeId;
+        _reconnectStart = edge.Kind == EdgeHandleHitTest.EdgeHandleKind.Start;
+        session.BeginConnect(fixedEnd.Value.NodeId, fixedEnd.Value.PortName, fixedEnd.Value.Anchor);
+        model.SetOverlay(EdgeAdorner.ConnectPreview(session.ConnectPreview!));
+        InvalidateVisual();
+        return true;
+    }
+
+    /// <summary>松手把连线类手势落定：连线创建边、重连改端点、加折点写固定折线。</summary>
+    private void CommitEdgeGesture(PointerReleasedEventArgs e)
+    {
+        var session = Session!;
+        var model = Model!;
+        var position = e.GetPosition(this);
+        var doc = model.Viewport.Transform.ToDocument(position.X, position.Y);
+        var scale = model.Viewport.Scale <= 0 ? 1 : model.Viewport.Scale;
+        var tolerance = 6 / scale;
+        var layout = session.Scene.Layout;
+
+        if (_connecting)
+        {
+            var targetId = model.Pick(position.X, position.Y);
+            var targetPort = EdgeHandleHitTest.HitPort(layout, session.Document, doc, tolerance)?.PortName;
+            session.CommitConnect(targetId, targetPort);
+        }
+        else if (_reconnecting)
+        {
+            var targetId = model.Pick(position.X, position.Y);
+            var targetPort = EdgeHandleHitTest.HitPort(layout, session.Document, doc, tolerance)?.PortName;
+            var edge = session.Document.Edges.FirstOrDefault(x => x.Id == _reconnectEdge);
+
+            if (edge is not null && targetId is not null)
+            {
+                // 固定的是被按住那一端对应的另一端，移动的才是落点这一端。
+                if (_reconnectStart)
+                {
+                    session.ReconnectEdge(edge.Id, targetId, targetPort, edge.To, edge.ToPort);
+                }
+                else
+                {
+                    session.ReconnectEdge(edge.Id, edge.From, edge.FromPort, targetId, targetPort);
+                }
+            }
+            else
+            {
+                session.CancelConnect();
+            }
+        }
+        else if (_bending)
+        {
+            // 几乎没动就是一次点击，不加折点，避免误触把一条直边顶出一个弯。
+            var moved = Math.Abs(doc.X - _bendStart.X) > tolerance || Math.Abs(doc.Y - _bendStart.Y) > tolerance;
+
+            if (moved)
+            {
+                session.SetEdgeBends(_bendEdge!, [doc]);
+            }
+        }
+
+        CancelEdgeGesture();
+    }
+
+    /// <summary>手势作废：清状态、清叠加层、清会话里的连线预览。</summary>
+    private void CancelEdgeGesture()
+    {
+        _connecting = false;
+        _reconnecting = false;
+        _reconnectEdge = null;
+        _bending = false;
+        _bendEdge = null;
+
+        Session?.CancelConnect();
+        Model?.ClearOverlay();
+        InvalidateVisual();
+    }
+
+    /// <summary>一条边被抓住那一端的另一端：节点、端口名与锚点。</summary>
+    private static (string NodeId, string? PortName, DrawPoint Anchor)? OtherEnd(
+        DiagramSession session,
+        string edgeId,
+        bool start)
+    {
+        var edge = session.Document.Edges.FirstOrDefault(e => e.Id == edgeId);
+
+        if (edge is null)
+        {
+            return null;
+        }
+
+        var id = start ? edge.From : edge.To;
+        var port = start ? edge.FromPort : edge.ToPort;
+
+        return (id, port, EndpointAnchor(session, id, port));
+    }
+
+    /// <summary>一个端点（节点 + 端口名）在文档坐标下的锚点，用于预览线的起点。</summary>
+    private static DrawPoint EndpointAnchor(DiagramSession session, string nodeId, string? portName)
+    {
+        var placed = session.Scene.Layout.Find(nodeId);
+
+        if (placed is null)
+        {
+            return new DrawPoint(0, 0);
+        }
+
+        if (portName is null)
+        {
+            return new DrawPoint(placed.Right, placed.Y + (placed.Height / 2));
+        }
+
+        var node = session.Document.Nodes.FirstOrDefault(n => n.Id == nodeId);
+        var port = node?.Ports.FirstOrDefault(p => string.Equals(p.Name, portName, StringComparison.Ordinal));
+
+        var layoutPort = port is not null
+            ? new LayoutPort(port.Name, port.Side, port.Offset)
+            : new LayoutPort(portName, DuetDiagram.Core.Model.PortSide.Right, 0.5);
+
+        var anchor = placed.PortAnchor(layoutPort);
+
+        return new DrawPoint(anchor.X, anchor.Y);
+    }
+
+    /// <summary>加折点的预览：把光标插到边折线的对应那段之间。</summary>
+    private static IReadOnlyList<DrawCommand> BendPreview(
+        DiagramSession session,
+        string edgeId,
+        int segment,
+        DrawPoint doc)
+    {
+        var route = session.FindEdgeRoute(edgeId);
+
+        if (route is null || route.Points.Length == 0)
+        {
+            return [];
+        }
+
+        var points = new List<DrawPoint>(route.Points.Length + 1);
+
+        for (var index = 0; index < route.Points.Length; index++)
+        {
+            if (index == segment + 1)
+            {
+                points.Add(doc);
+            }
+
+            points.Add(new DrawPoint(route.Points[index].X, route.Points[index].Y));
+        }
+
+        if (segment + 1 >= route.Points.Length)
+        {
+            points.Add(doc);
+        }
+
+        return EdgeAdorner.ConnectPreview(points);
+    }
+
+    #endregion
 
     #endregion
 

@@ -1,7 +1,7 @@
 id: P2-07
 title: 连线与边的编辑
 phase: 2
-status: pending
+status: done
 depends_on: [P2-06, P1-03]
 estimated_loc: 480
 files:
@@ -40,3 +40,26 @@ scope_note: |
   **这一轮不做富文本标签编辑。** 方案 §9.2 的"双击节点编辑标签"写的是富文本模式，
   而富文本与数学排版属于 Phase 4。本任务里双击只做纯文本编辑，
   富文本的入口留到那时再接——先做一半比先做一个假的富文本控件好。
+
+result:
+  summary: |
+    连线（从端口拖出、空白取消、自身被拒）与边的编辑（端点重连、折点增删、标签编辑）
+    三层全部落地并通过验收：
+    - 命令层新增 `reconnect-edge`、`set-edge-field`（Memento 已补 `[JsonDerivedType]`），
+      连同既有的 `connect-edge` 形成完整的边编辑入口；端点可为组合、组合不可作重连目标
+      （报 `EDGE_PORT_ON_COMPOSITE`）。
+    - 折点不走命令总线，走 sidecar 的 `pinnedEdges`（快照式撤销/重做），与 P2-06 的
+      `pinnedNodes` 同一口径——布局/渲染尚未消费 `pinnedEdges`，列为后续接线。
+    - 交互层补 `ConnectSession` / `EdgeHandleHitTest` / `EdgeAdorner`，`DiagramCanvas`
+      的指针处理在节点拖拽之前先判端口与边把手，预览走叠加层。
+    - 顺带修复 P2-06 遗留的主窗口回归：`MainWindow` 手写 `InitializeComponent` 只接上了
+      `PropertiesView` 而漏掉 `Canvas`，导致依赖 `Canvas.Session` 的全部无头测试在构造期
+      抛空引用；已补 `Canvas = FindControl<DiagramCanvas>(...)`。
+  gates:
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=Connect => 4/4 通过"
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=EdgeEdit => 5/5 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=Atomicity => 全量通过（新增 16 条边命令原子性/往返）"
+    - "端到端全量 39/39 通过（含 P2-06 主窗口回归修复）"
+  followups:
+    - "把 sidecar `pinnedEdges` 接进布局求解与绘制列表，使固定折点真正生效。"
+    - "`set-edge-field` 的 `style` 字段目前只校验令牌合法性，尚未在渲染端映射到具体线型。"

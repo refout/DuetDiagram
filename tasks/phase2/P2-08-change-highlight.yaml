@@ -1,7 +1,7 @@
 id: P2-08
 title: 变更高亮
 phase: 2
-status: pending
+status: done
 depends_on: [P2-07, P1-02]
 estimated_loc: 450
 files:
@@ -43,3 +43,23 @@ scope_note: |
   **这条判据的验收方式与别的不一样。** 别的都是"跑一个命令看数字"，
   这一条写的是"通过用户测试"。所以本任务交付的是可测的高亮，
   判定在 P2-13 由人给出——一个编码 agent 说"高亮方案很好用"没有意义。
+
+result:
+  summary: |
+    变更高亮四件套落地：
+    - 渲染层 `Highlight.Build` 是纯计算：给一批标记、一份基准列表与一个相位，
+      算出这一帧要叠哪些指令。三种非颜色手段各是各的形状与位置——脉冲是加粗的边框
+      （不改填充色）、角标是右上角之外的圆点、轮廓是元素外面一圈虚线；颜色只用来区分来源。
+    - 高亮信息来自命令总线的变更通知（`HighlightTracker` 订阅广播器），
+      不由界面自己比较文档——界面推断的话，LLM 改的东西不会亮。
+    - 撤销/重做继承原命令的来源色，另加 ↶ / ↷ 符号；原来源按元素记在 tracker 里。
+    - 高亮是叠加层（`CanvasViewModel._highlight`），不进绘制列表的几何；脉冲只在有变更时
+      跑动画（主题常量 `HighlightPulseSeconds` / `HighlightPulseCount`）。
+    - 右下角 `DiffSidebar` 默认折叠显示最近一次变更摘要，展开看逐字段明细，明细来自版本日志。
+  gates:
+    - "dotnet test --project DuetDiagram.Render.Tests -- --filter-trait Category=Highlight => 15/15 通过"
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=Highlight => 3/3 通过"
+    - "dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 --highlight => 达标（虚拟化单帧平均 9.59 ms，约 104.2 帧每秒；剔除率 86.3%）"
+  followups:
+    - 用户测试的判定在 P2-13 由人给出，本任务只交付可测的高亮。
+    - 边栏目前只显示最近一次变更；看历史要一个能翻页的列表，等有需要再说。

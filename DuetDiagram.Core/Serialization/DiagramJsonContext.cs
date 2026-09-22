@@ -73,4 +73,6 @@ namespace DuetDiagram.Core.Serialization;
 [JsonSerializable(typeof(FieldChange[]))]
 [JsonSerializable(typeof(VersionEntry[]))]
 [JsonSerializable(typeof(EdgePlacement[]))]
+[JsonSerializable(typeof(PortDef[]))]
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class DiagramJsonContext : JsonSerializerContext;

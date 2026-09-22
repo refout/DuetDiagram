@@ -107,6 +107,8 @@ public sealed class RoundTripTests
             new AddNodeMemento { Node = node, Index = 3, AffectedIds = ["n1"] },
             new RemoveNodeMemento { Node = node, Index = 1, RemovedEdges = [new EdgePlacement(2, edge)], AffectedIds = ["n1", "e1"] },
             new ConnectEdgeMemento { Edge = edge, Index = 7, AffectedIds = ["e1"] },
+            new ReconnectEdgeMemento { EdgeId = "e1", Previous = edge, AffectedIds = ["e1"] },
+            new SetEdgeFieldMemento { EdgeId = "e1", Previous = edge, Field = "label", OldValue = "否", NewValue = "是", AffectedIds = ["e1"] },
         ];
 
         foreach (var memento in mementos)

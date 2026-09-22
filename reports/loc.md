@@ -6,21 +6,21 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 11 | 2237 | 1275 | 576 | 386 |
+| DuetDiagram.App | 39 | 9227 | 5189 | 2523 | 1515 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 55 | 6597 | 3517 | 2078 | 1002 |
-| DuetDiagram.Core.Tests | 22 | 4214 | 3017 | 466 | 731 |
+| DuetDiagram.Core | 65 | 8792 | 4934 | 2535 | 1323 |
+| DuetDiagram.Core.Tests | 26 | 5705 | 4101 | 579 | 1025 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 4 | 980 | 613 | 162 | 205 |
+| DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 18 | 2661 | 1350 | 915 | 396 |
-| DuetDiagram.Render.Tests | 10 | 2408 | 1712 | 217 | 479 |
+| DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
+| DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **223** | **42332** | **26686** | **8830** | **6816** |
+| **合计** | **278** | **56176** | **35154** | **11886** | **9136** |
 
 ## 明细
 
@@ -34,17 +34,45 @@
 
 | 文件 | 代码 |
 |---|---:|
-| App.axaml.cs | 16 |
+| App.axaml.cs | 18 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 471 |
-| FrameBenchmark.cs | 215 |
-| MainWindow.axaml.cs | 38 |
-| Program.cs | 36 |
-| SampleDiagram.cs | 60 |
-| SelfTest.cs | 128 |
-| CanvasViewModel.cs | 111 |
+| DiagramCanvas.cs | 814 |
+| DiffSidebar.axaml.cs | 105 |
+| HighlightOverlay.cs | 17 |
+| LayoutFailureDialog.axaml.cs | 29 |
+| PropertyPanel.axaml.cs | 80 |
+| SidecarRecoveryDialog.axaml.cs | 25 |
+| StatusBar.axaml.cs | 72 |
+| FrameBenchmark.cs | 375 |
+| ConnectSession.cs | 19 |
+| ConstraintGestures.cs | 97 |
+| DragController.cs | 58 |
+| DragSession.cs | 23 |
+| EdgeAdorner.cs | 57 |
+| EdgeHandleHitTest.cs | 118 |
+| HighlightTracker.cs | 167 |
+| SelectionSet.cs | 33 |
+| MainWindow.axaml.cs | 232 |
+| Program.cs | 78 |
+| SampleDiagram.cs | 100 |
+| SelfTest.cs | 148 |
+| ConstraintEditorBinder.cs | 117 |
+| DiagramSession.cs | 659 |
+| DocumentFile.cs | 43 |
+| DocumentLaunch.cs | 67 |
+| ErrorPresenter.cs | 41 |
+| ErrorPresenterTable.cs | 60 |
+| FieldEditBinder.cs | 257 |
+| WorkspaceRegistry.cs | 94 |
+| CanvasViewModel.cs | 285 |
+| ConstraintEditorViewModel.cs | 165 |
 | DiagnosticsViewModel.cs | 155 |
+| PropertyFieldCatalog.cs | 123 |
+| PropertyFieldViewModel.cs | 93 |
+| PropertyPanelViewModel.cs | 204 |
+| PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
+| StatusBarViewModel.cs | 81 |
 
 ### DuetDiagram.Benchmarks
 
@@ -68,19 +96,26 @@
 | DiagramCommandBusContext.cs | 48 |
 | DiagramCommandBusOptions.cs | 9 |
 | VersionCheckRequest.cs | 6 |
+| AddLayoutConstraintCommand.cs | 198 |
 | AddNodeCommand.cs | 77 |
 | ConnectEdgeCommand.cs | 82 |
+| ReconnectEdgeCommand.cs | 130 |
+| RemoveLayoutConstraintCommand.cs | 107 |
 | RemoveNodeCommand.cs | 126 |
+| SetEdgeFieldCommand.cs | 110 |
+| SetNodeFieldCommand.cs | 108 |
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 29 |
+| CommandMemento.cs | 58 |
 | CommandResult.cs | 58 |
 | DiagramCommandBase.cs | 35 |
-| ErrorCodes.cs | 29 |
+| EdgeFieldValue.cs | 93 |
+| ErrorCodes.cs | 34 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
+| NodeFieldValue.cs | 361 |
 | SessionIds.cs | 8 |
 | ValidationResult.cs | 8 |
 | IDiagnosticsSink.cs | 28 |
@@ -97,8 +132,9 @@
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 312 |
 | EdgeDef.cs | 14 |
-| FieldRegistry.cs | 132 |
+| FieldRegistry.cs | 164 |
 | IDefinition.cs | 5 |
+| LayoutConstraintSpec.cs | 44 |
 | LayoutHints.cs | 91 |
 | NodeDef.cs | 59 |
 | PageAndLayer.cs | 15 |
@@ -107,7 +143,7 @@
 | SupportingDefs.cs | 62 |
 | ValidationIssue.cs | 10 |
 | DiagramHashing.cs | 172 |
-| DiagramJsonContext.cs | 58 |
+| DiagramJsonContext.cs | 60 |
 | DiagramSerializer.cs | 54 |
 | LayoutSidecar.cs | 44 |
 | SidecarBackup.cs | 132 |
@@ -116,6 +152,8 @@
 | UserSidecar.cs | 48 |
 | ITimeProvider.cs | 22 |
 | DiagramWorkspace.cs | 47 |
+| DocumentLock.cs | 136 |
+| Heartbeat.cs | 62 |
 
 ### DuetDiagram.Core.Tests
 
@@ -128,12 +166,16 @@
 | ConflictTests.cs | 229 |
 | CorePurityTests.cs | 57 |
 | DocumentFactoryTests.cs | 66 |
-| Harness.cs | 73 |
+| DocumentLockTests.cs | 177 |
+| EdgeCommandTests.cs | 276 |
+| Harness.cs | 92 |
 | IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
+| LayoutConstraintTests.cs | 307 |
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
-| RoundTripTests.cs | 137 |
+| NodeFieldTests.cs | 303 |
+| RoundTripTests.cs | 139 |
 | SessionIdResolutionTests.cs | 57 |
 | SidecarBackupTests.cs | 245 |
 | SidecarTests.cs | 301 |
@@ -175,9 +217,18 @@
 | 文件 | 代码 |
 |---|---:|
 | CanvasSmokeTests.cs | 202 |
+| ConnectTests.cs | 86 |
+| ConstraintEditorTests.cs | 299 |
 | DiagnosticsPanelTests.cs | 151 |
-| HeadlessFixture.cs | 62 |
+| DragTests.cs | 121 |
+| EdgeEditTests.cs | 96 |
+| ErrorPresentationTests.cs | 208 |
+| HeadlessFixture.cs | 124 |
+| HighlightTests.cs | 70 |
+| LayoutFailureTests.cs | 217 |
 | ModeSwitchTests.cs | 198 |
+| MultiWindowTests.cs | 259 |
+| PropertyPanelTests.cs | 144 |
 
 ### DuetDiagram.Layout
 
@@ -255,6 +306,8 @@
 | DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 80 |
 | DrawList.cs | 54 |
+| Highlight.cs | 181 |
+| HitTester.cs | 59 |
 | ITextMeasurer.cs | 6 |
 | ModeSwitch.cs | 44 |
 | QuadTree.cs | 260 |
@@ -263,7 +316,7 @@
 | SkiaTextMeasurer.cs | 70 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 22 |
-| Theme.cs | 109 |
+| Theme.cs | 113 |
 | Viewport.cs | 49 |
 | ViewportCulling.cs | 6 |
 | ViewportTransform.cs | 32 |
@@ -276,6 +329,8 @@
 | DiagnosticsSamplerTests.cs | 199 |
 | DrawListTests.cs | 237 |
 | FakeTextMeasurer.cs | 17 |
+| HighlightTests.cs | 143 |
+| HitTesterTests.cs | 104 |
 | Layouts.cs | 59 |
 | ModeSwitchTests.cs | 113 |
 | QuadTreeTests.cs | 285 |

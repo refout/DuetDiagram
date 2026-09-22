@@ -130,6 +130,24 @@ public sealed record Theme
     /// </remarks>
     public double MaxZoom { get; init; } = 8;
 
+    /// <summary>
+    /// 变更高亮的一次脉冲持续多少秒。
+    /// </summary>
+    /// <remarks>
+    /// 写进主题而不是散在动画代码里，理由与缩放上下界一样：它是产品行为（多快能看见、
+    /// 又不至于晃眼），散在事件处理里就没人找得到，改的人只能靠搜魔数。
+    /// </remarks>
+    public double HighlightPulseSeconds { get; init; } = 1.5;
+
+    /// <summary>变更高亮的脉冲重复几次。脉冲总时长是它乘上每次的秒数。</summary>
+    public int HighlightPulseCount { get; init; } = 3;
+
+    /// <summary>变更高亮的角标直径。</summary>
+    public double HighlightBadgeSize { get; init; } = 11;
+
+    /// <summary>变更高亮的虚线轮廓往外撑多少。</summary>
+    public double HighlightOutlineInset { get; init; } = 7;
+
     /// <summary>调色板。令牌名到具体外观的映射。</summary>
     public Palette Palette { get; init; } = new();
 

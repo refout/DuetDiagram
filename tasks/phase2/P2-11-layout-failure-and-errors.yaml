@@ -1,7 +1,7 @@
 id: P2-11
 title: 布局失败处理与错误码呈现
 phase: 2
-status: pending
+status: done
 depends_on: [P2-03, P1-12]
 estimated_loc: 420
 files:
@@ -14,9 +14,13 @@ files:
     - DuetDiagram.App/Controls/SidecarRecoveryDialog.axaml
     - DuetDiagram.App/ViewModels/StatusBarViewModel.cs
     - DuetDiagram.E2E.Tests/ErrorPresentationTests.cs
+    - DuetDiagram.E2E.Tests/LayoutFailureTests.cs
     - docs/GUI.md
   modify:
     - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/SampleDiagram.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
     - DuetDiagram.App/ViewModels/CanvasViewModel.cs
     - DuetDiagram.App/Controls/DiagramCanvas.cs
     - docs/Error-Codes.md
@@ -46,3 +50,34 @@ scope_note: |
   方案把「手动布局」列为布局失败后的三个选项之一，但它到底意味着什么，
   方案没写。本任务只做"降级之后不再自动重排、由用户显式触发"这一层，
   不做完整的手动摆放工具——那是一个独立的编辑器功能，不该顺手塞进来。
+
+result:
+  summary: |
+    错误码呈现与布局失败处理落地：
+    - `ErrorPresenterTable` 是唯一的呈现对照表，覆盖全部 25 个错误码；呈现方式只有七种
+      （高亮相关元素、问一句要不要创建、弹差异对话框、状态栏、状态栏灰显、认证失败、
+      弹布局失败提示）。漏一个码就是一次没有反馈的失败，由 `Category=ErrorPresentation` 逐个查表挡住；
+      同一个门禁还拿 `docs/Error-Codes.md` 里那张表逐行核对，两张表分头维护迟早会分叉。
+    - `DiagramSession` 的 `Reload` 捕获 `LayoutFailedException`：**保留上一次成功的 `Scene`**，
+      另发 `LayoutFailed` 通知。失败不清空画面——清空会让用户以为图丢了。
+    - 主窗口接上 `StatusBar`（按严重度着色：红 / 灰 / 常规）、`LayoutFailureDialog`
+      （重试 / 手动布局 / 简化图）与 `SidecarRecoveryDialog`（从备份恢复 / 放弃人工调整）。
+      布局失败时画面不动、状态栏变红、提示浮出；重试成功或排布成功之后提示与红字一起收掉。
+    - 三个选项各自的含义：重试换成长的那一档总预算（`LayoutBudgets.ManualRelayout`）；
+      手动布局进入"不再自动重排、位置冻住"的模式；简化图把这一轮降级丢掉的约束摆出来，
+      **只指出来，不替用户去掉**。
+    - 手动布局模式只冻坐标：绘制列表按当前文档重画一遍，标签与样式仍然跟着文档走。
+    - 布局引擎可注入（`SampleDiagram.Build` / `DiagramSession` / `MainWindow`），
+      用途只有一个——让"布局彻底失败"这条路径能被真正走到。
+    - 命令结果里没写进去的那些（被拒与无操作）走 `CommandReported` 到状态栏，无操作灰显不弹窗。
+  gates:
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=ErrorPresentation => 10/10 通过"
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=LayoutFailure => 6/6 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=IrValidator => 23/23 通过"
+    - "端到端全量 58/58 通过；核心 248/248、渲染 145/145、布局 75/75"
+    - "dotnet run --project DuetDiagram.App -c Release -- --selftest => 自检通过（5 节点 / 5 连线，17 条绘制指令全部被消费）"
+    - "dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 => 达标（虚拟化单帧平均 10.83 ms，约 92.4 帧每秒；剔除率 86.3%）"
+  followups:
+    - "打开文档那条路还没做，所以 `SidecarRecoveryDialog` 只有宿主能触发，现在由端到端用例直接驱动。"
+    - "重试换的是总预算，每级分到的仍是降级计划里的固定值；把每级预算一起放大要先定「重试最多等多久」。"
+    - "完整的手动摆放工具（拖动落位、吸附、成批对齐）是独立功能，不在本轮范围。"

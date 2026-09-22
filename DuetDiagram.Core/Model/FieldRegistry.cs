@@ -83,6 +83,32 @@ public static class FieldNames
     public const string Desc = "desc";
     public const string Meta = "meta";
 
+    #region 样式与文本的子字段
+    //
+    // 样式与文本本身是记录类型，各自有若干成员。把它们拆成子字段而不是只留一个整体字段，
+    // 是因为两件事都要求拆：界面上一个成员一个控件，而冲突判定要能认出
+    // "一边改填充、一边改描边"这两件事可以共存。
+    // 只留整体字段的话，前者的界面只能给一个 JSON 文本框，后者会把两次互不相干的修改判成冲突。
+
+    public const string StyleFill = "style.fill";
+    public const string StyleStroke = "style.stroke";
+    public const string StyleWeight = "style.weight";
+    public const string StyleBorder = "style.border";
+    public const string StyleRadius = "style.radius";
+    public const string StyleOpacity = "style.opacity";
+    public const string StyleBadge = "style.badge";
+
+    public const string TextFontFamily = "text.fontFamily";
+    public const string TextFontSize = "text.fontSize";
+    public const string TextFontWeight = "text.fontWeight";
+    public const string TextItalic = "text.italic";
+    public const string TextUnderline = "text.underline";
+    public const string TextStrikethrough = "text.strikethrough";
+    public const string TextFontColor = "text.fontColor";
+    public const string TextAlign = "text.align";
+
+    #endregion
+
     public const string From = "from";
     public const string To = "to";
     public const string FromPort = "fromPort";
@@ -140,6 +166,26 @@ public static class FieldRegistry
         new(FieldNames.MathMode, "节点", FieldScope.Visual),
         new(FieldNames.Desc, "节点", FieldScope.Visual),
         new(FieldNames.Meta, "节点", FieldScope.Neither),
+
+        // 样式与文本的子字段。作用域跟它们的整体字段一致：整体字段在视觉哈希里，
+        // 子字段就也在视觉哈希里。两处不一致的话，改了某个成员会出现
+        // "哈希说不用重排、面板却要求重排"这类错位。
+        new(FieldNames.StyleFill, "节点", FieldScope.Visual),
+        new(FieldNames.StyleStroke, "节点", FieldScope.Visual),
+        new(FieldNames.StyleWeight, "节点", FieldScope.Visual),
+        new(FieldNames.StyleBorder, "节点", FieldScope.Visual),
+        new(FieldNames.StyleRadius, "节点", FieldScope.Visual),
+        new(FieldNames.StyleOpacity, "节点", FieldScope.Visual),
+        new(FieldNames.StyleBadge, "节点", FieldScope.Visual),
+
+        new(FieldNames.TextFontFamily, "节点", FieldScope.Visual),
+        new(FieldNames.TextFontSize, "节点", FieldScope.Visual),
+        new(FieldNames.TextFontWeight, "节点", FieldScope.Visual),
+        new(FieldNames.TextItalic, "节点", FieldScope.Visual),
+        new(FieldNames.TextUnderline, "节点", FieldScope.Visual),
+        new(FieldNames.TextStrikethrough, "节点", FieldScope.Visual),
+        new(FieldNames.TextFontColor, "节点", FieldScope.Visual),
+        new(FieldNames.TextAlign, "节点", FieldScope.Visual),
 
         // 边
         new(FieldNames.From, "边", FieldScope.Structural),

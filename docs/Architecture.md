@@ -39,7 +39,7 @@
 | 命令总线 | `Bus/` | `Execute` / `ExecuteAsync` / `Undo` / `Redo`，门锁 + AsyncLocal 嵌套检测 |
 | 序列化 | `Serialization/` | 源生成 JSON（AOT 安全）、结构哈希、视觉哈希 |
 | Sidecar | `Sidecar/` | `layout.json` / `user.json` 的读写、路径推导、备份轮转与损坏恢复 |
-| 工作区 | `Workspace/DiagramWorkspace.cs` | 文档 + 总线 + 广播器所有权 |
+| 工作区 | `Workspace/` | `DiagramWorkspace` 管文档 + 总线 + 广播器所有权；`DocumentLock` 与 `Heartbeat` 管**跨进程**那份所有权：锁文件按独占方式持有，心跳文件按允许读写的方式每 5 秒写一次，15 秒没有心跳才去试抢占，而"删不掉锁文件"才是别抢的真正判据 |
 | 时间 | `Time/ITimeProvider.cs` | 命令总线填充时间戳的唯一来源 |
 | 诊断 | `Diagnostics/` | 最小告警出口，避免 Core 依赖 `Microsoft.Extensions.Logging` |
 
@@ -51,14 +51,16 @@
 | `DuetDiagram.Render` | 四叉树空间索引、绘制列表（IR 与布局结果翻译成有序绘制指令）、视口变换与视口状态、视口虚拟化（剔除判据与换档编排）。画布控件在主程序 |
 | `DuetDiagram.Mermaid` | 词法与语法、图类型识别、宽松模式导入（认不出的进导入报告）、导出 |
 | `DuetDiagram.Dsl` | 词法与语法、语义映射（含五类布局意图与 `pin` 落到 sidecar） |
-| `DuetDiagram.App` | 界面主程序：画布、视口交互与状态栏，含脱屏自检与帧率测量两个开关 |
+| `DuetDiagram.App` | 界面主程序：画布、视口交互与状态栏、属性面板、布局约束入口、变更高亮、布局失败提示，含脱屏自检与帧率测量两个开关。多窗口共享一份工作区（`WorkspaceRegistry` 按标识引用计数），从文件打开时先取跨进程所有权，拿不到独占的那一份退成只读并把所有写入口禁掉 |
 | `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例：起窗口、送输入、抓一帧、比像素 |
 
 ## 未实现模块
 
 | 模块 | 方案位置 | 计划 |
 |---|---|---|
-| 诊断面板、属性面板与其余分区 | §九 GUI 设计、§十 性能策略 | Phase 2 |
+| 打开文档的完整流程（含人工产物恢复的五个档位、自动保存） | §11.1、§11.2 | Phase 2 剩下的部分 |
+| 菜单栏、工具栏、图层面板 | §九 GUI 设计 | Phase 2 剩下的部分 |
+| 手动摆放工具（吸附、坐标编辑、独立撤销） | §9.2、§9.4 | 待定 |
 | LLM 集成 / MCP Server / Skill 机制 | §六 / §七 / §八 | Phase 3 |
 | 图层、页面、形状库、模板、组合、调色板、富文本与数学排版 | §四 核心数据模型、§13.8 | Phase 4 |
 | 布局质量评分、主题、国际化与无障碍 | §13.9、§二十 | Phase 5 |
@@ -109,7 +111,7 @@ dotnet run --project tools/Poc/LayoutCandidates -c Release
 - 想知道某个能力支不支持，要看**行为**而不是接口里有没有同名字段。
   该库的节点类型里有坐标字段，但它们是算法的输出，写进去会被覆盖。
 
-## 两条关键不变量
+## 三条关键不变量
 
 **1. 版本单调。** 每次成功且非空操作的命令都让 `DiagramDocument.Version` +1；
 失败、被拒、`NoOp` 都不推进。撤销与重做也会推进版本 —— 版本描述的是**状态序列**，
@@ -120,6 +122,13 @@ dotnet run --project tools/Poc/LayoutCandidates -c Release
 `VisualHash` 覆盖标签、形状、样式令牌，决定是否需要重绘。
 两者都不覆盖 `Version` 与自身，避免自引用。
 门禁：`Structural_hash_ignores_labels_but_visual_hash_does_not`。
+
+**3. 一份文档在任一时刻只有一个写者。**
+同一进程里由 `WorkspaceRegistry` 按标识共用同一份工作区——两个窗口因此是**同一份**文档，
+不存在第二个副本；跨进程由锁文件的独占句柄定所有权，拿不到的那一份退成只读，
+界面上所有写入口禁用，会话那一层再拒一次。
+两套机制合起来的意思是：写者唯一，而「只读」不是一句提示，是一条能拦住写入的路。
+门禁：`Category=DocumentLock`、`Category=MultiWindow`。
 
 ## 构建环境要求
 

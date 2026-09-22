@@ -1,14 +1,16 @@
 id: P2-12
 title: 多窗口与多进程
 phase: 2
-status: pending
+status: done
 depends_on: [P2-11, P1-02]
 estimated_loc: 480
 files:
   create:
+    - DuetDiagram.Core/Workspace/DocumentLock.cs
+    - DuetDiagram.Core/Workspace/Heartbeat.cs
     - DuetDiagram.App/Services/WorkspaceRegistry.cs
-    - DuetDiagram.App/Services/DocumentLock.cs
-    - DuetDiagram.App/Services/Heartbeat.cs
+    - DuetDiagram.App/Services/DocumentLaunch.cs
+    - DuetDiagram.App/Services/DocumentFile.cs
     - DuetDiagram.E2E.Tests/MultiWindowTests.cs
     - DuetDiagram.Core.Tests/DocumentLockTests.cs
     - reports/phase2-multi-window.md
@@ -16,8 +18,22 @@ files:
     - DuetDiagram.App/Program.cs
     - DuetDiagram.App/App.axaml.cs
     - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/Controls/PropertyPanel.axaml
     - DuetDiagram.App/Controls/StatusBar.axaml
+    - DuetDiagram.App/Controls/StatusBar.axaml.cs
+    - DuetDiagram.App/Services/ConstraintEditorBinder.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
+    - DuetDiagram.App/Services/FieldEditBinder.cs
+    - DuetDiagram.App/ViewModels/ConstraintEditorViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldViewModel.cs
+    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
+    - DuetDiagram.App/ViewModels/StatusBarViewModel.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
     - docs/Architecture.md
+    - docs/Error-Codes.md
+    - docs/GUI.md
     - AGENTS.md
 acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MultiWindow"
@@ -42,3 +58,45 @@ scope_note: |
   **这一条不是"顺手做一下"。** 方案把它单列成一节，而且端到端场景里有对应条目，
   说明它是产品行为而不是实现细节。心跳周期与超时都写进常量并在一处定义，
   与渲染阈值同样的理由：写在两处之后对不上，而对不上时的表现没有规律。
+result:
+  summary: |
+    - 跨进程所有权落在 `DuetDiagram.Core/Workspace`：`DocumentLock`（独占句柄 + 只读退档）
+      与 `Heartbeat`（周期 5 秒、超时 15 秒，两个常量定义在同一处）。
+      **句柄是判据，心跳是补充**：拿得到独占句柄就说明没有活着的持有者，
+      心跳只管"拿不到时对方是正在干活还是已经卡住了"。抢占前要先删得掉锁文件，
+      而删不掉才是"别抢"的真正判据——心跳过期只触发去试。
+    - **锁与心跳是两个文件**，理由写在 `Heartbeat` 的类注释里：合成一个的话，
+      心跳的写入会撞上锁的独占，表现是"第一个进程一写心跳就把自己锁死"，
+      而且只在第一次心跳到点时才出现。
+    - 正常退出清掉心跳、异常退出留下它，于是"心跳文件还在"就是"上一次没好好退出"。
+      `TookOver` 把这件事报给调用方，调用方必须重新校验那份文档——
+      由 `DocumentLaunch.File` 做：抢占且校验不过就拒绝打开，而不是让人在截断的图上继续编辑。
+    - `DuetDiagram.App/Services/WorkspaceRegistry.cs`：进程内按标识引用计数地共用工作区，
+      **跨进程那把锁也挂在这张表上**（挂在窗口上的话，同进程第二个窗口会撞上第一个窗口
+      自己加的锁，于是变成只读）。最后一个租约还回来时才释放工作区，再放锁。
+    - `DocumentLaunch` 描述"看哪份文档"：示例文档每次给一个新标识（免得测试里第二个用例
+      拿到第一个用例改过的文档），从文件打开的用文件全路径（两个窗口打开同一个文件就共用）。
+    - 跨窗口刷新：`DiagramSession` 订阅广播器，收到比手上绘制列表更新的版本就发
+      `DocumentChanged`；宿主把它排到界面线程上重算。自己发出去的命令也会广播回来，
+      靠 `SceneVersion` 挡掉，否则每改一次白算两遍布局、界面连闪两帧。
+    - 只读那一份把**所有写入口**都禁掉，而不只是加一句提示：属性字段进只读档
+      （文本框用 `IsReadOnly` 而不是 `IsEnabled`——禁用的框连选都选不中，用户没法复制内容）、
+      约束的加与删按钮灰掉、画布的拖拽 / 连线 / 重连 / 折点手势在入口处直接不进。
+      挡住写入的仍然是会话那一层（`Refuse()` 返回 `DOCUMENT_READ_ONLY`）：
+      界面上的入口不止一处，漏掉哪一处都看不出来。
+    - `DOCUMENT_READ_ONLY` 是新错误码，与 `VERSION_CONFLICT` 分开：后者是"同步一下再重试"，
+      这一条是"这份文档上不允许"。呈现落在状态栏灰显那一档，并且状态栏另有一句常驻说明，
+      与"最近一次操作的结果"分开——两者的寿命完全不同。
+    - `Ctrl+N` 再开一个窗口看同一份文档；`Ctrl+S` 写回文件（先写临时文件再同卷改名替换）。
+      文档没有文件时给一句灰显说明，只读时不提示——那句常驻说明从打开起就一直在。
+  gates:
+    - "dotnet test --project DuetDiagram.E2E.Tests -- --filter-trait Category=MultiWindow => 10/10 通过"
+    - "dotnet test --project DuetDiagram.Core.Tests -- --filter-trait Category=DocumentLock => 12/12 通过"
+    - "端到端全量 81/81 通过；核心 282/282、布局 75/75、渲染 145/145、Mermaid 179/179、DSL 158/158"
+    - "dotnet run --project DuetDiagram.App -c Release -- --selftest => 自检通过"
+    - "dotnet run --project DuetDiagram.App -c Release -- --open <不存在的路径> => 退出码 2，错误写在标准错误上，不留锁文件与心跳文件"
+    - "两个真实进程打开同一份文档：第一个进程持有 .lock 并每 5 秒刷新 .heartbeat；第二个进程启动无报错，且没有清掉或接管第一个进程的心跳，文档文件未被改动"
+  followups:
+    - "打开文档的完整流程（含人工产物恢复的五个档位、自动保存、最近文件）仍未做。这一轮只做了 `--open` 这一条入口，够验多进程所有权，不够当产品用。"
+    - "`pinnedNodes` / `pinnedEdges` 不进 IR，所以只读那一份即使改不了文档也不影响它；等人工产物也落盘之后，只读的那一侧同样要挡住写回。"
+    - "跨进程只做了锁与只读退档，没有做"另一个进程改了之后这边跟着刷新"——那需要文件监听或版本轮询，属另一件事。"

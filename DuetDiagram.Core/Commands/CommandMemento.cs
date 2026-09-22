@@ -28,6 +28,10 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(AddNodeMemento), "add-node")]
 [JsonDerivedType(typeof(RemoveNodeMemento), "remove-node")]
 [JsonDerivedType(typeof(ConnectEdgeMemento), "connect-edge")]
+[JsonDerivedType(typeof(SetNodeFieldMemento), "set-node-field")]
+[JsonDerivedType(typeof(ReconnectEdgeMemento), "reconnect-edge")]
+[JsonDerivedType(typeof(SetEdgeFieldMemento), "set-edge-field")]
+[JsonDerivedType(typeof(LayoutConstraintMemento), "layout-constraint")]
 public abstract record CommandMemento
 {
     /// <summary>本次变更波及的元素标识，用于增量同步时告诉对端"重取这些元素"。</summary>
@@ -88,4 +92,88 @@ public sealed record ConnectEdgeMemento : CommandMemento
     public required EdgeDef Edge { get; init; }
 
     public required int Index { get; init; }
+}
+
+/// <summary>
+/// 改一个节点字段的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 这里存的是**改之前的那整份节点定义**，而不是"某个字段的旧值"。
+/// 只存旧值的话，还原时要按字段名再拼一次定义，而那一次拼接与命令里的拼接
+/// 必须逐字一致——两处一旦分叉，撤销出来的节点与原来那份会有细微差别，
+/// 而差异只体现在哈希上，界面上看不出来。
+/// </para>
+/// <para>
+/// 存整份定义也顺带解决了值的类型问题：字段值有字符串、枚举、记录、列表几种，
+/// 只存旧值就要引入一个能装下它们的联合类型，而联合类型在原生编译下要靠多态注册，
+/// 注册漏一个是发布之后才暴露的问题。
+/// </para>
+/// </remarks>
+public sealed record SetNodeFieldMemento : CommandMemento
+{
+    public required string NodeId { get; init; }
+
+    /// <summary>改之前的节点定义。</summary>
+    public required NodeDef Previous { get; init; }
+
+    /// <summary>改的是哪个字段。</summary>
+    public required string Field { get; init; }
+
+    /// <summary>改之前的字段值，读成文本。只用于差异展示，还原不靠它。</summary>
+    public string? OldValue { get; init; }
+
+    /// <summary>请求写入的字段值原样。只用于审计，还原不靠它。</summary>
+    public string? NewValue { get; init; }
+}
+
+/// <summary>重连边端点的逆变更：记下改之前的整条边定义。</summary>
+/// <remarks>
+/// 端点是四个字段一起改的，存整条边比存四个旧值更稳——还原时直接按标识换回原定义，
+/// 不必逐个字段拼回去。四个字段里某个拼错的话，撤销出来的边与原来那份会有细微差别，
+/// 而差异只体现在哈希上，界面上看不出来。
+/// </remarks>
+public sealed record ReconnectEdgeMemento : CommandMemento
+{
+    public required string EdgeId { get; init; }
+
+    /// <summary>改之前的边定义。</summary>
+    public required EdgeDef Previous { get; init; }
+}
+
+/// <summary>改一条边字段的逆变更：记下改之前的整条边定义。</summary>
+public sealed record SetEdgeFieldMemento : CommandMemento
+{
+    public required string EdgeId { get; init; }
+
+    /// <summary>改之前的边定义。</summary>
+    public required EdgeDef Previous { get; init; }
+
+    /// <summary>改的是哪个字段。</summary>
+    public required string Field { get; init; }
+
+    /// <summary>改之前的字段值，读成文本。只用于差异展示，还原不靠它。</summary>
+    public string? OldValue { get; init; }
+
+    /// <summary>请求写入的字段值原样。只用于审计，还原不靠它。</summary>
+    public string? NewValue { get; init; }
+}
+
+/// <summary>
+/// 增删一条布局约束的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 记的是**改之前的整份布局提示**，而不是"这一条约束"。四类约束在同一份记录里，
+/// 只记一条的话，还原时要按种类再拼一次列表，而那一次拼接必须与命令里的拼接逐字一致——
+/// 两处一旦分叉，撤销出来的约束集合与原来那份会有细微差别，而差异只体现在哈希上。
+/// </para>
+/// <para>
+/// 增与删共用这一个记录：两者要还原的都是"改之前的那一份"，方向不同而已。
+/// </para>
+/// </remarks>
+public sealed record LayoutConstraintMemento : CommandMemento
+{
+    /// <summary>改之前的布局提示。</summary>
+    public required LayoutHints Previous { get; init; }
 }

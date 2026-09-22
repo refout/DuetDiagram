@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化 | 垂直切片已落地 |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳 |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -22,8 +22,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、帧率基准 | Phase 2 P2-02 / P2-03 已落地，含自检模式 |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 已落地 |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open` |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -142,6 +142,7 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
 
 # 按分类
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayoutConstraint"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=OrderAlign"
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=LayoutFallback"
@@ -165,6 +166,10 @@ dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job med
 # 界面栈自检（脱屏渲染示例文档的一帧后退出，用退出码表达结果）
 # 位图里应当能看到节点、边与标签；自检还会核对绘制列表被整份消费掉
 dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase2-selftest.png
+
+# 布局约束的自检（同一帧，但文档里那两条约束是经命令层加进去的）
+# 位图里应当看得出同层的那一组与对齐的那一对；自检还会核对约束条数不低于两条
+dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase2-constraints.png
 
 # 界面帧率测量（真实绘制列表：造文档、求解布局、翻译成绘制列表，再两种模式各测一遍）
 # 判据是虚拟化那一档的帧率与剔除率，回退档的数字是对照。取证见 reports/phase2-render.md
@@ -207,6 +212,47 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 # 诊断面板在真实窗口里的样子：快捷键开关、面板上的数字跟着帧更新、关着时不记
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Diagnostics"
 
+# 属性面板在真实窗口里的样子：选节点出六个分节、改字段版本加一、多选显示多个值、被拒的值留在字段上
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PropertyPanel"
+
+# 属性面板切换耗时：切换选中元素到面板渲染完成，判据是单次切换中位不超过一百毫秒
+dotnet run --project DuetDiagram.App -c Release -- --benchmark-panel --switches 200
+
+# 节点拖拽单帧处理耗时：一千节点上开一条拖拽、连续两百次采样每帧处理拖拽输入的中位
+# 判据是单帧不超过 16 毫秒。拖动中不改文档、不调布局、不发命令，只搬被拖元素的屏幕偏移。
+dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000 --samples 200
+
+# 变更高亮：在千节点图上给一批节点挂上三种手段（脉冲 + 角标 + 虚线轮廓），量帧率。
+# 判据与不带高亮时同一条（虚拟化不低于 30 帧每秒），它验的是"高亮叠加层没有拖垮帧率"。
+dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 --highlight
+
+# 变更高亮的三种手段：各自独立可辨、叠加时不互相盖住、颜色只是辅助线索
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=Highlight"
+
+# 变更高亮在真实窗口里的样子：一条命令之后对应元素被标记，撤销之后标记继承原来源并带撤销符号
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Highlight"
+
+# 错误码到界面呈现的对照表：覆盖全部错误码，且与错误码文档里那张表逐行一致
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+
+# 布局失败之后：画面停在上一次成功的结果上、状态栏变红、重试 / 手动布局 / 简化图三个选项都在
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayoutFailure"
+
+# 布局约束的界面入口：面板上加删同层 / 对齐 / 层内次序，加完之后下一次布局确实按约束走，
+# 只有人工加的能删，拖到兄弟节点上落定的是次序且同一主语上只留一条
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ConstraintEditor"
+
+# 多窗口：同一进程两个窗口看同一份文档，一边改了另一边跟着刷新、版本不分叉；
+# 只读那一份逐个写入口都要禁掉，会话那一层再拒一次
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MultiWindow"
+
+# 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"
+
+# 从文件打开一份文档；另一个进程拿着它时这一份退成只读。
+# 文档不在、读不出来、或者抢占之后校验不过时，退出码 2 且错误写在标准错误上
+dotnet run --project DuetDiagram.App -c Release -- --open path/to/doc.json
+
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release
 dotnet run --project tools/Poc/McpTransport -c Release
@@ -222,7 +268,7 @@ dotnet run --project tools/LocCounter -- --root . --check
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
+`ConflictPolicy`、`FieldMetadata`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`
 
 ## 新增一个命令的检查清单
 
@@ -261,3 +307,17 @@ dotnet run --project tools/LocCounter -- --root . --check
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |
 | §16 对比测试报告 `reports/compare.md` | 落在 `reports/compare-blind/`，且拆成结论与证据两份 | 一份文件装不下：解析统计、语义拒绝率、检查项可判定性、谓词口径各是一份证据，各有各的复现命令。混在一起之后没人知道哪一段该跟着哪条命令重新生成。另外装置不进 sln（见 `tools/CompareHarness` 那一行），所以它也没有 `Diagram.Compare.Tests` |
 | §P0-06「1000 矩形 FPS」与 §14.3「1000 节点 FPS」 | 帧率基准的开关从 `--rectangles` 改成 `--nodes`，输入换成真实的绘制列表 | 规格文档把这两条分开记：P0-06 量的是矩形，Phase 2 判的是节点。原先那个开关只画矩形，量不出标签度量与折线路由的开销，而千节点上那两样占大头——按矩形量出来的数字明显偏乐观。`reports/phase0b-baseline.md` 里那条命令记的是当时的实现与当时的数，不回头改 |
+| §9.2 拖节点更新 Sidecar | 固定位置写在 sidecar 的 `pinnedNodes`、**不进 IR、不走命令总线** | 固定是用户「放这儿」的产物，与文档结构无关。走命令总线会把一次拖动塞进几百条 IR 记录，撤销栈失真；绕开之后「拖动中不发命令」用总线历史条目数不变来验，「松手只落定一次」用「固定一个节点 + 重布局一次」来验。重叠（两个固定节点互压）也在写入侧挡，那是布局的前置条件而不是布局职责 |
+| §9.2 拖边中间点加折点 | 折点写在 sidecar 的 `pinnedEdges`、**不进 IR、不走命令总线** | 与 `pinnedNodes` 同一口径：折点是用户「拖这儿」的产物，与文档结构无关。撤了又是一场几百条 IR。增删折点是「一条」操作（不是删一条再加一条），宿主侧用快照栈管撤销/重做；布局与渲染尚未消费 `pinnedEdges`，列为后续接线 |
+| §9.3 变更高亮 | 高亮是**叠加层**，不进绘制列表的几何；三种非颜色手段是形状与运动（脉冲、角标、虚线轮廓），颜色只是辅助线索 | 混进绘制列表之后，动画的时间戳会污染快照测试，而那些快照本该是「同一份输入永远同一份输出」。高亮信息来自命令总线的变更通知而不是界面自己比较文档——界面推断的话，LLM 改的东西不会亮，而那条路径根本不经过界面 |
+| §5.4 / §9.4「手动布局模式」 | 只做到「降级之后不再自动重排、位置冻在最近一次成功的布局上」，**不做**完整的手动摆放工具 | 手动摆放是一个独立的编辑器功能，与「布局算不出来时别把画面清空」是两件事。顺手塞进来的话，它会带着一套自己的坐标编辑、吸附与撤销语义，而那些语义与 IR、与 sidecar 的边界都还没定 |
+| §5.4「重试（更长预算）」 | 重试确实换成长的那一档总预算，但每一级分到多少仍由降级计划里的固定值决定 | 总预算只在「每级预算之和超过它」时才成为约束。把每级预算也一起放大是另一件事：那会让一次重试最多花掉几倍的时间，而用户按下重试时并不知道自己在等多久。真要改，得先定「重试最多等多久」 |
+| 计划中命令清单里的 `set-same-rank` / `set-order` / `set-align` | 三类合成**两条**命令：`add-layout-constraint` 与 `remove-layout-constraint`，种类由参数给出 | 三类的成员形状不同（同层与对齐是节点，层内次序是出边），但增删的动作一样。一类一条命令的话，校验、原子性与撤销三套逻辑要各写三遍，而抄漏的那一遍不会报错，只会让某一类约束在某个入口下改不动。`set-place` 仍然单列——相对位置属后续阶段 |
+| §9.2「拖节点 → 更新 sidecar，松手后 pin」 | 落点压在**另一个兄弟节点**上时落定的是一条层内次序，不写固定位置；落在空白处才 pin | 落在兄弟节点上说的是「把我排到它旁边」，那是一条相对次序；落在空白处说的才是「把我放这儿」，那是一个绝对位置。两者混成一条的话，用户想做相对调整却得到一个绝对位置，而绝对位置一旦钉住，之后的自动重排就再也动不了它。同一主语上只留一条次序（合并而不是追加），否则拖几次就积下几十条互相矛盾的次序，而求解器取的是列表里的第一条 |
+| §9.6 错误码 GUI 处理表 | 呈现方式落在 `ErrorPresenterTable`，**不在各处就地判断**；错误码文档里那张表由 `Category=ErrorPresentation` 逐行核对 | 就地判断的结果是同一个错误码在两个入口给出两种呈现，而用户以为遇到的是两个问题。两张表分头维护则会分叉，而外部代理是按文档写代码的——它照着文档处理，实际行为却是另一套 |
+| §11.2 五级恢复里那两级弹窗 | 恢复提示的控件建好了，但只有宿主能触发；打开文档只做了 `--open` 这一条入口，它读文档但不读 sidecar，所以现在仍然没有调用点 | 提示自己去读文件的话，同一份坏文件会在两个地方被解析一遍，而两处的判据迟早会不一样。宿主还没做的这段时间里，那条路径由端到端用例直接驱动 |
+| §9.5 多进程「第二实例只读 + 状态栏提示」 | 锁与心跳放在 `DuetDiagram.Core/Workspace`，不放主程序 | 锁是「这个进程在编辑这份文件」，与窗口无关；而 `Category=DocumentLock` 的用例在 `DuetDiagram.Core.Tests` 里，那里只能引用 Core。放主程序的话，判定所有权的那段逻辑就得靠端到端用例去验，而起两个进程才能量到的东西在无头用例里量不出来 |
+| §9.5「第二实例只读」 | 只读那一份把所有写入口禁掉，**并且**会话那一层再拒一次（返回新错误码 `DOCUMENT_READ_ONLY`） | 界面上的入口有七处（字段、约束增、约束删、拖拽、连线、重连、折点，另加存盘），漏掉哪一处都不会报错，只会留下一条能造成损坏的路。另立一个错误码而不是复用 `VERSION_CONFLICT`：后者是「同步一下再重试」，这一条是「这份文档上不允许」，两者的处置完全不同 |
+| §9.5「心跳超时 15 秒判定崩溃可抢占」 | 心跳过期只**触发去试**，真正判据是「锁文件删不删得掉」 | 心跳过期说的是「对方可能卡住了」，而握着锁句柄的活进程会让删文件那一步失败。把心跳过期直接当成可抢占，就会去抢一个还活着的进程，把它正在写的文档撕掉 |
+| 打开文档 | 只有 `--open <路径>` 一条入口，没有自动保存、没有最近文件、sidecar 也没接 | 这一轮要的是「两个进程抢同一份文件」这件事能被验到，而它只需要读得进、写得回。自动保存会带着一套脏标记与恢复档位的语义，那些与 §11 的五个档位绑在一起，得一起定 |
+| 存盘 | 只有显式的 `Ctrl+S`，写临时文件再同卷改名替换 | 自动保存要先把「什么时候算脏」「人工产物跟着一起存吗」「崩了之后回到哪一版」定下来；在那之前，一次显式保存至少是用户按下去才发生的 |

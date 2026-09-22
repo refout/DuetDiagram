@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.StatusBar">
+  <!--
+    状态栏那一行。左边光标位置，中间最近一次失败的提示，右边当前档位、缩放与只读说明。
+    提示与画布状态合成一个数据上下文，所以这一行只有一个来源。
+    只读那句放在最右边：它是这份文档的状态，从打开到关掉一直成立，
+    与中间那句"刚才那次操作的结果"寿命完全不同。
+  -->
+  <Border Padding="16,6"
+          Background="#f4f6f9"
+          BorderBrush="#d8dee7"
+          BorderThickness="0,1,0,0">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+      <TextBlock x:Name="Pointer"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="#5b6675"
+                 Text="—" />
+      <TextBlock x:Name="Message"
+                 Grid.Column="1"
+                 Margin="16,0"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="#5b6675"
+                 Text=""
+                 IsVisible="False" />
+      <TextBlock x:Name="Mode"
+                 Grid.Column="2"
+                 Margin="0,0,16,0"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="#5b6675"
+                 Text="" />
+      <TextBlock x:Name="Zoom"
+                 Grid.Column="3"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="#5b6675"
+                 Text="" />
+      <TextBlock x:Name="ReadOnly"
+                 Grid.Column="4"
+                 Margin="16,0,0,0"
+                 VerticalAlignment="Center"
+                 FontSize="12"
+                 Foreground="#8a6d1f"
+                 Text=""
+                 IsVisible="False" />
+    </Grid>
+  </Border>
+</UserControl>

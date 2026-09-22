@@ -5,7 +5,10 @@ using Avalonia.Layout;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using DuetDiagram.App.Controls;
+using DuetDiagram.App.Interaction;
+using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
+using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
@@ -108,7 +111,37 @@ internal static class FrameBenchmark
     /// </remarks>
     private const int PanelRounds = 7;
 
-    public static int Run(int nodeCount, int frameCount, bool diagnostics)
+    /// <summary>属性面板的宽度与高度。宽度与主窗口里那一栏一致。</summary>
+    private const double PropertyPanelWidth = 300;
+
+    private const double PropertyPanelHeight = 800;
+
+    /// <summary>切换选中之前先空跑几次，把首次用到的字形与控件模板预热掉。</summary>
+    private const int WarmupSwitches = 10;
+
+    /// <summary>
+    /// 单次处理一帧拖拽输入允许花多少毫秒。
+    /// </summary>
+    /// <remarks>
+    /// 判中位，不判最大。拖动中每一帧都要把选中节点（加相连边）的绘制指令整体挪一下，
+    /// 那一笔里混着系统调度与垃圾回收的噪声，单次尖峰否掉整套设计不合理；
+    /// 而中位若到了这个数，说明常态本身已经超标。最大照样报出来让人看见尾巴。
+    /// 这跟"拖动中不调布局、不发命令"是同一件事：要量的就是那一下偏移处理，
+    /// 不是整条布局链路。
+    /// </remarks>
+    private const double MaximumDragMilliseconds = 16;
+
+    /// <summary>
+    /// 单次切换选中允许花多少毫秒。
+    /// </summary>
+    /// <remarks>
+    /// 判的是中位，不是最大值。单次切换里混着垃圾回收与系统调度的噪声，
+    /// 取最大值等于让一次停顿否掉整套设计；而中位若到了这个数，
+    /// 说明常态本身就已经超标了。最大值照常报出来，让读的人看见尾巴有多长。
+    /// </remarks>
+    private const double MaximumSwitchMilliseconds = 100;
+
+    public static int Run(int nodeCount, int frameCount, bool diagnostics, bool highlight)
     {
         Console.WriteLine("帧率基线测量");
         Console.WriteLine($"节点 {nodeCount} 个，画布 {DefaultWidth}×{DefaultHeight}，测量 {frameCount} 帧");
@@ -130,6 +163,10 @@ internal static class FrameBenchmark
         var plainHost = Mount(Prepare(scene.DrawList, size, new CullingPolicy(threshold: int.MaxValue)));
         var culledHost = Mount(Prepare(scene.DrawList, size, CullingPolicy.Default));
 
+        // 高亮全开：给一批节点挂上三种手段。两边都挂，量的是"高亮带来的开销"，
+        // 只挂一边的话，两边的差值里混进了"挂没挂高亮"而不是"剔除省了多少"。
+        var highlighted = highlight ? MarkNodes(plainHost, culledHost, scene.DrawList, nodeCount) : 0;
+
         var plain = Measure(plainHost, pixelSize, frameCount);
         var culled = Measure(culledHost, pixelSize, frameCount);
 
@@ -140,6 +177,12 @@ internal static class FrameBenchmark
         Console.WriteLine($"  节点 / 连线       {scene.Document.Nodes.Count,8} / {scene.Document.Edges.Count}");
         Console.WriteLine($"  内容范围          {scene.DrawList.Width,8:0} × {scene.DrawList.Height:0}");
         Console.WriteLine($"  绘制指令          {scene.DrawList.Commands.Count,8}");
+
+        if (highlight)
+        {
+            Console.WriteLine($"  高亮标记          {highlighted,8} 个节点（脉冲 + 角标 + 虚线轮廓）");
+        }
+
         Console.WriteLine();
         Console.WriteLine($"  回退档   单帧平均 {plain.Mean,8:0.00} ms  → 约 {1000 / plain.Mean,6:0.0} 帧每秒");
         Console.WriteLine($"  回退档   单帧中位 {plain.Median,8:0.00} ms  → 约 {1000 / plain.Median,6:0.0} 帧每秒");
@@ -168,6 +211,223 @@ internal static class FrameBenchmark
         Console.WriteLine($"达标：虚拟化不低于 {MinimumFps:0} 帧每秒，剔除率高于 {MinimumCullRate:P0}，且比回退档快");
 
         return 0;
+    }
+
+    /// <summary>
+    /// 属性面板切换选中的耗时。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 测的是"换一个选中元素"这件事从头到尾花多久：重读每个字段、把新值推进控件、
+    /// 跑完排在队列里的那次重排。它对应的是用户连点节点时的体感。
+    /// </para>
+    /// <para>
+    /// **面板只建一次，切换时只换值。** 每次换选中重建一遍的话，连续点选会明显卡顿，
+    /// 而连续点选正是用户在找元素时的常态。这条设计对不对，靠"一次冷建"那个对照数字看：
+    /// 它比单次切换高出一个量级的话，说明切换确实没有在重建。
+    /// </para>
+    /// </remarks>
+    public static int RunPanel(int nodeCount, int switchCount)
+    {
+        Console.WriteLine("属性面板切换测量");
+        Console.WriteLine($"节点 {nodeCount} 个，切换 {switchCount} 次");
+        Console.WriteLine();
+
+        var startup = Stopwatch.StartNew();
+        Program.BuildAvaloniaApp().SetupWithoutStarting();
+        startup.Stop();
+
+        var build = Stopwatch.StartNew();
+        var document = Graph(nodeCount);
+        build.Stop();
+
+        // 面板要读文档、要按命令层写回去，所以它拿的是一整个会话，不是一份绘制列表。
+        using var session = new DiagramSession(document);
+
+        var cold = Stopwatch.StartNew();
+        var panel = new PropertyPanelViewModel(session);
+        var view = new PropertyPanel { DataContext = panel };
+        var root = new Grid();
+
+        root.Children.Add(view);
+
+        var size = new Size(PropertyPanelWidth, PropertyPanelHeight);
+
+        root.Measure(size);
+        root.Arrange(new Rect(size));
+        cold.Stop();
+
+        // 再建一份，用来把"第一次用到某种控件"的那笔开销摘出去。
+        // 文本框、下拉、三态勾选框的模板都是进程里第一次出现时才准备的，
+        // 那一笔算进"建一次面板"里会让这个对照数字虚高一个量级。
+        var rebuild = Stopwatch.StartNew();
+        var spare = new PropertyPanel { DataContext = new PropertyPanelViewModel(session) };
+
+        spare.Measure(size);
+        spare.Arrange(new Rect(size));
+        rebuild.Stop();
+
+        var ids = document.Nodes.Select(node => node.Id).ToList();
+        var elapsed = new List<double>(switchCount);
+        var stopwatch = new Stopwatch();
+
+        for (var index = 0; index < WarmupSwitches; index++)
+        {
+            Switch(session, root, size, ids[index % ids.Count], stopwatch);
+        }
+
+        for (var index = 0; index < switchCount; index++)
+        {
+            elapsed.Add(Switch(session, root, size, ids[index % ids.Count], stopwatch));
+        }
+
+        elapsed.Sort();
+
+        var median = elapsed[elapsed.Count / 2];
+        var p95 = elapsed[Math.Min(elapsed.Count - 1, (int)(elapsed.Count * 0.95))];
+        var max = elapsed[^1];
+
+        Console.WriteLine($"  平台就绪          {startup.Elapsed.TotalMilliseconds,8:0.0} ms");
+        Console.WriteLine($"  造文档            {build.Elapsed.TotalMilliseconds,8:0.0} ms");
+        Console.WriteLine($"  节点 / 连线       {document.Nodes.Count,8} / {document.Edges.Count}");
+        Console.WriteLine($"  分节 / 字段       {panel.Sections.Count,8} / {panel.Sections.Sum(s => s.Fields.Count)}");
+        Console.WriteLine($"  冷建一次面板      {cold.Elapsed.TotalMilliseconds,8:0.00} ms  （含控件模板第一次准备）");
+        Console.WriteLine($"  再建一次面板      {rebuild.Elapsed.TotalMilliseconds,8:0.00} ms  （对照：切换不该接近这个数）");
+        Console.WriteLine();
+        Console.WriteLine($"  单次切换  中位 {median,8:0.000} ms");
+        Console.WriteLine($"  单次切换  95 分位 {p95,8:0.000} ms");
+        Console.WriteLine($"  单次切换  最大 {max,8:0.000} ms");
+        Console.WriteLine();
+
+        if (median <= MaximumSwitchMilliseconds)
+        {
+            Console.WriteLine($"达标：单次切换中位不超过 {MaximumSwitchMilliseconds:0} 毫秒");
+
+            return 0;
+        }
+
+        Console.Error.WriteLine(
+            $"不达标：属性面板单次切换的中位是 {median:0.000} 毫秒，超过 {MaximumSwitchMilliseconds:0} 毫秒");
+
+        return 1;
+    }
+
+    /// <summary>
+    /// 换一次选中，量它花了多久。
+    /// </summary>
+    /// <remarks>
+    /// 队列要跑一遍：面板上的字是排到队列里换的，不跑的话量到的只是"排了个队"。
+    /// 排在队列里的还有一次重排，那也是用户实际要等的一段。
+    /// </remarks>
+    private static double Switch(
+        DiagramSession session,
+        Grid root,
+        Size size,
+        string nodeId,
+        Stopwatch stopwatch)
+    {
+        stopwatch.Restart();
+
+        session.Select(nodeId);
+        Dispatcher.UIThread.RunJobs();
+        root.Measure(size);
+        root.Arrange(new Rect(size));
+
+        stopwatch.Stop();
+
+        return stopwatch.Elapsed.TotalMilliseconds;
+    }
+
+    /// <summary>
+    /// 拖拽中单帧处理输入（应用临时偏移）的耗时。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 量的是"一帧里把选中节点连同相连边整体挪一下偏移"这件事，不是整条布局链路——
+    /// 拖拽中不调布局、不发命令，那条链路只在松手那一刻跑一次。预览偏移由画布的
+    /// <see cref="CanvasViewModel.BeginFrame"/> 在每帧开头套上去，所以这里就是反复调用它
+    /// 并量耗时。首帧要建剔除索引、首次准备字形，那些都不能算进稳态帧时，先预热掉。
+    /// </para>
+    /// <para>
+    /// 输入是一份真实的千节点图与真实的绘制列表：手画的矩形量不出命中与相连边重画的开销，
+    /// 而那两样恰恰是拖拽预览要做的全部。每帧只挪被拖动的几个节点，整份列表不能被拷一遍，
+    /// 所以单帧耗时与节点总数基本无关，只与"这一拖波及了多少元素"有关。
+    /// </para>
+    /// </remarks>
+    public static int RunDrag(int nodeCount, int samples)
+    {
+        Console.WriteLine("节点拖拽输入处理测量");
+        Console.WriteLine($"节点 {nodeCount} 个，采样 {samples} 次");
+        Console.WriteLine();
+
+        var startup = Stopwatch.StartNew();
+        Program.BuildAvaloniaApp().SetupWithoutStarting();
+        startup.Stop();
+
+        using var measurer = new SkiaTextMeasurer();
+        var document = Graph(nodeCount);
+        using var session = new DiagramSession(document);
+        var model = new CanvasViewModel();
+        model.Load(session.Scene.DrawList);
+        model.Resize(DefaultWidth, DefaultHeight);
+
+        // 选一份内容里第一个节点开拖。够大的图才覆盖真实场景：
+        // 千节点上松手那一档的预算卡的是"整条链路"，这里卡的只是"一帧偏移"，
+        // 但图小了剔除与拷贝的开销也小，量出来的数字没有意义。
+        var target = document.Nodes[0].Id;
+        var placed = session.Scene.Layout.Find(target)
+            ?? throw new InvalidOperationException($"布局结果里没有 {target}");
+        var startDoc = new DrawPoint(placed.X, placed.Y);
+
+        var preview = session.BeginDrag(target, additive: false, startDoc)
+            ?? throw new InvalidOperationException("节点应当可以拖");
+        model.BeginDrag(preview.NodeIds, preview.EdgeIds);
+
+        for (var index = 0; index < WarmupFrames; index++)
+        {
+            var warm = new DrawPoint(startDoc.X + (index + 1), startDoc.Y + (index + 1));
+            model.UpdateDrag(session.UpdateDrag(warm));
+            model.BeginFrame();
+        }
+
+        var elapsed = new List<double>(samples);
+        var stopwatch = new Stopwatch();
+
+        for (var index = 0; index < samples; index++)
+        {
+            // 每帧把指针挪一点点，模拟拖动中连续收到的指针事件。
+            var current = new DrawPoint(startDoc.X + ((index + 1) * 0.5), startDoc.Y + ((index + 1) * 0.5));
+            model.UpdateDrag(session.UpdateDrag(current));
+
+            stopwatch.Restart();
+            model.BeginFrame();
+            stopwatch.Stop();
+
+            elapsed.Add(stopwatch.Elapsed.TotalMilliseconds);
+        }
+
+        elapsed.Sort();
+
+        var median = elapsed[elapsed.Count / 2];
+        var max = elapsed[^1];
+
+        Console.WriteLine($"  平台就绪          {startup.Elapsed.TotalMilliseconds,8:0.0} ms");
+        Console.WriteLine($"  节点 / 连线       {document.Nodes.Count,8} / {document.Edges.Count}");
+        Console.WriteLine($"  单帧处理  中位 {median,8:0.000} ms");
+        Console.WriteLine($"  单帧处理  最大 {max,8:0.000} ms");
+        Console.WriteLine();
+
+        if (median <= MaximumDragMilliseconds)
+        {
+            Console.WriteLine($"达标：单帧处理拖拽输入不超过 {MaximumDragMilliseconds:0} 毫秒");
+
+            return 0;
+        }
+
+        Console.Error.WriteLine(
+            $"不达标：拖拽单帧处理的中位是 {median:0.000} 毫秒，超过 {MaximumDragMilliseconds:0} 毫秒");
+
+        return 1;
     }
 
     /// <summary>
@@ -371,6 +631,37 @@ internal static class FrameBenchmark
         using var measurer = new SkiaTextMeasurer();
 
         return SampleDiagram.Build(Graph(nodeCount), Theme.Default, measurer);
+    }
+
+    /// <summary>高亮测量时标记多少个节点。够多才量得出叠加层的开销，又不至于盖满整屏。</summary>
+    private const int HighlightedNodes = 30;
+
+    private static readonly IReadOnlySet<HighlightKind> HighlightKinds =
+        new HashSet<HighlightKind> { HighlightKind.Pulse, HighlightKind.Badge, HighlightKind.Outline };
+
+    /// <summary>
+    /// 给前若干节点挂上三种高亮手段，返回挂了几个。
+    /// </summary>
+    /// <remarks>
+    /// 相位固定：这里量的是"把高亮画出来"的开销，脉冲相位每帧变化只多一次三角函数，
+    /// 对帧时的影响远小于光栅化那几条指令。两个宿主共用同一份指令——它们只读。
+    /// </remarks>
+    private static int MarkNodes(Host plain, Host culled, DrawList list, int nodeCount)
+    {
+        var count = Math.Min(HighlightedNodes, nodeCount);
+        var highlights = new List<ElementHighlight>(count);
+
+        for (var index = 0; index < count; index++)
+        {
+            highlights.Add(new ElementHighlight($"n{index}", ChangeSource.Human, HighlightKinds));
+        }
+
+        var commands = Highlight.Build(highlights, list.Commands, Theme.Default, 0.25);
+
+        plain.Model.SetHighlights(commands);
+        culled.Model.SetHighlights(commands);
+
+        return count;
     }
 
     /// <summary>

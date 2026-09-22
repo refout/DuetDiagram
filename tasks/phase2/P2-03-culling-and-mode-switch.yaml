@@ -1,7 +1,7 @@
 id: P2-03
 title: 视口虚拟化与动态阈值切换
 phase: 2
-status: pending
+status: done
 depends_on: [P2-02, P1-13]
 estimated_loc: 400
 files:
@@ -9,6 +9,7 @@ files:
     - DuetDiagram.Render/CullingPolicy.cs
     - DuetDiagram.Render/RenderMode.cs
     - DuetDiagram.Render/ModeSwitch.cs
+    - DuetDiagram.Render/CullingIndex.cs
     - DuetDiagram.Render.Tests/CullingPolicyTests.cs
     - DuetDiagram.Render.Tests/ModeSwitchTests.cs
     - DuetDiagram.App/ViewModels/RenderModeViewModel.cs
@@ -16,17 +17,34 @@ files:
     - reports/phase2-render.md
   modify:
     - DuetDiagram.Render/ViewportCulling.cs
+    - DuetDiagram.Render/DrawList.cs
+    - DuetDiagram.Render.Tests/QuadTreeTests.cs
+    - DuetDiagram.Benchmarks/QuadTreeBenchmarks.cs
     - DuetDiagram.App/Controls/DiagramCanvas.cs
     - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/FrameBenchmark.cs
+    - DuetDiagram.App/Program.cs
+    - DuetDiagram.App/SampleDiagram.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
+    - docs/GUI.md
+    - docs/Render-Pipeline.md
+    - .github/workflows/ci.yml
     - AGENTS.md
+    - tasks/README.md
+    - tasks/phase2/P2-04-diagnostics-panel.yaml
+    - tasks/phase2/P2-08-change-highlight.yaml
+    - reports/loc.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CullingPolicy"
     expect: 全通过；预取边距、阈值边界、跨边界元素都在里面
-  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120
     expect: 千节点满视口时 FPS 不低于 30，剔除率高于八成
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ModeSwitch"
     expect: 切换那一帧的耗时不超过前后各帧的两倍，且切换前后画面逐像素一致
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=ModeSwitch"
+    expect: 全通过；判定、预备、生效分在三帧上，预备只发生在判定那一帧
 constraints:
   - "**切换不瞬时。** 先把下一帧要用的绘制列表算好，下一帧才换。切换的那一帧现算的话，那一帧必然超时，表现是\"转一下视图就卡一下\""
   - 阈值默认五百节点，可配置但**只有一处**。写成两个地方迟早对不上，而对不上时表现是"有时快有时慢"，看不出规律
@@ -41,3 +59,72 @@ scope_note: |
   **这一步量的是剔除率与帧时，不是"快不快"这个感觉。**
   Phase 0a 的帧率测量工具已经能跑，本任务把它接上真实的绘制列表——
   原来的用例只画矩形，量不出标签度量与折线路由的开销，而后者才是千节点下的主要成本。
+result:
+  verdict: 完成
+  delivered:
+    constants: 阈值与预取边距收敛到 ViewportCulling 一处，删掉原来的判据与扩边两个方法，避免第二处说法
+    policy: CullingPolicy 把两个数变成可替换的一份配置，判据 ModeFor 与范围 VisibleArea 都在它上面
+    index: CullingIndex 按元素建四叉树、按指令原顺序取结果，返回内部复用缓冲，跨帧可复用
+    switch: ModeSwitch 把判定、预备、生效分在三帧上，SwitchCount 供诊断确认换档真的发生过
+    element_count: DrawList 暴露元素数（按元素标识去重）并缓存，作为阈值判据的输入
+    canvas: 画布不再自己判断画哪几条，每帧开头问一次视图模型，照着画
+    status: 状态栏多一格显示当前档位，切换中显示过渡态
+    benchmark: 帧率基准改成造真文档走整条链路，两种模式在同一份绘制列表与同一个视口下各测一遍
+    e2e: 端到端新增两条：换档那一帧的耗时、换档前后画布区域逐像素一致
+    report: reports/phase2-render.md 记下两种模式的帧时、剔除率与换档帧的耗时
+  design_decisions:
+    constants_one_place: 阈值与边距只有一处落脚处。散在调用处当魔数的话，改的人只能靠搜，而两处对不上时的表现是「有时快有时慢」，看不出规律
+    policy_over_constants: 判据做成一份可替换的配置而不是直接读常量。测试与诊断要按别的阈值跑，而改常量是全局的
+    element_indexed_command_ordered: 按元素建索引、按指令原顺序取结果。按指令建索引会把同一个位置重复存几遍；不按原顺序取会把连线翻到节点上面
+    threshold_on_elements: 阈值判元素数而不是指令数。按指令数判会让「多少个节点才算大图」随标签行数漂移
+    three_frame_switch: 判定、预备、生效分三帧。挤在一帧则那一帧必然超时，表现是转一下视图卡一下
+    arm_frame_pays: 建索引付在判定那一帧。挪到生效那一帧，那一帧就成了卡的那一帧
+    canvas_does_not_decide: 画布不判断该不该剔除。判据写在画布上的话同一件事就有了第二个说法，而两处对不上时的表现是「有时画得少、有时画得多」
+    cached_element_count: 元素数缓存下来。每帧都要问一次，而列表是只读的，缓存不会过期
+    immediate_is_baseline: 回退档不列为判据。阈值默认五百，千节点上应用跑的就是虚拟化；要求回退档也达标等于说阈值可以取无穷大，虚拟化本身就没有存在的理由了。它留在报告里回答另一个问题——阈值定得对不对
+    reuse_buffer: 查询结果复用内部缓冲而不是每帧新建。千节点图上光分配就够抵消剔除省下的开销
+    real_list_benchmark: 帧率基准走真文档而不是手画矩形。矩形量不出标签度量与折线路由的开销，而千节点上那两样占大头，按矩形量出来的数字明显偏乐观
+    same_input_two_modes: 两种模式用同一份绘制列表、同一个视口各测一遍。两次测量之间只要有一处不同，比较就失去意义
+    warmup_round: 端到端那一组先跑一轮预热再量。首帧要付即时编译、字形缓存与索引构造的钱，混进比值里之后它就不再说明「换档有没有多做事情」
+    region_limited_compare: 逐像素比对限定在画布区域。状态栏在换档时本来就会变，它要报的就是模式名
+  fixed:
+    notify_during_render: 换档的判定发生在渲染过程内部，而模式名绑在状态栏上——当场通知会让状态栏在渲染过程中被作废，界面框架直接抛「渲染过程中作废了视觉对象」。改成把通知排到队列里，等这一帧画完再发；排队之前先比一次，模式名几乎不变，不该每帧都塞一条
+    inverted_zoom_formula: 基准里反算视口倍数的公式把分数乘在了分子上，方向搞反，算出来的倍数小得离谱，视口里装得下整张图。于是剔除率是零而画面看起来一切正常——判定「剔除没生效」全靠那一个数字，光看画面看不出来
+    stale_canvas_doc: 画布的类注释还写着「不做剔除，每一条都画一遍」，与这一轮的行为相反
+  findings:
+    render_pass_must_not_notify: 渲染过程里改绑给别的控件的属性会被界面框架直接拒绝。这个缺陷在小文档上看不出来——五个节点的示例永远不会换档，一次通知都不发，于是端到端用例全绿；跨过阈值的大图才把它逼出来
+    headless_snapshot_overhead: 端到端那一组量的是整窗口渲染加抓帧回读，单帧普遍几十毫秒，远高于只量画布的基准数字。判据是比值，而回读对每一帧都一样，所以那个比值仍然说明问题
+    cull_rate_is_deterministic: 剔除率三次运行一模一样（86.3%，2968 条里画 406 条），帧率三次差出三成。判据里给帧率留的余量不能当成「还有这么多可花」
+    prefetch_caps_cull_rate: 预取边距是固定的文档尺寸，图越小、倍数越大，它占的比例越高。剔除率的上限由它决定，而它不能取零——取零则贴边元素在平移时一闪一闪
+  verified:
+    - Category=CullingPolicy 20 项全通过（阈值边界、预取边距、跨边界元素、剔除率按指令计）
+    - Category=ModeSwitch（渲染层）9 项全通过
+    - Category=ModeSwitch（端到端）2 项全通过：换档帧 47.60 ms 对稳态中位 56.33 ms（上限是两倍），判定帧 205.08 ms；换档前后画布区域 0 处像素不同
+    - 帧率基准三次：虚拟化 45.9 / 44.8 / 57.4 帧每秒，剔除率三次都是 86.3%
+    - 全量 688 项单元测试无退化（Core 173 / Layout 75 / Render 103 / Mermaid 179 / Dsl 158）
+    - 端到端 11 项全通过
+    - 编译 0 警告
+  not_verified:
+    - 命中测试与剔除的关系：被剔掉只是不画，点还是要点得中，那一步在 P2-06
+    - 诊断面板还没接上：剔除比例与当前档位读得到，但没地方显示，阈值也没法在界面上改
+    - 换档只测了「小图换到大图」这一个方向，反向走的是同一段代码但没有专门用例
+    - 剔除率只在十二分之一这一个缩放点上量过，换个倍数数字会变
+    - 索引重建是整份重建，没有做增量
+    - 原生编译下的表现没有验收（本机缺 C++ 工作负载）
+open_questions:
+  - id: cull-rate-at-other-zooms
+    question: 剔除率该在哪个缩放点上判？
+    detail: |
+      剔除率随缩放倍数变：视口越小剔得越多。这一轮取的是「看得见内容面积的
+      十二分之一」，对应一个用户真会用的倍数，但那个倍数本身没有实测依据。
+      P2-13 的用户测试会让人真的缩放与平移，那时能看出常用倍数落在哪儿。
+    blocked_on: P2-13
+    status: open
+  - id: threshold-value
+    question: 阈值取五百元素合不合适？
+    detail: |
+      方案给的是五百。千节点这一档上虚拟化比回退档快五到十二倍，
+      但三百到五百这一段没有量过——回退档在四五百个元素上也许已经够快，
+      那样阈值可以往上抬，省掉一次换档。要回答它得把基准扫一遍元素数。
+    blocked_on: P2-04
+    status: open

@@ -78,6 +78,16 @@ jobs:
       - name: 视口变换门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Viewport"
 
+      # 剔除的判据与范围：阈值边界、预取边距、跨边界元素。
+      # 判据散成两处时的表现是「有时快有时慢」，看不出规律，也就无从查起。
+      - name: 剔除判据门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=CullingPolicy"
+
+      # 换档的三帧编排：判定、预备、生效。挤在同一帧的表现是「转一下视图卡一下」，
+      # 而那一帧在别处都看不出来异常。
+      - name: 换档编排门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ModeSwitch"
+
       # 词法层：定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，
       # 按标识切会让它们全变成「不认识的东西」。
       - name: Mermaid 词法门禁
@@ -123,6 +133,8 @@ jobs:
 
       # 无头模式下起窗口、送输入、抓一帧。绘制列表对不对由快照管，
       # 这里盯的是两者在真实窗口里有没有接上。
+      # 这一条同时覆盖 Canvas（缩放、平移、状态栏）与 ModeSwitch
+      # （换档那一帧的耗时、换档前后画布区域逐像素一致）。
       - name: 端到端测试
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }}
 

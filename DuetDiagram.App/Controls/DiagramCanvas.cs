@@ -25,8 +25,9 @@ namespace DuetDiagram.App.Controls;
 /// 而屏幕上看到的是另一回事。
 /// </para>
 /// <para>
-/// 画布不做剔除，把列表里的每一条都画一遍。视口虚拟化是下一步的事，
-/// 提前塞进来会让"坐标对不对"与"该不该画"两个问题混在一起。
+/// **它自己也不判断该不该剔除。** 每一帧画哪几条由视图模型定下来，
+/// 画布照着画。判据写在画布上的话，同一件事就有了第二个说法，
+/// 而两处对不上时的表现是"有时画得少、有时画得多"，看不出规律。
 /// </para>
 /// <para>
 /// 颜色、字体、笔刷按值缓存。千节点的图上每条指令都要一个笔刷，
@@ -86,9 +87,13 @@ public sealed partial class DiagramCanvas : UserControl
             return;
         }
 
-        var list = model.DrawList;
+        // 这一帧画哪几条由它定：整份列表，或者是按视口剔过的一份子序列。
+        // 画布自己不判断该不该剔除——那条判据只此一处，放在画布上就会与别处对不上。
+        model.BeginFrame();
 
-        if (list.Commands.Count == 0)
+        var commands = model.FrameCommands;
+
+        if (commands.Count == 0)
         {
             return;
         }
@@ -99,9 +104,9 @@ public sealed partial class DiagramCanvas : UserControl
         // 自绘不受 ClipToBounds 约束，超出画布的部分会盖到相邻面板上。
         using (context.PushClip(viewport))
         {
-            context.FillRectangle(Brush(list.Background), viewport);
+            context.FillRectangle(Brush(model.DrawList.Background), viewport);
 
-            foreach (var command in list.Commands)
+            foreach (var command in commands)
             {
                 Draw(context, transform, command);
                 _drawnCommands++;

@@ -321,7 +321,7 @@ public sealed class QuadTreeTests
         var tree = QuadTree.Build(Grid(count: 1000, columns: 40, spacing: 100));
 
         var viewport = new SpatialRect(0, 0, 400, 400);
-        var visible = tree.Query(ViewportCulling.WithPrefetch(viewport));
+        var visible = tree.Query(CullingPolicy.Default.VisibleArea(viewport));
 
         visible.Count.Should().BeLessThan(1000 / 2, "视口只覆盖四十分之一左右的面积");
 
@@ -365,35 +365,6 @@ public sealed class QuadTreeTests
         var perQuery = watch.Elapsed.TotalMicroseconds / 100;
 
         perQuery.Should().BeLessThan(1000, "方案要求单次查询低于一毫秒");
-    }
-
-    #endregion
-
-    #region 策略参数
-
-    [Fact]
-    [Trait("Category", "QuadTree")]
-    public void Policy_values_are_the_documented_ones()
-    {
-        ViewportCulling.PrefetchMargin.Should().Be(100);
-        ViewportCulling.VirtualizationThreshold.Should().Be(500);
-
-        ViewportCulling.ShouldVirtualize(499).Should().BeFalse();
-        ViewportCulling.ShouldVirtualize(500).Should().BeTrue();
-    }
-
-    [Fact]
-    [Trait("Category", "QuadTree")]
-    public void Prefetch_expands_the_viewport_on_all_sides()
-    {
-        var viewport = new SpatialRect(100, 100, 50, 50);
-
-        var expanded = ViewportCulling.WithPrefetch(viewport);
-
-        expanded.X.Should().Be(0);
-        expanded.Y.Should().Be(0);
-        expanded.Width.Should().Be(250);
-        expanded.Height.Should().Be(250);
     }
 
     #endregion

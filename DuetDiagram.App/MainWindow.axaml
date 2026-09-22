@@ -18,9 +18,14 @@
             Background="#f4f6f9"
             BorderBrush="#d8dee7"
             BorderThickness="0,1,0,0">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBlock FontSize="12" Foreground="#5b6675" Text="{Binding PointerText}" />
-        <TextBlock Grid.Column="1" FontSize="12" Foreground="#5b6675" Text="{Binding ZoomText}" />
+        <TextBlock Grid.Column="1"
+                   Margin="0,0,16,0"
+                   FontSize="12"
+                   Foreground="#5b6675"
+                   Text="{Binding Mode.Text}" />
+        <TextBlock Grid.Column="2" FontSize="12" Foreground="#5b6675" Text="{Binding ZoomText}" />
       </Grid>
     </Border>
 

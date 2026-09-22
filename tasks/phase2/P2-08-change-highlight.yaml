@@ -25,7 +25,7 @@ acceptance:
     expect: 全通过；三种手段各自独立可辨、叠加时不互相盖住
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Highlight"
     expect: 全通过；一条命令之后对应元素被标记，撤销之后标记继承原来源并带撤销符号
-  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120 --highlight
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 --highlight
     expect: 高亮全开时 FPS 不低于 30
 constraints:
   - "**不靠颜色。** 四种手段里三种是形状与运动（脉冲、角标、虚线轮廓），颜色只是辅助线索。只靠颜色的话，色觉障碍用户看到的是一张没标过的图，而这一点无法事后补救"

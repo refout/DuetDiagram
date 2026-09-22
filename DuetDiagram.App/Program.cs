@@ -23,7 +23,7 @@ internal static class Program
         if (args.Contains(FrameBenchmarkSwitch, StringComparer.Ordinal))
         {
             return FrameBenchmark.Run(
-                ReadInt(args, "--rectangles", 1000),
+                ReadInt(args, "--nodes", 1000),
                 ReadInt(args, "--frames", 60));
         }
 

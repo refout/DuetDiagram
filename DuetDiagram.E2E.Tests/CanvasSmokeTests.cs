@@ -3,7 +3,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
-using Avalonia.VisualTree;
 using DuetDiagram.App;
 using DuetDiagram.App.Controls;
 using DuetDiagram.Render;
@@ -275,32 +274,12 @@ public sealed class CanvasSmokeTests
 
     #endregion
 
-    /// <summary>
-    /// 起一个窗口，并把测量、排布与渲染都跑完。
-    /// </summary>
-    /// <remarks>
-    /// 那一帧不能省：不起的话画布尺寸还是零，视口也就没被适配过，
-    /// 之后量出来的坐标与窗口位置全是错的，而失败会指向视口而不是"还没排布"。
-    /// </remarks>
-    private static MainWindow Open()
-    {
-        var window = new MainWindow();
+    private static MainWindow Open() => HeadlessFixture.Open();
 
-        window.Show();
-        window.CaptureRenderedFrame();
+    private static DiagramCanvas Canvas(Window window) => HeadlessFixture.Canvas(window);
 
-        return window;
-    }
+    private static Point CenterOf(DiagramCanvas canvas) => HeadlessFixture.CenterOf(canvas);
 
-    private static DiagramCanvas Canvas(Window window) =>
-        window.GetVisualDescendants().OfType<DiagramCanvas>().Single();
-
-    /// <summary>画布中心，按画布自己的坐标算。</summary>
-    private static Point CenterOf(DiagramCanvas canvas) =>
-        new(canvas.Bounds.Width / 2, canvas.Bounds.Height / 2);
-
-    /// <summary>把画布坐标换成窗口坐标。指针事件给的是窗口坐标。</summary>
     private static Point ToWindow(DiagramCanvas canvas, Window window, Point local) =>
-        canvas.TranslatePoint(local, window)
-        ?? throw new InvalidOperationException("画布不在窗口的视觉树里，量不出它在窗口里的位置");
+        HeadlessFixture.ToWindow(canvas, window, local);
 }

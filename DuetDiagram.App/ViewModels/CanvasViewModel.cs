@@ -20,14 +20,23 @@ namespace DuetDiagram.App.ViewModels;
 /// </remarks>
 public sealed class CanvasViewModel : INotifyPropertyChanged
 {
+    private readonly CullingPolicy _culling;
+    private readonly ModeSwitch _switch;
+
     private DrawList _drawList = DrawList.Empty;
+    private CullingIndex? _index;
+    private IReadOnlyList<DrawCommand> _frameCommands = [];
     private Viewport _viewport;
     private DrawPoint _pointer;
     private bool _pointerInside;
 
-    public CanvasViewModel(Theme? theme = null)
+    public CanvasViewModel(Theme? theme = null, CullingPolicy? culling = null)
     {
         Theme = theme ?? Theme.Default;
+        _culling = culling ?? CullingPolicy.Default;
+        _switch = new ModeSwitch(_culling);
+
+        Mode = new RenderModeViewModel();
         _viewport = Viewport.For(Theme);
     }
 
@@ -36,6 +45,18 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
 
     /// <summary>外观查表。缩放上下界也从它取。</summary>
     public Theme Theme { get; }
+
+    /// <summary>这一帧走哪一档、剔掉了多少。</summary>
+    public RenderModeViewModel Mode { get; }
+
+    /// <summary>
+    /// 这一帧要画的指令。
+    /// </summary>
+    /// <remarks>
+    /// 它是 <see cref="DrawList"/> 的一份子序列，也可能是整份。由 <see cref="BeginFrame"/>
+    /// 在每帧开头定下来——顺序不变，只是少几条。
+    /// </remarks>
+    public IReadOnlyList<DrawCommand> FrameCommands => _frameCommands;
 
     /// <summary>要画的东西。</summary>
     public DrawList DrawList
@@ -72,15 +93,54 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     /// 换一份绘制列表，并把视口适配到内容上。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 每次换列表都重新适配：保留上一次的视角的话，换一份内容差得远的文档之后
     /// 用户看到的是一片空白，只能自己摸索着找回来。
+    /// </para>
+    /// <para>
+    /// 索引与模式一起从头来过。旧索引指向的是上一份列表，留着它对新的这份毫无用处，
+    /// 而"模式已经是虚拟化、索引却是空的"这种状态会让画布退回整份遍历，
+    /// 看起来像剔除失效了。
+    /// </para>
     /// </remarks>
     public void Load(DrawList drawList)
     {
         ArgumentNullException.ThrowIfNull(drawList);
 
+        _index = null;
+        _switch.Reset(RenderMode.Immediate);
+
         DrawList = drawList;
         Viewport = _viewport.FitTo(ContentBounds);
+    }
+
+    /// <summary>
+    /// 一帧开始时调用：定下这一帧要画什么，并把下一帧要用的东西预备好。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 顺序不能颠倒。先让上一次的判定生效，再按新模式取指令，最后判定下一次该走哪一档——
+    /// 反过来会让"判定"与"生效"挤在同一帧，而那一帧正是要避免多做事的那一帧。
+    /// </para>
+    /// <para>
+    /// 需要为新模式准备的东西**付在这一帧**：大图上是那份空间索引，建它要遍历整份列表。
+    /// 把它挪到生效那一帧，表现就是转一下视图卡一下。
+    /// </para>
+    /// </remarks>
+    public void BeginFrame()
+    {
+        _switch.Commit();
+
+        _frameCommands = _switch.Current == RenderMode.Virtualized && _index is not null
+            ? _index.Visible(_culling.VisibleArea(_viewport.VisibleDocumentRect))
+            : _drawList.Commands;
+
+        if (_switch.Request(_drawList.ElementCount))
+        {
+            _index = _switch.Target == RenderMode.Virtualized ? new CullingIndex(_drawList) : null;
+        }
+
+        Mode.Update(_switch.Current, _switch.IsSwitching, _index?.CullRate ?? 0);
     }
 
     /// <summary>

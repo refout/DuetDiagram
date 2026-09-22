@@ -21,7 +21,7 @@ files:
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DiagnosticsSampler"
     expect: 全通过；环形窗口、分位数、空样本都在里面
-  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --rectangles 1000 --frames 120 --diagnostics
+  - command: dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 1000 --frames 120 --diagnostics
     expect: 面板打开与关闭两种情况下 FPS 差距不超过一成
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Diagnostics"
     expect: 全通过；快捷键能开关面板，面板上的数字跟着帧更新

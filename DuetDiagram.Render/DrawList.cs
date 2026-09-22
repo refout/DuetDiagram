@@ -32,8 +32,25 @@ public sealed record DrawList(
     double Height,
     string Background)
 {
+    private int _elementCount = -1;
+
     /// <summary>空列表。没有内容时用它，宽高为零、背景取白。</summary>
     public static DrawList Empty { get; } = new([], 0, 0, "#ffffff");
+
+    /// <summary>
+    /// 列表里出现了多少个不同的元素。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 剔除的阈值判的是它而不是指令条数：一个节点对应好几条指令，
+    /// 按指令数判会让"多少个节点才算大图"这件事随标签行数漂移。
+    /// </para>
+    /// <para>
+    /// 算一次要遍历整份列表，而每帧都要问一次，所以结果缓存下来。
+    /// 列表是只读的，缓存不会过期。
+    /// </para>
+    /// </remarks>
+    public int ElementCount => _elementCount >= 0 ? _elementCount : _elementCount = CountElements();
 
     /// <summary>元素标识在这一份列表里出现了几次。</summary>
     /// <remarks>差异定位用：同一条指令在不同版本里出现次数变了，说明增删了东西。</remarks>
@@ -93,5 +110,17 @@ public sealed record DrawList(
         }
 
         return hash.ToHashCode();
+    }
+
+    private int CountElements()
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var command in Commands)
+        {
+            seen.Add(command.ElementId);
+        }
+
+        return seen.Count;
     }
 }

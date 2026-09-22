@@ -34,7 +34,7 @@ public class QuadTreeBenchmarks
 
         _tree = QuadTree.Build(items);
         _buffer = new List<string>(128);
-        _viewport = ViewportCulling.WithPrefetch(new SpatialRect(0, 0, 500, 500));
+        _viewport = CullingPolicy.Default.VisibleArea(new SpatialRect(0, 0, 500, 500));
     }
 
     /// <summary>单次视口查询。</summary>

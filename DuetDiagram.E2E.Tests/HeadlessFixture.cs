@@ -1,5 +1,10 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
+using Avalonia.VisualTree;
+using DuetDiagram.App;
+using DuetDiagram.App.Controls;
 using AppShell = DuetDiagram.App.App;
 
 namespace DuetDiagram.E2E.Tests;
@@ -59,4 +64,69 @@ public static class HeadlessFixture
 
         return Session.Value.Dispatch(body, CancellationToken.None);
     }
+
+    #region 窗口与画布
+
+    /// <summary>
+    /// 起一个窗口，并把测量、排布与渲染都跑完。
+    /// </summary>
+    /// <remarks>
+    /// 那一帧不能省：不起的话画布尺寸还是零，视口也就没被适配过，
+    /// 之后量出来的坐标与窗口位置全是错的，而失败会指向视口而不是"还没排布"。
+    /// </remarks>
+    public static MainWindow Open()
+    {
+        var window = new MainWindow();
+
+        window.Show();
+        window.CaptureRenderedFrame();
+
+        return window;
+    }
+
+    /// <summary>窗口里那个画布。</summary>
+    public static DiagramCanvas Canvas(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<DiagramCanvas>().Single();
+    }
+
+    /// <summary>画布中心，按画布自己的坐标算。</summary>
+    public static Point CenterOf(DiagramCanvas canvas)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+
+        return new Point(canvas.Bounds.Width / 2, canvas.Bounds.Height / 2);
+    }
+
+    /// <summary>把画布坐标换成窗口坐标。指针事件给的是窗口坐标。</summary>
+    public static Point ToWindow(DiagramCanvas canvas, Window window, Point local)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        ArgumentNullException.ThrowIfNull(window);
+
+        return canvas.TranslatePoint(local, window)
+            ?? throw new InvalidOperationException("画布不在窗口的视觉树里，量不出它在窗口里的位置");
+    }
+
+    /// <summary>
+    /// 让窗口真的重画一帧，并交出那一帧的位图。
+    /// </summary>
+    /// <remarks>
+    /// 作废那一步不能省。交给"上一步恰好让某个属性变了"的话，一旦以后那个属性不再变，
+    /// 这里就会静默地少渲染一帧——而少掉的那一帧正好是要断言的那一帧，
+    /// 于是断言落在上一帧的残留状态上，测试仍然全绿。
+    /// </remarks>
+    public static WriteableBitmap? Frame(MainWindow window, DiagramCanvas canvas)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(canvas);
+
+        canvas.InvalidateVisual();
+
+        return window.CaptureRenderedFrame();
+    }
+
+    #endregion
 }

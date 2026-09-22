@@ -61,6 +61,12 @@ jobs:
       - name: LOC 一致性
         run: dotnet run --project tools/LocCounter -c ${{ env.CONFIGURATION }} -- --root "$PWD" --check
 
+      # 用户测试那四个统计量：在构造好的已知答案上算得对不对。
+      # 它们决定被测手段保不保，而算错的表现在报告上完全看不出来——
+      # 四个数都照常印出来，只是印错了。不需要真人数据，随时可跑。
+      - name: 用户测试装置自检
+        run: dotnet run --project tools/UserStudy -c ${{ env.CONFIGURATION }} -- verify
+
       # 布局的不变量：固定坐标精确、无残留重叠、四个方向。方案 §10 的布局判据。
       - name: 布局不变量门禁
         run: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Layout"

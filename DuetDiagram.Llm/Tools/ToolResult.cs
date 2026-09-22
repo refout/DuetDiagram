@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DuetDiagram.Core.Model;
+using DuetDiagram.Mermaid.Export;
 
 namespace DuetDiagram.Llm.Tools;
 
@@ -202,6 +204,10 @@ public sealed record CommandOutcome
 [JsonSerializable(typeof(ToolError))]
 [JsonSerializable(typeof(ToolError[]))]
 [JsonSerializable(typeof(CommandOutcome))]
+[JsonSerializable(typeof(ExportPayload))]
+[JsonSerializable(typeof(DroppedFeature))]
+[JsonSerializable(typeof(ValidatePayload))]
+[JsonSerializable(typeof(ValidationIssue))]
 internal sealed partial class ToolJsonContext : JsonSerializerContext;
 
 #endregion

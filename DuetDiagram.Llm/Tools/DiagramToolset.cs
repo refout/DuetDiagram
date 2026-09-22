@@ -70,9 +70,12 @@ public static class DiagramToolset
         + "新建的组合一律在顶层，要嵌套就再发一次移入。";
 
     private const string ExportDescription =
-        "把当前图导出成文本格式：自有 DSL 或 Mermaid。"
+        "把当前图导出成文本格式。现在能导出 Mermaid。"
         + "要拿一份能贴进别处、或者交给别人看的文本时用它。"
-        + "导出不改变文档，也不进撤销栈。位图与 PDF 走同一个入口但还没有实现，会返回结构化的「尚未支持」。";
+        + "导出不改变文档，也不进撤销栈。"
+        + "导出必然有损——IR 的表达力强于目标格式，写不出来的东西在返回的 dropped 里逐类列出，"
+        + "报告为空不等于无损。自有 DSL 的导出方向还没有实现，位图与 PDF 走同一个入口"
+        + "但还没有排到，这几样会返回结构化的「尚未支持」。";
 
     private const string ValidateDescription =
         "整体校验当前文档，返回结构化错误与修复建议。"
@@ -230,9 +233,9 @@ public static class DiagramToolset
         #region diagram_export
 
         public Task<ToolResult> Export(
-            [Description("导出格式：dsl 或 mermaid。")][Pattern(Patterns.DiagramId)] string format,
+            [Description("导出格式：mermaid、dsl、svg、png 或 pdf。现在只有 mermaid 接上了。")][Pattern(Patterns.DiagramId)] string format,
             [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
-            Pending(DiagramToolset.Export, format);
+            Task.FromResult(ExportTool.Run(_context, new ExportArguments(format, pageId)));
 
         #endregion
 
@@ -240,7 +243,7 @@ public static class DiagramToolset
 
         public Task<ToolResult> Validate(
             [Description("校验范围。留空表示整份文档。")] string? scope = null) =>
-            Pending(DiagramToolset.Validate, null);
+            Task.FromResult(ValidateTool.Run(_context, new ValidateArguments(scope)));
 
         #endregion
 
@@ -249,24 +252,10 @@ public static class DiagramToolset
         public Task<ToolResult> UndoRedo(
             [Description("要做的事：undo 或 redo。")][Pattern(Patterns.DiagramId)] string action,
             [Description("撤几步。留空表示一步。")] int? steps = null) =>
-            Pending(DiagramToolset.UndoRedo, action);
+            Task.FromResult(HistoryTool.Run(_context, new HistoryArguments(action, steps)));
 
         #endregion
     }
-
-    #endregion
-
-    #region 未接线
-
-    /// <summary>
-    /// 能力还没接上时的统一答复。
-    /// </summary>
-    /// <remarks>
-    /// 与"参数错了"分开：这一条不是调用方的问题，重试多少次都一样。
-    /// 把缺什么写清楚，调用方才知道是换个做法还是等一等。
-    /// </remarks>
-    private static Task<ToolResult> Pending(string tool, string? action) =>
-        Task.FromResult(ToolResult.NotSupported(tool, action, "动作分发表还没有接上"));
 
     #endregion
 }

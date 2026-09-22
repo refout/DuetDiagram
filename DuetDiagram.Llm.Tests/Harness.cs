@@ -29,27 +29,41 @@ internal static class Harness
     public static readonly DateTimeOffset Now = new(2026, 9, 23, 12, 0, 0, TimeSpan.Zero);
 
     /// <summary>给一份文档配一条总线。</summary>
-    public static DiagramCommandBus Bus(DiagramDocument document, ITimeProvider? clock = null) =>
+    public static DiagramCommandBus Bus(
+        DiagramDocument document,
+        ITimeProvider? clock = null,
+        ISessionProvider? session = null) =>
         new(DiagramCommandBusContext.Create(
             document,
-            new SimpleSessionProvider("tester", SessionIds.Llm("c1")),
+            session ?? new SimpleSessionProvider("tester", SessionIds.Llm("c1")),
             NullChangeBroadcaster.Instance,
             DiagramCommandBusOptions.ForGui(),
             clock ?? new ManualTimeProvider(Now)));
+
+    /// <summary>
+    /// 一个可改的会话提供者。
+    /// </summary>
+    /// <remarks>
+    /// 撤销重做那一路要区分「这一步是人改的还是模型改的」，而那个判据是历史条目上的会话标识。
+    /// 造这种历史要在两次命令之间换一个会话，所以会话提供者必须是可写的、而且测试要拿着它。
+    /// </remarks>
+    public static SimpleSessionProvider Session(string? sessionId = null) =>
+        new("tester", sessionId ?? SessionIds.Llm("c1"));
 
     /// <summary>一份工具上下文。不给文档时造一张空图。</summary>
     public static DiagramToolContext Context(
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
         IReadOnlyList<string>? pinned = null,
-        ManualTimeProvider? clock = null)
+        ManualTimeProvider? clock = null,
+        ISessionProvider? session = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
 
         return new DiagramToolContext
         {
-            Bus = Bus(subject, time),
+            Bus = Bus(subject, time, session),
             Placement = placement ?? [],
             PinnedNodes = pinned ?? [],
             Clock = time,
@@ -61,8 +75,9 @@ internal static class Harness
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
         IReadOnlyList<string>? pinned = null,
-        ManualTimeProvider? clock = null) =>
-        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock));
+        ManualTimeProvider? clock = null,
+        ISessionProvider? session = null) =>
+        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session));
 
     /// <summary>按 JSON 参数调一个工具。</summary>
     public static ToolResult Invoke(

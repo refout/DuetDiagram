@@ -18,6 +18,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+
+    <!--
+      导出那一路要读 Mermaid 的导出器。
+      它是本仓的纯函数库、只依赖 Core，所以引它不引入任何需要平台适配的东西——
+      这与「工具层不引布局引擎」那条口径不冲突：布局引擎是第三方组件。
+      反过来做（把导出器当委托注入上下文）的话，每个宿主与每条用例都要接一次线，
+      而导出文本本来就是文档的纯函数，没有可注入的余地。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Mermaid\DuetDiagram.Mermaid.csproj" />
   </ItemGroup>
 
 </Project>

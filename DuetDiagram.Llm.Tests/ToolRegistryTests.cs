@@ -22,16 +22,21 @@ public sealed class ToolRegistryTests
     {
         var registry = Registry();
 
-        registry.Tools.Select(tool => tool.Name).Should().Equal(
-            DiagramToolset.Read,
-            DiagramToolset.Edit,
-            DiagramToolset.Style,
-            DiagramToolset.Layout,
-            DiagramToolset.Composite,
-            DiagramToolset.Export,
-            DiagramToolset.Validate,
-            DiagramToolset.UndoRedo);
+        registry.Tools.Select(tool => tool.Name).Should().Equal(RegistryToolNames());
     }
+
+    /// <summary>八个工具的名字，次序与工具表一致。</summary>
+    private static string[] RegistryToolNames() =>
+    [
+        DiagramToolset.Read,
+        DiagramToolset.Edit,
+        DiagramToolset.Style,
+        DiagramToolset.Layout,
+        DiagramToolset.Composite,
+        DiagramToolset.Export,
+        DiagramToolset.Validate,
+        DiagramToolset.UndoRedo,
+    ];
 
     [Fact]
     [Trait("Category", "ToolRegistry")]
@@ -213,14 +218,31 @@ public sealed class ToolRegistryTests
 
     [Fact]
     [Trait("Category", "ToolRegistry")]
-    public void An_unwired_tool_says_so_without_blaming_the_caller()
+    public void An_unwired_capability_says_so_without_blaming_the_caller()
     {
         var result = Invoke(Registry(), DiagramToolset.Export, """{"format":"dsl"}""");
 
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].Code.Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Message.Should().Contain(DiagramToolset.Export).And.Contain("dsl");
+        result.Errors[0].Parameter.Should().Be("format", "缺的是这一项能力，不是调用方给错了参数");
+        result.Errors[0].Message.Should().Contain("dsl");
+    }
+
+    [Fact]
+    [Trait("Category", "ToolRegistry")]
+    public void Every_tool_now_has_an_execution_body()
+    {
+        var registry = Registry();
+
+        foreach (var tool in RegistryToolNames())
+        {
+            var result = Invoke(registry, tool, "{}");
+
+            result.Errors.Should().NotContain(
+                error => error.Code == ToolErrorCodes.NotSupported && error.Message.Contains("还没有接上", StringComparison.Ordinal),
+                $"{tool} 的执行体应当已经接上；八个工具到此全部有线可走");
+        }
     }
 
     #endregion

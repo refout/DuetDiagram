@@ -141,7 +141,61 @@ internal static class ActionDispatch
 
         var result = context.Bus.Execute(command);
 
-        return result.IsSuccess ? Succeeded(context, result) : Rejected(result);
+        return result.IsSuccess ? Succeeded(context, result) : Failed(result);
+    }
+
+    /// <summary>
+    /// 把一条被拒的命令翻译成工具结果。
+    /// </summary>
+    /// <remarks>
+    /// 出错参数与期望形式这一轮留空：把错误码映射成「哪个参数错了、怎么改」是另一件事，
+    /// 在这里先写一遍会让那张表有两份，而两份迟早给模型两种说法。
+    /// </remarks>
+    public static ToolResult Failed(CommandResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (result.Errors.Length == 0)
+        {
+            return ToolResult.Fail(ToolError.Of(
+                ErrorCodes.InternalError,
+                result.Message ?? "命令被拒，但没有给出错误码"));
+        }
+
+        return ToolResult.Fail([.. result.Errors.Select(error => ToolError.Of(
+            error.Code,
+            error.Payload is null ? error.Code : $"{error.Code}：{error.Payload}"))]);
+    }
+
+    /// <summary>
+    /// 按显式的值拼一条成功答复。
+    /// </summary>
+    /// <remarks>
+    /// 撤销重做那一路用它：它走的是历史栈上的条目，没有一条命令结果可以翻译。
+    /// 变更标志在这一路报真——撤销与重做都会让画面变，而要不要重排由宿主自己按
+    /// 受影响标识判断，工具层不替它猜。
+    /// </remarks>
+    public static ToolResult Outcome(
+        DiagramToolContext context,
+        string message,
+        IReadOnlyList<string> affected)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(affected);
+
+        var outcome = new CommandOutcome
+        {
+            Version = context.Document.Version,
+            NoOp = affected.Count == 0,
+            AffectedIds = [.. affected],
+            StructuralChanged = affected.Count > 0,
+            VisualChanged = affected.Count > 0,
+            Message = message,
+        };
+
+        return ToolResult.Ok(
+            JsonSerializer.SerializeToElement(outcome, ToolJsonContext.Default.CommandOutcome),
+            message);
     }
 
     /// <summary>
@@ -170,26 +224,5 @@ internal static class ActionDispatch
         return ToolResult.Ok(
             JsonSerializer.SerializeToElement(outcome, ToolJsonContext.Default.CommandOutcome),
             message);
-    }
-
-    /// <summary>
-    /// 失败时的答复。
-    /// </summary>
-    /// <remarks>
-    /// 出错参数与期望形式这一轮留空：把错误码映射成「哪个参数错了、怎么改」是另一件事，
-    /// 在这里先写一遍会让那张表有两份，而两份迟早给模型两种说法。
-    /// </remarks>
-    private static ToolResult Rejected(CommandResult result)
-    {
-        if (result.Errors.Length == 0)
-        {
-            return ToolResult.Fail(ToolError.Of(
-                ErrorCodes.InternalError,
-                result.Message ?? "命令被拒，但没有给出错误码"));
-        }
-
-        return ToolResult.Fail([.. result.Errors.Select(error => ToolError.Of(
-            error.Code,
-            error.Payload is null ? error.Code : $"{error.Code}：{error.Payload}"))]);
     }
 }

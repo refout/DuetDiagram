@@ -1,7 +1,7 @@
 id: P3-09
 title: diagram_export、diagram_validate 与 diagram_undo_redo
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05, P1-04, P1-10, P1-02]
 estimated_loc: 380
 files:
@@ -13,20 +13,29 @@ files:
     - DuetDiagram.Llm.Tests/ValidateToolTests.cs
     - DuetDiagram.Llm.Tests/HistoryToolTests.cs
   modify:
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm/Tools/ToolResult.cs
+    - DuetDiagram.Llm/DuetDiagram.Llm.csproj
+    - DuetDiagram.Llm.Tests/ToolRegistryTests.cs
     - docs/Command-List.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
-    expect: 全通过；DSL 与 Mermaid 两种文本导出各有用例，位图类导出返回结构化「尚未支持」
+    expect: 全通过；Mermaid 导出逐字节可复现且带上丢失清单；DSL 与位图类返回结构化「尚未支持」；导出不动版本号、不进撤销栈
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ValidateTool"
-    expect: 全通过；结构化错误逐条带上错误码、位置与修复建议
+    expect: 全通过；结构化错误逐条带上错误码、相关标识与修复建议；建议来自校验器那一份，工具层不另写一张表
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=HistoryTool"
-    expect: 全通过；撤销重做走的是同一条历史栈，人改的和模型改的混在一起时顺序正确
+    expect: 全通过；撤销重做走的是同一条历史栈，人改的和模型改的混在一起时顺序正确；多步在栈见底时停下并说清撤了几步
 constraints:
   - "**`diagram_undo_redo` 走的是同一条历史栈。** 人和模型共用一个撤销栈，不是两条。分成两条的话，用户按 Ctrl+Z 撤掉的可能是模型十步之前的改动，而界面上看不出这件事——这条正是「人和 LLM 能力对等」的直接体现"
-  - "**撤销到模型自己的改动时，返回里要说清撤掉的是哪一条。** 模型需要知道自己刚才那一步被撤了，否则它会以为文档还停在自己写完之后的状态"
-  - "**`diagram_validate` 返回的是结构化错误加修复建议，不是一句「校验失败」。** 修复建议由错误码映射到一句可执行的话，映射表放在一处；散在各处的话，同一个错误码在两个入口会给出两种建议"
+  - "**撤销到模型自己的改动时，返回里要说清撤掉的是哪一条。** 模型需要知道自己刚才那一步被撤了，否则它会以为文档还停在自己写完之后的状态。做法是**调撤销之前先窥一眼栈顶**（`HistoryStack.PeekUndo()`），拿到命令标识与会话标识；栈顶那一条的会话与当前会话相同就说「你自己改的」。不靠撤销之后去翻版本日志：那条路要多读一份日志，而日志的用途是审计"
+  - "**`diagram_validate` 返回的是结构化错误加修复建议，不是一句「校验失败」。** 修复建议的映射表**已经存在**——`ValidationIssue.Suggestion` 由整体校验器逐条给出，那就是唯一的一处。工具层再写一张按错误码查的表，同一个码就会在两个入口给出两种建议"
   - "位图 / PDF 导出在 Phase 3 还没有实现，返回结构化「尚未支持」并说明缺什么。返回一张空图或者静默成功，比返回「尚未支持」糟得多"
+  - "**DSL 导出同样返回结构化「尚未支持」。** 这一条与上面那条不同：它不是「还没排到」，而是**不该现在做**——`DuetDiagram.Dsl` 只有词法、语法与语义映射三样，没有导出方向；而 DSL 去留那个决策门还开着，判掉之后写出来的导出器要整个删掉。所以这一轮只做已有的那一半"
   - "导出不改变文档，所以它不得触发版本号变化，也不得进撤销栈"
+  - "**多步撤销重做要能整体回滚。** 一次工具调用要么全部成功要么全部回滚。逐步调 `Undo()` / `Redo()` 时，某一步失败要把已经成功的那些反向做回去——半途停下的文档比整条失败更难收拾"
 context:
   - 方案 §6.1 的工具表：`diagram_export` 是 SVG/PNG/PDF/DSL 的统一入口，`diagram_validate` 返回结构化错误加修复建议
   - "`docs/Error-Codes.md` 的错误码表与修复建议列"
@@ -37,3 +46,134 @@ scope_note: |
   标成「Phase 4 验证」。所以这一条做的是「统一入口 + 已有的两种格式」，
   位图那几种按同一入口留位、返回「尚未支持」。接口一次定死，实现分批填——
   分两次定接口的话，第一批的调用方要跟着改。
+
+  **核完发现「已有的两种格式」实际只有一种。** 见下面第 2 条。
+
+reconnaissance: |
+  **动手前对着三个现成能力的公开接口、错误码表与历史栈核了一遍，结论如下。**
+
+  1. **三个工具的动作表。**
+     参数表在 P3-05 已经冻结，这一轮只填执行体。
+
+     - `diagram_export`：`format`（`dsl` / `mermaid` / `svg` / `png` / `pdf`）+ `pageId`。
+       参数表里没有 `action`——它不是按动作分发的，格式就是它唯一的分支点。
+     - `diagram_validate`：`scope`（留空表示整份文档）。
+     - `diagram_undo_redo`：`action`（`undo` / `redo`）+ `steps`（留空表示一步）。
+
+     后两个也不是按动作表分发的，所以 `ActionTable` 里**不为它们开表**。
+     动作表是「动作名 → 命令标识」的对照，而这三个工具一个命令都不发：
+     导出与校验是只读的，撤销重做走历史栈。硬塞进去的话，
+     `Every_action_names_a_command_that_the_command_list_has` 那条用例会要求
+     它们指向「已实现」表里的某条命令，而它们没有。
+
+  2. **DSL 导出不存在，这一轮也不做。**
+     `DuetDiagram.Dsl` 只有 `Lexing` / `Parsing` / `Mapping` 三个目录，
+     `DslMapper.Map` 是唯一的公开入口，方向是「文本 → IR」。没有导出方向。
+     起草时写的「DSL 与 Mermaid 两种文本导出各有用例」与代码里的事实对不上。
+
+     这一条与「位图还没排到」不同：**DSL 导出是不该现在做**。DSL 去留那个决策门还开着，
+     判掉之后写出来的导出器要整个删掉；而且 `diagram_export` 的说明里那句「自有 DSL 或 Mermaid」
+     现在是半个空头承诺，要改成只承诺已有的那一半。
+
+  3. **Mermaid 导出是现成的，接上就行。**
+     `MermaidExporter.Export(DiagramDocument, ExportOptions)` → `ExportResult(Text, Report)`。
+     文本是确定性的（行尾一律 `\n`），报告按类收拢丢失项（`DroppedFeature(Feature, Ids, Reason)`）。
+     `ExportOptions` 只有一个 `Indent`，用缺省值即可——缩进只影响可读性。
+     **丢失清单要原样带给调用方**：静默丢失会让模型以为导出的文本就是全部内容。
+
+  4. **`DuetDiagram.Llm` 要加一条到 `DuetDiagram.Mermaid` 的工程引用。**
+     这是这一条里唯一一处新依赖。它与「工具层不引布局引擎」那条口径不冲突：
+     布局引擎是第三方组件，而 Mermaid 是本仓的、只依赖 Core 的纯函数库，
+     引用它不引入任何需要平台适配的东西。反过来做（把导出器当委托注入上下文）的话，
+     每个宿主与每条用例都要接一次线，而导出文本本来就是文档的纯函数，没有可注入的余地。
+     对照 P3-06 注入的那两样（层投影、固定标识）：它们**不是**文档的函数，
+     一个在布局结果里、一个在 sidecar 里，所以必须由宿主喂进来。
+
+  5. **校验结果直接透传，不另写一张建议表。**
+     `DiagramValidator.Validate(DiagramDocument)` → `IReadOnlyList<ValidationIssue>`，
+     每条带 `Code` / `Message` / `RelatedId` / `Suggestion`。`Suggestion` 由校验器逐条给出，
+     那就是「映射表放在一处」里的那一处。工具层照抄一遍的后果是同一个码在两个入口
+     给出两种建议，而调用方按哪一条都可能是错的。
+     `docs/Error-Codes.md` 里那张表是**界面**怎么呈现（GUI 处理列），
+     由 `Category=ErrorPresentation` 逐行核，与工具层无关。
+
+  6. **撤销重做只有两个公开入口，而且都不带命令标识。**
+     `DiagramCommandBus.Undo()` 与 `Redo()` 各返回一个 `CommandResult`，
+     里面有受影响标识与两个变更标志，**没有**被撤销的那条命令的标识，
+     成功路径上也没有消息。所以「说清撤掉的是哪一条」要靠**调之前先窥栈顶**：
+     `HistoryStack.PeekUndo()` / `PeekRedo()` 是公开的，返回的 `HistoryEntry` 上有
+     `Command.CommandId` 与 `SessionId`。栈顶那一条的会话与当前会话相同，
+     就说「你自己改的」——模型据此知道自己刚才那一步被撤了。
+
+     不选「撤销之后去读版本日志」：那条路要多读一份日志，而日志的用途是审计，
+     让它承担「告诉模型刚才撤了什么」是把它当成了另一件事的载体。
+
+  7. **撤销栈见底与重做栈见底都是 NoOp，不是失败。**
+     `UndoCore` / `RedoCore` 在栈空时返回 `CommandResult.NoOp("无可撤销操作")`。
+     多步时某一步撞上它就是「到头了」，要停下并把**实际撤了几步**写进答复——
+     报成失败的话，模型会以为整条调用没生效。
+
+  8. **重做可能失败，撤销不会，而多步要能整体回滚。**
+     `RedoCore` 在 `Apply` 返回失败时把文档与重做栈一起恢复并**返回那个失败**；
+     `UndoCore` 没有这条路径。所以多步循环里：
+     - 撞上 NoOp：停下，报告实际步数。
+     - 撞上失败：把已经成功的那些**反向做回去**（撤销步用重做回滚，重做步用撤销回滚），
+       再返回那个失败。半途停下的文档比整条失败更难收拾。
+
+  9. **导出与校验都不许动版本号。**
+     两者都是只读的，走的是纯函数，不经过命令总线——所以版本号与历史栈天然不动。
+     有一条用例专门核这件事：导出与校验之后 `document.Version` 与历史条目数都不变。
+     这也解释了为什么它们不进动作表：动作表的每一条都发一条命令。
+
+  10. **`ToolRegistryTests` 里那条「未接线工具」的用例要换一个工具。**
+      它现在拿 `diagram_export` 当例子，而这一轮之后导出接上了，那条用例会红。
+      换成还没接的 `diagram_validate`（`scope`）。
+
+  11. **动作对照表不用追加，但要补一句说明。**
+      `docs/Command-List.md` 那张「工具 | 动作 | CommandId」的表里没有这三个工具的位置，
+      因为它们的动作不发命令。补一句：哪几个工具在表外、为什么在表外。
+
+result: |
+  **落地。八个工具的执行体到此全部接上。**
+
+  - 新增 `ExportTool.cs`、`ValidateTool.cs`、`HistoryTool.cs`。
+  - `DiagramToolset.cs`：三个工具接上；导出与撤销重做的说明改成与事实相符
+    （导出只说 Mermaid，撤销重做那条「人和模型共用同一条历史栈」保持原样）；
+    删掉不再有调用点的 `Pending` 辅助。
+  - `ActionDispatch.cs`：把「把被拒的命令翻译成工具结果」从私有改成公开的 `Failed`，
+    再加一个 `Outcome`——撤销重做那一路走的是历史栈上的条目，没有命令结果可以翻译。
+  - `ToolResult.cs`：源生成上下文登记 `ExportPayload` / `DroppedFeature` /
+    `ValidatePayload` / `ValidationIssue`。
+  - `DuetDiagram.Llm.csproj`：加一条到 `DuetDiagram.Mermaid` 的工程引用。
+  - `docs/Command-List.md`：动作对照表后面补一段说明哪三个工具在表外、为什么在表外。
+  - `ToolRegistryTests`：原来那条「未接线工具」的用例改用导出的 `dsl` 格式
+    （八个工具全接上之后已经没有未接线的工具了），并新增一条「八个工具都有执行体」。
+
+  **核掉的起草假设**
+
+  - 「DSL 与 Mermaid 两种文本导出各有用例」不成立：`DuetDiagram.Dsl` 只有词法、语法与
+    语义映射三样，没有导出方向。这一轮只做 Mermaid，DSL 与位图 / PDF 一样返回
+    「尚未支持」——但理由不同：位图是还没排到，DSL 是不该现在做（决策门还开着）。
+  - 「修复建议由错误码映射到一句话，映射表放在一处」已经成立，不需要新建：
+    `ValidationIssue.Suggestion` 就是那一处，工具层照抄。
+
+  **门禁**
+
+  - `Category=ExportTool`：10 条，全通过。
+  - `Category=ValidateTool`：4 条，全通过。
+  - `Category=HistoryTool`：9 条，全通过。
+  - 全量：Core 430、Layout 75、Render 145、Mermaid 179、Dsl 158、Llm **153**、E2E 81，全通过。
+  - `Category=ToolRegistry`、`Category=ToolSchema`、`Category=ToolDispatch`、
+    `Category=StyleWhitelist`、`Category=LayoutTool`、`Category=CompositeTool`、
+    `Category=ContextSummary`、`Category=CommentDiscipline` 全通过；
+    `dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；`tools/LocCounter --check` 退出码 0；
+    全部任务 YAML 可解析。
+
+  **后续**
+
+  - 自有 DSL 的导出方向没有实现。DSL 去留那个决策门判完之后，要么补一个导出器、
+    要么把 `diagram_export` 的格式列表里的 `dsl` 摘掉。
+  - 多步撤销重做里的回滚路径现在没有用例能触发（撤销不会失败，而重做要失败需要
+    命令的 `Apply` 在当前状态上失败，这在单线程序列里到不了）。留着是因为
+    「一次调用要么全成要么全回滚」是工具层的硬口径，而重做失败在类型上是可表达的。
+  - 位图与 PDF 导出等渲染层与排版库落地之后接上，接口已经留好。

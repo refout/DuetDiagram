@@ -34,13 +34,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` / `diagram_layout` / `diagram_composite` 的动作分发、样式白名单与幂等键 | Phase 3 P3-05 ~ P3-08 已落地；其余两个工具的动作分发（P3-09 起）与错误回环、模型接入未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单与布局组合动作的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` / `diagram_layout` / `diagram_composite` 的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做 | Phase 3 P3-05 ~ P3-09 已落地；**八个工具的执行体到此全部接上**，错误回环与模型接入未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验与历史栈的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-08（命令层、工具定义、上下文摘要与四条工具的动作分发）已落地，P3-09 起未开工。
+P3-01 ~ P3-09（命令层、工具定义、上下文摘要与八个工具的执行体）已落地，P3-10 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -203,6 +203,18 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 解散把成员交给父级；成环与超深度由命令层拒掉
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
 
+# 导出：Mermaid 文本逐字节可复现、丢失清单原样带出、导出不动版本号也不进撤销栈；
+# 自有 DSL 的导出方向与位图 / PDF 返回结构化「尚未支持」
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+
+# 校验：问题逐条带上错误码、相关标识与修复建议（建议来自校验器那一份，工具层不另写一张表）；
+# 校验不动版本号也不进撤销栈
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ValidateTool"
+
+# 撤销重做：人和模型共用同一条历史栈、多步、栈见底停下并说清撤了几步、
+# 返回里说明撤掉的是哪一条命令、哪几步是自己改的
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=HistoryTool"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -325,7 +337,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`
 
 ## 新增一个命令的检查清单
 
@@ -411,6 +423,12 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | 起草 P3-08 时写的「pin 与 unpin 走命令层」与命令层的现状对不上，P3-08 开工时改掉了。连带着那一轮写的「pin 与 sidecar 的固定位置两回事、合并规则要定死」也不成立：只有一处存放处，没有两份要合并 |
 | `diagram_layout` 的 `owner` | 缺省写 `llm`；`auto` 放行，**`human` 被拒绝** | 命令层要求显式给出归属，理由是默认值会让模型那条路径悄悄写出人工归属的约束、而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以缺省写 `llm` 是事实；而 `human` 放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。用户从面板上设的约束由面板自己写，不经过这一层 |
 | 增删布局约束的动作名 | 动作叫 `add-constraint` / `remove-constraint`，命令标识是 `add-layout-constraint` / `remove-layout-constraint`，两者不同名 | 动作名短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。冻结的参数表说明里举的例子就是 `add-constraint`，照它写才不至于让说明与实际动作名对不上 |
+| `DuetDiagram.Llm` 多一条到 `DuetDiagram.Mermaid` 的工程引用 | 导出那一路直接调 `MermaidExporter`，不把导出器当委托注入上下文 | 它与「工具层不引布局引擎」那条口径不冲突：布局引擎是第三方组件，而 Mermaid 是本仓的、只依赖 Core 的纯函数库。反过来注入的话，每个宿主与每条用例都要接一次线，而导出文本本来就是文档的纯函数。对照 P3-06 注入的那两样（层投影、固定标识）：它们**不是**文档的函数，一个在布局结果里、一个在 sidecar 里，所以必须由宿主喂进来 |
+| §6.1 的 `diagram_export` 格式 | 只有 Mermaid 接上了；`dsl` / `svg` / `png` / `pdf` 返回结构化「尚未支持」 | 位图与 PDF 要么依赖渲染层、要么依赖排版库，选型表把它们标成 Phase 4 验证。而 **DSL 导出不是「还没排到」，是不该现在做**：`DuetDiagram.Dsl` 只有词法、语法与语义映射三样，没有导出方向，而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉 |
+| `diagram_validate` 的修复建议 | 照抄 `ValidationIssue.Suggestion`，工具层不另写一张按错误码查的表 | 校验器逐条填了那个字段，那就是「映射表放在一处」里的那一处。工具层再写一张的话，同一个码会在两个入口给出两种建议。`docs/Error-Codes.md` 里那张表是**界面**怎么呈现，由 `Category=ErrorPresentation` 逐行核，与工具层无关 |
+| 「撤掉的是哪一条」怎么拿到 | 调撤销之前先窥栈顶（`HistoryStack.PeekUndo` / `PeekRedo`），拿命令标识与会话标识 | `Undo()` / `Redo()` 返回的 `CommandResult` 里没有命令标识，成功路径上也没有消息。不去读版本日志，是因为日志的用途是审计，让它承担「告诉模型刚才撤了什么」是把它当成了另一件事的载体。栈顶那一条的会话与当前会话相同，就说「你自己改的」 |
+| `diagram_export` / `diagram_validate` / `diagram_undo_redo` 不在动作对照表里 | 它们的参数不是 `action`，也不发任何一条命令 | 导出与校验是只读的纯函数，撤销重做走历史栈。表里每一条都对应一条命令，所以它们没有位置——硬塞进来的话，「表里的 CommandId 必须在已实现表里出现过」那条核对会要求它们指向某条命令，而它们没有 |
+| `steps` 与栈见底 | 栈见底不是失败，是空操作：停下并把实际做了几步写进答复 | 报成失败的话，模型会以为整条调用没生效，然后换个做法重试。多步里的失败才要回滚：把已经成功的那些反向做回去——半途停下的文档比整条失败更难收拾 |
 | P3-05 的八个工具一律返回结构化的「尚未接上」 | 参数表与说明先定死，执行体分批接上 | 参数表是接口，分两次定的话先接上的那些调用方要跟着改。接上时替换的是各自的方法体，`DiagramToolset.cs` 会进 P3-06 ~ P3-09 的改动清单（它们现在的 `files.modify` 里还没有它） |
 | §6.4 的布局摘要（方向、层数、同层分组） | 方向取自 IR；层数与同层分组由宿主从布局结果量化成层号传进来，缺省时只写方向 | 工具层不引布局引擎（P3-08 定的口径）。自己按拓扑算一个的话，摘要里的层数与实际画面各按一套算法，对不上时没有任何东西会报错，而模型会照着一个错的层数去提要求 |
 | §6.4 的锁定列表 | 由宿主传入被固定节点的**标识**，摘要层不读 sidecar 文件 | 固定位置那份人工产物归宿主管。只收标识不收坐标，正好避开「模型照着会过期的数字微调位置」那条 |

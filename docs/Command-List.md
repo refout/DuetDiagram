@@ -121,6 +121,48 @@
 渲染层也还没读图层）、页面的翻页与缩略图、标签与动作在画布上的呈现。
 它们要么是 IR 字段已就位而界面未接，要么是渲染层尚未消费，都不该在这里凭空造一条命令。
 
+## 工具层的动作对照
+
+工具层的每个动作落到一条命令上。下表与 `ActionTable` 里的声明逐行对应，
+由 `Category=ToolDispatch` 的用例两边核：表里的动作名要与代码里的动作表完全一致，
+`CommandId` 必须在上面「已实现」表里出现过。两边分头维护的话，加了一条命令而忘了挂动作，
+表现是模型调用时得到「未知动作」——而命令本身是好的，查起来要绕一大圈。
+
+| 工具 | 动作 | `CommandId` |
+|---|---|---|
+| `diagram_edit` | `add-node` | `add-node` |
+| `diagram_edit` | `remove-node` | `remove-node` |
+| `diagram_edit` | `connect-edge` | `connect-edge` |
+| `diagram_edit` | `disconnect-edge` | `disconnect-edge` |
+| `diagram_edit` | `reconnect-edge` | `reconnect-edge` |
+| `diagram_edit` | `set-node-field` | `set-node-field` |
+| `diagram_edit` | `set-edge-field` | `set-edge-field` |
+| `diagram_edit` | `create-page` | `create-page` |
+| `diagram_edit` | `delete-page` | `delete-page` |
+| `diagram_edit` | `create-layer` | `create-layer` |
+| `diagram_edit` | `rename-layer` | `rename-layer` |
+| `diagram_edit` | `reorder-layer` | `reorder-layer` |
+| `diagram_edit` | `add-tag` | `add-tag` |
+| `diagram_edit` | `remove-tag` | `remove-tag` |
+| `diagram_edit` | `add-action` | `add-action` |
+| `diagram_edit` | `remove-action` | `remove-action` |
+| `diagram_edit` | `set-kind` | `set-kind` |
+| `diagram_style` | `set-shape` | `set-node-field` |
+| `diagram_style` | `set-style` | `set-node-field` |
+| `diagram_style` | `set-text` | `set-node-field` |
+| `diagram_style` | `set-canvas` | `set-canvas-settings` |
+| `diagram_style` | `define-palette-entry` | `define-palette-entry` |
+| `diagram_style` | `update-palette-entry` | `update-palette-entry` |
+| `diagram_style` | `remove-palette-entry` | `remove-palette-entry` |
+
+三个成员动作（形状、样式、文本）落在同一条命令上，区别只在前缀：`set-style` 认
+`style.` 开头的成员，`set-text` 认 `text.` 开头的。不查前缀的话，把 `text.fontSize`
+传给 `set-style` 也会成功，而两个动作各自的说明就成了一句空话。
+
+**动作数少于命令数，这是对的。** 节点与边的属性各合成一条按字段名分发的命令，
+所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条。工具层不把它拆回去——
+拆回去之后同一个效果会有两条路，而其中一条不进结构哈希。
+
 ## 新增命令的检查清单
 
 见 `AGENTS.md`「新增一个命令的检查清单」。核心三条：

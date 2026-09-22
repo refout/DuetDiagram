@@ -457,12 +457,7 @@ public sealed class SummaryTests
     });
 
     private static ToolRegistry Registry(DiagramDocument document, IReadOnlyList<NodeRank> placement) =>
-        ToolRegistry.CreateDefault(new DiagramToolContext
-        {
-            Document = document,
-            Placement = placement,
-            Clock = new ManualTimeProvider(Now),
-        });
+        Harness.Registry(document, placement);
 
     private sealed record LiveSession(DiagramDocument Document, DiagramCommandBus Bus, ManualTimeProvider Clock);
 
@@ -472,14 +467,7 @@ public sealed class SummaryTests
         var document = Sample();
         var clock = new ManualTimeProvider(Now);
 
-        var context = DiagramCommandBusContext.Create(
-            document,
-            new SimpleSessionProvider("tester", SessionIds.Gui("w1")),
-            NullChangeBroadcaster.Instance,
-            DiagramCommandBusOptions.ForGui(),
-            clock);
-
-        return new LiveSession(document, new DiagramCommandBus(context), clock);
+        return new LiveSession(document, Harness.Bus(document, clock), clock);
     }
 
     /// <summary>

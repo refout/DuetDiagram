@@ -1,7 +1,7 @@
 id: P3-07
 title: diagram_edit 与 diagram_style 的 action 分发
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05, P3-06, P3-01, P3-02]
 estimated_loc: 500
 files:
@@ -9,11 +9,20 @@ files:
     - DuetDiagram.Llm/Tools/EditTool.cs
     - DuetDiagram.Llm/Tools/StyleTool.cs
     - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/PortParser.cs
     - DuetDiagram.Llm/Tools/StyleResolver.cs
     - DuetDiagram.Llm.Tests/EditToolTests.cs
     - DuetDiagram.Llm.Tests/StyleToolTests.cs
+    - DuetDiagram.Llm.Tests/Harness.cs
   modify:
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm/Tools/ToolRegistry.cs
+    - DuetDiagram.Llm/Tools/ToolResult.cs
+    - DuetDiagram.Llm.Tests/ToolRegistryTests.cs
+    - DuetDiagram.Llm.Tests/SchemaTests.cs
     - docs/Command-List.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
     expect: 全通过；每个 action 都能落到一条命令上，action 表与命令清单逐条一致
@@ -35,3 +44,119 @@ scope_note: |
   但没有幂等键。方案 §6.2 点名要它，而代理侧重试确实是常态。
   最小做法是把键与结果存在工具层的一张有界表里，不进 IR——它是调用侧的属性，
   与文档结构无关，进 IR 会让同一份文档在不同调用历史下得到不同的哈希。
+
+reconnaissance: |
+  **动手前对着命令层、字段表与参数表核了一遍，结论如下。**
+
+  1. **17 个 edit 动作各自落到哪条命令，逐条定死。**
+
+     - `add-node` → `AddNodeCommand(NodeDef, index)`。参数表里能填的只有 `id` 与 `label`，
+       所以标签缺省时**回退到标识**，与两个导入映射层同一口径（`label` 为空串是「没写」，
+       而「没写」的节点在画面上是个空方框）。
+     - `remove-node` → `RemoveNodeCommand(id)`
+     - `connect-edge` → `ConnectEdgeCommand(EdgeDef)`，`from` / `to` 里的端口要先解析出来。
+     - `disconnect-edge` → `DisconnectEdgeCommand(id)`
+     - `reconnect-edge` → `ReconnectEdgeCommand(id, from, fromPort, to, toPort)`
+     - `set-node-field` / `set-edge-field` → 同名命令，字段名与值原样透传，
+       让命令层去报 `FIELD_UNKNOWN` / `FIELD_VALUE_INVALID`。工具层再写一份字段表的话，
+       两处迟早分叉，而分叉之后命令层仍然是对的、只是模型总被工具层挡住。
+     - `create-page` → `CreatePageCommand(id, label ?? "")`；`delete-page` → `DeletePageCommand(id)`
+     - `create-layer` → `CreateLayerCommand(id, label ?? "")`；`rename-layer` → `RenameLayerCommand(id, label)`
+     - `reorder-layer` → `ReorderLayerCommand(id, index)`
+     - `add-tag` → `AddTagCommand(TagDef)`；`remove-tag` → `RemoveTagCommand(id)`
+     - `set-kind` → `SetKindCommand(DiagramKind)`，图类型从 `value` 取（它是一次标量写入，
+       `value` 的含义正好对得上）。**不新开一个 `kind` 参数**：那会与 `add-action` 的动作类型名撞名。
+
+  2. **`add-action` 现有参数表表达不了，要加三个可选参数。**
+     `ActionDef` 要的是事件名、动作类型名与目标，而表里只有 `id` / `label` / `field` / `value` /
+     `memberIds` / `index`。硬塞进 `field` / `value` 会让那两个参数的说明变成「有时是字段名、
+     有时是事件名」——而说明是模型唯一的依据。所以给 `diagram_edit` 补 `event` / `kind` /
+     `targetId` 三个可选参数。**加可选参数是加法，不是改接口**：已有的调用方一个字都不用改。
+
+     仍然表达不了的是 `ActionDef.Parameters`（动作自己的参数表）。这一轮工具层建出来的动作
+     参数表是空的，作为后续接线项记下来。
+
+  3. **7 个 style 动作都是节点级或文档级的，不需要在节点与边之间猜。**
+     节点形状、样式令牌、文本样式、调色板、画布设置——边不在其中（改边的样式走
+     `diagram_edit` 的 `set-edge-field`，字段名 `style`，值是整份样式的 JSON）。
+
+     - `set-shape` → `SetNodeFieldCommand(id, shape, value)`
+     - `set-style`：给了 `token` 就写 `styleToken`（**过白名单**），否则 `field` 必须是
+       `style.` 开头的成员，走 `SetNodeFieldCommand`。
+     - `set-text`：`field` 必须是 `text.` 开头的成员，走 `SetNodeFieldCommand`。
+     - `set-canvas`：`field` 是 `canvas.` 成员，`value` 是它的值，转成
+       `SetCanvasSettingsCommand` 的类型化参数。一次一个成员——与那条命令「每改一项发一条
+       变更明细」的粒度一致。
+     - `define-palette-entry` → `DefinePaletteEntryCommand(PaletteEntry)`，`token` 是条目名，
+       `field` + `value` 可选地填一个成员。
+     - `update-palette-entry` → `UpdatePaletteEntryCommand(token, field, value)`
+     - `remove-palette-entry` → `RemovePaletteEntryCommand(token)`
+
+  4. **`set-style` 与 `set-text` 的区分靠字段前缀，不靠约定。**
+     两者最终都走 `set-node-field`。不查前缀的话，把 `text.fontSize` 传给 `set-style` 也会成功，
+     而两个动作的说明就成了一句空话。前缀检查是这两个动作各自唯一的那点语义。
+
+  5. **样式白名单取自文档的调色板，且是运行时判据。**
+     `Palette.Entries` 是数据，不是 schema 里能写死的东西（用户随时可能加令牌）。
+     所以白名单校验在 handler 里做：不在表里就返回结构化拒绝，并把**可用的令牌列出来**。
+     只回一句「没有这个令牌」的话，模型只能猜着重试。
+
+  6. **命令被拒时返回的是命令层的错误码，不是工具层的。**
+     这两套码是分开的（P3-05 定的），但「命令被拒」这件事说的是文档里的值不对，
+     处置是去改文档——正是命令层那一套码的含义。P3-10 的修复建议表就是按命令层的码建的，
+     所以这里必须原样透传，另起一套的话那张表会漏掉所有经由工具层的失败。
+
+     `Parameter` 与 `Expected` 这一轮留空：把码映射成「出错参数 + 一句可执行的话」
+     是 P3-10 的活，在这里先写一遍会让那张表有两份。
+
+  7. **一个动作一条命令，所以原子性是现成的。**
+     「一个工具调用要么全部成功要么全部回滚」在这条任务里不需要额外机制：
+     每个 handler 只发一条命令，而命令自己的 `Apply` 已经是原子的。需要跨命令原子的
+     场合（改多处）现在没有，出现了再说。
+
+  8. **幂等键是调用侧的属性，不进参数表。**
+     它不该让模型去编一个。做法是给注册表的 `Invoke` 加一个可选键，键与结果存在一张
+     有界表里；模型侧不传，代理侧传协议请求号。**不放进 schema**：放进去之后模型每次都要
+     想一个，而它没有重试的概念。
+
+  9. **`DiagramToolContext` 要改成持有命令总线，文档与版本日志改为派生属性。**
+     写入口在总线上，而总线本来就拿着文档与版本日志。三个成员各存一份的话，
+     迟早会有人传进来一份「总线管着甲的文档、上下文里的文档是乙」——
+     那种不一致没有任何东西会报错，表现是摘要与改动对不上。
+
+  10. **动作表与命令清单的对照由测试核。** 动作表里每条记着自己的 `CommandId`，
+     测试拿它去比 `docs/Command-List.md` 的「已实现」表；同时在文档里加一张
+     「工具 | 动作 | CommandId」的对照表，两边逐行比。P3-08 / P3-09 往那张表里追加它们那几行。
+
+result: |
+  **落地。** 两个工具的 24 个动作各自落到一条命令上，样式白名单与幂等键都接上了。
+
+  - 新增 `ActionDispatch.cs`（`ToolAction` / `ActionTable` / 找动作、发命令、把结果翻译成
+    工具结果）、`PortParser.cs`（端点按第一个点拆出端口）、`StyleResolver.cs`
+    （白名单、前缀、画布成员、枚举与数字解析）、`EditTool.cs`、`StyleTool.cs`。
+  - `ToolResult.cs` 加 `CommandOutcome`（版本、是否空操作、受影响标识、两个变更标志、一句话）
+    与它的源生成注册。**不含坐标、不含改动后的内容**——要看结果再读一次摘要。
+  - `DiagramToolset.cs`：`Edit` 与 `Style` 接上；`Edit` 的参数表补 `event` / `kind` / `targetId`
+    三个可选参数。其余六个工具仍然返回结构化的「尚未接上」。
+  - `ToolRegistry.cs`：`Invoke` 加一个可选幂等键，键与结果存在容量 128 的有界表里
+    （FIFO 挤掉）。**不进 schema**：模型没有重试的概念。
+  - `docs/Command-List.md` 新增「工具层的动作对照」一节（24 行），由用例逐行核。
+  - `Harness.cs`：共享夹具（固定时刻的时钟、总线、上下文、注册表、调一次工具、
+    上溯到仓库根、取第一个错误码）。P3-06 的用例改走它，P3-07 起的新用例也走它。
+
+  **门禁**
+
+  - `Category=ToolDispatch`：18 条，全通过。
+  - `Category=StyleWhitelist`：16 条，全通过。
+  - 全量：Core 430、Layout 75、Render 145、Mermaid 179、Dsl 158、Llm **93**、E2E 81，全通过。
+  - `Category=CommentDiscipline`、`Category=ToolRegistry`、`Category=ToolSchema`、
+    `Category=ContextSummary` 全通过；`dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；
+    `tools/LocCounter --check` 退出码 0；全部任务 YAML 可解析。
+
+  **后续**
+
+  - `ActionDef.Parameters` 这一轮表达不了，`add-action` 建出来的动作参数表是空的。
+  - `DiagramToolContext` 后续还会加成员（P3-08 的布局意图、P3-09 的导出目标），
+    加成员改的是上下文记录，参数表不动。
+  - P3-08 / P3-09 往 `docs/Command-List.md` 的动作对照表里追加它们那几行，
+    并把新的动作挂进 `ActionTable`。

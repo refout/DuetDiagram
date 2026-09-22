@@ -20,8 +20,13 @@ namespace DuetDiagram.Llm.Tools;
 /// </remarks>
 public sealed class ToolRegistry
 {
+    /// <summary>幂等表最多记多少条。到顶之后最旧的被挤掉。</summary>
+    private const int IdempotencyCapacity = 128;
+
     private readonly List<ToolDescriptor> _tools = [];
     private readonly Dictionary<string, ToolDescriptor> _byName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ToolResult> _replayed = new(StringComparer.Ordinal);
+    private readonly Queue<string> _replayOrder = new();
 
     /// <summary>已登记的工具，按登记次序。</summary>
     public IReadOnlyList<ToolDescriptor> Tools => _tools;
@@ -48,25 +53,71 @@ public sealed class ToolRegistry
     /// 按名字调用一个工具，参数以 JSON 形式给出。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 这是工具层的统一入口：参数先按 schema 校验，通过了才进执行体。
     /// 名字不认识时返回结构化错误而不是抛异常——名字可能来自协议对端，
     /// 那是外部输入，不是内部调用方的笔误。
+    /// </para>
+    /// <para>
+    /// <paramref name="idempotencyKey"/> 是**调用侧的属性**，所以不在参数表里：
+    /// 放进去的话模型每次都要想一个键，而它根本没有"重试"这个概念。
+    /// 代理侧拿协议请求号填，同一个键重复调用直接返回第一次的结果，
+    /// 不再施加一次变更——一次网络抖动会变成两次编辑，靠的就是这里挡住。
+    /// </para>
     /// </remarks>
-    public Task<ToolResult> Invoke(
+    public async Task<ToolResult> Invoke(
         string name,
         JsonElement arguments,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? idempotencyKey = null)
     {
         if (Find(name) is not { } tool)
         {
-            return Task.FromResult(ToolResult.Fail(ToolError.Of(
+            return ToolResult.Fail(ToolError.Of(
                 ToolErrorCodes.UnknownTool,
                 $"{name} 不是一个已登记的工具",
                 null,
-                Known())));
+                Known()));
         }
 
-        return tool.Handler(arguments, cancellationToken);
+        if (string.IsNullOrEmpty(idempotencyKey))
+        {
+            return await tool.Handler(arguments, cancellationToken).ConfigureAwait(false);
+        }
+
+        var key = $"{name}\u0000{idempotencyKey}";
+
+        if (_replayed.TryGetValue(key, out var replay))
+        {
+            return replay;
+        }
+
+        var result = await tool.Handler(arguments, cancellationToken).ConfigureAwait(false);
+
+        Remember(key, result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// 记下一次调用的结果，超出容量时挤掉最旧的那条。
+    /// </summary>
+    /// <remarks>
+    /// 表是有界的：不设上限的话，一个长跑的服务端会被调用历史撑爆，
+    /// 而那些键再也没有第二次机会被撞上。挤掉的顺序按写入先后，
+    /// 因为键的存活时间与它被写进来的时间同向。
+    /// </remarks>
+    private void Remember(string key, ToolResult result)
+    {
+        if (_replayed.Count >= IdempotencyCapacity && _replayOrder.Count > 0)
+        {
+            _replayed.Remove(_replayOrder.Dequeue());
+        }
+
+        if (_replayed.TryAdd(key, result))
+        {
+            _replayOrder.Enqueue(key);
+        }
     }
 
     /// <summary>模型侧要的那一份。</summary>

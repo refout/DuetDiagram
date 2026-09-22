@@ -164,12 +164,8 @@ public sealed class SchemaTests
 
     #region 夹具
 
-    /// <summary>一份最小上下文：一张空图，没有版本日志、没有人工产物。参数表与它无关。</summary>
-    private static ToolRegistry Registry() =>
-        ToolRegistry.CreateDefault(new DiagramToolContext
-        {
-            Document = new DiagramDocument("schema-doc"),
-        });
+    /// <summary>一份最小上下文：一张空图，没有人工产物。参数表与它无关。</summary>
+    private static ToolRegistry Registry() => Harness.Registry(new DiagramDocument("schema-doc"));
 
     private static Task<ToolResult> Echo([Pattern(Patterns.DiagramId)] string id) =>
         Task.FromResult(ToolResult.Ok(id));

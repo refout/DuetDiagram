@@ -151,6 +151,40 @@ public sealed record ToolResult
 
 #endregion
 
+#region 命令的产物
+
+/// <summary>
+/// 一次成功变更之后要告诉调用方的东西。
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="Version"/> 是给并发检查用的：调用方下次动手时要报上它，报旧了会拿到冲突。
+/// 两个变更标志是给宿主用的：结构变了要重排，只变外观重绘就够。**两个都假不等于无操作**，
+/// 判据是 <see cref="NoOp"/>。
+/// </para>
+/// <para>
+/// 它不含坐标，也不含改动后的元素内容。要看改动结果就再读一次摘要——
+/// 把内容塞进每一次变更的返回里，改一次布局就会把整张图回灌一遍。
+/// </para>
+/// </remarks>
+public sealed record CommandOutcome
+{
+    public required int Version { get; init; }
+
+    /// <summary>命令合法但没什么可做。算成功，但版本号没动、历史也没进。</summary>
+    public bool NoOp { get; init; }
+
+    public string[] AffectedIds { get; init; } = [];
+
+    public bool StructuralChanged { get; init; }
+
+    public bool VisualChanged { get; init; }
+
+    public string? Message { get; init; }
+}
+
+#endregion
+
 #region 序列化
 
 /// <summary>
@@ -167,6 +201,7 @@ public sealed record ToolResult
 [JsonSerializable(typeof(ToolResult))]
 [JsonSerializable(typeof(ToolError))]
 [JsonSerializable(typeof(ToolError[]))]
+[JsonSerializable(typeof(CommandOutcome))]
 internal sealed partial class ToolJsonContext : JsonSerializerContext;
 
 #endregion

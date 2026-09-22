@@ -168,11 +168,15 @@ public static class DiagramToolset
             [Description("连线的起点，可以带端口，例如 a 或 a.bottom。")][Pattern(Patterns.Endpoint)] string? from = null,
             [Description("连线的终点，写法同 from。")][Pattern(Patterns.Endpoint)] string? to = null,
             [Description("要写的字段名，用于 set-node-field 与 set-edge-field。")] string? field = null,
-            [Description("字段要写成的值。")] string? value = null,
-            [Description("显示文本：节点标签、页面名、图层名、标签名。")] string? label = null,
+            [Description("字段要写成的值。set-kind 也用它，填图类型名。")] string? value = null,
+            [Description("显示文本：节点标签、边标签、页面名、图层名、标签名。")] string? label = null,
             [Description("成员标识，用于打标签。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
-            [Description("插入位置或次序，从零开始。")] int? index = null) =>
-            Pending(DiagramToolset.Edit, action);
+            [Description("插入位置或次序，从零开始。")] int? index = null,
+            [Description("触发事件名，用于 add-action，例如 click。")] string? @event = null,
+            [Description("动作类型名，用于 add-action，例如 open-url。")] string? kind = null,
+            [Description("动作作用的对象标识，用于 add-action。")][Pattern(Patterns.DiagramId)] string? targetId = null) =>
+            Task.FromResult(EditTool.Run(_context, new EditArguments(
+                action, id, from, to, field, value, label, memberIds, index, @event, kind, targetId)));
 
         #endregion
 
@@ -181,10 +185,10 @@ public static class DiagramToolset
         public Task<ToolResult> Style(
             [Description("要做的事，例如 set-shape、set-style、set-text、set-canvas。")][Pattern(Patterns.DiagramId)] string action,
             [Description("要改的元素标识。")][Pattern(Patterns.DiagramId)] string? id = null,
-            [Description("样式令牌名，必须已经在调色板里。")][Pattern(Patterns.DiagramId)] string? token = null,
-            [Description("要改的样式成员名，例如 style.fill、text.fontSize。")] string? field = null,
+            [Description("样式令牌名，必须已经在调色板里。用于 set-style 与调色板那三个动作。")][Pattern(Patterns.DiagramId)] string? token = null,
+            [Description("要改的样式成员名，例如 style.fill、text.fontSize、canvas.grid。")] string? field = null,
             [Description("成员要写成的值。")] string? value = null) =>
-            Pending(DiagramToolset.Style, action);
+            Task.FromResult(StyleTool.Run(_context, new StyleArguments(action, id, token, field, value)));
 
         #endregion
 

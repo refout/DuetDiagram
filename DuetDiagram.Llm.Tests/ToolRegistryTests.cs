@@ -215,24 +215,20 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void An_unwired_tool_says_so_without_blaming_the_caller()
     {
-        var result = Invoke(Registry(), DiagramToolset.Edit, """{"action":"add-node","id":"a"}""");
+        var result = Invoke(Registry(), DiagramToolset.Layout, """{"action":"set-direction","direction":"LR"}""");
 
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].Code.Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Message.Should().Contain(DiagramToolset.Edit).And.Contain("add-node");
+        result.Errors[0].Message.Should().Contain(DiagramToolset.Layout).And.Contain("set-direction");
     }
 
     #endregion
 
     #region 夹具
 
-    /// <summary>一份最小上下文：一张空图，没有版本日志、没有人工产物。</summary>
-    private static ToolRegistry Registry() =>
-        ToolRegistry.CreateDefault(new DiagramToolContext
-        {
-            Document = new DiagramDocument("doc"),
-        });
+    /// <summary>一份最小上下文：一张空图，没有人工产物。</summary>
+    private static ToolRegistry Registry() => Harness.Registry(new DiagramDocument("doc"));
 
     /// <summary>一个只回一句话的工具，用来观察参数有没有送到执行体。</summary>
     private static Task<ToolResult> Echo(

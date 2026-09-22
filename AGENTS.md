@@ -34,13 +34,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read` | Phase 3 P3-05 / P3-06 已落地；动作分发表（P3-07 起）与错误回环、模型接入未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表、参数约束与上下文摘要的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` 的动作分发与幂等键 | Phase 3 P3-05 ~ P3-07 已落地；其余六个工具的动作分发（P3-08 起）与错误回环、模型接入未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发与样式白名单的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-06（命令层、工具定义与上下文摘要）已落地，P3-07 起未开工。
+P3-01 ~ P3-07（命令层、工具定义、上下文摘要与两条工具的动作分发）已落地，P3-08 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -186,6 +186,15 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 令牌实时取自调色板，最近修改读的是版本日志
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
 
+# 动作分发：动作表里每个动作都有执行体、每个 CommandId 都在「已实现」表里、
+# 动作表与命令清单里那张对照表逐行一致；未知动作列出可用动作；
+# 命令被拒时回的是命令层错误码；同一个幂等键重复调用不施加第二次变更
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
+
+# 样式白名单：不在调色板里的令牌被拒且列出可用的那些，调色板改了之后白名单跟着变；
+# set-style 与 set-text 各认自己的字段前缀；画布六个成员各改各的
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=StyleWhitelist"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -308,7 +317,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`
 
 ## 新增一个命令的检查清单
 
@@ -400,3 +409,11 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `diagram_read` 的 `pageId` | 给了就返回结构化「尚未接上」，不给则读整份文档 | 页面现在还没有消费方（渲染、界面与摘要都没读它）。认下这个参数而按整份文档回，会让调用方以为它读的是某一页——一个静默的错误答案比一句「还没接上」糟得多 |
 | 工具集的构造 | `DiagramToolset.Create` 与 `ToolRegistry.CreateDefault` 都要一个 `DiagramToolContext`（文档、版本日志、固定标识、层投影、时钟） | 八个工具全都作用在某一份文档上。用静态字段兜的话，同一个进程里的两个窗口会互相看到对方的文档，而表现是「摘要里的图不是我这一张」，只在多窗口下出现 |
 | 工具声明是实例方法而不是静态方法 | 上下文由实例捕获，**不当成声明方法的一个参数** | 参数表从签名推导，多一个参数就会多一条模型要填的 schema，而它根本不是模型能提供的东西。现有 `Category=ToolSchema` 的用例是这条的回归网 |
+| §6.1 的 `diagram_edit` 参数表 | 加了 `event` / `kind` / `targetId` 三个可选参数 | `add-action` 要的是事件名、动作类型名与目标，而表里只有 `id` / `label` / `field` / `value` / `memberIds` / `index`。硬塞进 `field` / `value` 会让那两个参数的说明变成「有时是字段名、有时是事件名」，而说明是模型唯一的依据。加可选参数是加法，已有的调用方一个字都不用改 |
+| `diagram_edit` 的 `add-action` 建出来的动作 | 参数表是空的，`ActionDef.Parameters` 这一轮表达不了 | 参数表里没有一个能装键值对的位置。动作还没有真正的消费方（渲染与界面都不读它），先让动作能被增删与往返，等消费方开工时再补 |
+| `diagram_edit` 的 `set-kind` | 图类型从 `value` 取，**不新开 `kind` 参数** | 一次标量写入，`value` 的含义正好对得上。新开一个 `kind` 参数会与 `add-action` 的动作类型名撞名，而两个 `kind` 的含义完全不同 |
+| 工具层返回的命令产物 | 新增 `CommandOutcome`（版本、是否空操作、受影响标识、两个变更标志、一句话），不含坐标、不含改动后的内容 | 要看改动结果就再读一次摘要。把内容塞进每一次变更的返回里，改一次布局就会把整张图回灌一遍 |
+| 幂等键的位置 | 不进参数表，是 `ToolRegistry.Invoke` 的一个可选参数；键与结果存在一张容量 128 的有界表里 | 它是**调用侧的属性**，与文档结构无关，进 IR 会让同一份文档在不同调用历史下得到不同的哈希。放进 schema 也不行：模型没有重试的概念，每次都要它编一个键 |
+| §6.2 的样式白名单 | 在动作执行体里判，判据是**文档的调色板**；不在表里时把可用的令牌列出来 | 令牌表是文档里的数据，用户随时可以加一个，所以它进不了 schema 里那份写死的约束。只回一句「没有这个令牌」的话，模型只能猜着重试，而每次重试都是一轮往返 |
+| `diagram_style` 的动作范围 | 七个动作都是节点级或文档级的；改边的样式走 `diagram_edit` 的 `set-edge-field` | 边上没有形状、没有文本样式，也没有令牌字段以外的样式入口。给 `diagram_style` 加边的话，它得先在节点与边之间猜一个，而那个判断本来就在调用方手里 |
+| 动作表与命令清单的对照 | 文档里新增一张「工具 \| 动作 \| CommandId」的表，由 `Category=ToolDispatch` 逐行核 | 两边分头维护的话，加了一条命令而忘了挂动作，表现是模型调用时得到「未知动作」——而命令本身是好的，查起来要绕一大圈 |

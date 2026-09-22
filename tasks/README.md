@@ -151,7 +151,7 @@ Skill、高级布局约束），没有给 ID 与依赖。`P3-01` ~ `P3-16` 这�
 依据是 §6（LLM 集成）、§7（MCP Server）、§8（Skill）、§14.3 与 §15.2 里那些可验收的判据。
 
 ```
-P3-01 命令层：节点、边与样式 ──┐
+P3-01 命令层：节点次序与断边 ──┐
 P3-02 命令层：布局与调色板   ──┼── P3-05 ToolRegistry 与八个工具
 P3-03 命令层：组合与图层     ──┤          ├── P3-06 diagram_read 与上下文摘要
 P3-04 命令层：页面、标签、动作 ┘          │     ├── P3-07 diagram_edit 与 diagram_style
@@ -172,6 +172,16 @@ P3-16 收尾：实机验收与多 agent 并发 ── 依赖上面全部
 方案把命令层算在 Phase 1，而 Phase 3 的八个工具全靠它——不补上，`diagram_edit` 与
 `diagram_style` 就只能是个空壳。放在 Phase 3 的第一位，是因为它是 Phase 3 的前置，
 不是 Phase 1 的收尾。
+
+**但这十一组不是十一条命令。** 起草第一版时照抄了命令清单里那张「计划中」表，
+写成了十一条；对着代码核一遍才发现其中九条已经被 P1-05 的字段表吸收——
+`set-node-field` 按字段名分发，label、shape、parent、layer、styleToken、style、text、
+ports、richText、mathMode、desc、meta 都在它名下，边只有 label 与 style 两个。
+判断标准是**被改的值挂在元素上还是挂在文档上**：挂在元素上的由字段表覆盖，
+挂在文档子对象上的（`layout`、`palette`）才需要各立命令。
+另外两条（`add-edge-waypoints`、`set-edge-route`）与 P2-07 的决定直接冲突：
+折点写在 sidecar 的 `pinnedEdges`、不进 IR 也不走命令总线，所以它们不该有命令，
+工具层也不该为折点开 action。
 
 ### Phase 3 DoD 落在哪些任务上
 

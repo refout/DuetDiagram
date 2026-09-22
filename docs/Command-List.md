@@ -25,6 +25,23 @@
 
 ## 计划中（Phase 1 P1-03，方案称 40+ 条）
 
+> **这张表是目标，不是承诺，而且它已经不准确了。** 实际创建以任务 YAML 为准，
+> 每完成一条就在本表登记实现状态。
+>
+> 已知的不准确有两处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
+>
+> - **节点与样式那两组里的多数条目不需要新命令。** P1-05 的字段注册表落地之后，
+>   `set-node-field` 按字段名分发，label、shape、parent、layer、styleToken、style、
+>   text、ports、richText、mathMode、desc、meta 都在它名下；边只有 label 与 style 两个。
+>   所以 `update-node-label`、`move-node-layer`、`set-node-shape`、`apply-style-token`、
+>   `set-node-style`、`set-text-style`、`set-edge-style` 都不必各立一条命令。
+>   判断标准是**被改的值挂在元素上还是挂在文档上**：挂在元素上的由字段表覆盖。
+> - **`add-edge-waypoints` 与 `set-edge-route` 不该有命令。** 折点写在 sidecar 的
+>   `pinnedEdges`，不进 IR、不走命令总线——理由是折点是用户「拖这儿」的产物，
+>   走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。
+>
+> 剩下的条目仍然有效，落在 `tasks/phase3/P3-01` ~ `P3-04`。
+
 按工具层的 action 分组，便于 `diagram_edit` 内部按 action 分发：
 
 | 分组 | 命令（`CommandId`） |
@@ -38,9 +55,6 @@
 | 调色板 | `define-palette-entry`、`update-palette-entry`、`remove-palette-entry` |
 | 标签 / 动作 | `add-tag`、`remove-tag`、`add-action`、`remove-action` |
 | 文档 | `set-kind`、`set-canvas-settings` |
-
-> 这张表是**目标**，不是承诺。实际创建以 `tasks/phase1/P1-03-*.yaml` 为准，
-> 每完成一条就在本表登记实现状态。
 
 ## 新增命令的检查清单
 

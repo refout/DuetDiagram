@@ -1,0 +1,43 @@
+id: P3-01
+title: 补齐命令层——节点次序与断边
+phase: 3
+status: pending
+depends_on: [P1-03, P1-05, P2-07]
+estimated_loc: 300
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/ReorderNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/DisconnectEdgeCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - docs/Command-List.md
+  test:
+    - DuetDiagram.Core.Tests/NodeOrderCommandTests.cs
+    - DuetDiagram.Core.Tests/DisconnectEdgeCommandTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；两条命令的失败路径与成功路径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 全通过；新增的 Memento 记录都补了 [JsonDerivedType]
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommandGroups"
+    expect: 全通过；命令清单的「已实现」表与实际注册的命令逐条一致，没有列在计划里却已经存在、或反过来漏掉的
+constraints:
+  - "**动手之前先查字段表。** P1-05 的字段注册表已经把节点与边的字段写好了，`set-node-field` / `set-edge-field` 按字段名分发，覆盖 label、shape、parent、layer、styleToken、style（含七个子字段）、text（含八个）、ports、richText、mathMode、desc、meta；边只有 label 与 style 两个。**这些再各立一条命令的话，同一个效果会有两条路**，而两条路的冲突粒度不一样：按字段写的那条能认出「一边改填充、一边改描边」可以共存，整份覆盖的那条会把两次互不相干的修改判成冲突"
+  - "**`reorder-node` 是次序，不是字段。** 它改的是集合内的位置而不是某个字段的值，所以进不了字段表。冲突判定要能认出「同一层里两个节点各被移动过」这两件事可以共存"
+  - "**`disconnect-edge` 是删除。** memento 要能按原索引把边插回去，`RestoreCore` 的顺序还原要单独有用例——插回位置错了的话，撤销之后文档与之前逐字节不一致，而画面上看不出来"
+  - "**`add-edge-waypoints` 与 `set-edge-route` 不立命令。** 折点写在 sidecar 的 `pinnedEdges`，不进 IR、不走命令总线——这是 P2-07 定下的，理由是折点是用户「拖这儿」的产物，走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。所以工具层也**不得**为折点开 action，它只能走宿主侧的入口"
+  - "`Validate` 返回结构化 `CommandError`；`CaptureMemento` 与 `Apply` 对同一文档给出**一致**的索引"
+  - "新增 Memento 记录补 `[JsonDerivedType]`，否则原生编译下反序列化失败而普通测试全绿"
+context:
+  - "`docs/Command-List.md` 里那张「计划中」表是目标不是现状，这一条要把其中已被字段表覆盖的那些划掉"
+  - "`DuetDiagram.Core/Model/FieldRegistry.cs` 是字段名的唯一来源；`NodeFieldValue.Writable` 与 `EdgeFieldValue.Writable` 由它派生"
+  - "`DuetDiagram.Core/Commands/Builtin/RemoveNodeCommand.cs` 是删除类命令的现成骨架"
+scope_note: |
+  **这一条原本写了十一条命令，其中九条是多余的。** 起草时照抄了命令清单里那张
+  「计划中」表，没有先查 P1-05 的字段注册表——而字段表落地之后，标签、形状、层、
+  样式令牌、样式、文本这些字段的写入已经被 `set-node-field` 一条命令覆盖了。
+  按原来的写法做下去，会得到九条与既有命令功能重叠的命令，而重叠的两条路冲突粒度不同，
+  同一个用户操作走哪条路由调用方决定，行为不一致而两边各自都自洽。
+
+  教训与命令清单里那句话是同一件事：那张表是**目标**，实际创建以任务为准。
+  起草任务之前要对着代码核一遍，不能对着计划核。

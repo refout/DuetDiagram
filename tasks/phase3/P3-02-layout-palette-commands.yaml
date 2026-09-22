@@ -29,6 +29,7 @@ acceptance:
   - command: dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
     expect: 全通过；方向与间距改动之后确实触发重排，固定位置保留到最后一级之前
 constraints:
+  - "**这八条要各立命令，而节点与边的字段不需要——差别在于被改的东西在哪一层。** P1-05 的字段表只覆盖**元素上的字段**（节点与边），所以 label / shape / layer / style / text 那些由 `set-node-field` 一条命令分发就够了。`layout` 与 `palette` 是**文档的子对象**，不在字段表里，所以它们要各立命令。判断标准是「这个值挂在元素上还是挂在文档上」，不是「它看起来像不像一个字段」"
   - "**布局类命令必须让 `CommandResult` 的结构变更标志为真。** 报成纯外观的话，宿主会只重绘不重排，而画面上的坐标根本没跟着约束变"
   - "`set-place` 是**相对位置**，与既有的同层 / 对齐 / 层内次序三类约束并存。四类都落在 `layout` 子对象上，写入时要合并而不是覆盖整份 `LayoutHints`——覆盖的话，加一条相对位置会把之前加的同层约束悄悄删掉"
   - "`pin-node` 与 `unpin-node` 走命令总线（进 IR）；而 Phase 2 的拖拽落点走 sidecar 的 `pinnedNodes`。两者**不是同一件事**：前者是 LLM 或命令明确表达的意图，后者是用户拖出来的产物。写清楚它们的边界，否则同一个节点会有两个互相矛盾的固定位置"
@@ -39,6 +40,7 @@ context:
   - 方案 §9.2 的 set-place 与三类约束并存
   - "`DuetDiagram.Core/Commands/Builtin/AddLayoutConstraintCommand.cs` 是三类约束的现成骨架"
   - "`docs/Layout-Constraints.md` 记着三类约束的成员形状与合并口径"
+  - "`DuetDiagram.Core/Model/FieldRegistry.cs` 里 `layout` 与 `palette` 都不在字段表内，这一条与 P3-01 是同一判断的两面"
 scope_note: |
   **`pin-node` 与 sidecar 的 `pinnedNodes` 是两个来源，这一点必须写在文档里。**
   P2-06 已经定下「拖动产生的固定位置不进 IR」，理由是拖动一次会塞进几百条 IR 记录、

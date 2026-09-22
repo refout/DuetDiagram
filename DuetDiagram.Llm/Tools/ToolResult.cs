@@ -37,6 +37,15 @@ public static class ToolErrorCodes
 
     /// <summary>这一次调用本身成立，但它对应的能力还没接上。</summary>
     public const string NotSupported = "TOOL_NOT_SUPPORTED";
+
+    /// <summary>
+    /// 同一个错误连着试到上限，这一轮停下了。
+    /// </summary>
+    /// <remarks>
+    /// 它不是"参数错了"，而是"这一轮已经没得试了"。单独一个码而不是复用某个参数错误：
+    /// 两者的处置相反——参数错误是改完参数再来，这一条是别再发同一个调用、把这件事报给人。
+    /// </remarks>
+    public const string RetryExhausted = "TOOL_RETRY_EXHAUSTED";
 }
 
 #endregion

@@ -269,6 +269,11 @@ public static class RepairHints
                 null,
                 "这条路还没接上，重试多少次都一样。换成现在支持的做法，或者把缺的那一样报给人。"),
 
+            [Tools.ToolErrorCodes.RetryExhausted] = new(
+                Tools.ToolErrorCodes.RetryExhausted,
+                null,
+                "同一个调用已经连着试到上限了，别再原样重试。换一个做法，或者把这件事报给人。"),
+
             #endregion
         };
 

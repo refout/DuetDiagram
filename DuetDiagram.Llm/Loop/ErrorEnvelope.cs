@@ -84,6 +84,28 @@ public sealed record ErrorEnvelope
     }
 
     /// <summary>
+    /// 这一轮试到上限了，回给模型的那一条。
+    /// </summary>
+    /// <remarks>
+    /// 它取代原来那条错误：模型已经连着撞了同一个错，再原样告诉它一次错误码没有新信息，
+    /// 它需要知道的是「别再试了」。带上试了几次，好让它与读日志的人看出这是到了上限，
+    /// 而不是一个新冒出来的错误。
+    /// </remarks>
+    /// <param name="attempts">这一轮一共失败了几次。</param>
+    public static ErrorEnvelope Exhausted(int attempts)
+    {
+        var hint = RepairHints.For(ToolErrorCodes.RetryExhausted);
+
+        return new ErrorEnvelope
+        {
+            Code = ToolErrorCodes.RetryExhausted,
+            Message = $"同一个错误已经连着试了 {attempts} 次，这一轮停下了。",
+            Suggestion = hint.Suggestion,
+            Attempt = attempts,
+        };
+    }
+
+    /// <summary>
     /// 一次失败里的全部错误各自翻成信封。
     /// </summary>
     /// <remarks>

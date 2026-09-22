@@ -1,7 +1,7 @@
 id: P3-11
 title: MEAI 集成与内外部工具共用
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05, P3-06, P3-10]
 estimated_loc: 400
 files:
@@ -12,9 +12,14 @@ files:
     - DuetDiagram.Llm.Tests/ChatClientTests.cs
     - DuetDiagram.Llm.Tests/ToolParityTests.cs
   modify:
-    - DuetDiagram.slnx
-    - Directory.Packages.props
+    - DuetDiagram.Llm/Tools/ToolResult.cs
+    - DuetDiagram.Llm/Tools/ToolDescriptor.cs
+    - DuetDiagram.Llm/Loop/ErrorEnvelope.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
+    - docs/Error-Codes.md
     - docs/Architecture.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ChatClient"
     expect: 全通过；工具调用往返走通，错误回环把结构化错误回灌给模型
@@ -37,3 +42,98 @@ scope_note: |
   **脚本化的假客户端不是偷懒，是这一层的判据所要求的。** §14.3 的 Phase 3 判据里有一条是
   「内外部工具行为一致」——它比的是两侧的**声明与行为**，与模型的输出无关。
   打真模型只会把噪声引进来。真模型的端到端那一条在 P3-16，与这一条分开。
+
+reconnaissance: |
+  **动手前对着 `Microsoft.Extensions.AI` 10.7.0 的公开接口、P0-09 的结论与现有工具层核了一遍，
+  结论如下。**
+
+  1. **回环的接入点是 `FunctionInvokingChatClient.FunctionInvoker`，不必派生。**
+     它是公开可设的委托，签名是
+     `Func<FunctionInvocationContext, CancellationToken, ValueTask<object>>`。
+     用公开属性而不是继承：继承会把自己的客户端类型钉死在别人的基类上，
+     而那个基类里真正要用的只有一个受保护的虚方法，升一次大版本就可能改名。
+     `FunctionInvoker` 是留给使用方的扩展点，改名的可能性小得多。
+
+  2. **`FunctionInvoker` 拿不到 `ToolResult`，所以回环这一路直接调注册表。**
+     `context.Function` 是 `AIFunction`，而本仓那个包装类把结果序列化成 `JsonElement`
+     才交出去，原始的 `ToolResult` 出不来。所以这一路走 `ToolRegistry.Invoke`——
+     它返回 `ToolResult`，而且与代理侧走的是同一个入口，两条路不会在参数校验上分叉。
+     参数从 `AIFunctionArguments` 转 JSON 那一步复用包装类里现成的那一段（改成 internal）：
+     两处各写一份的话，某天一边改了转换规则，另一边的参数就悄悄对不上。
+
+  3. **上限有三层，各管各的，不合并。**
+     `MaximumIterationsPerRequest`（缺省 40）管整轮的模型往返次数，
+     `MaximumConsecutiveErrorsPerRequest`（缺省 3）是依赖自己数的连续失败，
+     而 `ErrorLoop`（缺省 3）管「同一个错误回灌几次」，并负责把失败翻成结构化内容、写日志。
+     前两个只负责停；翻内容与记日志是这一层的事，合成一个数会让「停下来」与
+     「告诉模型为什么」绑在一起，而两者要的东西不一样。
+
+  4. **到上限用 `FunctionInvocationContext.Terminate` 停下。**
+     它是公开可写的「这一轮到此为止」开关。置真并回一条说明之后，
+     模型不会再把同一个调用发第三次；不置的话，我们的上限只是少回灌一次内容，
+     循环仍由依赖那 40 次兜底，而日志里那句「停下了」就成了空话。
+
+  5. **`ChatOptions.Tools` 与 `AdditionalTools` 不能同时用。**
+     后者是「每次请求都加上」，两者同时给会让同一批工具在请求里出现两遍，
+     而重复的工具名会让对端的行为变得不确定。所以「这一轮广告哪几个工具」
+     只由 `ChatOptionsFactory` 一处决定。
+
+  6. **两侧逐字相同按原文比，不按结构比。** 实测
+     `AIFunction.JsonSchema.GetRawText()` 与 `McpServerTool.ProtocolTool.InputSchema.GetRawText()`
+     逐字相同（含可空参数的数组形式 `"type":["string","null"]`）。现有的
+     `Category=ToolRegistry` 那条按规范 JSON 比，容忍键序与空白差异；这一条要按原文比——
+     P0-09 报告点名要的就是这条回归网，而「有人把两侧改成各自维护」之后，
+     差异很可能正好出现在键序或空白上，那时结构比较仍然全绿。
+
+  7. **测试工程的引用不用改。** `DuetDiagram.Llm.Tests` 经由到 `DuetDiagram.Llm` 的工程引用
+     就能取到 `Microsoft.Extensions.AI` 的类型（现有的 `ToolRegistryTests` 已经在这么用）。
+     解决方案文件与包版本表也不用动：没有新工程、没有新依赖。
+     起草时把这两项列进了 `files.modify`，核下来都不成立。
+
+  8. **可空参数的数组形式在这一层要实测一次。** P0-09 留了一条「接入外部代理时要实测」，
+     而这一轮刚好有一个现成的断言位：两侧的原文里都应当出现 `"type":["string","null"]`。
+     写进去之后，依赖升级若把形式改回 `nullable: true`，这条会红。
+
+result: |
+  **落地。模型那条通路能跑通了。**
+
+  - 新增 `DuetDiagram.Llm/Chat/ChatOptionsFactory.cs`：把注册表里的工具填进对话选项。
+    「这一轮广告哪几个工具」只由这一处决定，两处各加一批的话，同一批工具会在请求里
+    出现两遍，而重复的工具名会让对端的行为变得不确定。传进来的那份先克隆再改。
+  - 新增 `DuetDiagram.Llm/Chat/ScriptedChatClient.cs`：按脚本回答的假客户端，
+    带 `Says` 与 `Calls` 两个建响应的入口，并把收到的每一次请求记下来。
+    它把「工具调用往返」的形状固定在一处，测试与任何离线宿主用的是同一份。
+  - 新增 `DuetDiagram.Llm/Chat/DiagramChatClient.cs`：接上依赖里现成的工具调用循环，
+    把 `FunctionInvoker` 指向注册表；成功交结果，失败交结构化信封，到上限置终止开关。
+  - `ToolDescriptor.cs`：包装类里那段「参数转 JSON」从私有改成 internal，供模型通路复用。
+  - `ToolResult.cs`：加 `TOOL_RETRY_EXHAUSTED`，并把它登记进源生成上下文。
+  - `ErrorEnvelope.cs`：加 `Exhausted`，到上限时回给模型的那一条。
+  - `RepairHints.cs` 与 `docs/Error-Codes.md`：各补一行 `TOOL_RETRY_EXHAUSTED`。
+  - `docs/Architecture.md`：`DuetDiagram.Llm` 那一行改写，新增「错误回环与模型通路」一节，
+    并把「未实现模块」里两条已经做掉的删掉。
+
+  **核掉的起草假设**
+
+  - 起草时列进 `files.modify` 的解决方案文件与包版本表都不需要动：没有新工程、没有新依赖，
+    测试工程经由工程引用就取得到依赖的类型。
+  - 接工具调用循环不必继承依赖里那个客户端类型：它有一个公开可设的委托。
+    继承会把自己的客户端类型钉死在别人的基类上，而基类里真正要用的只有一个受保护的虚方法。
+  - 那个委托拿不到 `ToolResult`（包装类已经把结果序列化成 JSON 了），所以回环这一路
+    回到注册表——它返回 `ToolResult`，而且与代理侧是同一个入口。
+
+  **门禁**
+
+  - `Category=ChatClient`：8 条，全通过。
+  - `Category=ToolParity`：3 条，全通过。
+  - `dotnet run --project tools/Poc/SharedTools -c Release`：仍然全部通过。
+  - 全量：Core 430、Layout 75、Render 145、Mermaid 179、Dsl 158、Llm **180**、E2E 81，全通过。
+  - `Category=CommentDiscipline` 全通过（第一次红在一条注释里写了阶段编号，
+    改成直接说那件事本身）；`dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；
+    `tools/LocCounter --check` 退出码 0；全部任务 YAML 可解析。
+
+  **后续**
+
+  - 凭据管理与真实模型的端到端验收还没做（那是收尾那一条里需要人的部分）。
+    这一条只验到「往返的形状」——工具真的被执行、结果真的回到模型手里、失败回灌的是结构化错误。
+  - `ScriptedChatClient` 只做非流式那一路。流式的回答是一串增量，脚本要把一次回答拆成几段
+    才有意义，而这一层现在没有一处消费流式。

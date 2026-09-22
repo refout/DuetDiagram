@@ -169,11 +169,18 @@ internal sealed class ToolFunction(
     /// 把参数表转回 JSON。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 只认已经解析好的 JSON 形式与几个基本类型，其余一律拒绝。
     /// 走运行时序列化去兜底的话，这条路径在原生编译之后会失败——
     /// 而它失败的位置是模型调用工具的那一刻，离这里很远。
+    /// </para>
+    /// <para>
+    /// 对执行体那一侧也是公开的：模型那条通路把工具调用交给执行体时，也要做同一件事。
+    /// 两处各写一份的话，某天一边改了认得的类型，另一边的参数就悄悄对不上，
+    /// 而表现是「同一个工具经模型调与经协议调收到的参数不一样」。
+    /// </para>
     /// </remarks>
-    private static JsonElement ToJson(AIFunctionArguments arguments)
+    internal static JsonElement ToJson(AIFunctionArguments arguments)
     {
         var root = new JsonObject();
 

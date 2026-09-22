@@ -34,13 +34,14 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；`diagram_edit` / `diagram_style` / `diagram_layout` / `diagram_composite` 的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环 | Phase 3 P3-05 ~ P3-10 已落地；八个工具的执行体全部接上，错误回环就位，模型接入未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验、历史栈与错误回环的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-10（命令层、工具定义、上下文摘要、八个工具的执行体与错误回环）已落地，P3-11 起未开工。
+P3-01 ~ P3-11（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环与模型通路）已落地，
+P3-12 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -224,6 +225,15 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 每句建议都写得完；错误码文档里那张表与代码里的映射逐行一致
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=RepairHint"
 
+# 模型通路：工具调用真的改了文档、结果真的回到模型手里、每一轮都把八个工具带上；
+# 命令被拒时回灌的是结构化错误（码、出错参数、可用取值、一句建议）；
+# 同一个错误连着来第二次多一句提醒；到上限停下且不再问第三次
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ChatClient"
+
+# 两侧同源：模型侧与代理侧的名称、说明、参数 schema 逐字相同（按原文比，不按结构比）；
+# 可空参数的数组形式两侧一致
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolParity"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -346,7 +356,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`
 
 ## 新增一个命令的检查清单
 
@@ -457,3 +467,9 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | §9.6 的错误码呈现表与修复建议表 | 是**两张表、两个出口**，不是一张：`ErrorPresenterTable` 回答「怎么呈现给用户」，`RepairHints` 回答「给模型看什么、怎么改」 | 界面那一份在 `DuetDiagram.App`，而 App 不引用 `DuetDiagram.Llm`，反过来引就成了循环；放进 Core 也不行——建议里要出现 `diagram_read`、`create-page` 这些工具层与命令层才有的名字，塞进 Core 就是让纯数据层去认识上层。两张表都从错误码出发、各由一条逐行核对的用例兜住，风险挡在**覆盖**那一层：任何一边漏一个码都会红。`RepairHints` 比呈现表多覆盖一套码（工具层的参数校验），因为回灌给模型的失败两条来源都会出现 |
 | 修复建议表里的「可用取值」 | 不进表，由失败现场填进错误自己的期望字段；表里只有「出错参数」与「一句建议」 | 可用的动作名、样式令牌、字段名、已登记的工具名都随文档与工具表变，静态表里写不出来，写死了就是错的。信封上的期望形式取失败现场那一份，取不到才回落到表里——顺序不能反过来 |
 | 错误回环的上限 | 数的是**回灌次数**，不是调用次数；缺省三次。到上限时停下，并把整段往返记录写进应用日志 | 不设上限的话，一次参数错误会变成无限次调用，而账单上看得出来、日志里看不出来。记整段而不是最后一条：只看最后一条的话，读日志的人看不出模型撞了几次、撞在什么上。判「同一个错误又来了」只比**上一轮**，不比整段历史——中间换过做法之后又绕回原来那一步，那是另一件事 |
+| 模型那条通路的工具调用循环 | 用依赖里现成的那一个，通过 `FunctionInvoker` 这个公开委托接进来；**不自己写循环，也不继承那个客户端类型** | 循环本身已经处理了多轮往返、并发调用、最大轮数与终止条件，重写一遍只会多出一份会漂移的实现。用公开委托而不是继承：继承会把自己的客户端类型钉死在别人的基类上，而那个基类里真正要用的只有一个受保护的虚方法，升一次大版本就可能改名 |
+| 工具调用为什么回到注册表而不是直接调那个函数 | 执行体不用 `context.Function`，而是按名字走 `ToolRegistry.Invoke` | 那个函数把结果序列化成 JSON 才交出去，原始的失败结果出不来，而回环要的正是它。走注册表还有第二个好处：模型侧与代理侧从此是同一个入口，参数校验不会分叉 |
+| 三层「最大次数」各管各的 | 依赖那两个（往返 40 次、连续失败 3 次）只管停；我们的回环（回灌 3 次）负责把失败翻成结构化内容、写日志、并用终止开关真正停下这一轮 | 合成一个数会让「停下来」与「告诉模型为什么」绑在一起，而两者要的东西不一样。只少回灌一次内容而不停的话，循环仍由依赖那几十次兜底，而日志里那句「停下了」就成了空话 |
+| `ScriptedChatClient` 进产品工程 | 假客户端放在 `DuetDiagram.Llm/Chat` 里，不放测试工程 | 它把「工具调用往返」这件事的形状固定在一处，测试与任何离线宿主用的是同一份；放在测试工程里的话，宿主想离线跑一遍就得再写一个 |
+| 工具层的错误码表多一个 `TOOL_RETRY_EXHAUSTED` | 到回环上限时回给模型的那一条用它，不复用某个参数错误 | 两者的处置相反：参数错误是改完参数再来，这一条是别再发同一个调用、把这件事报给人。复用的话，模型会照着参数错误的建议继续重试 |
+| 两侧 schema 一致性有两条用例 | `Category=ToolRegistry` 那条按规范 JSON 比（容忍键序与空白），`Category=ToolParity` 那条按原文比 | 原文比较更强，能挡住「有人把两侧改成各自维护」之后出现在键序或空白上的差异——那种差异结构比较看不出来，而两边已经开始分叉 |

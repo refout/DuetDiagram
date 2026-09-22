@@ -1,7 +1,9 @@
 using System.Diagnostics;
-using System.Globalization;
 using Avalonia;
 using Avalonia.Media.Imaging;
+using DuetDiagram.App.Controls;
+using DuetDiagram.App.ViewModels;
+using DuetDiagram.Render;
 using SkiaSharp;
 
 namespace DuetDiagram.App;
@@ -19,6 +21,10 @@ namespace DuetDiagram.App;
 /// 除了出图，还单独验证一次原生绘图库能否加载与测量文本。图形绘制走的是界面框架自己的抽象，
 /// 而那层抽象背后是否真的把原生库带起来，只有直接调用一次才能确认。
 /// </para>
+/// <para>
+/// **它会核对画布确实把绘制列表消费完了。** 只看"没抛异常"的话，
+/// 一份没画出来的列表与一份画在视口之外的列表都算通过，而两者都是空白图。
+/// </para>
 /// </remarks>
 internal static class SelfTest
 {
@@ -30,7 +36,6 @@ internal static class SelfTest
     public static int Run(string[] args)
     {
         var outputPath = ReadOption(args, "--out") ?? Path.Combine(Path.GetTempPath(), "duetdiagram-selftest.png");
-        var nodeCount = int.TryParse(ReadOption(args, "--nodes"), CultureInfo.InvariantCulture, out var parsed) ? parsed : 4;
 
         try
         {
@@ -41,7 +46,7 @@ internal static class SelfTest
 
             // 渲染阶段计时，与启动阶段分开报，出问题时能看出瓶颈在哪一段。
             var render = Stopwatch.StartNew();
-            var pixelSize = RenderFrame(outputPath, nodeCount, out var actualSize);
+            var pixelSize = RenderFrame(outputPath, out var report);
             render.Stop();
 
             var skia = ProbeSkia();
@@ -50,10 +55,22 @@ internal static class SelfTest
             Console.WriteLine($"  平台就绪          {startup.Elapsed.TotalMilliseconds,8:0.0} ms");
             Console.WriteLine($"  首帧渲染          {render.Elapsed.TotalMilliseconds,8:0.0} ms");
             Console.WriteLine($"  合计              {startup.Elapsed.TotalMilliseconds + render.Elapsed.TotalMilliseconds,8:0.0} ms");
-            Console.WriteLine($"  绘制元素数        {nodeCount,8}");
-            Console.WriteLine($"  位图尺寸          {actualSize.Width,8} x {actualSize.Height}");
+            Console.WriteLine($"  节点 / 连线       {report.Nodes,8} / {report.Edges}");
+            Console.WriteLine($"  绘制指令          {report.Commands,8}");
+            Console.WriteLine($"  画布消费          {report.Drawn,8}");
+            Console.WriteLine($"  视口缩放          {report.Scale,8:0.00}x");
+            Console.WriteLine($"  位图尺寸          {pixelSize.Width,8} x {pixelSize.Height}");
             Console.WriteLine($"  原生绘图库        {skia}");
             Console.WriteLine($"  输出文件          {outputPath}");
+
+            var failure = Check(report);
+
+            if (failure is not null)
+            {
+                Console.Error.WriteLine($"自检失败：{failure}");
+                return 1;
+            }
+
             Console.WriteLine("自检通过");
 
             return 0;
@@ -68,25 +85,64 @@ internal static class SelfTest
     }
 
     /// <summary>
-    /// 把绘图区脱屏渲染成一帧位图并保存。
+    /// 核对这一帧确实把三种指令都画了，而且画布把它们全部消费掉了。
+    /// </summary>
+    /// <remarks>
+    /// 位图本身没法在这里断言——判断"图上有没有节点"需要看图，那是人做的事。
+    /// 能自动断言的是它的前提：列表里有形状、折线与文本，并且每一条都被执行了。
+    /// 少了任何一条，那张位图就不可能有节点、边与标签。
+    /// </remarks>
+    private static string? Check(FrameReport report)
+    {
+        if (report.Shapes == 0)
+        {
+            return "绘制列表里没有形状，位图上不会出现节点";
+        }
+
+        if (report.Polylines == 0)
+        {
+            return "绘制列表里没有折线，位图上不会出现连线";
+        }
+
+        if (report.Texts == 0)
+        {
+            return "绘制列表里没有文本，位图上不会出现标签";
+        }
+
+        if (report.Drawn != report.Commands)
+        {
+            return $"画布只执行了 {report.Drawn} 条指令，列表里有 {report.Commands} 条——有指令没被消费";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 把画布脱屏渲染成一帧位图并保存。
     /// </summary>
     /// <remarks>
     /// 控件没有挂到窗口上，所以要手工走一遍测量与排布，否则它的尺寸是零、什么都画不出来。
     /// 顺序必须是先测量再排布再渲染，跳过任何一步都会得到一张空白图而不是报错，
     /// 这种"静默产出错误结果"的行为是脱屏渲染最容易踩的坑。
     /// </remarks>
-    private static PixelSize RenderFrame(string outputPath, int nodeCount, out PixelSize actualSize)
+    private static PixelSize RenderFrame(string outputPath, out FrameReport report)
     {
-        var preview = new DiagramPreview { NodeCount = nodeCount };
+        using var measurer = new SkiaTextMeasurer();
+
+        var model = new CanvasViewModel();
+        var scene = SampleDiagram.Build(model.Theme, measurer);
+
+        model.Load(scene.DrawList);
+
+        var canvas = new DiagramCanvas { DataContext = model };
         var size = new Size(DefaultWidth, DefaultHeight);
+        var pixelSize = new PixelSize(DefaultWidth, DefaultHeight);
 
-        preview.Measure(size);
-        preview.Arrange(new Rect(size));
+        canvas.Measure(size);
+        canvas.Arrange(new Rect(size));
 
-        actualSize = new PixelSize(DefaultWidth, DefaultHeight);
-
-        using var bitmap = new RenderTargetBitmap(actualSize, new Vector(96, 96));
-        bitmap.Render(preview);
+        using var bitmap = new RenderTargetBitmap(pixelSize, new Vector(96, 96));
+        bitmap.Render(canvas);
 
         var directory = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(directory))
@@ -100,7 +156,19 @@ internal static class SelfTest
         using var stream = File.Create(outputPath);
         bitmap.Save(stream, new PngBitmapEncoderOptions());
 
-        return actualSize;
+        var commands = scene.DrawList.Commands;
+
+        report = new FrameReport(
+            scene.Document.Nodes.Count,
+            scene.Document.Edges.Count,
+            commands.Count,
+            canvas.DrawnCommands,
+            model.Viewport.Scale,
+            commands.OfType<DrawShape>().Count(),
+            commands.OfType<DrawPolyline>().Count(),
+            commands.OfType<DrawText>().Count());
+
+        return pixelSize;
     }
 
     /// <summary>
@@ -131,4 +199,23 @@ internal static class SelfTest
 
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
+
+    /// <summary>一帧渲染之后的读数。</summary>
+    /// <param name="Nodes">文档里的节点数。</param>
+    /// <param name="Edges">文档里的连线数。</param>
+    /// <param name="Commands">绘制列表里的指令数。</param>
+    /// <param name="Drawn">画布实际执行掉的指令数。</param>
+    /// <param name="Scale">这一帧用的缩放倍数。</param>
+    /// <param name="Shapes">形状指令数。</param>
+    /// <param name="Polylines">折线指令数。</param>
+    /// <param name="Texts">文本指令数。</param>
+    private sealed record FrameReport(
+        int Nodes,
+        int Edges,
+        int Commands,
+        int Drawn,
+        double Scale,
+        int Shapes,
+        int Polylines,
+        int Texts);
 }

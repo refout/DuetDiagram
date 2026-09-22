@@ -11,5 +11,6 @@
   <Project Path="DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj" />
   <Project Path="DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj" />
   <Project Path="DuetDiagram.App/DuetDiagram.App.csproj" />
+  <Project Path="DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj" />
   <Project Path="DuetDiagram.Benchmarks/DuetDiagram.Benchmarks.csproj" />
 </Solution>

@@ -27,4 +27,15 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
   </ItemGroup>
 
+  <!--
+    画布只消费绘制列表，所以它需要渲染层把文档翻译成绘制指令的那一段。
+    布局与核心是渲染层的传递依赖，显式写出来是因为主程序自己也要用：
+    示例文档要造 IR，还要跑一次布局才有坐标可画。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Layout\DuetDiagram.Layout.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
+  </ItemGroup>
+
 </Project>

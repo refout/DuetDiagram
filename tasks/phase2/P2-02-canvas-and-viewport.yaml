@@ -1,7 +1,7 @@
 id: P2-02
 title: 画布控件与视口变换
 phase: 2
-status: pending
+status: done
 depends_on: [P2-01]
 estimated_loc: 480
 files:
@@ -12,19 +12,26 @@ files:
     - DuetDiagram.App/Controls/DiagramCanvas.cs
     - DuetDiagram.App/Controls/DiagramCanvas.axaml
     - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/SampleDiagram.cs
     - DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj
     - DuetDiagram.E2E.Tests/HeadlessFixture.cs
     - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
     - docs/GUI.md
+    - reports/phase2-selftest.png
   modify:
     - DuetDiagram.App/DuetDiagram.App.csproj
     - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/MainWindow.axaml.cs
-    - DuetDiagram.App/DiagramPreview.cs
+    - DuetDiagram.App/SelfTest.cs
+    - DuetDiagram.Render/Theme.cs
     - Directory.Packages.props
     - DuetDiagram.slnx
     - .github/workflows/ci.yml
     - AGENTS.md
+    - tasks/README.md
+    - reports/loc.md
+  delete:
+    - DuetDiagram.App/DiagramPreview.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=Viewport"
     expect: 全通过；缩放锚点、边界钳制、坐标往返都在里面
@@ -48,3 +55,59 @@ scope_note: |
   界面栈自检是用主程序自己的 `--selftest` 开关做的——那时只有一帧要验，
   起一个测试工程不值。现在开始有交互要验（缩放、平移、点选），
   再用命令行开关表达就得给主程序加一堆只为测试存在的参数。
+
+  **视口剔除不在本任务里**，见 P2-03。画布把列表里的每一条都画一遍，
+  提前塞进剔除会让"坐标对不对"与"该不该画"两个问题混在一起。
+result:
+  verdict: 完成
+  delivered:
+    transform: 文档坐标与屏幕坐标的互转做成无状态的纯函数，缩放与平移量是它的三个字段
+    viewport: 视口的缩放、平移、窗口尺寸与适配各是一个方法，每个都返回一份新的，缩放上下界从主题取
+    canvas: 画布消费绘制列表并画出来，三种指令各有实现，八种节点形状与五种箭头全部覆盖
+    input: 滚轮以光标为锚点缩放，中键或空格加左键拖拽平移，指针位置与缩放显示在状态栏
+    sample: 主程序里有一份真实的示例文档，走「造 IR → 量尺寸 → 求解布局 → 翻译成绘制列表」整条链路
+    selftest: 自检改为渲染画布，并核对绘制列表被整份消费掉，不再只报「没抛异常」
+    e2e: 新建端到端测试工程，无头模式下起窗口、送输入、抓一帧
+  design_decisions:
+    pure_transform: 换算做成纯函数而不是有状态对象。两处各维护一份「当前视口」的话，渲染与命中测试迟早差一点点，表现是点不中元素，而这种偏差在画面上完全看不出来
+    anchor_at_cursor: 缩放锚点取光标。以画布中心为锚点的话，用户想放大的那一处会随缩放跑出视口，只能一边滚一边往回拖
+    clamp_before_transform: 钳制在换算之前。先换算再钳制的话，倍数被改小、平移量却按改之前的倍数算过，表现是滚到极限之后图会自己往一边滑
+    limits_in_theme: 缩放上下界放主题。它们是产品行为而不是手感参数，而主题已经是这类数字的落脚处；滚轮每格改变多少倍是手感，留在画布上
+    fit_on_load_only: 只在换绘制列表时适配，改窗口尺寸时不适配。用户摆好的视角不该因为拖了一下边框就变
+    fit_on_first_size: 第一次拿到窗口尺寸时补一次适配。绘制列表通常在排布之前就装进来了，不补的话内容会停在左上角，看上去像视口算错了
+    canvas_reads_list_only: 画布不读 IR。读了就绕过了绘制列表，快照覆盖的东西与实际画出来的东西会分叉
+    sample_is_real: 示例走真链路而不是手画图形。手画的示意图验证不了中间任何一段，而这正是它存在的理由
+    selftest_checks_consumption: 自检核对画布消费掉的指令条数。只看「没抛异常」的话，一份没画出来的列表与一份画在视口之外的列表都算通过，而两者都是空白图
+    opaque_background: 画布自己带一层透明的底。有内容时命中靠的是自绘那一层，这层底是给空文档留的——把底去掉再跑一遍端到端，九条用例全过，所以它的理由被收窄到了空文档这一种情形
+    focus_on_press: 指针按下时把焦点收过来。键盘消息只发给有焦点的控件，收不到的话空格拖拽永远不触发
+    no_xunit_integration: 不用无头模式配套的 XUnit 集成包。它绑的是低一个大版本的测试框架，二进制不兼容，装上之后在发现阶段就抛「找不到方法」，连一个测试都跑不起来
+    skia_must_be_installed: 无头模式只换掉「窗口从哪来」，绘图后端要自己装上。不装的话报的是「找不到字体管理器」，那句话与真正的原因隔了一层
+  fixed:
+    sample_not_fitted: 绘制列表在窗口排布之前装进来，适配那一步空转，内容停在左上角。改成第一次拿到尺寸时补一次适配
+    pointer_compare_after_assign: 状态栏的坐标去重判断写在赋值之后，比较的永远是同一个值，于是每次指针移动都重排一次状态栏
+  findings:
+    no_headless_xunit: 无头模式配套的 XUnit 集成包与 xunit.v3 4.x 二进制不兼容（它绑的是 3.2.2 的测试框架发现接口）。会话本身只有几十行，直接用反而少一处会随版本漂移的依赖
+    headless_needs_backend: 无头模式下抓到的帧只有在装了真实绘图后端时才有内容，空实现下永远是空白，「画出来了没有」就断言不了
+    hit_test_needs_paint: 界面框架按「这个区域画过东西」判定命中，不是按外接矩形。有内容时自绘的那层底色就够了；只有空文档才需要控件自己带一层透明的底。这一点没有编译期提示，只能靠端到端测试发现
+    selftest_nodes_flag: 原来的 `--nodes` 开关只对那个手画的示意图有意义，示例改成真文档之后删掉了
+  verified:
+    - Category=Viewport 26 项全通过
+    - 端到端 9 项全通过（画一帧、整份消费、适配、滚轮锚点、缩放上下界、中键拖拽、空格拖拽、左键不平移、状态栏）
+    - 自检退出码 0，位图里节点、连线、标签与箭头都在
+    - 全量 661 项单元测试无退化
+    - 编译 0 警告
+  not_verified:
+    - 视口剔除与动态阈值切换属 P2-03
+    - 选中、命中测试与变更高亮属 P2-08
+    - 菜单栏、工具栏、图层面板、属性面板都还没有
+    - 拖拽平移只在无头模式下验过，没有在真实显示器上试过手感
+    - 缩放与平移的重绘开销没有测过：示例只有五个节点，测不出什么
+open_questions:
+  - id: zoom-step
+    question: 滚轮每格 15% 合不合适？
+    detail: |
+      这个数是按「连续滚十格大约四倍」定的，属于手感参数，没有实测依据。
+      端到端测试只验了方向与上下界，验不了手感。
+      P2-13 的用户测试会真的让人滚一滚，那时再按反馈调。
+    blocked_on: P2-13
+    status: open

@@ -111,6 +111,25 @@ public sealed record Theme
     /// <summary>组合标题占的高度。</summary>
     public double CompositeHeader { get; init; } = 24;
 
+    /// <summary>
+    /// 视口能缩到的最小倍数。
+    /// </summary>
+    /// <remarks>
+    /// 再往下缩，节点只剩几个像素，整张图看上去像一块灰斑，用户会以为文档是空的。
+    /// 放在主题里而不是写死在滚轮处理里，是因为它是一条产品行为——
+    /// 散在事件处理里就没人找得到，改的人只能靠搜魔数。
+    /// </remarks>
+    public double MinZoom { get; init; } = 0.1;
+
+    /// <summary>
+    /// 视口能放到的最大倍数。
+    /// </summary>
+    /// <remarks>
+    /// 上界拦的是"放大到只剩一个色块"：再大也看不出更多信息，
+    /// 而放大倍数越高，同样的平移误差被放得越大。
+    /// </remarks>
+    public double MaxZoom { get; init; } = 8;
+
     /// <summary>调色板。令牌名到具体外观的映射。</summary>
     public Palette Palette { get; init; } = new();
 

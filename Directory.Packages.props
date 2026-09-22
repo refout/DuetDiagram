@@ -75,6 +75,15 @@
       公开 API 与 8.x 基本一致，升级只需改版本号。若确定已购授权可改为 8.11.0。
     -->
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
+
+    <!--
+      无头界面测试。它把界面框架的平台后端换成一个不画到屏幕上的实现，
+      端到端测试因此能在没有显示器的机器上起窗口、送输入、抓一帧。
+      没有用配套的 XUnit 集成包：那个包绑的是低一个大版本的测试框架，
+      与这里现有的 xunit.v3 对不上，装上之后在发现阶段就抛"找不到方法"。
+      会话本身只有几十行，直接用反而少一处会随版本漂移的依赖。
+    -->
+    <PackageVersion Include="Avalonia.Headless" Version="12.1.2" />
   </ItemGroup>
 
 </Project>

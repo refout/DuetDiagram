@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DuetDiagram.App.ViewModels"
+             x:Class="DuetDiagram.App.Controls.DiagramCanvas"
+             x:DataType="vm:CanvasViewModel"
+             Focusable="True"
+             ClipToBounds="True"
+             Background="Transparent">
+  <!--
+    画的内容在 Render 里自绘，这里只放不参与绘制的提示层。
+    提示层不能带背景：它会盖在自绘内容之上，一层不透明的底会把图整个遮掉。
+
+    控件自己的底是给空文档留的。界面框架按"这个区域画过东西"判定命中，
+    而有内容时自绘的那层底色已经满足了这个条件；一份还没有内容的文档则什么都不画，
+    这时没有这块透明的底，滚轮与拖拽就都收不到消息。
+  -->
+  <Panel>
+    <TextBlock IsVisible="{Binding IsEmpty}"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               FontSize="13"
+               Foreground="#8a94a3"
+               Text="没有可显示的内容" />
+  </Panel>
+</UserControl>

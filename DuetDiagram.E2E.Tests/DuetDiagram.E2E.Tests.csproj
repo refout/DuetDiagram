@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    端到端这一层测的是"用户那样操作，界面那样反应"：起窗口、送输入、抓一帧。
+    它引用主程序而不是自己拼一个窗口，否则测的是另一个窗口——
+    真的那个有没有接上这些交互，这里就答不出来。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.App\DuetDiagram.App.csproj" />
+  </ItemGroup>
+
+</Project>

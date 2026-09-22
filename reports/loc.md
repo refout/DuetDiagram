@@ -6,20 +6,21 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 6 | 562 | 352 | 116 | 94 |
+| DuetDiagram.App | 8 | 1370 | 862 | 259 | 249 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 55 | 6597 | 3517 | 2078 | 1002 |
 | DuetDiagram.Core.Tests | 22 | 4214 | 3017 | 466 | 731 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
+| DuetDiagram.E2E.Tests | 2 | 368 | 231 | 66 | 71 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 10 | 1794 | 996 | 521 | 277 |
-| DuetDiagram.Render.Tests | 6 | 1310 | 928 | 131 | 251 |
+| DuetDiagram.Render | 12 | 2050 | 1079 | 660 | 311 |
+| DuetDiagram.Render.Tests | 7 | 1692 | 1206 | 155 | 331 |
 | tools | 34 | 7468 | 5112 | 1201 | 1155 |
-| **合计** | **202** | **37712** | **24012** | **7728** | **5972** |
+| **合计** | **209** | **39526** | **25114** | **8100** | **6312** |
 
 ## 明细
 
@@ -34,11 +35,13 @@
 | 文件 | 代码 |
 |---|---:|
 | App.axaml.cs | 16 |
-| DiagramPreview.cs | 128 |
+| DiagramCanvas.cs | 452 |
 | FrameBenchmark.cs | 88 |
-| MainWindow.axaml.cs | 11 |
+| MainWindow.axaml.cs | 20 |
 | Program.cs | 34 |
-| SelfTest.cs | 75 |
+| SampleDiagram.cs | 39 |
+| SelfTest.cs | 128 |
+| CanvasViewModel.cs | 85 |
 
 ### DuetDiagram.Benchmarks
 
@@ -164,6 +167,13 @@
 | MapperTests.cs | 366 |
 | ParserTests.cs | 508 |
 
+### DuetDiagram.E2E.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| CanvasSmokeTests.cs | 212 |
+| HeadlessFixture.cs | 19 |
+
 ### DuetDiagram.Layout
 
 | 文件 | 代码 |
@@ -242,8 +252,10 @@
 | SkiaTextMeasurer.cs | 70 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 22 |
-| Theme.cs | 107 |
+| Theme.cs | 109 |
+| Viewport.cs | 49 |
 | ViewportCulling.cs | 8 |
+| ViewportTransform.cs | 32 |
 
 ### DuetDiagram.Render.Tests
 
@@ -255,6 +267,7 @@
 | QuadTreeTests.cs | 307 |
 | SceneSnapshotTests.cs | 251 |
 | Snapshot.cs | 57 |
+| ViewportTests.cs | 278 |
 
 ### tools
 

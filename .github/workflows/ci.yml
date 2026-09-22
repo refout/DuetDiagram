@@ -73,6 +73,11 @@ jobs:
       - name: 视口索引门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=QuadTree"
 
+      # 坐标换算与缩放锚点。这一条退化的表现是「点不中元素」——
+      # 偏差随缩放倍数放大，在画面上完全看不出来，只能在坐标上验。
+      - name: 视口变换门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Viewport"
+
       # 词法层：定界符之内是自由文本。真实语料里七成以上的文件含标签内标点，
       # 按标识切会让它们全变成「不认识的东西」。
       - name: Mermaid 词法门禁
@@ -102,9 +107,9 @@ jobs:
         run: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DslCorpus"
 
   app-and-aot:
-    name: 界面栈自检 + 原生发布
-    # 两项都放在 Windows 上：界面自检要初始化窗口平台，原生链接要 MSVC 工具链，
-    # 这两样只有 Windows 运行器具备。
+    name: 界面栈自检 + 端到端 + 原生发布
+    # 三项都放在 Windows 上：界面自检与端到端要初始化窗口平台与绘图后端，
+    # 原生链接要 MSVC 工具链，这三样只有 Windows 运行器具备。
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +120,11 @@ jobs:
 
       - name: 构建界面程序
         run: dotnet build DuetDiagram.App/DuetDiagram.App.csproj -c ${{ env.CONFIGURATION }}
+
+      # 无头模式下起窗口、送输入、抓一帧。绘制列表对不对由快照管，
+      # 这里盯的是两者在真实窗口里有没有接上。
+      - name: 端到端测试
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }}
 
       # 脱屏渲染一帧后退出，用退出码表达结果；同时产出可人工核对的证据图。
       - name: 界面栈自检

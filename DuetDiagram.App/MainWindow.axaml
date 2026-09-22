@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="using:DuetDiagram.App"
+        xmlns:controls="using:DuetDiagram.App.Controls"
+        xmlns:vm="using:DuetDiagram.App.ViewModels"
         x:Class="DuetDiagram.App.MainWindow"
+        x:DataType="vm:CanvasViewModel"
         Title="DuetDiagram"
         Width="900" Height="600">
   <DockPanel>
@@ -9,6 +11,19 @@
                Margin="16,12"
                FontSize="13"
                Text="技术栈验证界面：这里只确认渲染链路可用，编辑功能在后续阶段实现。" />
-    <local:DiagramPreview />
+
+    <!-- 状态栏。坐标与缩放是画布的状态，两者共用一个数据上下文，不靠互相回调。 -->
+    <Border DockPanel.Dock="Bottom"
+            Padding="16,6"
+            Background="#f4f6f9"
+            BorderBrush="#d8dee7"
+            BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock FontSize="12" Foreground="#5b6675" Text="{Binding PointerText}" />
+        <TextBlock Grid.Column="1" FontSize="12" Foreground="#5b6675" Text="{Binding ZoomText}" />
+      </Grid>
+    </Border>
+
+    <controls:DiagramCanvas />
   </DockPanel>
 </Window>

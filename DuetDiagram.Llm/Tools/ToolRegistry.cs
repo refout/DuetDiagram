@@ -82,12 +82,18 @@ public sealed class ToolRegistry
     public IReadOnlyList<McpServerTool> ToMcpTools() =>
         [.. _tools.Select(tool => McpServerTool.Create(tool.Function))];
 
-    /// <summary>建一份装了内置八个工具的注册表。</summary>
-    public static ToolRegistry CreateDefault()
+    /// <summary>
+    /// 建一份装了内置八个工具的注册表。
+    /// </summary>
+    /// <remarks>
+    /// 上下文是必需的，没有"无文档的注册表"这种东西：八个工具全都作用在某一份文档上，
+    /// 允许建一个不带文档的注册表只会让调用方在真的调用时才拿到一个空引用异常。
+    /// </remarks>
+    public static ToolRegistry CreateDefault(DiagramToolContext context)
     {
         var registry = new ToolRegistry();
 
-        foreach (var tool in DiagramToolset.Create())
+        foreach (var tool in DiagramToolset.Create(context))
         {
             registry.Register(tool);
         }

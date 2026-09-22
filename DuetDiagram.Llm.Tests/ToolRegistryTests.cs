@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DuetDiagram.Core.Model;
 using DuetDiagram.Llm.Tools;
 using FluentAssertions;
 using Microsoft.Extensions.AI;
@@ -19,7 +20,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void The_registry_carries_the_eight_tools()
     {
-        var registry = ToolRegistry.CreateDefault();
+        var registry = Registry();
 
         registry.Tools.Select(tool => tool.Name).Should().Equal(
             DiagramToolset.Read,
@@ -36,7 +37,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void Tool_names_are_unique()
     {
-        var names = ToolRegistry.CreateDefault().Tools.Select(tool => tool.Name).ToArray();
+        var names = Registry().Tools.Select(tool => tool.Name).ToArray();
 
         names.Should().OnlyHaveUniqueItems();
     }
@@ -45,7 +46,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void A_duplicate_name_is_rejected_rather_than_overwritten()
     {
-        var registry = ToolRegistry.CreateDefault();
+        var registry = Registry();
         var duplicate = ToolDescriptor.Create(Echo, DiagramToolset.Read, "另一个工具，名字与已有的撞上。");
 
         var act = () => registry.Register(duplicate);
@@ -58,7 +59,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void An_unknown_tool_returns_a_structured_error()
     {
-        var registry = ToolRegistry.CreateDefault();
+        var registry = Registry();
 
         var result = Invoke(registry, "diagram_paint", "{}");
 
@@ -78,7 +79,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void Every_tool_has_a_description()
     {
-        foreach (var tool in ToolRegistry.CreateDefault().Tools)
+        foreach (var tool in Registry().Tools)
         {
             // 长度下限只是个地板：说明必须写到"做什么、什么时候用、有什么限制"三样，
             // 而这件事判不出来。地板至少挡住"改图。"这种把模型当熟人看的写法。
@@ -91,7 +92,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void Every_tool_has_a_parameter_schema()
     {
-        foreach (var tool in ToolRegistry.CreateDefault().Tools)
+        foreach (var tool in Registry().Tools)
         {
             var schema = JsonNode.Parse(tool.Parameters.GetRawText())!.AsObject();
 
@@ -108,7 +109,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void Both_sides_are_derived_from_the_same_declarations()
     {
-        var registry = ToolRegistry.CreateDefault();
+        var registry = Registry();
         var model = registry.ToMeaiFunctions();
         var agent = registry.ToMcpTools();
 
@@ -139,7 +140,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public async Task Invoking_through_the_model_side_function_goes_through_the_same_checks()
     {
-        var edit = FunctionOf(ToolRegistry.CreateDefault(), DiagramToolset.Edit);
+        var edit = FunctionOf(Registry(), DiagramToolset.Edit);
 
         var raw = await edit.InvokeAsync(
             Arguments("""{"action":"add-node","id":"Node 1"}"""),
@@ -214,7 +215,7 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void An_unwired_tool_says_so_without_blaming_the_caller()
     {
-        var result = Invoke(ToolRegistry.CreateDefault(), DiagramToolset.Edit, """{"action":"add-node","id":"a"}""");
+        var result = Invoke(Registry(), DiagramToolset.Edit, """{"action":"add-node","id":"a"}""");
 
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
@@ -225,6 +226,13 @@ public sealed class ToolRegistryTests
     #endregion
 
     #region 夹具
+
+    /// <summary>一份最小上下文：一张空图，没有版本日志、没有人工产物。</summary>
+    private static ToolRegistry Registry() =>
+        ToolRegistry.CreateDefault(new DiagramToolContext
+        {
+            Document = new DiagramDocument("doc"),
+        });
 
     /// <summary>一个只回一句话的工具，用来观察参数有没有送到执行体。</summary>
     private static Task<ToolResult> Echo(

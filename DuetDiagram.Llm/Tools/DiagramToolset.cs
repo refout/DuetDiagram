@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Text.Json;
+using DuetDiagram.Llm.Context;
 
 namespace DuetDiagram.Llm.Tools;
 
@@ -12,8 +14,8 @@ namespace DuetDiagram.Llm.Tools;
 /// 再用 <c>action</c> 参数说明具体做什么——这一步它本来就要想清楚。
 /// </para>
 /// <para>
-/// 参数表是**接口**，实现可以分批接上。这一层先把八个工具的名称、说明与参数定死，
-/// 因为接口分两次定的话，先接上的那些调用方要跟着改。
+/// 参数表是**接口**，实现可以分批接上。参数先定死，因为接口分两次定的话，
+/// 先接上的那些调用方要跟着改。
 /// </para>
 /// <para>
 /// **折点与固定位置没有 action。** 两者都写在文档之外的人工产物文件里、不走命令总线，
@@ -84,99 +86,177 @@ public static class DiagramToolset
 
     #region 声明
 
-    /// <summary>八个工具的定义。次序固定，与工具表里那八行一致。</summary>
-    public static IReadOnlyList<ToolDescriptor> Create() =>
-    [
-        ToolDescriptor.Create(ReadDiagram, Read, ReadDescription),
-        ToolDescriptor.Create(EditDiagram, Edit, EditDescription),
-        ToolDescriptor.Create(StyleDiagram, Style, StyleDescription),
-        ToolDescriptor.Create(LayoutDiagram, Layout, LayoutDescription),
-        ToolDescriptor.Create(CompositeDiagram, Composite, CompositeDescription),
-        ToolDescriptor.Create(ExportDiagram, Export, ExportDescription),
-        ToolDescriptor.Create(ValidateDiagram, Validate, ValidateDescription),
-        ToolDescriptor.Create(UndoRedoDiagram, UndoRedo, UndoRedoDescription),
-    ];
+    /// <summary>
+    /// 八个工具的定义。次序固定，与工具表里那八行一致。
+    /// </summary>
+    /// <remarks>
+    /// 声明是实例方法而不是静态方法，因为执行体要读到那一份文档。
+    /// 把上下文当成声明方法的一个参数是不行的：参数表从签名推导，多一个参数
+    /// 就会多一条模型要填的 schema，而它根本不是模型能提供的东西。
+    /// </remarks>
+    public static IReadOnlyList<ToolDescriptor> Create(DiagramToolContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var declarations = new Declarations(context);
+
+        return
+        [
+            ToolDescriptor.Create(declarations.Read, Read, ReadDescription),
+            ToolDescriptor.Create(declarations.Edit, Edit, EditDescription),
+            ToolDescriptor.Create(declarations.Style, Style, StyleDescription),
+            ToolDescriptor.Create(declarations.Layout, Layout, LayoutDescription),
+            ToolDescriptor.Create(declarations.Composite, Composite, CompositeDescription),
+            ToolDescriptor.Create(declarations.Export, Export, ExportDescription),
+            ToolDescriptor.Create(declarations.Validate, Validate, ValidateDescription),
+            ToolDescriptor.Create(declarations.UndoRedo, UndoRedo, UndoRedoDescription),
+        ];
+    }
 
     #endregion
 
-    #region 参数表
-    //
-    // 参数名与类型就是 schema。约束写在参数上，由 SchemaBuilder 回填进 schema，
-    // 于是"约束怎么进去的"与"约束怎么被读出来"读的是同一处声明。
-    //
-    // 端点参数（from / to）允许带端口，写法是「标识.端口名」。端口写在端点上而不另立参数，
-    // 是因为模型描述一条连线时说的本来就是"从 a 的下边到 b 的上边"这一件事；
-    // 拆成四个参数之后，端点与端口对不上就成了一个可以表达出来、却没有意义的状态。
+    #region 参数表与执行体
 
-    private static Task<ToolResult> ReadDiagram(
-        [Description("要读的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
-        Pending(Read, null);
+    /// <summary>
+    /// 八个工具的签名与执行体，都绑在这一份上下文上。
+    /// </summary>
+    /// <remarks>
+    /// 参数名与类型就是 schema。约束写在参数上，由 <see cref="SchemaBuilder"/> 回填进 schema，
+    /// 于是"约束怎么进去的"与"约束怎么被读出来"读的是同一处声明。
+    /// 端点参数（from / to）允许带端口，写法是「标识.端口名」：模型描述一条连线时说的
+    /// 本来就是"从 a 的下边到 b 的上边"这一件事，拆成四个参数之后，
+    /// 端点与端口对不上就成了一个可以表达出来、却没有意义的状态。
+    /// </remarks>
+    private sealed class Declarations(DiagramToolContext context)
+    {
+        private readonly DiagramToolContext _context = context;
 
-    private static Task<ToolResult> EditDiagram(
-        [Description("要做的事，例如 add-node、remove-node、connect-edge、set-node-field。")][Pattern(Patterns.DiagramId)] string action,
-        [Description("这次操作针对的元素标识。")][Pattern(Patterns.DiagramId)] string? id = null,
-        [Description("连线的起点，可以带端口，例如 a 或 a.bottom。")][Pattern(Patterns.Endpoint)] string? from = null,
-        [Description("连线的终点，写法同 from。")][Pattern(Patterns.Endpoint)] string? to = null,
-        [Description("要写的字段名，用于 set-node-field 与 set-edge-field。")] string? field = null,
-        [Description("字段要写成的值。")] string? value = null,
-        [Description("显示文本：节点标签、页面名、图层名、标签名。")] string? label = null,
-        [Description("成员标识，用于打标签。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
-        [Description("插入位置或次序，从零开始。")] int? index = null) =>
-        Pending(Edit, action);
+        #region diagram_read
 
-    private static Task<ToolResult> StyleDiagram(
-        [Description("要做的事，例如 set-shape、set-style、set-text、set-canvas。")][Pattern(Patterns.DiagramId)] string action,
-        [Description("要改的元素标识。")][Pattern(Patterns.DiagramId)] string? id = null,
-        [Description("样式令牌名，必须已经在调色板里。")][Pattern(Patterns.DiagramId)] string? token = null,
-        [Description("要改的样式成员名，例如 style.fill、text.fontSize。")] string? field = null,
-        [Description("成员要写成的值。")] string? value = null) =>
-        Pending(Style, action);
+        public Task<ToolResult> Read(
+            [Description("要读的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null)
+        {
+            // 页面还没有消费方：渲染、界面与摘要都还没读它，所以整份文档就是当前页。
+            // 认下这个参数而按整份文档回，会让调用方以为它读的是某一页——
+            // 一个静默的错误答案比一句「还没接上」糟得多。
+            if (pageId is not null)
+            {
+                return Task.FromResult(ToolResult.Fail(ToolError.Of(
+                    ToolErrorCodes.NotSupported,
+                    $"按页过滤还没接上：页面现在还没有消费方，摘要取的是整份文档",
+                    "pageId",
+                    "不带 pageId 可以读到整份文档")));
+            }
 
-    private static Task<ToolResult> LayoutDiagram(
-        [Description("要做的事，例如 set-direction、set-spacing、add-constraint、set-place。")][Pattern(Patterns.DiagramId)] string action,
-        [Description("约束种类：same-rank、align 或 order。")] string? kind = null,
-        [Description("主方向：LR、TB、RL、BT。")] string? direction = null,
-        [Description("同层节点间距。")] double? nodeSpacing = null,
-        [Description("层与层之间的间距。")] double? layerSpacing = null,
-        [Description("要摆位的节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? id = null,
-        [Description("参照节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? relativeTo = null,
-        [Description("相对位置：right-of、left-of、above、below。")] string? relation = null,
-        [Description("这条约束归谁：auto、llm 或 human。")] string? owner = null,
-        [Description("约束的成员：同层与对齐是节点，层内次序是出边。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
-        [Description("层内次序的主语节点。")][Pattern(Patterns.DiagramId)] string? subject = null) =>
-        Pending(Layout, action);
+            var summary = SummaryBuilder.Build(_context.ToSummaryInput());
+            var payload = new SummaryPayload(
+                SummaryFormatter.Format(summary, _context.Clock.UtcNow),
+                summary);
 
-    private static Task<ToolResult> CompositeDiagram(
-        [Description("要做的事：create、dissolve 或 move-into。")][Pattern(Patterns.DiagramId)] string action,
-        [Description("组合标识。")][Pattern(Patterns.DiagramId)] string? id = null,
-        [Description("组合种类：group、lane、subflow 或 combo。")] string? kind = null,
-        [Description("成员标识。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
-        [Description("移入的目标组合。留空表示搬到顶层。")][Pattern(Patterns.DiagramId)] string? targetId = null,
-        [Description("组合的显示名。")] string? label = null) =>
-        Pending(Composite, action);
+            return Task.FromResult(ToolResult.Ok(
+                JsonSerializer.SerializeToElement(payload, SummaryJsonContext.Default.SummaryPayload),
+                $"读到 {summary.Nodes.Count} 个节点、{summary.Edges.Count} 条边"));
+        }
 
-    private static Task<ToolResult> ExportDiagram(
-        [Description("导出格式：dsl 或 mermaid。")][Pattern(Patterns.DiagramId)] string format,
-        [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
-        Pending(Export, format);
+        #endregion
 
-    private static Task<ToolResult> ValidateDiagram(
-        [Description("校验范围。留空表示整份文档。")] string? scope = null) =>
-        Pending(Validate, null);
+        #region diagram_edit
 
-    private static Task<ToolResult> UndoRedoDiagram(
-        [Description("要做的事：undo 或 redo。")][Pattern(Patterns.DiagramId)] string action,
-        [Description("撤几步。留空表示一步。")] int? steps = null) =>
-        Pending(UndoRedo, action);
+        public Task<ToolResult> Edit(
+            [Description("要做的事，例如 add-node、remove-node、connect-edge、set-node-field。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("这次操作针对的元素标识。")][Pattern(Patterns.DiagramId)] string? id = null,
+            [Description("连线的起点，可以带端口，例如 a 或 a.bottom。")][Pattern(Patterns.Endpoint)] string? from = null,
+            [Description("连线的终点，写法同 from。")][Pattern(Patterns.Endpoint)] string? to = null,
+            [Description("要写的字段名，用于 set-node-field 与 set-edge-field。")] string? field = null,
+            [Description("字段要写成的值。")] string? value = null,
+            [Description("显示文本：节点标签、页面名、图层名、标签名。")] string? label = null,
+            [Description("成员标识，用于打标签。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
+            [Description("插入位置或次序，从零开始。")] int? index = null) =>
+            Pending(DiagramToolset.Edit, action);
+
+        #endregion
+
+        #region diagram_style
+
+        public Task<ToolResult> Style(
+            [Description("要做的事，例如 set-shape、set-style、set-text、set-canvas。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("要改的元素标识。")][Pattern(Patterns.DiagramId)] string? id = null,
+            [Description("样式令牌名，必须已经在调色板里。")][Pattern(Patterns.DiagramId)] string? token = null,
+            [Description("要改的样式成员名，例如 style.fill、text.fontSize。")] string? field = null,
+            [Description("成员要写成的值。")] string? value = null) =>
+            Pending(DiagramToolset.Style, action);
+
+        #endregion
+
+        #region diagram_layout
+
+        public Task<ToolResult> Layout(
+            [Description("要做的事，例如 set-direction、set-spacing、add-constraint、set-place。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("约束种类：same-rank、align 或 order。")] string? kind = null,
+            [Description("主方向：LR、TB、RL、BT。")] string? direction = null,
+            [Description("同层节点间距。")] double? nodeSpacing = null,
+            [Description("层与层之间的间距。")] double? layerSpacing = null,
+            [Description("要摆位的节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? id = null,
+            [Description("参照节点，用于 set-place。")][Pattern(Patterns.DiagramId)] string? relativeTo = null,
+            [Description("相对位置：right-of、left-of、above、below。")] string? relation = null,
+            [Description("这条约束归谁：auto、llm 或 human。")] string? owner = null,
+            [Description("约束的成员：同层与对齐是节点，层内次序是出边。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
+            [Description("层内次序的主语节点。")][Pattern(Patterns.DiagramId)] string? subject = null) =>
+            Pending(DiagramToolset.Layout, action);
+
+        #endregion
+
+        #region diagram_composite
+
+        public Task<ToolResult> Composite(
+            [Description("要做的事：create、dissolve 或 move-into。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("组合标识。")][Pattern(Patterns.DiagramId)] string? id = null,
+            [Description("组合种类：group、lane、subflow 或 combo。")] string? kind = null,
+            [Description("成员标识。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
+            [Description("移入的目标组合。留空表示搬到顶层。")][Pattern(Patterns.DiagramId)] string? targetId = null,
+            [Description("组合的显示名。")] string? label = null) =>
+            Pending(DiagramToolset.Composite, action);
+
+        #endregion
+
+        #region diagram_export
+
+        public Task<ToolResult> Export(
+            [Description("导出格式：dsl 或 mermaid。")][Pattern(Patterns.DiagramId)] string format,
+            [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
+            Pending(DiagramToolset.Export, format);
+
+        #endregion
+
+        #region diagram_validate
+
+        public Task<ToolResult> Validate(
+            [Description("校验范围。留空表示整份文档。")] string? scope = null) =>
+            Pending(DiagramToolset.Validate, null);
+
+        #endregion
+
+        #region diagram_undo_redo
+
+        public Task<ToolResult> UndoRedo(
+            [Description("要做的事：undo 或 redo。")][Pattern(Patterns.DiagramId)] string action,
+            [Description("撤几步。留空表示一步。")] int? steps = null) =>
+            Pending(DiagramToolset.UndoRedo, action);
+
+        #endregion
+    }
 
     #endregion
 
-    #region 执行体
-    //
-    // 这一批现在一律返回结构化的「尚未接上」。
-    // 逐个接上时替换的是各自的方法体，参数表不动——接口先定死，实现分批填。
+    #region 未接线
 
-    /// <summary>能力还没接上时的统一答复。</summary>
+    /// <summary>
+    /// 能力还没接上时的统一答复。
+    /// </summary>
+    /// <remarks>
+    /// 与"参数错了"分开：这一条不是调用方的问题，重试多少次都一样。
+    /// 把缺什么写清楚，调用方才知道是换个做法还是等一等。
+    /// </remarks>
     private static Task<ToolResult> Pending(string tool, string? action) =>
         Task.FromResult(ToolResult.NotSupported(tool, action, "动作分发表还没有接上"));
 

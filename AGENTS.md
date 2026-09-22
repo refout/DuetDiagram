@@ -34,13 +34,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生 | Phase 3 P3-05 已落地；动作分发表（P3-06 起）与上下文摘要、错误回环、模型接入未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表与参数约束的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read` | Phase 3 P3-05 / P3-06 已落地；动作分发表（P3-07 起）与错误回环、模型接入未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束与上下文摘要的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-05（命令层与工具定义）已落地，P3-06 起未开工。
+P3-01 ~ P3-06（命令层、工具定义与上下文摘要）已落地，P3-07 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -182,6 +182,10 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 越界的标识被拒，错误里带上参数名与期望形式，且一条命令都没发出去
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolSchema"
 
+# 上下文摘要：六块内容齐、不含原始坐标、同一份文档逐字节相同；
+# 令牌实时取自调色板，最近修改读的是版本日志
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -304,7 +308,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`
 
 ## 新增一个命令的检查清单
 
@@ -389,3 +393,10 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 参数约束的注入方式 | 不用 `AIJsonSchemaCreateOptions.TransformSchemaNode`，改成在 schema 生成之后按声明方法的参数表回填 | 实测那个回调对每个 schema 节点都被调用，但路径恒为空、参数特性提供者恒为空，认不出当前节点属于哪个参数。按参数表回填是确定的，也不依赖回调次序 |
 | `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | P3-08 起草时写的「pin 与 unpin 走命令层」与命令层的现状对不上，那一条要在开工时改掉 |
 | P3-05 的八个工具一律返回结构化的「尚未接上」 | 参数表与说明先定死，执行体分批接上 | 参数表是接口，分两次定的话先接上的那些调用方要跟着改。接上时替换的是各自的方法体，`DiagramToolset.cs` 会进 P3-06 ~ P3-09 的改动清单（它们现在的 `files.modify` 里还没有它） |
+| §6.4 的布局摘要（方向、层数、同层分组） | 方向取自 IR；层数与同层分组由宿主从布局结果量化成层号传进来，缺省时只写方向 | 工具层不引布局引擎（P3-08 定的口径）。自己按拓扑算一个的话，摘要里的层数与实际画面各按一套算法，对不上时没有任何东西会报错，而模型会照着一个错的层数去提要求 |
+| §6.4 的锁定列表 | 由宿主传入被固定节点的**标识**，摘要层不读 sidecar 文件 | 固定位置那份人工产物归宿主管。只收标识不收坐标，正好避开「模型照着会过期的数字微调位置」那条 |
+| §6.5 的相对时间（「2分钟前」） | 结构化对象里存绝对时间戳，文本渲染时**显式传入参照时刻** | 不收参照时刻的话，同一份摘要两次调用得到不同的文本，「逐字节相同」这条判据根本没法验 |
+| §6.5 的示例次序 | 文本的形状照它，**次序不照**：节点与边按标识排序、同层分组按标识排序 | 归一化是硬约束：同一份文档无论集合的插入顺序如何都要给出同一份摘要。示例是手写的，它的次序只是读起来顺 |
+| `diagram_read` 的 `pageId` | 给了就返回结构化「尚未接上」，不给则读整份文档 | 页面现在还没有消费方（渲染、界面与摘要都没读它）。认下这个参数而按整份文档回，会让调用方以为它读的是某一页——一个静默的错误答案比一句「还没接上」糟得多 |
+| 工具集的构造 | `DiagramToolset.Create` 与 `ToolRegistry.CreateDefault` 都要一个 `DiagramToolContext`（文档、版本日志、固定标识、层投影、时钟） | 八个工具全都作用在某一份文档上。用静态字段兜的话，同一个进程里的两个窗口会互相看到对方的文档，而表现是「摘要里的图不是我这一张」，只在多窗口下出现 |
+| 工具声明是实例方法而不是静态方法 | 上下文由实例捕获，**不当成声明方法的一个参数** | 参数表从签名推导，多一个参数就会多一条模型要填的 schema，而它根本不是模型能提供的东西。现有 `Category=ToolSchema` 的用例是这条的回归网 |

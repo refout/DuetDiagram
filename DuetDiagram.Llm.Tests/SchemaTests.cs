@@ -92,7 +92,7 @@ public sealed class SchemaTests
             .Select(field => (string)field.GetRawConstantValue()!)
             .ToHashSet(StringComparer.Ordinal);
 
-        var found = ToolRegistry.CreateDefault()
+        var found = Registry()
             .Tools
             .SelectMany(tool => ConstraintsIn(tool.Parameters))
             .ToArray();
@@ -110,7 +110,7 @@ public sealed class SchemaTests
     public void An_out_of_range_identifier_is_rejected_with_the_parameter_and_the_pattern()
     {
         var result = Invoke(
-            ToolRegistry.CreateDefault(),
+            Registry(),
             DiagramToolset.Edit,
             """{"action":"add-node","id":"Node 1"}""");
 
@@ -126,7 +126,7 @@ public sealed class SchemaTests
     public void An_endpoint_with_a_port_passes()
     {
         var result = Invoke(
-            ToolRegistry.CreateDefault(),
+            Registry(),
             DiagramToolset.Edit,
             """{"action":"connect-edge","id":"e1","from":"a.bottom","to":"b.top"}""");
 
@@ -164,6 +164,13 @@ public sealed class SchemaTests
 
     #region 夹具
 
+    /// <summary>一份最小上下文：一张空图，没有版本日志、没有人工产物。参数表与它无关。</summary>
+    private static ToolRegistry Registry() =>
+        ToolRegistry.CreateDefault(new DiagramToolContext
+        {
+            Document = new DiagramDocument("schema-doc"),
+        });
+
     private static Task<ToolResult> Echo([Pattern(Patterns.DiagramId)] string id) =>
         Task.FromResult(ToolResult.Ok(id));
 
@@ -196,7 +203,7 @@ public sealed class SchemaTests
         return new DiagramCommandBus(context);
     }
 
-    private static JsonObject SchemaOf(string tool) => SchemaOf(ToolRegistry.CreateDefault().Find(tool)!);
+    private static JsonObject SchemaOf(string tool) => SchemaOf(Registry().Find(tool)!);
 
     private static JsonObject SchemaOf(ToolDescriptor tool) =>
         JsonNode.Parse(tool.Parameters.GetRawText())!.AsObject();

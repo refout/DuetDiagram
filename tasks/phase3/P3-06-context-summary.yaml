@@ -1,7 +1,7 @@
 id: P3-06
 title: diagram_read 与归一化上下文摘要
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05]
 estimated_loc: 380
 files:
@@ -9,9 +9,16 @@ files:
     - DuetDiagram.Llm/Context/DiagramSummary.cs
     - DuetDiagram.Llm/Context/SummaryBuilder.cs
     - DuetDiagram.Llm/Context/SummaryFormatter.cs
+    - DuetDiagram.Llm/Tools/DiagramToolContext.cs
     - DuetDiagram.Llm.Tests/SummaryTests.cs
   modify:
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm/Tools/ToolRegistry.cs
+    - DuetDiagram.Llm.Tests/ToolRegistryTests.cs
+    - DuetDiagram.Llm.Tests/SchemaTests.cs
     - docs/Architecture.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
     expect: 全通过；摘要含节点、边、布局、锁定、可用样式、最近修改六块，不含原始坐标；同一份文档生成的摘要逐字节相同，改了样式令牌时「最近修改」那一段跟着变
@@ -29,3 +36,115 @@ scope_note: |
   **摘要是这套设计里最容易被写歪的一处。** 它看着像「把文档转成文字」，
   实际要求是「只注入决策所需的最小信息」——多注入一样，模型就会去用它。
   所以判据里有一条是**不含原始坐标**，而不只是「含六块内容」。
+
+reconnaissance: |
+  **动手前对着 IR、命令总线与布局层的公开接口核了一遍，结论如下。**
+
+  1. **六块的取数来源逐条定死。**
+
+     - 节点列表：`NodeDef` 的 `Id` / `Label` / `Shape` / `StyleToken` 四项，
+       与 §6.4 列的那四样一一对应。`Parent` / `Layer` / `Ports` / `Style` /
+       `Text` / `Meta` / `Desc` 都不进——它们要么是别的块的事，要么是外观细节。
+     - 边列表：`EdgeDef` 的 `Id` / `From` / `To` / `Label`，线型走 `EdgeDef.Line`
+       这个便捷读取（未声明时按实线）。**边的样式令牌不注入**：§6.4 列的是
+       「from→to、label、线型」三样，令牌是外观细节，改它走 `diagram_style`。
+     - 布局摘要：方向取 `DiagramDocument.Direction`（IR 里唯一的方向来源）。
+     - 锁定列表：被固定节点的标识。
+     - 可用样式令牌：`Palette.Entries` 的键，实时取。
+     - 最近修改：版本日志里最近若干条。
+
+  2. **「层数」与「同层分组」只有布局求解之后才有，而工具层不引布局引擎。**
+     P3-08 的 scope_note 已经为这件事定过口径：`DuetDiagram.Llm` 只依赖 Core 与 MEAI。
+     所以这两样**由宿主传入**一份「每个节点落在第几层」的投影（`NodeRank`）。
+     缺省时不写这一项，而**不是自己按拓扑算一个**——自己算的话，摘要里的层数
+     与实际画面上的层数会各按一套算法，对不上时没有任何东西会报错。
+
+  3. **锁定列表由宿主传入，摘要层不读 sidecar 文件。** §6.4 要的是「被 pin 的节点」，
+     而固定位置那份人工产物归宿主管。摘要只收标识、不收坐标——收坐标就正好踩中
+     「模型照着会过期的数字微调位置」那条。
+
+  4. **最近修改读版本日志，不自己比较两次文档。** `DiagramCommandBus.Context.VersionLog`
+     的 `Snapshot()` 给出 `VersionEntry` 列表，每条带 `CommandId` / `Source` / `ActorId` /
+     `Timestamp` / `AffectedIds` / `Changes`。自己比较的话只能看到两次调用之间的差，
+     而模型的调用间隔是不定的。日志规模超限时那条记录会被裁剪成批量变更
+     （`IsBulkChange` 为真、`Changes` 与 `AffectedIds` 都空、只留 `OriginalChangeCount`），
+     渲染时要认这一种，否则会显示成一条什么都没改的记录。
+
+  5. **相对时间要显式收一个参照时刻。** §6.5 的例子写的是「2分钟前」，而相对时间
+     随调用时刻变化——不收参照时刻的话，同一份摘要两次调用得到不同的文本，
+     「逐字节相同」这条判据根本没法验。所以结构化对象里存**绝对时间戳**，
+     文本渲染时传入参照时刻，由它算出「几分钟前」。
+
+  6. **结构化对象是唯一来源，文本由它渲染。** 两者各写一份的话，
+     改了一处忘了另一处，模型看到的与程序读到的是两份不同的内容。
+     文本严格照 §6.5 那段的形状：一行抬头加六个项目符号。
+
+  7. **`diagram_read` 的执行体在这一条接上。** P3-05 的 followup 已经写明
+     「接上时替换的是各自的方法体，`DiagramToolset.cs` 进那几条任务的 `files.modify`」，
+     所以本条的改动清单里补上它。
+
+  8. **执行体要拿到文档，而 P3-05 的 `Create()` 是无参静态方法。** 改为收一个
+     上下文记录：文档、版本日志、锁定标识、层投影。这四个正是 `diagram_read` 要的，
+     也是 P3-07 起要往里加的（那时多一个命令总线）。**不能用静态字段兜**——
+     静态字段会让同一个进程里的两个窗口互相看到对方的文档，而表现是「摘要里的图
+     不是我这一张」，且只在多窗口下出现。
+
+  9. **上下文不能当声明方法的参数。** 参数表是从签名推导出来的，多一个参数
+     就会多一条模型要填的 schema，而它根本不是模型能提供的东西。
+     用局部函数把上下文捕获进去，参数表保持与 P3-05 逐字一致——
+     现有的 `Category=ToolSchema` 用例正好是这条的回归网。
+
+  10. **结果里的 JSON 走编译期生成的上下文，枚举写成字符串。** 与工具结果同一口径：
+     运行时反射在裁剪与原生编译之后会失败，而失败发生在真的调用模型那一刻。
+     枚举写成数字的话，模型看到的是一串不知道对应什么的整数。
+
+  11. **摘要是逐字节归一化的。** 节点与边按标识排序、令牌按序数字典序、
+     锁定标识排序、层分组按层号再按标识、变更按版本号倒序再按元素标识与字段名。
+     于是同一份文档无论集合的插入顺序如何，结构对象与文本都完全相同——
+     不归一化的话，摘要进不了快照测试，也没法用来判断「这份文档变了吗」。
+
+result:
+  summary: |
+    归一化上下文摘要与 `diagram_read` 落地。六块内容（节点、边、布局、锁定、可用样式令牌、
+    最近修改）都齐了，摘要里没有原始坐标，同一份文档无论集合的插入顺序如何都给出同一份摘要。
+
+    落地的东西：
+
+    - `Context/DiagramSummary.cs`：摘要的结构化对象与它的各块、以及结果类型与序列化上下文。
+    - `Context/SummaryBuilder.cs`：从文档与三样非 IR 的输入组装，并在这里做归一化。
+    - `Context/SummaryFormatter.cs`：把结构对象渲染成文本，参照时刻由调用方传入。
+    - `Tools/DiagramToolContext.cs`：一次会话里工具要用的东西（文档、版本日志、固定标识、
+      层投影、时钟）。
+    - `Tools/DiagramToolset.cs`：`diagram_read` 的执行体接上；声明改成实例方法，
+      上下文由实例捕获而不是当成一个参数。
+    - `Tools/ToolRegistry.cs`：`CreateDefault` 收一份上下文。
+
+    核对与实现过程中定下的几件事：
+
+    - 六块里有四样不在 IR 里（层数、同层分组、锁定列表、最近修改），只能由宿主喂进来；
+      缺省时留空，不自己按拓扑算一个。
+    - 相对时间要显式收一个参照时刻，否则「逐字节相同」这条判据没法验。
+    - 文本的形状照目标格式，次序不照——示例里节点是按图的读法排的，而归一化要求按标识排。
+    - `pageId` 现在返回结构化的「尚未接上」：页面还没有消费方，
+      认下它而按整份文档回是个静默的错误答案。
+
+  gates:
+    - command: dotnet build DuetDiagram.slnx -c Release
+      result: 0 警告 0 错误
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj
+      result: 59 通过
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+      result: 20 通过
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolRegistry"
+      result: 11 通过
+    - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolSchema"
+      result: 26 通过
+    - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=CommentDiscipline"
+      result: 1 通过
+    - command: dotnet run --project tools/LocCounter -- --root . --check
+      result: 通过
+
+  followups:
+    - "P3-07 起 `DiagramToolContext` 要加命令总线；工具声明已经是实例方法，加东西改的是上下文记录，参数表不动。"
+    - "「层数」这一项现在依赖宿主喂层投影。宿主那一侧（把布局结果量化成层号）还没有调用点，P3-11 接模型时一并接上。"
+    - "`diagram_read` 的 `pageId` 在页面有消费方之后要真的按页过滤，那时把这条「尚未接上」换掉。"

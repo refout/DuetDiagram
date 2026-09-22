@@ -15,14 +15,14 @@
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 19 | 3341 | 1899 | 972 | 470 |
-| DuetDiagram.Llm.Tests | 11 | 3048 | 2297 | 104 | 647 |
+| DuetDiagram.Llm | 22 | 3900 | 2204 | 1134 | 562 |
+| DuetDiagram.Llm.Tests | 13 | 3528 | 2589 | 207 | 732 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **347** | **71435** | **45126** | **14468** | **11841** |
+| **合计** | **352** | **72474** | **45723** | **14733** | **12018** |
 
 ## 明细
 
@@ -307,6 +307,9 @@
 | DiagramSummary.cs | 46 |
 | SummaryBuilder.cs | 73 |
 | SummaryFormatter.cs | 118 |
+| ErrorEnvelope.cs | 42 |
+| ErrorLoop.cs | 68 |
+| RepairHints.cs | 192 |
 | ActionDispatch.cs | 132 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 20 |
@@ -321,7 +324,7 @@
 | StyleTool.cs | 123 |
 | ToolDescriptor.cs | 99 |
 | ToolRegistry.cs | 76 |
-| ToolResult.cs | 98 |
+| ToolResult.cs | 101 |
 | ValidateTool.cs | 28 |
 
 ### DuetDiagram.Llm.Tests
@@ -330,10 +333,12 @@
 |---|---:|
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
+| ErrorLoopTests.cs | 145 |
 | ExportToolTests.cs | 106 |
 | Harness.cs | 78 |
 | HistoryToolTests.cs | 133 |
 | LayoutToolTests.cs | 304 |
+| RepairHintTests.cs | 147 |
 | SchemaTests.cs | 181 |
 | StyleToolTests.cs | 236 |
 | SummaryTests.cs | 427 |

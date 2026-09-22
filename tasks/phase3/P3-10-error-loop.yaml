@@ -1,18 +1,21 @@
 id: P3-10
 title: 错误回环——结构化错误与修复建议回灌模型
 phase: 3
-status: pending
+status: done
 depends_on: [P3-09, P1-04, P1-05]
 estimated_loc: 360
 files:
   create:
-    - DuetDiagram.Llm/Loop/ErrorEnvelope.cs
     - DuetDiagram.Llm/Loop/RepairHints.cs
+    - DuetDiagram.Llm/Loop/ErrorEnvelope.cs
     - DuetDiagram.Llm/Loop/ErrorLoop.cs
-    - DuetDiagram.Llm.Tests/ErrorLoopTests.cs
     - DuetDiagram.Llm.Tests/RepairHintTests.cs
+    - DuetDiagram.Llm.Tests/ErrorLoopTests.cs
   modify:
+    - DuetDiagram.Llm/Tools/ToolResult.cs
     - docs/Error-Codes.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ErrorLoop"
     expect: 全通过；每一类错误都带上错误码、出错参数、可用取值与一句可执行的修复建议
@@ -22,10 +25,11 @@ acceptance:
     expect: 同一个错误连续出现两次时，回灌的内容不一样（第二次带上「上一次这么改也不行」）
 constraints:
   - "**回灌给模型的是结构化错误，不是异常栈。** 异常类型名只写应用日志，不写回灌内容也不写审计日志。异常栈对模型没有信息量，还会把内部实现暴露给外部代理"
-  - "**修复建议要可执行。** 「参数非法」不是建议，「`nodeId` 必须匹配 `^[a-z0-9-]+$`，你给的是 `Node 1`」才是。不可执行的话，模型只能靠猜重试，而重试的代价是一轮往返"
+  - "**修复建议要可执行。** 「参数非法」不是建议，「`id` 必须匹配 `^[a-z0-9-]+$`，你给的是 `Node 1`」才是。不可执行的话，模型只能靠猜重试，而重试的代价是一轮往返"
   - "**同一类错误连续出现时，第二次要带上「上一次这么改也不行」。** 不带的话，模型会原样重试——这一条是回环里最容易缺的，而缺了之后表现为「模型卡在一个错误上反复撞」"
   - "回环要有次数上限，到上限就停下并把整段往返记录写进应用日志。不设上限的话，一次参数错误会变成无限次调用，而账单上看得出来、日志里看不出来"
-  - "错误码到修复建议的映射表放在**一处**，界面与工具层都读它。散在各处的话，同一个错误码会给用户和模型两种说法"
+  - "错误码到修复建议的映射表放在**一处**，散在各处的话，同一个错误码会给模型两种说法。**起草时写的「界面与工具层读同一份表」做不到**（App 不引用 Llm，放进 Core 又会让纯数据层认识上层名字），所以是「同一个形状、两个出口」：界面那张回答怎么呈现，工具层这张回答给模型看什么。风险挡在覆盖那一层——两张表都从同一批错误码常量出发，各由一条逐行核对的用例兜住"
+  - "**「可用取值」不进表。** 可用的动作名、样式令牌、字段名、已登记的工具名都随文档与工具表变，静态表里写不出来。它们由失败现场填进错误自己的期望字段，表里只留出错参数与一句建议"
 context:
   - 方案 §6.2 的确定性增强；§9.6 的错误码 GUI 处理表与「呈现方式落在一处」的口径
   - "`docs/Error-Codes.md` 的错误码表"
@@ -35,3 +39,93 @@ scope_note: |
   这一条把它映射成给模型看的话。两处都从错误码出发，所以映射表都放在一处、
   都由一条「逐行核对」的测试兜住——分开维护的话，用户看到的和模型看到的是两套说法，
   而两边各自都自洽，查不出来。
+
+  **核完发现两个出口的表放不到同一处，见下面第 1、2 条。**
+
+reconnaissance: |
+  **动手前对着错误码表、P2-11 那张呈现表、工具层的失败路径与工程引用核了一遍，结论如下。**
+
+  1. **修复建议表只能放在 `DuetDiagram.Llm`，与 P2-11 那张是两张。**
+     任务书里写的「界面与工具层都读它」做不到：`DuetDiagram.App.csproj` 里
+     **一条到 `DuetDiagram.Llm` 的引用都没有**，反过来引就成了循环。放进 Core 也不行——
+     Core 只依赖 BCL，而建议里要出现 `diagram_read`、`create-page` 这些工具层与命令层才有的名字，
+     塞进 Core 就是让纯数据层去认识上层。
+     所以照 `scope_note` 的「同一个形状、两个出口」办：P2-11 那张回答「怎么呈现」，
+     这一张回答「给模型看什么」。两张都从 `ErrorCodes` 出发、都由一条逐行核对的用例兜住——
+     「两边各自都自洽、查不出来」这个风险挡在**覆盖**那一层：任何一边漏一个码都会红。
+
+  2. **这一张表要覆盖两套错误码，P2-11 那张只覆盖一套。**
+     `ErrorPresenterTable` 的键全是 `DuetDiagram.Core.Commands.ErrorCodes` 里的常量。
+     而回灌给模型的失败有两条来源：命令层被拒（`ErrorCodes`）与工具层参数被拒
+     （`DuetDiagram.Llm.Tools.ToolErrorCodes`）。模型两边都会收到，所以修复建议表
+     必须同时覆盖这两套——这是它与呈现表唯一的结构差异。
+
+  3. **「可用取值」不进表，它是运行时的东西。**
+     可用的动作名、可用的样式令牌、可用的字段名、已登记的工具名——这几样都随文档与工具表变，
+     静态表里写不出来，写死了就是错的。它们已经由调用点填进 `ToolError.Expected`
+     （`ActionDispatch.UnknownAction` 填可用动作、`SchemaBuilder.Validate` 填正则与可用参数名、
+     `StyleResolver.CheckToken` 填可用令牌）。表里只放两样静态可写的东西：
+     **出错参数**与**一句可执行的修复建议**。信封上的 `Expected` 取调用点填的那个，
+     调用点没填才回落到表里。
+
+  4. **命令被拒那一路的参数名只能由表补，调用点补不了。**
+     `ActionDispatch.Failed` 把 `CommandError` 翻成 `ToolError` 时 `Parameter` / `Expected` 留空
+     （P3-07 有意留的，等这一轮）。`CommandError` 上只有 `Code` 与 `Payload`，
+     载荷里是**标识的值**而不是参数名——`NODE_MISSING` 的载荷是那个不存在的节点标识，
+     而它是从 `id` 还是 `from` 传进来的，命令层不知道。所以参数名按错误码静态地给，
+     没有把握的就留空，不硬凑一个。
+
+  5. **`INTERNAL_ERROR` 那一路 `Errors` 可能是空的。**
+     `ActionDispatch.Failed` 在 `result.Errors.Length == 0` 时自己造一个 `INTERNAL_ERROR`。
+     回环这边按同一口径兜一次：信封上没有码，等于没告诉模型任何可行动的东西。
+
+  6. **回环挂在宿主那一侧，不挂在 `ToolRegistry` 上。**
+     注册表只管一次调用；「同一个错误连着出现两次」与「这一轮已经试了几次」都是**跨调用**的状态，
+     而注册表是共享的（一个进程一份，两个窗口共用一份）。把计数挂在注册表上的话，
+     甲窗口的错误会算到乙窗口的账上，表现是模型莫名其妙被判定「又错了」。
+     所以 `ErrorLoop` 是宿主每轮对话自己 new 一个的对象，`Reset()` 由宿主在换一轮时调用。
+
+  7. **`IDiagnosticsSink` 是现成的应用日志出口，到上限那一条走 `Warn`。**
+     `DuetDiagram.Core.Diagnostics.IDiagnosticsSink` 有 `Warn` / `Error` 两个方法，
+     另有 `CollectingDiagnosticsSink` 供测试断言。宿主放弃这一轮是「能继续跑但值得注意」，
+     不是内部出错，所以是 `Warn` 不是 `Error`。
+
+  8. **`ErrorEnvelope` 要登记进 `ToolJsonContext`。**
+     它要交给模型侧与代理侧，两边都会把它序列化成 JSON。不登记的话，
+     裁剪与原生编译之后会在真的调用模型那一刻失败。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.Llm/Loop/RepairHints.cs`：错误码到「出错参数 + 一句可执行的修复建议」
+    的映射表，覆盖命令层与工具层两套码共四十二个，另有 `For` 的兜底
+    （认不出的码退回一句通用的，不是空字符串）。
+  - 新增 `DuetDiagram.Llm/Loop/ErrorEnvelope.cs`：回灌给模型的那个结构化错误
+    （码、出错参数、可用取值、说明、修复建议、第几次、是不是同一个错误又来了、那句提醒）。
+    出错参数与可用取值都优先取失败现场填的那一份，取不到才回落到表里。
+  - 新增 `DuetDiagram.Llm/Loop/ErrorLoop.cs`：跨调用的回环状态。`Feed` 把一次失败翻成信封，
+    到上限返回空并把整段往返记录写进 `IDiagnosticsSink`；`Reset` 由宿主换一轮时调用。
+  - `ToolResult.cs`：源生成上下文登记 `ErrorEnvelope`。
+  - `docs/Error-Codes.md`：新增「修复建议（机器可读）」一节，四十二行与 `RepairHints` 逐行一致。
+
+  **核掉的起草假设**
+
+  - 「界面与工具层读同一份修复建议表」做不到：App 不引用 Llm，而放进 Core 会让纯数据层
+    认识上层名字。改成「同一个形状、两个出口」，风险挡在覆盖那一层。
+  - 「可用取值写进表里」做不到：可用的动作名、令牌名、字段名都是运行时的，
+    只有失败现场知道。表里只留静态可写的那两样，可用取值由失败现场填进信封。
+
+  **门禁**
+
+  - `Category=ErrorLoop`：10 条，全通过。
+  - `Category=RepairHint`：6 条，全通过。
+  - 全量：Core 430、Layout 75、Render 145、Mermaid 179、Dsl 158、Llm **169**、E2E 81，全通过。
+  - `Category=CommentDiscipline` 全通过；`dotnet build DuetDiagram.slnx -c Release`
+    0 警告 0 错误；`tools/LocCounter --check` 退出码 0；全部任务 YAML 可解析。
+
+  **后续**
+
+  - 回环本身还没有接上真正的对话循环——那是模型接入那一条的事。这一条只把
+    「失败怎么翻成给模型看的东西」与「同一轮试几次就停」定下来。
+  - `RepairHints` 与界面那张呈现表的**覆盖**由两条用例各管一边；两边的内容会不会分叉
+    没有机械判据，靠的是两者都从同一批错误码常量出发这一条约定。

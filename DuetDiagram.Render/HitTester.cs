@@ -65,6 +65,86 @@ public static class HitTester
     }
 
     /// <summary>
+    /// 找出这个矩形框住了哪些元素。
+    /// </summary>
+    /// <param name="commands">绘制指令，按层叠顺序。</param>
+    /// <param name="area">文档坐标下的一个矩形。</param>
+    /// <param name="blocked">画出来但不该被选中的元素标识。传空表示画出来的都能选。</param>
+    /// <remarks>
+    /// <para>
+    /// **判据与 <see cref="Hit"/> 同一条：同一份绘制列表、同样跳过 <paramref name="blocked"/>。**
+    /// 两套判据的表现是"框进去的元素点不中、点得中的框不进"——而两处各自都自洽，
+    /// 只有把两次结果摆在一起才看得出来。
+    /// </para>
+    /// <para>
+    /// **矩形判据与点命中有一处刻意的不同：折线按它的外接矩形算。**
+    /// 点命中逐段算距离，因为外接矩形在转折处会空出一大片；
+    /// 而框选本来就是"圈一块区域"，一条斜着穿过的边该被框进来——
+    /// 按逐段距离判的话，框住它中间那一段反而不算选中，而用户看不出为什么。
+    /// </para>
+    /// <para>
+    /// 返回的标识按层叠顺序（从头到尾），同一个元素只出现一次。
+    /// 顺序确定，于是"框同一块区域两次"得到同一份选中。
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<string> Visible(
+        IReadOnlyList<DrawCommand> commands,
+        SpatialRect area,
+        IReadOnlySet<string>? blocked = null)
+    {
+        ArgumentNullException.ThrowIfNull(commands);
+
+        var ids = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var command in commands)
+        {
+            if (blocked is not null && blocked.Contains(command.ElementId))
+            {
+                continue;
+            }
+
+            if (Box(command) is not { } box || !box.Intersects(area))
+            {
+                continue;
+            }
+
+            if (seen.Add(command.ElementId))
+            {
+                ids.Add(command.ElementId);
+            }
+        }
+
+        return ids;
+    }
+
+    /// <summary>这条指令画的东西占的那一块。算不出来的指令返回空。</summary>
+    private static SpatialRect? Box(DrawCommand command) => command switch
+    {
+        DrawShape shape => shape.Rect,
+        DrawText text => text.Box,
+        DrawPolyline polyline => Box(polyline.Points),
+        _ => null,
+    };
+
+    private static SpatialRect? Box(IReadOnlyList<DrawPoint> points)
+    {
+        if (points.Count == 0)
+        {
+            return null;
+        }
+
+        var box = new SpatialRect(points[0].X, points[0].Y, 0, 0);
+
+        for (var index = 1; index < points.Count; index++)
+        {
+            box = box.Union(new SpatialRect(points[index].X, points[index].Y, 0, 0));
+        }
+
+        return box;
+    }
+
+    /// <summary>
     /// 这条指令画的东西盖住了这个点没有。
     /// </summary>
     /// <remarks>

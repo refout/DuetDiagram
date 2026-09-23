@@ -3,16 +3,23 @@ using DuetDiagram.App.ViewModels;
 namespace DuetDiagram.App.Services;
 
 /// <summary>一条条目出现在哪一处的界面上。</summary>
+[Flags]
 public enum MenuSurface
 {
-    /// <summary>只在工具栏上。</summary>
-    ToolBar,
+    /// <summary>哪个界面都不出现。只给"有行为还没排到让人点"的条目用。</summary>
+    None = 0,
 
-    /// <summary>只在菜单栏里。</summary>
-    Menu,
+    /// <summary>在工具栏上。</summary>
+    ToolBar = 1,
 
-    /// <summary>两处都有。</summary>
-    Both,
+    /// <summary>在菜单栏里。</summary>
+    Menu = 2,
+
+    /// <summary>在右键菜单里。</summary>
+    Context = 4,
+
+    /// <summary>工具栏与菜单栏两处都有。</summary>
+    Both = ToolBar | Menu,
 }
 
 /// <summary>
@@ -58,15 +65,27 @@ public sealed record MenuEntry(
 /// </remarks>
 public sealed class MenuContext
 {
-    public MenuContext(MainWindow window)
+    public MenuContext(MainWindow window, string? target = null)
     {
         ArgumentNullException.ThrowIfNull(window);
 
         Window = window;
+        Target = target;
     }
 
     /// <summary>这一份上下文属于哪个窗口。</summary>
     public MainWindow Window { get; }
+
+    /// <summary>
+    /// 右键落在谁身上。菜单栏与工具栏那两处为空。
+    /// </summary>
+    /// <remarks>
+    /// **与"选中了谁"是两件事。** 右键不动选中（一次误触就换掉用户攒起来的选中集合，
+    /// 代价太大），所以"要对哪一个元素做这件事"只能由右键那一刻的位置回答。
+    /// 解散组合就是靠它：组合现在选不中（选中集合里只有节点），
+    /// 而"右键那个组合 → 解散"仍然说得通。
+    /// </remarks>
+    public string? Target { get; }
 
     /// <summary>文档、选中状态与命令入口。</summary>
     public DiagramSession Session => Window.Session;
@@ -109,11 +128,27 @@ public static class MenuGroups
     public const string View = "视图";
     public const string Export = "导出";
 
+    /// <summary>只出现在右键菜单里的一档：四类组合、解散、以及它们那几样。</summary>
+    /// <remarks>
+    /// 单独一档而不是混进「编辑」：这几条只在右键时出现（菜单栏与工具栏上都没有它们），
+    /// 混进「编辑」的话，菜单栏上会多出四条平时点不动的条目。
+    /// </remarks>
+    public const string Group = "组合";
+
     /// <summary>工具栏上从左到右的档。只有菜单里出现的那两档不在其中。</summary>
     public static IReadOnlyList<string> ToolBarOrder { get; } = [Edit, Align, Layout, Export];
 
     /// <summary>菜单栏上从左到右的顶级菜单。</summary>
     public static IReadOnlyList<string> MenuOrder { get; } = [File, Edit, Align, Layout, View, Export];
+
+    /// <summary>
+    /// 右键菜单里从左到右的档。
+    /// </summary>
+    /// <remarks>
+    /// 与菜单栏那份分开：并进去的话，菜单栏上会多出一个叫「组合」的顶级菜单，
+    /// 而它只在右键时才有意义。
+    /// </remarks>
+    public static IReadOnlyList<string> ContextOrder { get; } = [Edit, Group];
 }
 
 /// <summary>
@@ -169,7 +204,8 @@ public sealed class MenuRegistry
         }
 
         if (MenuGroups.ToolBarOrder.Contains(entry.Group, StringComparer.Ordinal) is false
-            && MenuGroups.MenuOrder.Contains(entry.Group, StringComparer.Ordinal) is false)
+            && MenuGroups.MenuOrder.Contains(entry.Group, StringComparer.Ordinal) is false
+            && MenuGroups.ContextOrder.Contains(entry.Group, StringComparer.Ordinal) is false)
         {
             throw new InvalidOperationException($"条目 {entry.Id} 落在了一个不存在的档里：{entry.Group}");
         }
@@ -181,7 +217,21 @@ public sealed class MenuRegistry
     public IReadOnlyList<MenuEntry> On(MenuSurface surface, string group) =>
         [.. _entries.Where(entry =>
             string.Equals(entry.Group, group, StringComparison.Ordinal)
-            && (entry.Surface == surface || entry.Surface == MenuSurface.Both))];
+            && entry.Surface.HasFlag(surface))];
+
+    /// <summary>某个界面上按档的顺序排好的条目。</summary>
+    /// <param name="surface">哪个界面。</param>
+    /// <param name="groups">这个界面上从左到右的档。</param>
+    /// <remarks>
+    /// 档的顺序由调用方给：工具栏、菜单栏与右键菜单各有一份顺序，
+    /// 而"哪一档在前"是界面上的事，注册表不该替它们定。
+    /// </remarks>
+    public IReadOnlyList<MenuEntry> On(MenuSurface surface, IReadOnlyList<string> groups)
+    {
+        ArgumentNullException.ThrowIfNull(groups);
+
+        return [.. groups.SelectMany(group => On(surface, group))];
+    }
 
     /// <summary>按标识取一条。找不到返回空。</summary>
     public MenuEntry? Find(string id) =>
@@ -197,6 +247,10 @@ public sealed class MenuRegistry
         LayoutEntries.Register(registry);
         ViewEntries.Register(registry);
         ExportEntries.Register(registry);
+
+        // 只在右键菜单里出现的那一档。它与上面几档分开注册：菜单栏与工具栏上都没有它们，
+        // 而"框选之后建分组"这件事只有右键这一个入口。
+        ContextEntries.Register(registry);
 
         return registry;
     }

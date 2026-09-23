@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -72,8 +73,25 @@ public sealed partial class DiagramCanvas : UserControl
     /// <summary>文档那一侧。拖节点需要它来定选中、写固定位置；普通选中也走它。</summary>
     public DiagramSession? Session { get; set; }
 
+    /// <summary>
+    /// 这个画布属于哪个窗口。
+    /// </summary>
+    /// <remarks>
+    /// 右键菜单要用它：条目的启用判据与执行都要看会话、画布状态与状态栏，
+    /// 而那三样收在 <see cref="MenuContext"/> 上（见工具栏那边的同一处接线）。
+    /// 由画布自己去找窗口的话，"这个画布属于谁"就有了两个来源。
+    /// </remarks>
+    public MainWindow? Host { get; set; }
+
     private DragController? _dragger;
     private bool _nodeDragging;
+
+    // 一次框选。按在空白处才开始，拖动中只更新叠加层上的那个选框。
+    private MarqueeSession? _marquee;
+    private SpatialRect? _marqueeArea;
+
+    /// <summary>右键菜单。每次右键现建一份：条目随选中的内容变。</summary>
+    private ContextMenu? _contextMenu;
 
     // 脉冲动画的帧驱动。只有真的有脉冲在跑时才转——空闲时也在转的话，
     // 省电模式下会被系统降频，而那个降频会被误读成性能退化。
@@ -717,6 +735,16 @@ public sealed partial class DiagramCanvas : UserControl
         Focus();
 
         var point = e.GetCurrentPoint(this);
+
+        // 右键：先把菜单弹出来，不动选中。右键"选中并弹菜单"是另一种做法，
+        // 但那样一次误触就换掉了用户好不容易攒起来的选中集合。
+        if (point.Properties.IsRightButtonPressed)
+        {
+            ShowContextMenu(e.GetPosition(this));
+            e.Handled = true;
+            return;
+        }
+
         var wantsPan = point.Properties.IsMiddleButtonPressed
             || (_spaceHeld && point.Properties.IsLeftButtonPressed);
 
@@ -755,6 +783,20 @@ public sealed partial class DiagramCanvas : UserControl
                     _dragger = null;
                 }
 
+                // 按在空白处：开始一次框选，**先不改选中**。
+                // 松手时若指针几乎没动，那一下仍然算点选（清空选中），见 OnPointerReleased。
+                // 按下就清掉的话，用户想框选却先把选中清空了，而在框选失败时那个清空已经发生。
+                if (model.Pick(position.X, position.Y) is null)
+                {
+                    var anchor = model.Viewport.Transform.ToDocument(position.X, position.Y);
+
+                    _marquee = new MarqueeSession(anchor, additive, model.Viewport.Scale);
+
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+
                 model.RequestSelection(position.X, position.Y, additive);
                 e.Handled = true;
             }
@@ -781,6 +823,20 @@ public sealed partial class DiagramCanvas : UserControl
         var position = e.GetPosition(this);
 
         model.MovePointer(position.X, position.Y);
+
+        // 框选进行中：只更新那个选框，不改文档、不改选中。
+        if (_marquee is not null)
+        {
+            if (_marquee.Move(model.Viewport.Transform.ToDocument(position.X, position.Y)) is { } area)
+            {
+                _marqueeArea = area;
+                model.SetOverlay(EdgeAdorner.Marquee(area));
+                InvalidateVisual();
+            }
+
+            e.Handled = true;
+            return;
+        }
 
         // 拖拽进行中：移动只更新预览偏移，不碰文档、不碰布局。每一帧由画布把
         // 选中节点整体挪一下，松手才由宿主一次性落定。
@@ -831,6 +887,39 @@ public sealed partial class DiagramCanvas : UserControl
     {
         base.OnPointerReleased(e);
 
+        // 框选松手：到这里才算一次选中。指针几乎没动的那一下算点选，
+        // 走的还是原来那条"清空选中"的路。
+        if (_marquee is not null)
+        {
+            var position = e.GetPosition(this);
+            var marquee = _marquee;
+            var area = _marqueeArea;
+
+            _marquee = null;
+            _marqueeArea = null;
+            Model?.ClearOverlay();
+
+            if (marquee.IsMarquee && area is { } box && Model is { } model && Session is not null)
+            {
+                var ids = marquee.Ids(model.DrawList, box);
+
+                // 增选模式下并进已有选中，否则换掉它。并的时候保持原来的前后次序，
+                // 新的追加在后面——选中次序有语义（属性面板按它取第一个元素）。
+                Session.SetSelection(marquee.Additive
+                    ? [.. Session.SelectedIds.Union(ids, StringComparer.Ordinal)]
+                    : ids);
+            }
+            else
+            {
+                Model?.RequestSelection(position.X, position.Y, marquee.Additive);
+            }
+
+            InvalidateVisual();
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
+
         if (_nodeDragging)
         {
             // 松手时指针底下的那个元素决定这一拖落定成什么：压在一个兄弟节点上是一条层内次序，
@@ -876,6 +965,15 @@ public sealed partial class DiagramCanvas : UserControl
             _dragger?.Cancel();
             _nodeDragging = false;
             _dragger = null;
+        }
+
+        // 框选也一样：被打断的那一次不落定成选中，选框也收掉。
+        if (_marquee is not null)
+        {
+            _marquee = null;
+            _marqueeArea = null;
+            Model?.ClearOverlay();
+            InvalidateVisual();
         }
 
         // 连线类手势被打断同样作废：不创建边、不改端点、不加折点。
@@ -950,6 +1048,62 @@ public sealed partial class DiagramCanvas : UserControl
         _panning = false;
         Cursor = Cursor.Default;
     }
+
+    #region 右键菜单
+
+    /// <summary>
+    /// 在这一点上弹出右键菜单。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **条目从注册表来，只按"落在元素上还是空白处"分两套。** 菜单里摆哪几条由
+    /// <see cref="ContextMenuBuilder"/> 决定，这一层只把控件搭出来。
+    /// </para>
+    /// <para>
+    /// **点不动的条目也摆出来，并把理由写在标题上** —— 与工具栏同一条口径：
+    /// 灰掉而不说为什么，用户会以为程序坏了；藏起来的话，用户会以为这里没有这个功能。
+    /// </para>
+    /// </remarks>
+    private void ShowContextMenu(Point position)
+    {
+        if (Host is not { } window || Model is not { } model)
+        {
+            return;
+        }
+
+        var target = model.Pick(position.X, position.Y);
+        var context = new MenuContext(window, target);
+        var menu = new ContextMenu { PlacementTarget = this };
+
+        foreach (var entry in ContextMenuBuilder.Build(context, target is not null))
+        {
+            var reason = entry.Refusal(context);
+            var item = new MenuItem
+            {
+                Header = reason is null ? entry.Label : $"{entry.Label}（{reason}）",
+                IsEnabled = reason is null,
+            };
+
+            AutomationProperties.SetAutomationId(item, $"context.{entry.Id}");
+
+            var chosen = entry;
+
+            // 命令跑完之后不必在这里刷新菜单栏与工具栏：这一档里的每一条都会改选中
+            // （建组合把选中换到新组合上、删除与两个选择动作更不用说），
+            // 而选中一变，主窗口那条路就会刷一遍。
+            item.Click += (_, _) => chosen.Run(context);
+
+            menu.Items.Add(item);
+        }
+
+        _contextMenu?.Close();
+        _contextMenu = menu;
+        ContextMenu = menu;
+
+        menu.Open(this);
+    }
+
+    #endregion
 
     #region 连线与边编辑手势
 

@@ -1,7 +1,7 @@
 id: P4-05
 title: 框选与右键上下文菜单
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01, P3-03]
 estimated_loc: 460
 files:
@@ -22,9 +22,9 @@ acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Marquee"
     expect: 全通过；框选选中范围内的元素、框选期间不改文档、松手才算一次选中
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ContextMenu"
-    expect: 全通过；右键菜单的条目随选中内容变化，每一条点下去发一条命令
-  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Composite"
-    expect: 全通过；框选三个节点右键建分组，得到一条命令、一次撤销能整份还原
+    expect: 全通过；右键菜单的条目随选中内容变化，改文档的那几条每一条各发一条命令（全选与清空选择改的是选中，不进历史）
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
+    expect: 全通过；建分组那条路在命令层与工具层都成立（E2E 那边框选三个节点右键建分组、一次撤销整份还原，见 Category=ContextMenu）
 constraints:
   - "**框选期间不许改文档。** 与拖拽同一条口径：拖动中只改叠加层，松手才作为一条操作落定。边选边改的话，撤销要按很多次，而用户眼里是一次框选"
   - "**框选的判据与命中测试同一条。** 两套判据的表现是「框进去的元素点不中、点得中的框不进」——而两处各自都自洽"
@@ -45,3 +45,128 @@ scope_note: |
   **框选与多选是同一件事的两半。** 多选现在只有单选（`SelectionSet` 是点选的产物），
   而框选的结果就是一个多选集合。所以这一条顺带把多选补齐，
   属性面板的「多个值」那条路（P2-05 已经做了）才有真的来源。
+
+reconnaissance: |
+  **动手前对着画布的指针处理、选中集合、菜单注册表、组合命令与绘制列表的几何核了一遍，
+  结论如下。**
+
+  1. **框选的判据与命中测试同一条，办法是把它加在命中测试那个文件里。**
+     `HitTester.Hit` 的几何判据（形状按外接矩形、折线按逐段距离）是私有的，
+     而 `CullingIndex` 与 `Highlight` 各自抄了一份"指令→包围盒"的开关。
+     所以框选**不新写第三份**：在 `HitTester` 里加一个 `Visible(commands, area, blocked)`，
+     与 `Hit` 共用那份"跳过 blocked"的处理。矩形判据与点命中有一处刻意的不同——
+     **折线按外接矩形算**：点命中逐段算距离是因为外接矩形在转折处会空出一大片，
+     而框选本来就是"圈一块区域"，一条斜着穿过的边该被框进来。
+
+  2. **"框不进来"这件事不用另写判据。** 不可见图层上的元素没有指令，锁定的与别的页面上的
+     在 `DrawList.Blocked` 里——两者都已经被绘制列表算好了。框选只读绘制列表，
+     于是 P4-02 与 P4-04 那两条口径自动成立，不必在这儿再判一次图层与页面。
+
+  3. **按下落在空白处时不再立刻清空选中。** 现在按下就报一次选中请求，而框选要从那一点开始——
+     按下就清的话，用户想框选却先把选中清空了，框选失败时那个清空也已经发生。
+     改成：空白处按下先开始一次框选，松手时若指针几乎没动（阈值 3 屏幕像素，
+     换算成文档单位随缩放变），那一下仍然算点选（清空选中）。
+
+  4. **框选期间不改选中，只改叠加层。** 约束里那条"框选期间不许改文档"更严格地说
+     还包括选中：拖动中每报一次选中，属性面板就要把每个字段重读一遍。
+     所以拖动中只把选框推给叠加层，松手才 `SetSelection` 一次——用例按
+     `SelectionChanged` 的次数断言，那比"文档版本没变"更能说明这件事。
+
+  5. **右键不动选中。** "右键选中并弹菜单"是另一种做法，但一次误触就换掉用户攒起来的
+     选中集合。于是"要对哪一个元素做这件事"由 `MenuContext.Target`（右键那一刻拾取到的标识）
+     回答，与"选中了谁"分开。**解散组合就是靠它**：组合现在选不中（选中集合里只有节点，
+     `SetSelection` 按 `Find(id)` 只认节点），按选中判的话那一条永远点不动。
+
+  6. **`MenuSurface` 从三档枚举改成标志位。** 右键菜单是第三个界面，而
+     "全选、清空选择、删除"本来就注册在「编辑」档上（菜单栏与工具栏也有它们）。
+     标志位之后 `edit.*` 那三条加一个 `Context` 位就同时出现在两处，
+     行为与判据仍然只有一份。菜单栏与工具栏分档照旧。
+
+  7. **右键的那一档单独一档（`MenuGroups.Group`），并给注册表加一份
+     `ContextOrder`。** 混进「编辑」的话菜单栏上会多出四条平时点不动的条目；
+     而并进 `MenuOrder` 会让菜单栏多出一个叫「组合」的顶级菜单。
+
+  8. **"哪几下摆哪几条"由 `ContextMenuBuilder` 按标识列。** 分档解决不了"空白处不摆删除、
+     元素上不摆全选"，所以那两套各是一份显式清单。**行为一律仍在注册表里**——
+     这一层只决定摆哪几条、按什么顺序。
+
+  9. **建组合是一条命令，走现成的 `create-composite`。** 四类各有各的构造
+     （`GroupDef` / `LaneDef` / `SubflowDef` / `ComboDef`），所以会话上四个入口各三行，
+     而不是一个带枚举的"新建组合"——约束里点名的就是这条。
+     **空的泳道是正当的**：在空白处先划一条泳道、再把节点拖进去是常见走法；
+     另外三类没有成员就什么也框不住，所以它们要求先选中东西。
+
+  10. **建完之后不动选中。** 侦察时想让选中跟到新组合上，落地时发现做不到：
+     组合选不中，`SetSelection([组合标识])` 会被筛成空——那等于把用户刚框起来的几个东西
+     一下子全没了，比"选中没跟上"难解释得多。等组合能被选中时再换成选中新组合。
+
+  11. **`MarqueeSession` 与 `ContextMenuBuilder` 对测试公开。** 前者与
+     `SelectionSet` / `DragController` / `EdgeAdorner` 一样是交互层的一个模块（那几个都是公开的）；
+     后者公开是为了让用例直接验"这一下摆哪几条"，而不必去戳一个真的弹出来的菜单控件。
+     菜单控件本身那条路另有用例验（右键真的弹出菜单、里面确实是那几条）。
+
+result: |
+  **组合在界面上有了入口。** 在此之前只有模型能建分组，人不能——而 §14.3 的 Phase 4
+  判据里有一条是「组合全部可用」。同时把多选补齐：框选的结果就是一个多选集合。
+
+  **落地了什么**
+
+  - `DuetDiagram.Render/HitTester.Visible(commands, area, blocked)`（加在命中测试那个文件里）：
+    矩形框住的元素，与 `Hit` 共用"同一份绘制列表、同样跳过 blocked"的处理。
+    **折线按外接矩形算**——点命中逐段算距离是因为外接矩形在转折处会空出一大片，
+    而框选本来就是"圈一块区域"，一条斜着穿过的边该被框进来。
+  - `DuetDiagram.App/Interaction/MarqueeSession.cs`（新建）：一次框选。
+    阈值 3 屏幕像素、按缩放换算成文档单位；没超过阈值时不给选框（那一下算点选）。
+  - `EdgeAdorner.Marquee(rect)`：虚线闭合矩形，不填充（填上色会把框里的东西盖住）。
+  - 画布：按在空白处开始框选（**不再立刻清空选中**）、拖动中只推选框、松手 `SetSelection` 一次；
+    指针被抢走时取消这一次框选。右键弹出菜单，每次现建一份（条目随点在哪里变）。
+  - `MenuSurface` 改成标志位并加 `Context` 那一位；`edit.delete` / `edit.select-all` /
+    `edit.select-none` 加一个 `Context` 位（行为与判据仍只有一份）；
+    新加 `MenuGroups.Group` 一档与 `MenuGroups.ContextOrder`。
+  - `ContextEntries.cs`（新建）：四类组合各一条 + 解散一条，注册在 `MenuSurface.Context` 上。
+    `ContextMenuBuilder`（新建，公开）按标识决定"这一下摆哪几条"。
+  - `MenuContext.Target`：右键落在谁身上，与"选中了谁"分开。
+  - `DiagramSession`：`CreateGroup` / `CreateLane` / `CreateSubflow` / `CreateCombo` /
+    `DissolveComposite` + `NextCompositeId`。
+  - 用例：`HitTester.Visible` 的判据（在 Render 里）、E2E `MarqueeTests` 12 条、
+    `ContextMenuTests` 10 条。
+
+  **与侦察不一样的地方**
+
+  - **建完组合不动选中。** 侦察时想让选中跟到新组合上，落地时发现做不到：组合选不中，
+    `SetSelection([组合标识])` 被筛成空——那等于把用户刚框起来的几个东西一下子全没了。
+  - **解散的判据改成看 `MenuContext.Target`。** 同上：组合选不中，按"选中了恰好一个组合"
+    判的话那一条永远点不动。右键落在组合上才算对准了它。
+  - **验收里那条 `Category=Composite` 落在 E2E 上，而它其实在 Core 与 Llm 上**
+    （那条分类管的是命令层与工具层的建组合）。按实际改成 Llm 的 `Category=CompositeTool`，
+    而"框选三个节点右键建分组、一次撤销整份还原"那条判据落在 E2E 的 `Category=ContextMenu` 里。
+  - **`MenuSurface` 从三档枚举改成了标志位**：右键菜单是第三个界面，而"全选/清空选择/删除"
+    本来就注册在「编辑」档上，两个界面共用一条条目比各注册一份好。
+    菜单栏与工具栏分档照旧，两处的用例都仍然绿。
+  - **`MarqueeSession` 与 `ContextMenuBuilder` 公开**，与 `SelectionSet` / `EdgeAdorner` 那几样同一口径。
+
+  **一个刻意的取舍**
+
+  - 右键菜单里**没有**「编辑链接」「添加动作」「图层归属」（各自的入口已在属性面板与图层面板上，
+    再加一处会让同一件事有两个入口），**也没有** pin/unpin（固定位置是"拖到那儿"的产物，
+    而取消固定还没有任何 API）。三条都记进了 `docs/GUI.md` 的缺口表。
+  - **组合现在选不中**（选中集合里只有节点），所以建完一个分组之后没有"点一下选中整个组合"
+    这条路。记进缺口表。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=Marquee` 12/12、`Category=ContextMenu` 10/10、
+    `Category=CompositeTool` 全通过。
+  - 全量测试：Core 496 / Layout 78 / Render 165 / Mermaid 179 / Dsl 158 / Llm 192 /
+    Mcp 109 / **E2E 145**（改动前 123）全绿。
+  - `Category=CompositeTool` 16/16；`Category=MultiAgent` 通过；
+    `tools/McpHarness -- protocol` 8/8 通过；`tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：413 个文件 / 88589 行 / 55366 行代码）。
+
+  **后续**
+
+  - 组合成为可选中元素（选中集合要能装组合），那时"建完选中新组合"才成立。
+  - 取消固定（pin 的逆操作）还没有 API；右键菜单里的「编辑链接」「添加动作」「图层归属」
+    按上面的理由不做。
+  - 框选时按住 Shift 与 Ctrl 现在是同一种"并进"语义，没有"从已有选中里减掉"的那一档。

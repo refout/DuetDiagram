@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 49 | 12172 | 6923 | 3234 | 2015 |
+| DuetDiagram.App | 52 | 12754 | 7216 | 3442 | 2096 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 98 | 13636 | 7751 | 3874 | 2011 |
 | DuetDiagram.Core.Tests | 39 | 10140 | 7157 | 1028 | 1955 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 18 | 4983 | 3222 | 731 | 1030 |
+| DuetDiagram.E2E.Tests | 20 | 5788 | 3773 | 804 | 1211 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4533 | 2509 | 1379 | 645 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 21 | 3460 | 1772 | 1185 | 503 |
+| DuetDiagram.Render | 21 | 3540 | 1817 | 1209 | 514 |
 | DuetDiagram.Render.Tests | 14 | 3202 | 2277 | 314 | 611 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **408** | **87122** | **54477** | **18010** | **14635** |
+| **合计** | **413** | **88589** | **55366** | **18315** | **14908** |
 
 ## 明细
 
@@ -39,8 +39,9 @@
 | 文件 | 代码 |
 |---|---:|
 | App.axaml.cs | 18 |
+| ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 814 |
+| DiagramCanvas.cs | 904 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -56,23 +57,25 @@
 | ConstraintGestures.cs | 97 |
 | DragController.cs | 58 |
 | DragSession.cs | 23 |
-| EdgeAdorner.cs | 57 |
+| EdgeAdorner.cs | 76 |
 | EdgeHandleHitTest.cs | 118 |
 | HighlightTracker.cs | 167 |
+| MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 294 |
+| MainWindow.axaml.cs | 295 |
 | Program.cs | 78 |
 | SampleDiagram.cs | 103 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
-| DiagramSession.cs | 976 |
+| ContextEntries.cs | 53 |
+| DiagramSession.cs | 1027 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 74 |
 | FieldEditBinder.cs | 257 |
 | MenuEntries.cs | 177 |
-| MenuRegistry.cs | 87 |
+| MenuRegistry.cs | 101 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
 | ConstraintEditorViewModel.cs | 165 |
@@ -279,15 +282,17 @@
 | CanvasSmokeTests.cs | 202 |
 | ConnectTests.cs | 86 |
 | ConstraintEditorTests.cs | 299 |
+| ContextMenuTests.cs | 249 |
 | DiagnosticsPanelTests.cs | 151 |
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 144 |
+| HeadlessFixture.cs | 177 |
 | HighlightTests.cs | 70 |
 | LayerPanelTests.cs | 357 |
 | LayerVisibilityTests.cs | 154 |
 | LayoutFailureTests.cs | 217 |
+| MarqueeTests.cs | 269 |
 | MenuBarTests.cs | 131 |
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
@@ -458,7 +463,7 @@
 | DrawCommand.cs | 80 |
 | DrawList.cs | 64 |
 | Highlight.cs | 181 |
-| HitTester.cs | 68 |
+| HitTester.cs | 113 |
 | ITextMeasurer.cs | 6 |
 | LayerPlan.cs | 87 |
 | ModeSwitch.cs | 44 |

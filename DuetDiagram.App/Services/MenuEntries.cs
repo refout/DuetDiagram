@@ -86,7 +86,7 @@ internal static class EditEntries
             MenuGroups.Edit,
             "删除",
             "Delete",
-            MenuSurface.Both,
+            MenuSurface.Both | MenuSurface.Context,
             context => MenuRefusals.WriteToSelection(context, "要删的元素"),
             context => context.Session.DeleteSelection()));
 
@@ -95,7 +95,7 @@ internal static class EditEntries
             MenuGroups.Edit,
             "全选",
             "Ctrl+A",
-            MenuSurface.Both,
+            MenuSurface.Both | MenuSurface.Context,
             context => context.Session.AllNodeIds.Count == 0 ? "文档里还没有元素" : null,
             context => context.Session.SetSelection(context.Session.AllNodeIds)));
 
@@ -104,7 +104,7 @@ internal static class EditEntries
             MenuGroups.Edit,
             "清空选择",
             null,
-            MenuSurface.Both,
+            MenuSurface.Both | MenuSurface.Context,
             context => context.HasSelection ? null : "现在没有选中东西",
             context => context.Session.SetSelection([])));
     }

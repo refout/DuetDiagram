@@ -1137,6 +1137,97 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 组合
+
+    /// <summary>
+    /// 把选中的一批元素包成一个分组。
+    /// </summary>
+    /// <remarks>
+    /// **一条命令。** 建组合与"把成员移进去"合成一次，而不是先建空的再逐个移入：
+    /// 后者在撤销时要按很多次，而用户眼里是一次操作——与批量归属那一条同一个口径。
+    /// </remarks>
+    public CommandResult CreateGroup(IReadOnlyList<string> members) =>
+        CreateComposite(new GroupDef { Id = NextCompositeId(), Members = members }, members);
+
+    /// <summary>把选中的一批元素包成一条泳道。成员的先后就是条带顺序。</summary>
+    public CommandResult CreateLane(IReadOnlyList<string> members) =>
+        CreateComposite(new LaneDef { Id = NextCompositeId(), Members = members }, members);
+
+    /// <summary>把选中的一批元素包成一个可折叠的子流程。</summary>
+    public CommandResult CreateSubflow(IReadOnlyList<string> members) =>
+        CreateComposite(new SubflowDef { Id = NextCompositeId(), Members = members }, members);
+
+    /// <summary>把选中的一批元素圈进一个纯标注性的框里。它不参与布局。</summary>
+    public CommandResult CreateCombo(IReadOnlyList<string> members) =>
+        CreateComposite(new ComboDef { Id = NextCompositeId(), Members = members }, members);
+
+    /// <summary>解散一个组合。它里面的成员回到外层，不跟着删。</summary>
+    public CommandResult DissolveComposite(string compositeId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(compositeId);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new DissolveCompositeCommand(compositeId));
+
+        if (result.IsEffectiveSuccess)
+        {
+            // 解散之后那个组合没了，选中要跟着筛一遍——留着它会让属性面板
+            // 显示一个已经不存在的元素的字段。
+            SetSelection(_selectedIds);
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    private CommandResult CreateComposite(CompositeDef composite, IReadOnlyList<string> members)
+    {
+        ArgumentNullException.ThrowIfNull(composite);
+        ArgumentNullException.ThrowIfNull(members);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new CreateCompositeCommand(composite));
+
+        if (result.IsEffectiveSuccess)
+        {
+            // **选中不动。** 组合现在选不中（选中集合里只有节点），
+            // 而把选中清掉会让用户刚框起来的几个东西一下子全没了——
+            // 那比"选中没跟上"难解释得多。等组合能被选中时，这里再换成选中新组合。
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 下一个可用的组合标识。
+    /// </summary>
+    /// <remarks>
+    /// 判据是九个集合共用的那份占用检查，与图层、页面那边同一个理由。
+    /// </remarks>
+    private string NextCompositeId()
+    {
+        for (var index = 1; ; index++)
+        {
+            var candidate = $"g{index}";
+
+            if (!Document.IsIdTaken(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    #endregion
+
     #region 布局失败
 
     /// <summary>最近一次布局失败。之后有一次布局成功就清空。</summary>

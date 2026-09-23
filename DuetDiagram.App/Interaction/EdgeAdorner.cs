@@ -73,6 +73,34 @@ public static class EdgeAdorner
         return handles;
     }
 
+    /// <summary>
+    /// 框选的选框。
+    /// </summary>
+    /// <remarks>
+    /// 用折线画一个闭合矩形而不是画一个填充的形状：它是一块"正在圈的范围"，
+    /// 填上色会把框里的东西盖住，而用户正需要看着它们判断框到了没有。
+    /// 虚线是为了与图上的实线区分开——它不属于文档。
+    /// </remarks>
+    public static IReadOnlyList<DrawCommand> Marquee(SpatialRect rect)
+    {
+        return
+        [
+            new DrawPolyline(
+                "__marquee__",
+                [
+                    new DrawPoint(rect.X, rect.Y),
+                    new DrawPoint(rect.Right, rect.Y),
+                    new DrawPoint(rect.Right, rect.Bottom),
+                    new DrawPoint(rect.X, rect.Bottom),
+                    new DrawPoint(rect.X, rect.Y),
+                ],
+                PreviewColor,
+                1,
+                LineStyle.Dashed,
+                ArrowStyle.None),
+        ];
+    }
+
     private static DrawShape Handle(double x, double y, NodeShape shape = NodeShape.Rect) =>
         new(
             "__handle__",

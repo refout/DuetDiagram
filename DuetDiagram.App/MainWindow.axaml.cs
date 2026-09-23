@@ -112,6 +112,7 @@ public sealed partial class MainWindow : Window
         // 画布要能拖节点，得知道文档那一侧在哪。会话与画布由主窗口串起来，
         // 不在各自内部互相引用——否则属性面板那条链也得各自再找一遍会话。
         Canvas.Session = Session;
+        Canvas.Host = this;
         DiffView.Session = Session;
         StatusBarView.Status = Status;
 

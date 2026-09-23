@@ -233,6 +233,54 @@ public static class HeadlessFixture
         return new SpatialRect(left, top, right - left, bottom - top);
     }
 
+    /// <summary>
+    /// 这几个元素合起来占的那一块，按画布自己的坐标算。
+    /// </summary>
+    /// <remarks>
+    /// 框选要从这一块的角上往外让开一段开始，所以需要的是"它们合起来占哪儿"，
+    /// 而不是某一个的中心。用同一个绘制列表算，与中心那一条同一份几何。
+    /// </remarks>
+    public static Rect BoundsOf(DiagramCanvas canvas, IEnumerable<string> elementIds)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        ArgumentNullException.ThrowIfNull(elementIds);
+
+        var wanted = elementIds.ToHashSet(StringComparer.Ordinal);
+        var model = canvas.Model
+            ?? throw new InvalidOperationException("画布还没有数据上下文");
+        SpatialRect? bounds = null;
+
+        foreach (var command in model.DrawList.Commands)
+        {
+            if (!wanted.Contains(command.ElementId))
+            {
+                continue;
+            }
+
+            var box = command switch
+            {
+                DrawShape shape => shape.Rect,
+                DrawText text => text.Box,
+                DrawPolyline polyline => Box(polyline.Points),
+                _ => (SpatialRect?)null,
+            };
+
+            if (box is { } value)
+            {
+                bounds = bounds is { } current ? current.Union(value) : value;
+            }
+        }
+
+        if (bounds is not { } rect)
+        {
+            throw new InvalidOperationException("绘制列表里没有这几个元素");
+        }
+
+        var onScreen = model.Viewport.Transform.ToScreen(rect);
+
+        return new Rect(onScreen.X, onScreen.Y, onScreen.Width, onScreen.Height);
+    }
+
     /// <summary>画布中心，按画布自己的坐标算。</summary>
     public static Point CenterOf(DiagramCanvas canvas)
     {

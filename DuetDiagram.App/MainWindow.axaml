@@ -23,6 +23,15 @@
     <controls:StatusBar x:Name="StatusBarView" DockPanel.Dock="Bottom" />
 
     <!--
+      图层面板占左侧一栏，常驻。方案 §9.1 把六个分区写成固定布局，所以它与属性面板一样
+      是分栏而不是浮层——浮层的开关会改画布尺寸，而画布一改尺寸视口跟着跳。
+      常驻还有一个好处：图层这件事的意义在于「一层里有谁」，随时看得见才谈得上。
+    -->
+    <controls:LayerPanel x:Name="LayersView"
+                         DockPanel.Dock="Left"
+                         Width="240" />
+
+    <!--
       属性面板占右侧一栏。它的数据上下文由主窗口在代码里设成属性面板的状态，
       与画布那份不是同一个对象——两边的状态各自独立，谁也不该看见对方的一半。
     -->

@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED` |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED`；P4-03 加了批量归属的 `assign-layer` |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -22,8 +22,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层开关与锁定的写入口 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 已落地 |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 已落地 |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 已落地 |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 已落地 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -33,7 +33,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
 | `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地 |
@@ -44,9 +44,10 @@ Phase 3 的 16 个任务（命令层、工具定义、上下文摘要、八个�
 标准输入输出那条传输、网络传输与它前面那道关、并发三层、Skill 机制、实机验收与多 agent 并发）
 都是 `done`。P3-16 里"用真的 Codex CLI / Claude Code 接上服务端"那一步需要人看着跑，
 结论记在 `reports/phase3-mcp.md`——装置齐了不等于测过了，那一步没跑成就不写成通过。
-Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`（工具栏与菜单栏骨架）
-与 `P4-02`（图层的可见性、锁定与渲染消费）已落地**（`done`），其余 `pending`，
-其中 **`P4-20`（DSL 导出）标 `blocked`**，卡在决策门 1 上——留则照做，不留则整条删掉。
+Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`（工具栏与菜单栏骨架）、
+`P4-02`（图层的可见性、锁定与渲染消费）与 `P4-03`（图层面板与归属入口）已落地**
+（`done`），其余 `pending`，其中 **`P4-20`（DSL 导出）标 `blocked`**，
+卡在决策门 1 上——留则照做，不留则整条删掉。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -403,6 +404,9 @@ dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --
 # 图层怎么影响画面：不可见的不画、锁定的画了但点不中、按次序前后、缺省层固定在最底下
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=LayerRender"
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerRender"
+
+# 图层面板：每一条操作恰好一条历史、列表顺序取文档里的次序、批量移入一步撤销、只读时全被挡住
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerPanel"
 
 # 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"

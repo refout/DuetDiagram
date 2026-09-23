@@ -815,6 +815,44 @@ public sealed class DiagramSession : IDisposable
     #region 图层
 
     /// <summary>
+    /// 新建一个图层，标识由会话生成，返回结果里的第一个受影响标识就是它。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **标识由这一层给，不让界面拼。** 标识要在九个集合里都不撞，而界面上看不到别的集合；
+    /// 让界面拼的话，它只能靠"看起来没用过"来猜，猜错的表现是新建被拒，
+    /// 而那句话里只有一句"标识重复"，用户无从下手。
+    /// </para>
+    /// <para>
+    /// 名字允许为空：面板上先建再改名是常规走法，为这个把新建拦住是白挡的。
+    /// </para>
+    /// </remarks>
+    public CommandResult CreateLayer(string? name = null)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new CreateLayerCommand(NextLayerId(), name ?? string.Empty));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>给图层改名。标识与次序都不动。</summary>
+    public CommandResult RenameLayer(string layerId, string name) =>
+        Layer(new RenameLayerCommand(layerId, name));
+
+    /// <summary>把图层挪到第几位。索引超范围时夹紧，不报错。</summary>
+    public CommandResult ReorderLayer(string layerId, int index) =>
+        Layer(new ReorderLayerCommand(layerId, index));
+
+    /// <summary>
     /// 把一个图层藏起来或者放出来。
     /// </summary>
     /// <remarks>
@@ -835,6 +873,80 @@ public sealed class DiagramSession : IDisposable
     public CommandResult SetLayerLocked(string layerId, bool locked) =>
         Layer(new SetLayerLockedCommand(layerId, locked), refilterSelection: true);
 
+    /// <summary>
+    /// 把一批元素归到同一个图层上。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **一条命令，因此撤销一次就全回去。** 逐个发 <c>set-node-field</c> 也能改，
+    /// 但撤销要按很多次，而用户在界面上做的是同一次操作。见 <see cref="AssignLayerCommand"/>。
+    /// </para>
+    /// <para>
+    /// **两个方向都要过锁定门。** 锁着的那一层是"这一层的东西别动"，
+    /// 所以既不许把它上面的元素挪走，也不许别处的元素挪进来。
+    /// 两个方向的处置都是解锁，报同一个码。
+    /// </para>
+    /// <para>
+    /// 归属只进视觉哈希（它改的是画在哪一档，不改坐标），所以这一条不重排，只重算绘制列表。
+    /// </para>
+    /// </remarks>
+    public CommandResult AssignLayer(IEnumerable<string> nodeIds, string layerId)
+    {
+        ArgumentNullException.ThrowIfNull(nodeIds);
+        ArgumentException.ThrowIfNullOrWhiteSpace(layerId);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var ids = new List<string>();
+        var nodes = new List<NodeDef>();
+
+        foreach (var id in nodeIds)
+        {
+            if (Find(id) is { } node)
+            {
+                ids.Add(node.Id);
+                nodes.Add(node);
+            }
+        }
+
+        if (ids.Count == 0)
+        {
+            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, "没有选中任何元素")));
+        }
+
+        // 元素走出去：锁着的那一层不许被动。
+        if (LockedLayer(nodes) is { } source)
+        {
+            return RefuseLocked(source);
+        }
+
+        // 元素走进来：目标那一层锁着同样不许动。
+        if (FindLayer(layerId) is { Locked: true })
+        {
+            return RefuseLocked(layerId);
+        }
+
+        var result = Bus.Execute(new AssignLayerCommand(layerId, ids));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 图层那几条命令共用的那一段：先过只读门、执行、有变更就重算。
+    /// </summary>
+    /// <remarks>
+    /// 改了索引但绘制列表没跟着换的表现是"点了一下没反应"，而这一条路正是所有会改画面的地方。
+    /// 锁上之后的筛选中（<paramref name="refilterSelection"/>）只有锁定那一条要，
+    /// 所以它是可选的。
+    /// </remarks>
     private CommandResult Layer(IDiagramCommand command, bool refilterSelection = false)
     {
         if (IsReadOnly)
@@ -1437,6 +1549,27 @@ public sealed class DiagramSession : IDisposable
             var candidate = $"e{index}";
 
             if (!used.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 下一个可用的图层标识。
+    /// </summary>
+    /// <remarks>
+    /// 判据是 <see cref="DiagramDocument.IsIdTaken"/> 而不是"图层集合里没出现过"：
+    /// 九个集合共用一个命名空间，只对比图层集合的话，新建会撞上某个节点的标识，
+    /// 而那种失败在界面上只是一句"标识重复"。
+    /// </remarks>
+    private string NextLayerId()
+    {
+        for (var index = 1; ; index++)
+        {
+            var candidate = $"layer{index}";
+
+            if (!Document.IsIdTaken(candidate))
             {
                 return candidate;
             }

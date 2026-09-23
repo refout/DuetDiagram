@@ -6,16 +6,16 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 43 | 10420 | 5889 | 2824 | 1707 |
+| DuetDiagram.App | 46 | 11545 | 6561 | 3084 | 1900 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 96 | 13139 | 7488 | 3708 | 1943 |
-| DuetDiagram.Core.Tests | 37 | 9556 | 6741 | 965 | 1850 |
+| DuetDiagram.Core | 97 | 13393 | 7643 | 3764 | 1986 |
+| DuetDiagram.Core.Tests | 38 | 9790 | 6906 | 990 | 1894 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 16 | 4042 | 2599 | 632 | 811 |
+| DuetDiagram.E2E.Tests | 17 | 4617 | 2984 | 687 | 946 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4405 | 2443 | 1334 | 628 |
+| DuetDiagram.Llm | 25 | 4456 | 2477 | 1344 | 635 |
 | DuetDiagram.Llm.Tests | 16 | 4090 | 2944 | 311 | 835 |
 | DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 21 | 3390 | 1726 | 1168 | 496 |
 | DuetDiagram.Render.Tests | 13 | 3040 | 2160 | 294 | 586 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **395** | **82802** | **51774** | **17165** | **13863** |
+| **合计** | **401** | **85041** | **53185** | **17571** | **14285** |
 
 ## 明细
 
@@ -45,6 +45,7 @@
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
 | HighlightOverlay.cs | 17 |
+| LayerPanel.axaml.cs | 271 |
 | LayoutFailureDialog.axaml.cs | 29 |
 | PropertyPanel.axaml.cs | 80 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
@@ -58,12 +59,12 @@
 | EdgeHandleHitTest.cs | 118 |
 | HighlightTracker.cs | 167 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 284 |
+| MainWindow.axaml.cs | 289 |
 | Program.cs | 78 |
 | SampleDiagram.cs | 100 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
-| DiagramSession.cs | 831 |
+| DiagramSession.cs | 896 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
@@ -75,9 +76,11 @@
 | CanvasViewModel.cs | 285 |
 | ConstraintEditorViewModel.cs | 165 |
 | DiagnosticsViewModel.cs | 155 |
-| PropertyFieldCatalog.cs | 123 |
+| LayerPanelViewModel.cs | 226 |
+| LayerRowViewModel.cs | 86 |
+| PropertyFieldCatalog.cs | 124 |
 | PropertyFieldViewModel.cs | 93 |
-| PropertyPanelViewModel.cs | 204 |
+| PropertyPanelViewModel.cs | 222 |
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
 | StatusBarViewModel.cs | 81 |
@@ -108,6 +111,7 @@
 | AddLayoutConstraintCommand.cs | 198 |
 | AddNodeCommand.cs | 77 |
 | AddTagCommand.cs | 76 |
+| AssignLayerCommand.cs | 149 |
 | ConnectEdgeCommand.cs | 82 |
 | CreateCompositeCommand.cs | 150 |
 | CreateLayerCommand.cs | 68 |
@@ -138,7 +142,7 @@
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 111 |
+| CommandMemento.cs | 117 |
 | CommandResult.cs | 58 |
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
@@ -211,9 +215,10 @@
 | DocumentLockTests.cs | 177 |
 | DocumentSettingCommandTests.cs | 219 |
 | EdgeCommandTests.cs | 276 |
-| Harness.cs | 223 |
+| Harness.cs | 226 |
 | IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
+| LayerAssignmentTests.cs | 162 |
 | LayerCommandTests.cs | 180 |
 | LayerVisibilityTests.cs | 191 |
 | LayoutCommandTests.cs | 318 |
@@ -273,14 +278,15 @@
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 134 |
+| HeadlessFixture.cs | 139 |
 | HighlightTests.cs | 70 |
+| LayerPanelTests.cs | 357 |
 | LayerVisibilityTests.cs | 154 |
 | LayoutFailureTests.cs | 217 |
 | MenuBarTests.cs | 131 |
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
-| PropertyPanelTests.cs | 144 |
+| PropertyPanelTests.cs | 167 |
 | ToolBarTests.cs | 118 |
 
 ### DuetDiagram.Layout
@@ -331,11 +337,11 @@
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
 | RepairHints.cs | 216 |
-| ActionDispatch.cs | 149 |
+| ActionDispatch.cs | 151 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 23 |
 | DiagramToolset.cs | 173 |
-| EditTool.cs | 258 |
+| EditTool.cs | 290 |
 | ExportTool.cs | 52 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |

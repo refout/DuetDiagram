@@ -72,6 +72,8 @@ internal static class EditTool
             "create-layer" => CreateLayer(context, args),
             "rename-layer" => RenameLayer(context, args),
             "reorder-layer" => ReorderLayer(context, args),
+            "set-layer-visible" => SetLayerVisible(context, args),
+            "set-layer-locked" => SetLayerLocked(context, args),
             "add-tag" => AddTag(context, args),
             "remove-tag" => RemoveTag(context, args),
             "add-action" => AddAction(context, args),
@@ -261,6 +263,53 @@ internal static class EditTool
         return args.Index is null
             ? ActionDispatch.Missing("这个动作要给出新的次序", "index")
             : ActionDispatch.Execute(context, new ReorderLayerCommand(args.Id!, args.Index.Value));
+    }
+
+    /// <summary>
+    /// 把一个图层藏起来或者放出来。
+    /// </summary>
+    /// <remarks>
+    /// 布尔写在 <c>value</c> 上，与 <c>set-node-field</c> 写标志位那条路同一个写法
+    /// （界面上的三态开关提交的也是 <c>"true"</c> / <c>"false"</c>）。
+    /// 另开一个布尔参数等于给"布尔怎么写"开第二种写法，而模型会在两者之间随机挑一个。
+    /// </remarks>
+    private static ToolResult SetLayerVisible(DiagramToolContext context, EditArguments args) =>
+        LayerSwitch(context, args, "set-layer-visible", locked: false);
+
+    /// <summary>锁上一个图层或者解锁。</summary>
+    private static ToolResult SetLayerLocked(DiagramToolContext context, EditArguments args) =>
+        LayerSwitch(context, args, "set-layer-locked", locked: true);
+
+    private static ToolResult LayerSwitch(
+        DiagramToolContext context,
+        EditArguments args,
+        string action,
+        bool locked)
+    {
+        if (Missing(args.Id, "id", "图层标识") is { } error)
+        {
+            return error;
+        }
+
+        if (Missing(args.Value, "value", "true 或 false") is { } valueError)
+        {
+            return valueError;
+        }
+
+        if (!bool.TryParse(args.Value, out var on))
+        {
+            return ActionDispatch.Reject($"{action} 的 value 要填 true 或 false", "value", "true 或 false");
+        }
+
+        // 点名的图层写在 id 上：这两条动的是"哪一层"，不是"改成哪一层"。
+        if (ActionDispatch.DeniedLayer(context, args.Id, "id") is { } denied)
+        {
+            return denied;
+        }
+
+        return ActionDispatch.Execute(
+            context,
+            locked ? new SetLayerLockedCommand(args.Id!, on) : new SetLayerVisibleCommand(args.Id!, on));
     }
 
     #endregion

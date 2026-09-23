@@ -90,6 +90,7 @@ public sealed partial class MainWindow : Window
 
         Model = new CanvasViewModel();
         Properties = new PropertyPanelViewModel(Session);
+        Layers = new LayerPanelViewModel(Session);
         Status = new StatusBarViewModel(Model);
         Status.SetReadOnly(Session.ReadOnlyReason);
 
@@ -125,6 +126,7 @@ public sealed partial class MainWindow : Window
         LayoutFailureView.SimplifyRequested += OnShowConflicts;
 
         PropertiesView.DataContext = Properties;
+        LayersView.DataContext = Layers;
         DataContext = Model;
 
         // 第一份绘制列表走 Load：它把视口适配到内容上。之后每一次改动走 Refresh，
@@ -147,6 +149,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>属性面板的状态。</summary>
     public PropertyPanelViewModel Properties { get; }
+
+    /// <summary>图层面板的状态。</summary>
+    public LayerPanelViewModel Layers { get; }
 
     /// <summary>状态栏的状态：光标、缩放与最近一次失败的提示。</summary>
     public StatusBarViewModel Status { get; }
@@ -538,6 +543,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 Canvas 的画布");
         PropertiesView = this.FindControl<PropertyPanel>(nameof(PropertiesView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PropertiesView 的容器");
+        LayersView = this.FindControl<LayerPanel>(nameof(LayersView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayersView 的面板");
         DiffView = this.FindControl<DiffSidebar>(nameof(DiffView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 DiffView 的边栏");
         StatusBarView = this.FindControl<StatusBar>(nameof(StatusBarView))

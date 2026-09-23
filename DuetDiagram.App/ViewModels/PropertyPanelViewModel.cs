@@ -12,7 +12,7 @@ namespace DuetDiagram.App.ViewModels;
 /// </summary>
 /// <remarks>
 /// <para>
-/// **六个分节，字段来自字段表。** 界面描述表只补显示名、归到哪一节、用哪种控件；
+/// **七个分节，字段来自字段表。** 界面描述表只补显示名、归到哪一节、用哪种控件；
 /// 字段名一律取自字段表，两边对不上时在启动阶段就抛异常，而不是等用户点到那个控件。
 /// </para>
 /// <para>
@@ -32,8 +32,11 @@ namespace DuetDiagram.App.ViewModels;
 /// 本来就不假设各元素的字段表相同。
 /// </para>
 /// <para>
-/// 端口、动作与链接这两节这一轮只读。端口要等连线交互里的端口编辑（不然改了端口看不到效果），
-/// 动作要等动作编辑界面。先把它们做成可改的话，会得到一个能点但没效果的控件。
+/// 图层、端口、动作与链接这三节只读。图层归属要给一个可选取值的下拉，
+/// 而那张取值表是编译期写死的、图层标识是运行期才有的，所以改归属的入口在图层面板上，
+/// 这里只把当前归属显示出来（<see cref="DescribeLayer"/>）；端口要等连线交互里的端口编辑
+/// （不然改了端口看不到效果），动作要等动作编辑界面。先把它们做成可改的话，
+/// 会得到一个能点但没效果的控件。
 /// </para>
 /// </remarks>
 public sealed class PropertyPanelViewModel : INotifyPropertyChanged
@@ -213,8 +216,46 @@ public sealed class PropertyPanelViewModel : INotifyPropertyChanged
         var document = _session.Document;
         var single = nodes.Count == 1 ? nodes[0] : null;
 
+        Section("图层").SetText(single is null ? Placeholder(nodes.Count) : DescribeLayer(document, single));
         Section("端口").SetText(single is null ? Placeholder(nodes.Count) : DescribePorts(single));
         Section("动作与链接").SetText(single is null ? Placeholder(nodes.Count) : DescribeActions(document, single.Id));
+    }
+
+    /// <summary>
+    /// 一个元素归在哪一层。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **只显示，不给控件。** 改归属的入口在图层面板上：那里才看得到全部图层，
+    /// 也多选之后一次移入。在这里放一个可选取值的下拉是做不到的——
+    /// 那段取值表是编译期写死的，而图层标识是运行期才有的。
+    /// </para>
+    /// <para>
+    /// 归属指向一个不存在的图层时说清楚"按缺省层画"，而不是把那个标识原样摆出来：
+    /// 后者看起来像一个正常的归属，而画面上它在最底下。
+    /// </para>
+    /// </remarks>
+    private static string DescribeLayer(DiagramDocument document, NodeDef node)
+    {
+        const string Where = "改归属在图层面板上，那里也多选之后一次移入。";
+
+        if (node.Layer is not { } layerId)
+        {
+            return $"缺省层（不在任何图层上，画在最底下）。{Where}";
+        }
+
+        var layer = document.Layers.FirstOrDefault(item => string.Equals(item.Id, layerId, StringComparison.Ordinal));
+
+        if (layer is null)
+        {
+            return $"指向一个不存在的图层 {layerId}，按缺省层画。{Where}";
+        }
+
+        var name = string.IsNullOrWhiteSpace(layer.Name) ? layer.Id : layer.Name;
+
+        return layer.Locked
+            ? $"{name}（锁着：这一层上的东西点不中、改不了）。{Where}"
+            : $"{name}。{Where}";
     }
 
     private static string? Placeholder(int count) =>

@@ -1,44 +1,58 @@
 id: P4-03
 title: 图层面板与归属入口
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01, P4-02]
 estimated_loc: 450
 files:
   create:
+    - DuetDiagram.Core/Commands/Builtin/AssignLayerCommand.cs
     - DuetDiagram.App/Controls/LayerPanel.axaml
     - DuetDiagram.App/Controls/LayerPanel.axaml.cs
     - DuetDiagram.App/ViewModels/LayerPanelViewModel.cs
+    - DuetDiagram.App/ViewModels/LayerRowViewModel.cs
   modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
     - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
     - DuetDiagram.App/Services/DiagramSession.cs
     - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - DuetDiagram.App/ViewModels/PropertyPanelViewModel.cs
     - DuetDiagram.Llm/Tools/ActionDispatch.cs
     - DuetDiagram.Llm/Tools/EditTool.cs
-    - DuetDiagram.Llm/Tools/EditArguments.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
     - docs/Command-List.md
     - docs/GUI.md
     - AGENTS.md
+    - reports/loc.md
   test:
+    - DuetDiagram.Core.Tests/LayerAssignmentTests.cs
     - DuetDiagram.E2E.Tests/LayerPanelTests.cs
+    - DuetDiagram.E2E.Tests/PropertyPanelTests.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerPanel"
-    expect: 全通过；面板上每一条操作都发出一条命令，列表顺序与文档里的图层顺序一致
+    expect: 全通过；面板上每一条操作都发出一条命令，列表顺序与文档里的图层顺序一致，批量移入是一步撤销
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerRender"
     expect: 全通过；在面板上点一下可见性开关，画布上那批元素跟着消失又出现
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PropertyPanel"
-    expect: 全通过；属性面板里那个「图层归属」字段不再是隐藏的，它给出的入口指向面板
+    expect: 全通过；属性面板上有一个只读的「图层」节，把当前选中元素的归属显示出来并指向图层面板
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；assign-layer 的失败路径不改文档、一次撤销把整批归属还原
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
+    expect: 全通过；两个图层开关动作各有执行体，且落到已登记的命令上
 constraints:
   - "**面板不许自己改文档。** 开关、改名、排序、移入都发命令——与工具栏同一条口径"
   - "**列表顺序取文档里的顺序，不另存一份。** 面板自己维护一份顺序的话，撤销之后两边会对不上，而画面上看起来只是「顺序没变回来」"
-  - "**归属入口要能批量。** 多选之后一次移入同一个图层是一条命令，不是每条选中各发一次——后者在撤销时要按很多次，而用户眼里是一次操作"
+  - "**归属入口要能批量。** 多选之后一次移入同一个图层是一条命令（`assign-layer`），不是每条选中各发一次——后者在撤销时要按很多次，而用户眼里是一次操作"
   - "**当前图层要有明确落点。** 新建的元素归到哪一层由它决定；没有它就只能归到缺省层，而用户以为自己在第二层上画"
-  - "锁定图层上的元素不许被拖进别的图层；被拖出去的那些也不能落在锁定层里，两种都要给出结构化错误"
+  - "锁定图层上的元素不许被挪进别的图层；别处的元素也不能落进锁定层里，两个方向都要给出结构化错误"
 context:
   - 方案 §9.1 的图层分区与 §9.2 的「右键节点 → 图层归属」
   - "`DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs` 里 `layer` 字段现在是刻意隐藏的，注释说入口在图层面板"
   - "`docs/Command-List.md` 里 `assign-layer` 是被字段表吸收的那一条（归属走 `set-node-field` 的 `layer` 字段）"
-  - "**两个图层开关（`set-layer-visible` / `set-layer-locked`）的工具侧动作要跟着面板一起接。** P4-02 落了命令与渲染消费，但故意没接进 `diagram_edit` 的动作表——`EditArguments` 没有任何布尔参数，加参数与把 `value` 当字符串布尔用都是**接口层面的决定**（`diagram_edit` 的参数表是外部代理照着写代码的冻结接口），不该夹在一条渲染任务里做。面板是「人这边的开关」，它一落地就会出现「面板上能关图层、模型不能」的不对等，所以两个动作在这一条里一起落地。核过的既有事实：`ActionDispatch` 与 `EditTool` 已经把 P3-03 的三条图层命令都接上了，**照它们的形状加两条即可**，代价在参数怎么传而不在分发；`Category=ToolDispatch` 只管「动作表里的每条动作都有执行体、且指向已实现的命令」，**不要求每条命令都有动作**，所以漏接不会让门禁变红。"
+  - "`reports/phase2-edge-editing.md` 里那条口径：「增删折点是『一条』操作，不是『删一条再加一条』——否则撤销要按两次而用户眼里是同一次操作」。批量归属照它办"
+  - "**两个图层开关（`set-layer-visible` / `set-layer-locked`）的工具侧动作要跟着面板一起接。** P4-02 落了命令与渲染消费，但故意没接进 `diagram_edit` 的动作表——面板是「人这边的开关」，它一落地就会出现「面板上能关图层、模型不能」的不对等。核下来的事实：`diagram_edit` 的参数表是从方法签名派生的，所以代价不在参数表；而 `set-node-field` 今天已经用 `value` 传字符串布尔，两条新动作照它即可，**不加参数**。`Category=ToolDispatch` 只管「动作表里的每条动作都有执行体、且指向已实现的命令」，**不要求每条命令都有动作**，所以漏接不会让门禁变红——这一条靠人核。"
 scope_note: |
   **面板是「图层」这件事唯一看得见的地方。** 属性面板里那个图层字段是**刻意隐藏**的——
   它一次只看得到一个元素的归属，而图层这件事的意义在于「一层里有谁」。
@@ -47,3 +61,174 @@ scope_note: |
   **这一条不碰渲染。** 可见性与锁定怎么影响绘制与命中是 P4-02 的事，
   这一条只做面板与命令的接线。两条并行不冲突：P4-02 改 `SceneBuilder`/`HitTester`，
   这一条改 `MainWindow`/`DiagramSession` 与新建的控件。
+
+reconnaissance: |
+  **动手前对着界面层、字段目录、命令层、总线与历史、工具侧的动作表核了一遍，结论如下。**
+
+  1. **面板分栏在左、常驻，不给开关。** 方案 §9.1 的六个分区是**固定布局**，
+     所以图层面板与属性面板一样是分栏，不是浮层。浮层那条路有个额外的代价：
+     开关一次分栏会改画布尺寸，而画布一改尺寸视口就跟着变——
+     `docs/Render-Pipeline.md` 与 `docs/GUI.md` 都记着这条顾虑（诊断面板与变更边栏
+     正是为它才做成浮层的）。所以**不做开关**：常驻，和属性面板一致。
+     连带的结果是菜单栏不加 `view.layers` 条目，`MenuRegistry` 这一条不动。
+
+  2. **属性面板那个 `layer` 字段不能真的从 `Hidden` 里移出来。** 起草时的验收写着
+     「不再是隐藏的」，核下来移不出来：`Choice` 控件的可选取值来自描述表里写死的
+     静态字符串数组（`PropertyFieldCatalog.Names<TEnum>()`），而图层标识是运行期才有的。
+     移出来只有两条路——给它一个动态取值来源（新机制，且与「归属入口只在面板上」
+     冲突），或者做成文本框让用户手打图层标识（对用户毫无意义）。
+     所以：`layer` 留在 `Hidden`，理由改成指向新加的那一节；
+     **属性面板新增一个只读的「图层」节**，把当前选中元素的归属显示出来、
+     并写明「在图层面板里改」。只读节是现成机制（`IsReadOnly => Fields.Count == 0`），
+     加一节就是列表里加一个标题加一段文本。**分节数因此从六节变成七节**，
+     `PropertyPanelTests` 里那条「六节」的断言与两处注释的说法一并改。
+
+  3. **批量归属需要一条新命令，而它的形状仓库里已经有先例。** 约束里写着
+     「多选之后一次移入同一个图层是一条命令」。核下来没有跨元素的批命令装置：
+     总线明令禁止命令内再发命令（`DiagramCommandBus.NestedExecuteMessage`），
+     历史栈也没有分组，`DiagramSession.Apply` 与 `DeleteSelection` 今天是逐个执行、
+     各进一条历史。而 `reports/phase2-edge-editing.md` 记着一条口径：
+     **「增删折点是『一条』操作，不是『删一条再加一条』——否则撤销要按两次而用户眼里
+     是同一次操作」**，`reconnect-edge` 也是照这个口径合出来的。
+     于是照它做：新增 `assign-layer` 命令，一条命令改 N 个节点的归属、撤销一次全回来。
+     名字取自 `docs/Command-List.md` 里那条「被字段表吸收」的计划命令——
+     单元素归属继续走 `set-node-field` 的 `layer` 字段，**批量的那条路才需要它**。
+     两条都调 `NodeFieldValue.TryWrite`，所以「怎么写 layer」只有一份实现。
+
+  4. **锁定是会话层的策略，命令层不管。** 与 P4-02 同一口径：`AssignLayerCommand`
+     只校验「图层存在、节点都在」，锁定由会话挡。**两个方向都要挡**：
+     选中的元素里有锁着的（不许把它挪出这一层）、目标是锁定层（不许把东西挪进去）。
+     都报 `LAYER_LOCKED`。
+
+  5. **删图层这一轮不做，面板上不给按钮。** 没有 `delete-layer` 命令，而
+     「删掉之后那一层的元素去哪」是个真的设计决定（跟着删？退回缺省层？），
+     不该夹在一条面板任务里定。记进 followups。
+
+  6. **「当前图层」这一轮只有一个落点：移入。** 界面现在没有「新建元素」的入口
+     （人这边不建节点，导入走 Mermaid 那条路、模型走工具那条路），所以
+     「新建的元素归到当前层」暂时没有落点。面板把当前图层标出来、移入朝向它，
+     概念先立住；等 P4-09 / P4-10 的形状库有了「拖出一个新节点」，
+     那才是那件事真正的落点。写进 followups，免得下一个人以为它已经接上了。
+
+  7. **工具侧那两个动作这一条接上**（P4-02 的侦察第 7 条挂了账）。核下来的好消息：
+     `diagram_edit` 的参数表**是从方法签名派生**的（`DiagramToolset.Edit` 上的
+     `[Description]` 特性），所以「改参数表」就是改一个签名，代价远小于当时的估计。
+     **但不加参数**：`set-node-field` 今天已经用 `value` 传字符串布尔——
+     属性面板的三态开关提交的就是 `"true"` / `"false"`。两条新动作照它，
+     把 `value` 解析成布尔。加一个新参数等于给「布尔怎么写」开第二种写法，
+     而模型会在两者之间随机挑一个。`value` 的说明补一句，说明开关类动作也用它。
+
+  8. **两个动作的图层级权限照抄现成的。** `ActionDispatch.DeniedLayer(context, layerId, parameter)`
+     已经在三条图层命令上用了。两条新动作点名的图层写在 `id` 上
+     （与 `create-layer` / `rename-layer` 一致——那是「改哪一层」而不是「改成哪一层」），
+     照抄即可。`Category=ToolDispatch` 那条门禁会自动把两个新动作逐条调一遍。
+
+  9. **面板上的行不重建。** 与属性面板同一条口径（「换选中不重建树」，
+     连续点选是用户在找元素时的常态）：行只在**图层集合本身**变了的时候重建，
+     其余时候只把新值推进已有控件。`FieldEditBinder.Watch` 是现成的机制，直接复用。
+
+  10. **无头用例要能按标识找到行里的控件**：行内控件挂 `AutomationId`
+      （`layer.visible.<id>` 这类），另给 `HeadlessFixture` 加一个取面板的助手，
+      与属性面板 `Editor<T>(window, field)` 同一套做法。
+
+  11. **`assign-layer` 只报外观变更。** `NodeDef.Layer` 在**视觉哈希**段
+      （`DiagramHashing.AppendVisualContent` 里的 `nl|` 那一行），所以改归属不重排。
+      改的是它画在哪一档，画面要重画。
+
+  12. **面板要能显示「这一层上有几个元素」。** 图层这件事的意义在于「一层里有谁」，
+      而一个只有名字和两个开关的列表回答不了它。计数从文档算，不进任何哈希——
+      它是纯展示，不是命令层要维护的字段。
+
+result: |
+  **六个分区到此齐了。** 图层面板把「一层里有谁、这一层画不画、改不改得动、
+  元素归到哪一层」摆出来给人点，每一步都经命令层。
+
+  **落地了什么**
+
+  - `DuetDiagram.Core/Commands/Builtin/AssignLayerCommand.cs`（新建）：一次把一批节点
+    归到同一层，一条命令一条历史。先整批算出要改什么再写，有一个算不出来就整条被拒；
+    重复标识去重；只报外观变更。新增 `AssignLayerMemento` / `NodeLayerPlacement`
+    与对应的多态标注（`MementoRegistration` 那两条门禁自动核到）。
+  - `DuetDiagram.App/ViewModels/LayerPanelViewModel.cs` + `LayerRowViewModel.cs` +
+    `Controls/LayerPanel.axaml(.cs)`（新建）：列表按次序字段排（次序相同用标识断并列，
+    与渲染出笔同一口径），每行两个开关、元素个数、上下挪位；底部新建、改名、
+    「把选中的 N 个元素移入」。行只在图层增删时重建，其余只推新值。
+  - `DiagramSession` 补 `CreateLayer`（标识由会话生成）/ `RenameLayer` / `ReorderLayer` /
+    `AssignLayer`（锁定两个方向都挡）+ `NextLayerId`。
+  - `MainWindow`：图层面板在左侧常驻一栏，暴露 `Layers` 状态。
+  - 属性面板新增只读的「图层」节：显示当前选中元素的归属，并写明改它在图层面板上。
+    分节数六→七，`PropertyPanelTests` 的断言与两处注释的说法一并改。
+  - `DuetDiagram.Llm`：`set-layer-visible` / `set-layer-locked` 两条动作接上
+    （布尔走 `value`，与 `set-node-field` 写标志位同一个写法），`value` 的说明补一句。
+  - 文档：`Command-List.md` 加命令一行、动作两行，并把「`assign-layer` 被字段表吸收」
+    改写成「一半被覆盖」（单元素走字段表，批量走新命令）；
+    `GUI.md` 加面板段与「图层归属只在面板上改」一小节；
+    Skill 的排错清单里把图层那一条补全（两个开关也是图层级写入的质量点），
+    并补一条「这一层锁着」——那是文档状态、不是凭据的事，报的是另一个码。
+  - 用例：Core `LayerAssignmentTests` 11 条、E2E `LayerPanelTests` 15 条
+    （另有一条标 `LayerRender`）、属性面板加 1 条。
+
+  **三处与侦察时不一样的地方**
+
+  - **属性面板那一节真的加了。** 侦察里定的是"加一个只读节"，落地时确认分节数
+    从六变七，`PropertyPanelTests` 里那条「六节」的断言与 `PropertyPanelViewModel`
+    的注释一并改。验收里那条措辞也按此写成「有一个只读的『图层』节」——
+    起草时写的是「那个字段不再是隐藏的」，而 `layer` 仍在隐藏清单里（它只是显示出来了）。
+  - **只读时的挪位要走会话，不能在面板里短路。** 一开始面板自己判"已经在端点"
+    就回一句无操作，于是只读文档上点一下 ↑ 会报成功——而那一下什么都没写进去。
+    改成一律交给会话：只读拒绝优先于"没什么可做"。
+  - **`DiagramDocument.IsIdTaken` 从 `internal` 变 `public`。** 会话要生成一个
+    九集合里都不撞的图层标识，判据必须是同一份；不让宿主用的话，它只能自己再拼一套，
+    而两边会在"哪些集合算在内"上分叉。
+
+  **一个刻意的取舍**
+
+  - **删图层不做，面板上不给按钮。** 没有对应命令，而"删掉之后那一层的元素去哪"
+    （跟着删？退回缺省层？）是个真的设计决定，不该夹在面板里定。
+  - **移回缺省层没有入口。** 归属命令要求目标是一个存在的图层；「不属于任何图层」
+    目前只能由模型那条路经字段写入做到。记进 followups。
+  - **「当前图层决定新建元素的归属」暂时没有落点。** 界面现在没有"新建元素"的入口
+    （导入走 Mermaid、模型走工具），所以当前图层这一轮只驱动「移入」。
+    形状库有了"拖出一个新节点"之后，那才是它真正的落点。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - `Category=LayerPanel` 15/15；`Category=LayerRender`（E2E 那条新的）；
+    `Category=PropertyPanel` 7/7；`Category=Atomicity` 152/152；
+    `Category=ToolDispatch` 18/18。
+  - 全量测试 Core 478 / Layout 75 / Render 159 / Mermaid 179 / Dsl 158 / Llm 189 /
+    Mcp 109 / **E2E 113** 全绿（E2E 改动前的基线是 96）。
+  - `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0（`reports/loc.md` 已重新生成：
+    401 个文件 / 85041 行 / 53185 行代码）。
+
+  **过程中修掉的错**
+
+  - **图层面板一建就空引用，15 条用例全红。** `MainWindow.InitializeComponent` 是手写的
+    （为了盖住生成器对 `x:Name` 字段的赋值），新加的 `LayersView` 没在里面取，
+    于是它一直是空。补一句 `FindControl` 加一句抛异常。
+  - **面板订阅了 `DocumentChanged`，一刷新就跨线程碰控件。** 那条通知在后台投递线程上
+    到达（别的窗口改了同一份文档），而刷新要把新值推进控件。改成只订阅
+    `SceneChanged` 与 `SelectionChanged`——宿主收到通知后会排一次队去重算，
+    重算完发的那条是在界面线程上的。属性面板本来就是这么接的。
+  - **注释门禁判红一次**：新写的注释里引了一份报告文件名。改成直接说那条口径本身。
+  - `files` 里计划的名字按实际落地改（渲染那份辅助类叫 `LayerPlan` 而不是 `LayerRules`，
+  Llm 那边不用动 `EditArguments`——布尔走 `value`，参数表一个都不用加）。
+
+  **顺手报了一处与本任务无关的偶发**
+
+  - 全量门禁那次，`DuetDiagram.Mcp.Tests` 的十代理并发那条偶发失败一次（1.0 秒就报错，
+    不是超时）。**单跑这一组连跑 6 遍全绿，按全量顺序跑一遍也全绿**；两次失败都发生在
+    机器被占满的时候（一次是同一目录下另有一个测试进程在跑）。它与版本号那几条判据无关
+    （那些是确定量），**失败的是哪一条断言还没抓到**。没有当成"并发本来就不稳"绕过去，
+    记进了 `reports/phase3-mcp.md` 的遗留清单：下次再红，先把那条断言与完整输出留下，
+    再判断是判据该改还是真的漏了一次写入。
+
+  **后续**
+
+  - 删图层、移回缺省层的入口（见上）。
+  - 「当前图层决定新建元素归属」等形状库（P4-09 / P4-10）有了从界面上新建节点那一刻再接。
+  - 属性面板「图层」节里"锁着"那一句只在多窗口那条路上看得到：本窗口把某一层锁上时，
+    选中集合会被筛掉，于是那一节变成"没有选中"；另一个窗口锁的才看得到。
+  - 层内次序（同一层里谁在前）仍然只有声明顺序，没有入口。

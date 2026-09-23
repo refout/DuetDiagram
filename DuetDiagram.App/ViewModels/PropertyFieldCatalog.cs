@@ -70,13 +70,21 @@ internal static class PropertyFieldCatalog
     /// </remarks>
     public const string ConstraintSection = "布局约束";
 
-    /// <summary>六个分节的标题与顺序。</summary>
+    /// <summary>
+    /// 七个分节的标题与顺序。
+    /// </summary>
+    /// <remarks>
+    /// 一节可以没有字段、只有一段只读内容（见 <c>PropertySectionViewModel.IsReadOnly</c>）：
+    /// 图层与端口、动作这三节就是这样。它们的取值要么是运行期才有的（图层标识），
+    /// 要么还没有编辑界面（端口、动作），给不出一个可选取值的列表。
+    /// </remarks>
     public static IReadOnlyList<string> Sections { get; } =
     [
         "形状",
         "样式与调色板",
         "文本与字体",
         ConstraintSection,
+        "图层",
         "端口",
         "动作与链接",
     ];
@@ -92,7 +100,7 @@ internal static class PropertyFieldCatalog
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [FieldNames.Parent] = "归属组合。入口在分组操作里，面板上改它等于绕开成员列表的一致性校验",
-            [FieldNames.Layer] = "图层归属。入口在图层面板，那里才看得到全部图层",
+            [FieldNames.Layer] = "图层归属。改它的入口在图层面板上（那里才看得到全部图层，也多选之后一次移入）；这里只在「图层」那一节里把当前归属显示出来",
             [FieldNames.Style] = "样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Text] = "文本样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Ports] = "端口整体。入口在连线交互里，那里才看得到连线的出入点",

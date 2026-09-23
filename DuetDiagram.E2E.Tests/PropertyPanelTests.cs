@@ -27,13 +27,14 @@ namespace DuetDiagram.E2E.Tests;
 /// </remarks>
 public sealed class PropertyPanelTests
 {
-    /// <summary>六个分节的标题，按界面上的顺序。</summary>
+    /// <summary>七个分节的标题，按界面上的顺序。</summary>
     private static readonly string[] ExpectedSections =
     [
         "形状",
         "样式与调色板",
         "文本与字体",
         "布局约束",
+        "图层",
         "端口",
         "动作与链接",
     ];
@@ -57,7 +58,7 @@ public sealed class PropertyPanelTests
             window.Session.Select("start");
 
             window.Properties.HasSelection.Should().BeTrue("选中了一个节点，面板就该有内容");
-            window.Properties.Sections.Count.Should().Be(6, "节点属性分六节：形状、样式、文本、约束、端口、动作");
+            window.Properties.Sections.Count.Should().Be(7, "节点属性分七节：形状、样式、文本、约束、图层、端口、动作");
             window.Properties.Sections.Select(s => s.Title)
                 .Should().Equal(ExpectedSections, "分节的顺序与标题是固定的，调一下顺序用例就喊得出名字");
             panel.IsVisible.Should().BeTrue("面板要在界面上真的看得见");
@@ -80,6 +81,34 @@ public sealed class PropertyPanelTests
 
             Field(window, "label").Value.Should().Be("开始", "选中节点上写着「开始」");
             Field(window, "shape").Value.Should().Be("Stadium", "示例里 start 是个 stadium 形状");
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "PropertyPanel")]
+    public async Task The_layer_section_shows_where_the_selection_lives()
+    {
+        // 归属在这里只显示、不给控件：改它的入口在图层面板上（那里看得到全部图层，
+        // 也多选之后一次移入）。可选取值的下拉做不到——那段取值表是编译期写死的，
+        // 而图层标识是运行期才有的。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = HeadlessFixture.Open();
+
+            window.Session.Select("start");
+
+            Section(window, "图层").IsReadOnly.Should().BeTrue("这一节没有可改控件");
+            Text(window, "图层").Should().Contain("缺省层", "示例里的节点不属于任何图层");
+
+            var created = window.Session.CreateLayer("上层");
+            var layerId = created.AffectedIds[0];
+
+            window.Session.AssignLayer(["start"], layerId);
+
+            Text(window, "图层").Should().Contain("上层", "归属换了，这一节跟着换");
+            Text(window, "图层").Should().Contain("图层面板", "它要说清改归属去哪里改");
 
             window.Close();
         });
@@ -224,4 +253,12 @@ public sealed class PropertyPanelTests
         window.Properties.Sections
             .SelectMany(s => s.Fields)
             .Single(f => string.Equals(f.Field, name, StringComparison.Ordinal));
+
+    /// <summary>按标题取一个分节。</summary>
+    private static PropertySectionViewModel Section(MainWindow window, string title) =>
+        window.Properties.Sections.Single(s => string.Equals(s.Title, title, StringComparison.Ordinal));
+
+    /// <summary>取一个只读分节上的那段文字。</summary>
+    private static string Text(MainWindow window, string title) =>
+        Section(window, title).Text ?? string.Empty;
 }

@@ -238,6 +238,11 @@ internal sealed class Harness : IDisposable
     public CommandResult PutOnLayer(string nodeId, string layerId, ChangeSource source = ChangeSource.Human)
         => SetField(nodeId, FieldNames.Layer, layerId, source);
 
+    /// <summary>把一批节点一次归到同一个图层上。</summary>
+    public CommandResult AssignLayer(IEnumerable<string> nodeIds, string layerId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new AssignLayerCommand(layerId, [.. nodeIds])
+            .WithContext(ChangeContext.For(source, "tester")));
+
     /// <summary>新建一页。</summary>
     public CommandResult CreatePage(string pageId, string name = "", ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new CreatePageCommand(pageId, name)

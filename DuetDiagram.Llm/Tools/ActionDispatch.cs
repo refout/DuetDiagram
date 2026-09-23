@@ -40,6 +40,8 @@ public static class ActionTable
         new("create-layer", "create-layer"),
         new("rename-layer", "rename-layer"),
         new("reorder-layer", "reorder-layer"),
+        new("set-layer-visible", "set-layer-visible"),
+        new("set-layer-locked", "set-layer-locked"),
         new("add-tag", "add-tag"),
         new("remove-tag", "remove-tag"),
         new("add-action", "add-action"),

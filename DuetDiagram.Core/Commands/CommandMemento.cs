@@ -39,6 +39,7 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(CanvasMemento), "canvas")]
 [JsonDerivedType(typeof(CompositeMemento), "composite")]
 [JsonDerivedType(typeof(LayerMemento), "layer")]
+[JsonDerivedType(typeof(AssignLayerMemento), "assign-layer")]
 [JsonDerivedType(typeof(PageMemento), "page")]
 [JsonDerivedType(typeof(TagMemento), "tag")]
 [JsonDerivedType(typeof(ActionMemento), "action")]
@@ -299,6 +300,31 @@ public sealed record LayerMemento : CommandMemento
     /// <summary>改之前的图层集合，顺序与次序原样保留。</summary>
     public required LayerDef[] PreviousLayers { get; init; }
 }
+
+/// <summary>
+/// 一批元素的图层归属在改之前的样子。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 只记「哪个元素原来在哪一层」。这里没有位置要记——与删除那类命令不同，
+/// 改归属不动任何集合的先后：节点集合的顺序、边的顺序都由别的字段决定。
+/// </para>
+/// <para>
+/// 也不记整份节点集合。一次移入动的是每个节点上的一个字段，
+/// 记整份的话撤销要把节点集合整个换掉，而其中没被碰过的那些也被重写了一遍——
+/// 那时如果中间有别的命令改过别的节点，换回去会把那些改动一起抹掉。
+/// </para>
+/// </remarks>
+public sealed record AssignLayerMemento : CommandMemento
+{
+    /// <summary>每个被点名的元素在改之前的归属。空表示它当时在缺省层上。</summary>
+    public required NodeLayerPlacement[] Previous { get; init; }
+}
+
+/// <summary>一个元素在改之前归在哪一层。</summary>
+/// <param name="NodeId">元素标识。</param>
+/// <param name="Layer">改之前的图层标识。空表示缺省层。</param>
+public sealed record NodeLayerPlacement(string NodeId, string? Layer);
 
 /// <summary>
 /// 页面增删的逆变更。

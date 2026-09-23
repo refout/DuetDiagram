@@ -173,7 +173,7 @@ public static class DiagramToolset
             [Description("连线的起点，可以带端口，例如 a 或 a.bottom。")][Pattern(Patterns.Endpoint)] string? from = null,
             [Description("连线的终点，写法同 from。")][Pattern(Patterns.Endpoint)] string? to = null,
             [Description("要写的字段名，用于 set-node-field 与 set-edge-field。")] string? field = null,
-            [Description("字段要写成的值。set-kind 也用它，填图类型名。")] string? value = null,
+            [Description("字段要写成的值。set-kind 也用它，填图类型名；两个图层开关（set-layer-visible / set-layer-locked）填 true 或 false。")] string? value = null,
             [Description("显示文本：节点标签、边标签、页面名、图层名、标签名。")] string? label = null,
             [Description("成员标识，用于打标签。")][Pattern(Patterns.DiagramId)] string[]? memberIds = null,
             [Description("插入位置或次序，从零开始。")] int? index = null,

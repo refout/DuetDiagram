@@ -505,11 +505,18 @@ public sealed class DiagramDocument
     /// 标识在九个集合中是否已被占用。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 九个集合共用一个命名空间：成员列表里的标识不区分它是节点还是组合，
     /// 引用关系（边的两端、标签的成员、动作的目标）也都不带类型前缀。
     /// 因此新增任何定义之前都要用这个整体检查，而不是只查自己那一个集合。
+    /// </para>
+    /// <para>
+    /// 对宿主也公开：命令层用它挡住重复，而宿主在建新定义之前要**生成一个不重复的标识**，
+    /// 那一侧的判据必须是同一份。宿主自己拼一套的话，两边迟早会在"哪些集合算在内"
+    /// 这件事上分叉，而那表现为新建莫名其妙地被拒。
+    /// </para>
     /// </remarks>
-    internal bool IsIdTaken(string id, IDefinition? except = null) =>
+    public bool IsIdTaken(string id, IDefinition? except = null) =>
         IsTaken(_pages, id, except)
         || IsTaken(_layers, id, except)
         || IsTaken(_nodes, id, except)

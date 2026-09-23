@@ -118,6 +118,14 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<PropertyPanel>().Single();
     }
 
+    /// <summary>窗口里那个图层面板。</summary>
+    public static LayerPanel Layers(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<LayerPanel>().Single();
+    }
+
     /// <summary>窗口里那条工具栏。</summary>
     public static DiagramToolBar ToolBar(Window window)
     {

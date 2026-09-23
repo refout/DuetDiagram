@@ -30,6 +30,7 @@
 | `reorder-layer` | `ReorderLayerCommand` | 图层存在 | 改的是**次序字段**而不是集合位置：图层集合在视觉哈希里按标识排序后遍历，集合位置进不了任何哈希。次序值整体重排成连续的 0、1、2……，顺带治好从文件里读进来的重复次序 |
 | `set-layer-visible` | `SetLayerVisibleCommand` | 图层存在 | 藏起来只是**不画**，不改坐标：被藏起来的元素仍然参与布局，连线仍然绕着它走。让它退出布局的话，藏一个元素会让整张图重排。与 `set-layer-locked` 分开两条，因为字段名要去字段注册表里查，而图层这三个字段都不在那张表里。只计外观 |
 | `set-layer-locked` | `SetLayerLockedCommand` | 图层存在 | 锁定的元素**照常画出来，但点不中、改不了**。与"藏起来"合成一个开关的话，「我想看着它但别动它」就表达不出来。写入被拒时报 `LAYER_LOCKED`（不是 `LAYER_FORBIDDEN`——那是凭据够不着这一层）。只计外观 |
+| `assign-layer` | `AssignLayerCommand` | 图层存在；点名的节点都在 | **一次把一批节点归到同一层。** 单个元素的归属走 `set-node-field` 的 `layer` 字段，这一条是为界面上的「移入」而立的：一次操作要进一条历史，逐个发命令的话撤销要按很多次。先整批算出要改什么再写，有一个算不出来就整条被拒（不会出现"前两个已经写进去了"）。重复的标识去重。只计外观 |
 | `create-page` | `CreatePageCommand` | `id` 非空且**在九个集合里都没被占用** | 次序由命令算出来（当前最大值加一），不由调用方给——调用方手上那份列表可能已经过期。只计外观，不触发重排 |
 | `delete-page` | `DeletePageCommand` | 页面存在；**不是最后一页** | 最后一页删不得：页面集合为空之后渲染层无页面可画，而那不是一次「删掉了一个东西」能解释的状态。撤销时把整份集合换回去，被删的那一页要插回原来那一格——追加到末尾会改变次序，而两个哈希都按标识排序，这个错在哈希上看不出来 |
 | `add-tag` | `AddTagCommand` | `id` 非空且**在九个集合里都没被占用**；成员都存在 | 标签与元素的关系是**单向**的：成员列表挂在标签自己身上，元素上没有回指字段。所以不存在的成员不会被任何别的地方发现，必须在写入前挡住。标签色取令牌名但不检查令牌是否存在，否则「先打标签、后定义令牌」就做不到了 |
@@ -82,11 +83,15 @@
 >   所以 `update-node-label`、`move-node-layer`、`set-node-shape`、`apply-style-token`、
 >   `set-node-style`、`set-text-style`、`set-edge-style` 都不必各立一条命令。
 >   判断标准是**被改的值挂在元素上还是挂在文档上**：挂在元素上的由字段表覆盖。
-> - **`assign-layer` 同样被字段表覆盖。** `NodeDef.Layer` 登记在节点名下，
->   `NodeFieldValue` 里有它的读写分支，属性面板也认它。再立一条命令，
->   同一个效果会有两条路。注意它与 `move-into-composite` 的区别：
->   那个父级字段是**冗余的那一份**，真正说了算的是容器的成员列表，
->   所以归属要有一条自己的命令；图层归属只有一个存放处，走字段表就够了。
+> - **`assign-layer` 一半被字段表覆盖。** `NodeDef.Layer` 登记在节点名下，
+>   `NodeFieldValue` 里有它的读写分支，属性面板也认它——**单个元素**的归属走
+>   `set-node-field` 就够了，再立一条命令会让同一个效果有两条路。
+>   但**一次改一批**做不到：逐个发命令的话，界面上的一次「移入」会进很多条历史，
+>   而用户眼里那是一次操作（`assign-layer` 因此落地，见上表）。两者都调
+>   `NodeFieldValue.TryWrite`，所以「怎么写 layer」只有一份实现。
+>   注意它与 `move-into-composite` 的区别：那个父级字段是**冗余的那一份**，
+>   真正说了算的是容器的成员列表，所以归属要有一条自己的命令；
+>   图层归属只有一个存放处，单元素那条路走字段表就够了。
 > - **`add-edge-waypoints` 与 `set-edge-route` 不该有命令。** 折点写在 sidecar 的
 >   `pinnedEdges`，不进 IR、不走命令总线——理由是折点是用户「拖这儿」的产物，
 >   走总线会把一次拖动塞进几百条 IR 记录、撤销栈失真。
@@ -113,15 +118,15 @@
 | 样式 | 无。`apply-style-token`、`set-node-style`、`set-text-style`、`set-edge-style` 四条都已由字段表覆盖（见上） |
 | 布局 | 无。`pin-node`、`unpin-node` 不该有命令（见上） |
 | 组合 | 无。四类合成一条 `create-composite`（P3-03）；`dissolve-composite` 与 `move-into-composite` 已落地 |
-| 图层 / 页面 | 无。图层三条（P3-03）与页面两条（P3-04）都已落地；`assign-layer` 由 `set-node-field` 的 `layer` 字段覆盖（见上） |
+| 图层 / 页面 | 无。图层六条（P3-03 三条、P4-02 两个开关、P4-03 的 `assign-layer`）与页面两条（P3-04）都已落地；单个元素的归属由 `set-node-field` 的 `layer` 字段覆盖（见上） |
 | 调色板 | 无。三条已落地（P3-02） |
 | 标签 / 动作 | 无。四条已落地（P3-04） |
 | 文档 | 无。`set-kind` 与 `set-canvas-settings` 已落地（P3-04） |
 
 **命令层到此补齐。** 还差的不是命令，是三类东西各自的界面入口与消费方：
-图层已经有命令也有渲染消费（`set-layer-visible` / `set-layer-locked` 两条，
-渲染按它们决定画不画、点不点得中），缺的是把它摆出来给人点的面板；
-页面的翻页与缩略图、标签与动作在画布上的呈现还没有接。
+图层已经有命令、渲染消费与面板（`set-layer-visible` / `set-layer-locked` 决定画不画、
+点不点得中，`assign-layer` 管多选之后的一次移入），缺的只剩"删掉一层"——
+那要先定"那一层上的元素去哪"；页面的翻页与缩略图、标签与动作在画布上的呈现还没有接。
 它们要么是 IR 字段已就位而界面未接，要么是渲染层尚未消费，都不该在这里凭空造一条命令。
 
 ## 工具层的动作对照
@@ -145,6 +150,8 @@
 | `diagram_edit` | `create-layer` | `create-layer` |
 | `diagram_edit` | `rename-layer` | `rename-layer` |
 | `diagram_edit` | `reorder-layer` | `reorder-layer` |
+| `diagram_edit` | `set-layer-visible` | `set-layer-visible` |
+| `diagram_edit` | `set-layer-locked` | `set-layer-locked` |
 | `diagram_edit` | `add-tag` | `add-tag` |
 | `diagram_edit` | `remove-tag` | `remove-tag` |
 | `diagram_edit` | `add-action` | `add-action` |

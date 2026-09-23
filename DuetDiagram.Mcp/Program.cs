@@ -82,11 +82,16 @@ public static class Program
             Document = ReadOption(args, DocumentSwitch),
             Tokens = tokens,
             Url = url,
+
+            // 审计与命令层的告警都走这个出口。不给的话它们写进的是一个丢弃一切的实现，
+            // 而表现是"审计功能已经有了"——一条都读不到，且没有任何地方会报出来。
+            Diagnostics = StandardErrorDiagnostics.Instance,
         });
 
         await host.StartAsync().ConfigureAwait(false);
 
-        Console.Error.WriteLine($"服务端在 {host.Address}{HttpHost.McpPath} 上等着，变化源在 {HttpHost.ChangesPath}。");
+        // 地址自带一个结尾的斜杠，路径自带一个开头的斜杠，直接拼会多出来一个。
+        Console.Error.WriteLine($"服务端在 {new Uri(host.Address, HttpHost.McpPath)} 上等着，变化源在 {HttpHost.ChangesPath}。");
 
         // 网络那一档没有"跑到输入结束"这回事，所以等到进程被叫停。
         await Task.Delay(Timeout.Infinite).ConfigureAwait(false);

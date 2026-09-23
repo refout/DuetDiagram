@@ -40,6 +40,8 @@ jobs:
           dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
           dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
+          dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build
 
       # P1 判据 #1：DuetDiagram.Core 仅依赖 BCL
       - name: Core 引用门禁（csproj 层）
@@ -175,6 +177,60 @@ jobs:
       # c-dsl 组五十份真实回答必须全部解析干净。同样依赖 LFS。
       - name: DSL 语料门禁
         run: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=DslCorpus"
+
+      # 内部模型侧与外部代理侧的工具定义是同一份派生出来的：名称、描述与参数 schema 逐字相同。
+      # 各写一份的话，同一个工具在两条通路上会变成两个工具——模型照着一份写、
+      # 代理照着另一份写，两边都自洽，而对不上的那一处谁都不会报。
+      - name: 工具两侧一致性门禁
+        run: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ToolParity"
+
+      # 报错之后的回环：同一个错误连着试到上限要停下，且停下时给的是"别再试了"而不是"参数错了"。
+      # 退化时的表现是代理把同一个调用一遍遍重发，而每一轮都花掉一次往返。
+      - name: 错误回环门禁
+        run: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ErrorLoop"
+
+      # 内部模型那条通路：工具结果怎么进上下文、匹配上的 Skill 正文怎么接在系统提示后面。
+      - name: 内部通路门禁
+        run: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ChatClient"
+
+      # 冲突时回什么内容：四种情形各一种，分界是"能不能只回差异"。
+      # 合并任意两种都会让某一类调用方拿到它不需要的全量、或者拿不到它需要的差异——
+      # 两种错法都不报错，只在对端那边表现成"同步之后还是对不上"。
+      - name: 冲突返回门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Conflict"
+
+      # 会话状态从两处通道、三种形态里读回来。只认一种的表现是"字段明明在、读出来却是空"——
+      # 它既不报错也不抛异常，只会让调用方以为自己没连上。
+      - name: 会话状态门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=McpSession"
+
+      # 网络那一档前面那道关：凭据、频次、权限档、版本声明，四道各自一个状态码。
+      # 合成一个"拒绝"的话，代理侧分不清该换凭据、该退避还是该改路径。
+      - name: 网络访问门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=McpSecurity"
+
+      # 网络那一档的传输性质：无状态、状态码、变化源。
+      - name: MCP 传输门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=McpHttp"
+
+      # Skill 的装载与三层边界：第一层（工具描述）始终在上下文里，所以它有长度上限；
+      # 第二、三层按需取，取不到就退化回"每轮全给"。退化的表现是上下文悄悄变长，
+      # 而所有用例照样通过——所以这两条要单列出来。
+      - name: Skill 加载门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Skill"
+      - name: 渐进式披露门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=SkillDisclosure"
+
+      # 十个 agent 同时写同一份文档：版本单调递增、没有哪一次成功被覆盖、文档仍然校验通过。
+      # 这一条退化的表现是"两个都成功、后一个把前一个盖掉"——两边都不报错。
+      - name: 多 agent 并发门禁
+        run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MultiAgent"
+
+      # 上面那些都是进程内建的客户端。这一条拿**真的可执行文件**把同一张清单再跑一遍：
+      # 拉子进程走标准输入输出、带参数起网络服务端再连上去。命令行那条通路（参数解析、
+      # 端口、日志改道）只有真的起一次才发现，而它一条用例都没有。
+      - name: MCP 实机验收
+        run: dotnet run --project tools/McpHarness -c ${{ env.CONFIGURATION }} -- protocol
 
   app-and-aot:
     name: 界面栈自检 + 端到端 + 原生发布

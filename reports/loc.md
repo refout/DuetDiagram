@@ -17,14 +17,14 @@
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Llm | 25 | 4400 | 2439 | 1334 | 627 |
 | DuetDiagram.Llm.Tests | 16 | 4090 | 2944 | 311 | 835 |
-| DuetDiagram.Mcp | 13 | 2314 | 1230 | 738 | 346 |
-| DuetDiagram.Mcp.Tests | 10 | 2883 | 1864 | 432 | 587 |
+| DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
+| DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
-| tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **387** | **79517** | **49822** | **16443** | **13252** |
+| tools | 34 | 9460 | 6458 | 1442 | 1560 |
+| **合计** | **383** | **79837** | **50002** | **16503** | **13332** |
 
 ## 明细
 
@@ -363,15 +363,16 @@
 
 | 文件 | 代码 |
 |---|---:|
-| Program.cs | 77 |
+| Program.cs | 78 |
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
 | DiagramMcpServer.cs | 91 |
-| HttpHost.cs | 284 |
+| HttpHost.cs | 280 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 71 |
 | SessionState.cs | 110 |
+| StandardErrorDiagnostics.cs | 11 |
 | StdioLogging.cs | 11 |
 | WorkspaceGuard.cs | 60 |
 | SkillCatalog.cs | 252 |
@@ -382,8 +383,9 @@
 | 文件 | 代码 |
 |---|---:|
 | ChangeFeedTests.cs | 149 |
+| ConcurrencyTests.cs | 100 |
 | ConflictResponseTests.cs | 205 |
-| Harness.cs | 289 |
+| Harness.cs | 323 |
 | HttpTransportTests.cs | 210 |
 | ProgressiveDisclosureTests.cs | 131 |
 | ProtocolTests.cs | 91 |
@@ -486,6 +488,10 @@
 | Support.cs | 134 |
 | Verify.cs | 239 |
 | Program.cs | 155 |
+| Agents.cs | 165 |
+| Program.cs | 78 |
+| Scenarios.cs | 321 |
+| Session.cs | 355 |
 | ApiDump.cs | 58 |
 | CheckRunner.cs | 246 |
 | DagreCandidate.cs | 258 |
@@ -493,16 +499,6 @@
 | LayoutModels.cs | 41 |
 | Program.cs | 36 |
 | SugiyamaCandidate.cs | 85 |
-| ApiDump.cs | 58 |
-| DiagramTools.cs | 116 |
-| HttpRoundtrip.cs | 47 |
-| Program.cs | 72 |
-| RecordingReadStream.cs | 49 |
-| Roundtrips.cs | 206 |
-| ServerHost.cs | 150 |
-| ApiDump.cs | 59 |
-| Checks.cs | 91 |
-| Program.cs | 33 |
 | Analysis.cs | 381 |
 | Checks.cs | 181 |
 | Program.cs | 75 |

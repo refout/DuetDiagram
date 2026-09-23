@@ -30,19 +30,20 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `reports/` | 阶段验证结论与取证数据 | 已落地 |
 | `tools/LocCounter` | LOC 统计（不进 sln） | 已落地 |
 | `tools/Poc/LayoutCandidates` | 布局引擎选型取证（不进 sln） | 已落地 |
-| `tools/Poc/McpTransport`、`SharedTools` | 协议与工具共用的依赖验证（不进 sln） | 已落地 |
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
-| `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
+| `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
 | `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
-| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁 | 已落地 |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
+| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-15（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
-标准输入输出那条传输、网络传输与它前面那道关、并发三层、Skill 机制）已落地，P3-16 未开工。
+P3-01 ~ P3-16（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
+标准输入输出那条传输、网络传输与它前面那道关、并发三层、Skill 机制、实机验收与多 agent 并发）
+已落地。P3-16 里"用真的 Codex CLI / Claude Code 接上服务端"那一步需要人看着跑，
+结论记在 `reports/phase3-mcp.md`——装置齐了不等于测过了，那一步没跑成就不写成通过。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -288,6 +289,19 @@ dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --fi
 # 内部那条通路不传 Skill 时一个字都不加，传了才接在系统提示后面
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=SkillDisclosure"
 
+# 十个 agent 真并发写同一份文档：版本号不重号不跳号、节点数与成功次数对得上、
+# 写完之后文档仍然校验通过。顺序跑十次验不到版本检查的竞态，而竞态正是这一条要挡的
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=MultiAgent"
+
+# MCP 的协议层验收：拿真的服务端可执行文件把八条判据逐条跑一遍（协议一致、参数校验、
+# 十 agent 并发、409 + 差异、只读无法写、速率限制、审计日志、会话应答）
+# 退出码表达整体结果。取证见 reports/phase3-mcp.md
+dotnet run --project tools/McpHarness -c Release -- protocol
+
+# 印出接真实代理（Codex CLI / Claude Code）要用的命令行与配置。它不替人跑代理：
+# 那两个是别人的程序，要装、要凭据、要有人看着，跑没跑过由报告照实记
+dotnet run --project tools/McpHarness -c Release -- agent
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -383,8 +397,6 @@ dotnet run --project DuetDiagram.App -c Release -- --open path/to/doc.json
 
 # 依赖验证脚手架（结论固化后可删，见仓库布局表）
 dotnet run --project tools/Poc/LayoutCandidates -c Release
-dotnet run --project tools/Poc/McpTransport -c Release
-dotnet run --project tools/Poc/SharedTools -c Release
 
 # 用户测试的装置：统计量在构造好的已知答案上算得对不对（不需要真人数据）
 dotnet run --project tools/UserStudy -c Release -- verify
@@ -449,6 +461,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
 | §8 Skill 机制「遵循 SEP-2640」 | 落点是协议实现通用的**资源**那一档加一个自定义的 `skill://` 协议，没有 SEP-2640 那个扩展 | 依赖里那个版本的协议实现里没有这个扩展（全文搜不到），而它本来就有资源那一档：清单、读取、内容类型都齐。等扩展成为标准、或者实现接上之后可以换过去——URI 与两份正文都不用动 |
 | §8「两个 Skill 存于 `Diagram.Mcp/Skills/`」 | 第三层（精确语法）的那一份不新建文件，直接用仓库里既有的 `docs/DSL-Syntax.md`，构建时作为嵌入资源随程序集走 | 另抄一份的话两边迟早对不上，而对不上的表现是模型照着一份过期的语法写——本仓在错误码名上已经踩过一次同样的坑。接过来之后「文档与实现不分叉」由构造保证，再加一条拿真解析器跑里面每段例子的门禁 |
+| §7.3 握手「回 `accepted` 与一个 `reason`」 | 没有 `accepted=false` 这条通路。会话状态随**每条请求**带上来，服务端每次现读现判；对不上时回的是差异或快照（网络那一档 409 加内容），不是一次协商被拒 | 当前协议版本用服务发现请求取代了初始化请求（P0-05 已记过），所以不存在"一次协商被接受或被拒绝"这件事。§15.2 那张清单里的「accepted=false 处理」因此没有落点，替代口径就是 §7.4 那四行——这一条写在 `reports/phase3-mcp.md` 里，不写成「已通过」 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |
 | §16 对比测试报告 `reports/compare.md` | 落在 `reports/compare-blind/`，且拆成结论与证据两份 | 一份文件装不下：解析统计、语义拒绝率、检查项可判定性、谓词口径各是一份证据，各有各的复现命令。混在一起之后没人知道哪一段该跟着哪条命令重新生成。另外装置不进 sln（见 `tools/CompareHarness` 那一行），所以它也没有 `Diagram.Compare.Tests` |

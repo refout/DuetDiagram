@@ -2,7 +2,7 @@
 
 - 验证对象：`Microsoft.Extensions.AI` 10.7.0 与 `ModelContextProtocol` 2.2.0 的工具抽象
 - 验证时间：2026-09-20
-- 验证程序：`tools/Poc/SharedTools`（命令行运行即复现全部结论）
+- 验证程序：`tools/Poc/SharedTools`（**已随 P3-16 删除**：结论固化之后脚手架不再保留，见下方「复现方式」）
 - 结论：**共用可行，且应当共用。方案留的退路也成立，但它是巧合而不是保证。**
 
 ## 一句话结论
@@ -87,13 +87,20 @@ McpServerTool.Create(AIFunction function, McpServerToolCreateOptions options)
 
 ## 复现方式
 
-```bash
-# 完整验证
-dotnet run --project tools/Poc/SharedTools -c Release
+当初的验证程序 `tools/Poc/SharedTools` 已随 P3-16 删除：结论已经落在产品代码里
+（`ToolRegistry.ToMcpTools()` 与 `Category=ToolParity`），而这一层现在由正式工程
+逐条复核——留着那份脚手架就是同一件事的两份实现。
 
-# 打印两个包的公开接口清单
-dotnet run --project tools/Poc/SharedTools -c Release -- --api
+```bash
+# 两侧派生的工具定义逐字相同：名称、描述、参数 schema
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolParity"
+
+# 两份工具表本身
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolRegistry"
 ```
+
+要重跑当初那份对**两个包的接口面**的取证（公开接口清单），
+从 git 历史里取回 `tools/Poc/SharedTools` 再跑。
 
 ## 对后续实现的约束
 

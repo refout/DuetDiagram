@@ -170,8 +170,8 @@ dotnet run --project tools/Poc/LayoutCandidates -c Release
 # P0-10：布局约束补齐方案
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj
 
-# P0-05：三条传输的完整验证
-dotnet run --project tools/Poc/McpTransport -c Release
+# P0-05：MCP 协议层的实机验收（当初那份脚手架已随 P3-16 删除，见 phase0a-mcp.md）
+dotnet run --project tools/McpHarness -c Release -- protocol
 
 # P0-02：界面栈自检并出图
 dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/phase0a-selftest.png

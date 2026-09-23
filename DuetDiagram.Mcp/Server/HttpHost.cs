@@ -176,11 +176,7 @@ public sealed class HttpHost : IAsyncDisposable
             .ToArray();
 
         builder.Services
-            .AddMcpServer(o =>
-            {
-                o.ServerInfo = new Implementation { Name = "duetdiagram", Version = DiagramMcpServer.Version };
-                o.ServerInstructions = DiagramMcpServer.Instructions;
-            })
+            .AddMcpServer(o => DiagramMcpServer.ConfigureOptions(o, session.Ack.ToJson()))
             .WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.Stateless)
             .WithTools(tools)
             .WithResources(SkillCatalog.Default.ToMcpResources())

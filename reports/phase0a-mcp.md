@@ -2,7 +2,7 @@
 
 - 验证对象：`ModelContextProtocol` **2.2.0** + `ModelContextProtocol.AspNetCore` 2.2.0
 - 验证时间：2026-09-20
-- 验证程序：`tools/Poc/McpTransport`（命令行运行即复现全部结论）
+- 验证程序：`tools/Poc/McpTransport`（**已随 P3-16 删除**：结论固化之后脚手架不再保留，见下方「复现方式」）
 - 结论：**三条传输全部可用；自定义会话字段双向可用，但通道与方案设想的不是同一个。**
 
 ## 一句话结论
@@ -155,13 +155,18 @@ System.ArgumentException: The arguments dictionary is missing a value for the re
 
 ## 复现方式
 
-```bash
-# 三条传输的完整验证
-dotnet run --project tools/Poc/McpTransport -c Release
+当初的验证程序 `tools/Poc/McpTransport` 已随 P3-16 删除：它当初验的是**协议库本身**
+能不能支撑三条传输与自定义会话字段，用的是自己搭的玩具服务端；这件事现在由正式工程
+直接证明——两条传输都跑在产品里，`tools/McpHarness` 拿真的服务端可执行文件复核。
 
-# 打印协议实现的公开接口清单
-dotnet run --project tools/Poc/McpTransport -c Release -- --api
+```bash
+# 拿真的服务端可执行文件把协议层各项跑一遍：协议一致、八个工具的参数校验、
+# 十个 agent 并发、409 + 差异、只读无法写、速率限制、审计日志、会话应答
+dotnet run --project tools/McpHarness -c Release -- protocol
 ```
+
+要重跑当初那份对**协议库本身**的取证（三条传输的接口面、公开接口清单），
+从 git 历史里取回 `tools/Poc/McpTransport` 再跑。
 
 ## 对后续实现的约束
 

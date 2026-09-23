@@ -126,7 +126,15 @@ public sealed class DiagramMcpServer : IAsyncDisposable
         Permissions = () => session.Permissions,
     };
 
-    private static void ConfigureOptions(McpServerOptions options, JsonObject ack)
+    /// <summary>
+    /// 两条传输共用的那几项服务端选项。
+    /// </summary>
+    /// <remarks>
+    /// 合成一处而不是各写一遍：会话应答是握手的一部分，而「两条传输说的是同一段」
+    /// 这件事在服务端那段话上已经立过。各写一遍的话，一条传输上补了新字段、
+    /// 另一条没有，而表现是「同一个客户端换一条传输就读不到应答」。
+    /// </remarks>
+    internal static void ConfigureOptions(McpServerOptions options, JsonObject ack)
     {
         options.ServerInfo = new Implementation { Name = "duetdiagram", Version = Version };
         options.ServerInstructions = Instructions;

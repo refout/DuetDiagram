@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Tools.McpHarness</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    实机验收装置：拿真的服务端可执行文件，把 §15.2 那张 MCP 清单上的各项逐条在协议层跑一遍。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件。
+    跑法见 tools/McpHarness/Program.cs 开头那两行。
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="../../DuetDiagram.Mcp/DuetDiagram.Mcp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      客户端那一侧的两样：协议客户端与两条传输。引用的是**产品里同一份**协议实现，
+      不另抄一份调用——抄一份出来，量到的就是抄件的行为。
+    -->
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      服务端那个工程引用着网络框架的共享框架，进程里要能把它解析出来；
+      原生编译与裁剪在这一层都不适用——它作为子进程跑在本机。
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

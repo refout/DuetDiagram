@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -109,6 +110,14 @@ internal sealed class AgentSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync() => await Client.DisposeAsync().ConfigureAwait(false);
 }
+
+/// <summary>
+/// 一条裸调用的答复。
+/// </summary>
+/// <param name="Status">HTTP 状态码。冲突、限流、拒绝都只有在这一层才看得出来。</param>
+/// <param name="Payload">正文。拒绝那一档是错误正文，成功那一档是协议信封。</param>
+/// <param name="Text">原始正文。要把它打进失败说明里的时候用。</param>
+internal sealed record RawReply(HttpStatusCode Status, JsonElement Payload, string Text);
 
 /// <summary>
 /// 用例要用的固定环境：服务端可执行文件在哪、客户端怎么声明会话状态、结果怎么读。
@@ -392,6 +401,70 @@ internal static class Harness
             + arguments
             + meta
             + "}}";
+    }
+
+    /// <summary>
+    /// 直接发一条工具调用，把状态码与正文原样拿回来。
+    /// </summary>
+    /// <remarks>
+    /// 并发那一组用它，**不走客户端库**：客户端库会把非 2xx 当成一次调用失败抛出来，
+    /// 而那一组要数的正是"拿到了几次 409、每次带没带内容"。走库的话，
+    /// 冲突变成一条异常消息，数出来的是"抛了几次"，而那不是同一件事。
+    /// </remarks>
+    public static async Task<RawReply> RawAsync(
+        HttpClient client,
+        string tool,
+        string arguments,
+        CancellationToken cancellationToken,
+        SessionState? declaration = null)
+    {
+        using var response = await PostAsync(client, CallBody(tool, arguments, declaration), cancellationToken)
+            .ConfigureAwait(false);
+
+        var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        return new RawReply(response.StatusCode, ParseBody(text), text);
+    }
+
+    /// <summary>
+    /// 从一条裸答复里取出工具结果。
+    /// </summary>
+    /// <remarks>
+    /// 结果在协议正文里是**一段装在文本块里的 JSON**，不是嵌套的对象：
+    /// 服务端把它序列化成字符串再放进内容块，所以这里要多解析一层。
+    /// 少解析这一层的话，读到的是一段字符串，而它看起来也像成功。
+    /// </remarks>
+    public static JsonElement ToolResultOf(RawReply reply)
+    {
+        ArgumentNullException.ThrowIfNull(reply);
+
+        var block = reply.Payload.GetProperty("result").GetProperty("content")[0];
+
+        return JsonDocument.Parse(block.GetProperty("text").GetString()!).RootElement.Clone();
+    }
+
+    /// <summary>
+    /// 把协议正文解析成 JSON。
+    /// </summary>
+    /// <remarks>
+    /// 协议端点回的是**事件流**（<c>data: {...}</c>），而传输层的拒绝回的是一段 JSON。
+    /// 只认后一种的话，每一个成功的调用都会在解析上失败，而症状看起来像服务端坏了。
+    /// </remarks>
+    private static JsonElement ParseBody(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return default;
+        }
+
+        var data = string.Join(
+            '\n',
+            text.Split('\n')
+                .Select(line => line.TrimEnd('\r'))
+                .Where(line => line.StartsWith("data:", StringComparison.Ordinal))
+                .Select(line => line["data:".Length..].TrimStart()));
+
+        return JsonDocument.Parse(data.Length > 0 ? data : text).RootElement.Clone();
     }
 
     /// <summary>问一次变化源。</summary>

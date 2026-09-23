@@ -1,7 +1,7 @@
 id: P3-16
 title: Phase 3 收尾——实机验收与多 agent 并发
 phase: 3
-status: pending
+status: done
 depends_on: [P3-01, P3-02, P3-03, P3-04, P3-05, P3-06, P3-07, P3-08, P3-09, P3-10, P3-11, P3-12, P3-13, P3-14, P3-15]
 estimated_loc: 420
 files:
@@ -12,11 +12,23 @@ files:
     - tools/McpHarness/Scenarios.cs
     - tools/McpHarness/Agents.cs
     - DuetDiagram.Mcp.Tests/ConcurrencyTests.cs
+    - DuetDiagram.Mcp/Server/StandardErrorDiagnostics.cs
     - reports/phase3-mcp.md
   modify:
     - AGENTS.md
     - tasks/README.md
     - .github/workflows/ci.yml
+    - DuetDiagram.Mcp/Program.cs
+    - DuetDiagram.Mcp/Server/DiagramMcpServer.cs
+    - DuetDiagram.Mcp/Server/HttpHost.cs
+    - DuetDiagram.Mcp.Tests/Harness.cs
+    - reports/phase0a-mcp.md
+    - reports/phase0a-shared-tools.md
+    - reports/phase0a.md
+    - reports/loc.md
+  delete:
+    - tools/Poc/McpTransport
+    - tools/Poc/SharedTools
 acceptance:
   - command: dotnet run --project tools/McpHarness -c Release -- protocol
     expect: 用协议层的客户端把八条判据逐条跑一遍，全部通过
@@ -43,3 +55,117 @@ scope_note: |
   `tools/McpHarness` 把八条判据在协议层逐条验掉（编码 agent 做得了），
   真实代理那一步如果这台机器上做不了，就照实记成「未验」，不写成「通过」。
   装置齐了不等于测过了——这一条在对比测试与用户测试上已经踩过两次。
+
+reconnaissance: |
+  **动手前对着协议实现的接口、两条传输、既有的脚手架、CI 配置与这台机器上的两个代理命令行核了一遍，结论如下。**
+
+  1. **`tools/Poc/McpTransport` 与 `tools/Poc/SharedTools` 的题材都被正式工程取代了。**
+     前者当初验的是「官方实现能不能支撑三种传输与自定义会话字段」，用的是自己那个玩具服务端；
+     后者验的是「一份工具定义能不能两处共用」，结论已经落在 `ToolRegistry.ToMcpTools()`
+     与 `Category=ToolParity` 上。两份结论都固化了，而这一条要加的 `tools/McpHarness`
+     拿**真的服务端可执行文件**验同一批事——留着就是两份实现，正是「依赖验证脚手架用完即删」
+     要避免的那种。所以这两个目录随这一条删掉。`tools/Poc/LayoutCandidates` **不动**：
+     它服务的是布局引擎主选那个还开着的决策门，删掉等于把取证装置一起删了。
+
+  2. **§15.2 那张 MCP 清单里的「accepted=false 处理」在这条协议通路上没有落点。**
+     §7.3 说的是 `initialize` 请求带 clientState、响应回 `accepted` 与一个 `reason`。
+     当前协议版本没有 initialize（P0-05 已经记过这一条），会话状态随**每条请求**带上来、
+     服务端每次现读现判，所以不存在「一次协商被接受或被拒绝」这件事，
+     只有「这一条请求的声明与文档对不上」，而它的处置正是 §7.4 那四行。
+     **替代口径**：不一致时回的是差异或快照（网络那一档 409 加内容），不是 `accepted=false` 加 reason。
+     这一条要写进报告与已知差异，**不写成「已通过」**。
+
+  3. **两条传输回的那份会话应答不一致。** 标准输入输出那条把 `SessionAck` 挂进能力扩展位，
+     网络那条只挂了服务端信息与那段话——同一个客户端换一条传输就读不到应答，
+     而它会以为自己没连上。§7.3 的应答是握手的一部分，而「两条传输说的是同一段」
+     这件事在服务端那段话上已经立过，应答要跟上。
+
+  4. **八条判据里有六条只有测试工程的覆盖，没有可人工跑的出口。** 用例是给 CI 的，
+     而报告要的那份「逐条跑一遍」的证据得有个地方出。所以 `tools/McpHarness` 拿真的
+     可执行文件跑：标准输入输出那条由它拉子进程，网络那条由它带
+     `--http --workspace --token` 起子进程再连上去——顺带把 `Program.cs` 那条命令行通路也验了，
+     它现在一条用例都没有。
+
+  5. **网络那条要显式给端口。** 命令行支持 `--http`，但地址写零表示由系统挑，
+     而挑中的那个只印在标准错误的一句话里。去解析那句话等于拿自己的输出当接口。
+     所以由装置自己先绑一次零号端口拿到一个空闲端口、放掉、再把那个端口写进 `--http`，
+     然后轮询到连得上为止。
+
+  6. **`Category=MultiAgent` 要真的并发，不是顺序跑十次。** 顺序跑验不到版本检查的竞态，
+     而竞态正是这一条要挡的东西。判据是文档仍然校验通过且版本号单调递增，
+     不是「没有抛异常」——抛异常那条路早就被挡住了，漏网的是「两个都成功、后一个覆盖了前一个」。
+
+  7. **CI 里根本没有 Llm 与 Mcp 两个测试工程。** `.github/workflows/ci.yml` 的 Test 那一步
+     只列了 Core / Layout / Render / Mermaid / Dsl，Phase 3 的用例一条都不在上面跑。
+     这一条要补上，并把几条「退化时不会让别的测试变红」的门禁单列成步骤。
+
+  8. **这台机器上两个代理命令行都在。** `codex` 0.147.0 与 `claude` 2.1.229 都在 PATH 上，
+     凭据文件也在（`~/.codex/auth.json`、`~/.claude/.credentials.json`），
+     所以「装不上」这一条不成立。真实代理那一步的处置与结论记在报告里。
+
+result: |
+  **落地。**
+
+  - 新增 `tools/McpHarness`（不进 sln）：`Session.cs`（拉子进程起真的服务端、网络那一档
+    自己先挑一个空闲端口再连上去、写那份初始文档）、`Scenarios.cs`（八条判据逐条跑）、
+    `Agents.cs`（十个 agent 齐步走并发写）、`Program.cs`（`protocol` 与 `agent` 两个动作）。
+    跑法：`dotnet run --project tools/McpHarness -c Release -- protocol`，退出码表达整体结果。
+  - 新增 `Category=MultiAgent` 那一组用例（`DuetDiagram.Mcp.Tests/ConcurrencyTests.cs`）：
+    与装置同一套齐步走逻辑，但走进程内的服务端，这样 CI 上不必起子进程也能挡住损坏。
+  - 新增 `DuetDiagram.Mcp/Server/StandardErrorDiagnostics.cs`，并在 `Program.cs` 的
+    网络那一档接上——审计记录与命令层告警从此有了出口。
+  - 报告 `reports/phase3-mcp.md`：两套装置的分工、八条判据的结果表、
+    `accepted=false` 那一条为什么没有落点、多 agent 并发档的判据与四件要核的事、
+    实机验收发现的三处缺口、真实代理「未验」的证据表、四条遗留。
+  - `tools/Poc/McpTransport` 与 `tools/Poc/SharedTools` 删除（题材被正式工程取代，
+    见侦察第 1 条）。`tools/Poc/LayoutCandidates` 不动。
+  - CI：Test 那一步补上 `DuetDiagram.Llm.Tests` 与 `DuetDiagram.Mcp.Tests`，
+    另把 Phase 3 那几类门禁单列成步骤（工具两侧一致、错误回环、内部通路、冲突返回、
+    会话状态、网络访问、传输、Skill、渐进式披露、多 agent 并发、MCP 实机验收）。
+
+  **实机验收发现的三处实现缺口（都已修）**
+
+  - **两条传输回的会话应答不一致。** 标准输入输出那条把 `SessionAck` 挂进能力扩展位，
+    网络那条只挂了服务端信息——同一个客户端换一条传输就读不到应答，而它会以为自己没连上。
+    修法是把那几项选项合成一处（`DiagramMcpServer.ConfigureOptions`），两条传输都调它。
+  - **网络那一档的审计没有出口。** 命令行起网络服务端时没有传 `IDiagnosticsSink`，
+    于是审计与命令层的告警都写进一个丢弃一切的实现，跑起来一条都读不到。
+    **这一条只有拿真可执行文件跑才会发现**：进程内的用例都传了一个收集器。
+  - **命令行印出来的地址多一个斜杠。** `host.Address` 自带一个结尾的斜杠、
+    `HttpHost.McpPath` 自带一个开头的斜杠，直接拼出来是 `//mcp`。
+    Kestrel 自己会折掉，所以它一直没造成故障——但那一行是给人看的，
+    照着它配客户端就会写错。改用 `new Uri(host.Address, HttpHost.McpPath)`。
+
+  **八条判据的结果**（全部由自建客户端在协议层验的，跑的是真的服务端可执行文件）：
+  协议一致（两条传输各 8 个工具，名称、描述与参数 schema 逐字相同）、
+  8 工具参数校验、10 agent 并发无损坏（撞上 6 次 409 与 75 次命令层冲突，
+  成功的版本 1..20 不重号不跳号、20 个节点、整体校验 0 个问题）、409 + 差异、
+  只读无法写、速率限制（这一份凭据上第 60 次请求撞上限）、
+  审计日志（留了 3 条，凭据本身与完整工作区路径都不在里面）、
+  clientState 握手（两条传输都上报了文档标识、版本与结构哈希；应答是快照，
+  追平靠每条请求的声明）。
+
+  **§15.2 里的「accepted=false 处理」没有落点**，记成已知差异（写进 `AGENTS.md`
+  的已知差异表与报告），**不写成「已通过」**。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 全量测试 Core 452 / Layout 75 / Render 145 / Mermaid 179 / Dsl 158 / Llm 189 /
+    Mcp 109 / E2E 81 全绿。Mcp 比 P3-15 多 1 条，就是并发那一组。
+  - `Category=MultiAgent` 通过。修掉那个非确定的断言之后连跑 56 次全绿。
+  - `tools/McpHarness -- protocol`：8/8 项通过。
+  - `tools/LocCounter --root . --check`：`reports/loc.md` 已重新生成
+    （合计 383 个文件 / 79837 行 / 50002 行代码）。
+  - 任务 YAML 全部可解析；`.github/workflows/ci.yml` 可解析且 40 个步骤无重名
+    （新加的那一段起初整块写了两遍，已去掉一遍）。
+
+  **后续**
+
+  - **真实代理那一步未验。** `claude` 2.1.229 与 `codex` 0.147.0 都在 PATH 上、
+    凭据文件也在，但两个端点都跑不通：前者 `claude -p` 第一次探针回了内容、
+    随后回 `402 Insufficient Balance`，后者 provider 指向的本地端口上没有服务、
+    报 `stream disconnected before completion`。装置这一侧备好了 `agent` 动作印命令行，
+    端点可用之后接上去是一条命令。**不写成「通过」。**
+  - **跨机器传输未做**：TLS、多实例共享变化源。现在只验了回环地址上的网络传输。
+

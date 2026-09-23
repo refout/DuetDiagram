@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置） |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型 |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -34,15 +34,15 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
-| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
-| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、四种拒绝与变化源的门禁 | 已落地 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 / P3-14 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 / P3-14 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
+| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁 | 已落地 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-13（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
-标准输入输出那条传输、网络传输与它前面那道关）已落地，P3-14 起未开工。
+P3-01 ~ P3-14（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
+标准输入输出那条传输、网络传输与它前面那道关、并发三层）已落地，P3-15 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -253,12 +253,30 @@ dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --fi
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpHttp"
 
 # 网络那一档前面的那道关：无凭据 401、只读凭据改文档 403、超限 429 且带重试间隔、
-# 路径逃逸被拒（`..` 与符号链接都算）、没有时间预算时一条命令都不发、审计不记凭据与完整路径
+# 图层级权限（改得动别的层、改不动禁止的那一层）、路径逃逸被拒（`..` 与符号链接都算）、
+# 没有时间预算时一条命令都不发、审计不记凭据与完整路径
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSecurity"
 
 # 变化源：有更新的版本立刻回、没有就长轮询到超时回空、挂在等待里的调用方被另一条连接上的
 # 改动叫醒、断了一段的调用方一次请求拿到当前版本、报的版本已经最新就等
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ChangeFeed"
+
+# 冲突时回什么：四种情形逐条对上（未声明→全量、版本相等→空、范围内且哈希一致→清单、
+# 超范围或哈希不一致→全量），版本更靠前算参数错误不算冲突；
+# 网络那一档回 409 且正文里带差异，撤销重做不接受版本声明
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Conflict"
+
+# 软锁：拿锁、被他人持有时的行为、续期把到期时刻往后推、无操作到期自动释放、
+# 过期之后续不上也放不掉；判据是"最后一次操作"，所以每二十九秒动一次的持有者不算过期
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=SoftLock"
+
+# 权限模型：read 改不动、edit 改不动图层级禁止的部分、full 不受限；
+# 没点名图层的写入不算图层级写入；认不出的主体按只读；主体名重复拒绝装载
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Permission"
+
+# 图层级判定在工具层：建 / 改 / 排序三条图层命令各判一次，
+# 改节点归属报的是 value（图层写在 value 上），被挡住时文档与版本号都没动
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=Permission"
 
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
@@ -382,7 +400,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`、`McpHttp`、`McpSecurity`、`ChangeFeed`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`、`McpHttp`、`McpSecurity`、`ChangeFeed`、`Conflict`、`SoftLock`、`Permission`
 
 ## 新增一个命令的检查清单
 
@@ -501,7 +519,13 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 两侧 schema 一致性有两条用例 | `Category=ToolRegistry` 那条按规范 JSON 比（容忍键序与空白），`Category=ToolParity` 那条按原文比 | 原文比较更强，能挡住「有人把两侧改成各自维护」之后出现在键序或空白上的差异——那种差异结构比较看不出来，而两边已经开始分叉 |
 | §7.3 的会话初始化应答 | 应答里写的是**服务端会话建立那一刻**的状态，是一份握手快照；之后调用方按服务端指令里那句话自己读摘要拿当前版本 | 能力声明在会话建立之前就配好了，逐请求改它要给一个共享对象加可变状态；而这条传输下一个进程只服务一个会话，握手那一刻读到的就是当前值。报成「随时最新的版本」会与实现不符——调用方以为那个数字能用，实际上它只说明会话建立时服务端在哪一版 |
 | 把工具挂到协议上的方式 | 挂的是**已经建好的工具实例**，不用按标注扫描静态方法那一套 | 标注那套要求参数由服务端容器解析，而这条通路上服务端不持有容器，非基础类型参数会被当成工具参数、调用直接失败——客户端只看到「调用出错」，原因只在服务端日志里。用实例还顺带保证代理侧与模型侧是同一份定义 |
-| §7.4 的冲突返回策略 | 这一条只做到「把调用方声明的版本翻成一次版本检查」：声明旧了拿到的是命令层现成的冲突结果；冲突里回什么内容（差异、快照）归 P3-14 | 冲突要回的内容取决于同步策略，而同步还没定。但声明必须真的接到命令上——光把它记进日志等于没做，文档会被照着旧副本改掉，而两边都不报错 |
+| §7.4 的冲突返回策略 | 四行逐行实现，但**第四行刻意退成全量**，尽管逐条增量算得出来 | 走到那一步说明调用方声明的结构哈希与服务端对不上，而它的本地副本是否还与它自己声明的那个版本对得上，从这边无从验证。把字段级的增量按在一份来路不明的副本上，正是产生「静默改错」的方式——改完之后两边都不报错，而那份图已经与谁都对不上。逐条增量仍然留给界面那条通路，它手里的副本是本地的 |
+| §7.4「未声明 clientState → FullSnapshot」 | 网络那一档按它做（409 加全量快照）；标准输入输出那一档仍然回一个不带内容的 `EXPECTED_VERSION_REQUIRED` | 那条通路没有状态码，回不出「409 加一份内容」这个形状；而协议内的工具结果里塞一份全量快照，会让每一条被拒的写入都往模型上下文里灌一整张图。它那边的做法是拿到码之后自己读一次图 |
+| §7.5 的三层并发 | 乐观并发与图层级权限都接上了；**软锁只到「工作区上挂一把、宿主自己拿」**，没有接到某条通路上 | 网络那一档是无状态的，服务端不在请求之间记任何东西，按主体的锁在那里没有落点；接到界面上又会被进程锁管着。锁本身与它的判据都验过了，缺的是一个真的需要它的宿主 |
+| §7.2「图层级 ACL 绑定认证主体」 | 绑主体做到了，但**配置入口只有 `HttpHostOptions.Tokens`**，命令行那条 `--token` 还表达不了图层 | 它的形态是 `名字:权限档:凭据`，而凭据本身可能带冒号——再切一刀就会把凭据切坏，而那种坏法只在真正连上来的时候才显形 |
+| 冲突判定的位置 | 网络那一档在中间件里**提前判一次**，为的是给出 409 那个状态码；命令总线那一道仍然是说了算的那一道 | 工具调用的失败是协议内的结果，状态码那一层看不见它，所以「409 + 差异」只有在协议之前判才做得出来。提前判完之后到命令真正执行之间还有个窗口，那个窗口里的冲突由总线在门锁内挡下，形状是工具结果里的错误码 |
+| §7.5「文档软锁 TTL 30 秒」 | 判据是**最后一次操作**，不是拿到锁的时刻；续期只在没过期时成功 | 只看拿锁时刻的话，一个每二十九秒动一次的 agent 会被判成过期，而它其实正在写——于是两个 agent 同时以为自己在改这份文档。续期在过期之后放行的话，同一个后果 |
+| §7.2「授权」的粒度 | 权限分两档判在两处：粗的那一档（能不能改）在传输层，细的那一档（能改哪些图层）在工具层 | 粗的那一档判据是凭据的权限档，只有传输层拿得到；细的那一档判据是"这次写入点名了哪个图层"，藏在动作参数里（改节点归属时写在 `value` 上，建图层与改图层时写在 `id` 上）。把细的也搬到传输层的话，那张对照表要抄一份，而抄漏的那一格会静默放行 |
 | 服务端自己的状态挂在哪 | 挂在 `ServerCapabilities.Extensions`，不用协议给自定义字段留的元数据位 | 那个元数据位在当前协议版本下没有入口。扩展位两端都能按类型直接读到，客户端不需要挂拦截器去看原始消息 |
 | 会话状态怎么读 | 从**每条请求**现读，服务端不保存任何会话上下文 | 无状态传输下服务端不持有服务容器，保存上下文的话，换个实例、重启一次，同一个调用就得到不同结果。逐条重写还包括「这次没声明」那一种：留着上一条的值会变成一次照着别人的版本改的写入 |
 | `DiagramToolContext.ExpectedVersion` 是委托而不是值 | 类型是 `Func<VersionCheckRequest?>`，由传输层填 | 它随每条请求变，而工具是按会话建一次、之后一直复用的。存一个值的话，第二次调用会拿着第一次声明的版本去比对，表现是「第一次改得动、第二次改不动」，且两边都不报错 |

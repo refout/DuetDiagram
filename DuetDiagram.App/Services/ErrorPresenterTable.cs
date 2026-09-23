@@ -116,6 +116,10 @@ public static class ErrorPresenterTable
             // 只读那一份。它不是失败，是"这件事在这份文档上做不了"，
             // 所以走灰显那一档：不弹窗，也不报成红的。
             [ErrorCodes.DocumentReadOnly] = new(ErrorPresentationKind.StatusBarMuted, "这份文档是只读的"),
+
+            // 图层级权限挡住的那一次写入。它也不是"做错了什么"，而是"这份凭据够不着这一层"，
+            // 与只读那一档同一个口径。
+            [ErrorCodes.LayerForbidden] = new(ErrorPresentationKind.StatusBarMuted, "这份凭据改不动这个图层"),
         };
 
     /// <summary>全部登记过的呈现方式，供门禁逐个核对。</summary>

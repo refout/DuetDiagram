@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Bus;
+using DuetDiagram.Core.Concurrency;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Time;
 using DuetDiagram.Llm.Context;
@@ -58,6 +59,27 @@ public sealed record DiagramToolContext
     /// </para>
     /// </remarks>
     public Func<VersionCheckRequest?>? ExpectedVersion { get; init; }
+
+    /// <summary>
+    /// 这一次调用所属主体能改哪些图层。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 由传输层填，随**每一条请求**变。缺省是不受限：界面那条通路没有"凭据"这回事，
+    /// 用它的宿主也就不该被图层挡住，而它拿不到这一项时得到的是不受限的那一份。
+    /// </para>
+    /// <para>
+    /// **用委托而不是一个值**，理由与 <see cref="ExpectedVersion"/> 相同：工具是按会话
+    /// 建一次、之后一直复用的，而权限随请求的主体变。存一个值的话，第一条请求的图层范围
+    /// 会一直管着后面的每一条，而表现是"换个凭据还是被同一份范围挡着"。
+    /// </para>
+    /// <para>
+    /// 判定放在动作分发那一侧，不放在这里：一次写入有没有点名图层、点名的是哪个，
+    /// 只有解析过动作参数的那一层知道。放在这里的话，上下文得先替所有动作把参数读一遍，
+    /// 而那正是各工具自己的事。
+    /// </para>
+    /// </remarks>
+    public Func<PermissionSet> Permissions { get; init; } = static () => PermissionSet.Full;
 
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;

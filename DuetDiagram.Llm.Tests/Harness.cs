@@ -2,6 +2,7 @@ using System.Text.Json;
 using DuetDiagram.Core.Broadcasting;
 using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Concurrency;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Time;
 using DuetDiagram.Llm.Context;
@@ -51,12 +52,14 @@ internal static class Harness
         new("tester", sessionId ?? SessionIds.Llm("c1"));
 
     /// <summary>一份工具上下文。不给文档时造一张空图。</summary>
+    /// <param name="permissions">这一次调用所属主体能改哪些图层。不给表示不受限。</param>
     public static DiagramToolContext Context(
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
         IReadOnlyList<string>? pinned = null,
         ManualTimeProvider? clock = null,
-        ISessionProvider? session = null)
+        ISessionProvider? session = null,
+        PermissionSet? permissions = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
@@ -67,6 +70,7 @@ internal static class Harness
             Placement = placement ?? [],
             PinnedNodes = pinned ?? [],
             Clock = time,
+            Permissions = () => permissions ?? PermissionSet.Full,
         };
     }
 
@@ -76,8 +80,9 @@ internal static class Harness
         IReadOnlyList<NodeRank>? placement = null,
         IReadOnlyList<string>? pinned = null,
         ManualTimeProvider? clock = null,
-        ISessionProvider? session = null) =>
-        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session));
+        ISessionProvider? session = null,
+        PermissionSet? permissions = null) =>
+        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session, permissions));
 
     /// <summary>按 JSON 参数调一个工具。</summary>
     public static ToolResult Invoke(

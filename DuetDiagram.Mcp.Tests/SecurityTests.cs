@@ -111,6 +111,130 @@ public sealed class SecurityTests
 
     #endregion
 
+    #region 图层级权限
+
+    /// <summary>
+    /// 图层级那一道判定落在工具层，因为只有解析过动作参数的那一层才知道这次点名了哪个图层。
+    /// </summary>
+    /// <remarks>
+    /// 粗粒度那一档放它过（它的权限档是"能改"），细的那一档才把它挡住。
+    /// 判定要是只写在传输层，这一条就漏了——而漏掉的表现是那份图被改了一角，
+    /// 谁都不报错。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "McpSecurity")]
+    public async Task A_scoped_token_can_write_to_its_own_layer()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
+        await using var client = await Harness.ConnectAsync(
+            host,
+            Harness.ScopedToken,
+            cancellationToken: cancellationToken);
+
+        await Harness.CallSucceedsAsync(
+            client,
+            DiagramToolset.Edit,
+            $$"""{"action":"create-layer","id":"{{Harness.ScopedLayer}}"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        host.Session.Document.Layers.Should().ContainSingle(layer => layer.Id == Harness.ScopedLayer);
+    }
+
+    [Fact]
+    [Trait("Category", "McpSecurity")]
+    public async Task A_scoped_token_cannot_write_to_another_layer()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
+        await using var client = await Harness.ConnectAsync(
+            host,
+            Harness.ScopedToken,
+            cancellationToken: cancellationToken);
+
+        var refused = await Harness.CallAsync(
+            client,
+            DiagramToolset.Edit,
+            $$"""{"action":"create-layer","id":"{{Harness.ForbiddenLayer}}"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        refused.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
+        refused.GetProperty("errors")[0].GetProperty("code").GetString()
+            .Should().Be(ErrorCodes.LayerForbidden);
+
+        // 可用的图层要列出来：只回一句"不许改这一层"的话，模型只能猜着换一个再撞一次。
+        refused.GetProperty("errors")[0].GetProperty("expected").GetString()
+            .Should().Contain(Harness.ScopedLayer);
+
+        host.Session.Document.Layers.Should().BeEmpty("被挡住的那条命令一条都没发出去");
+    }
+
+    /// <summary>改节点归属时，图层写在 value 上而不是 id 上。</summary>
+    [Fact]
+    [Trait("Category", "McpSecurity")]
+    public async Task Moving_a_node_into_a_forbidden_layer_is_refused()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
+
+        // 先用不受限的凭据把节点建出来。
+        await using (var writer = await Harness.ConnectAsync(host, cancellationToken: cancellationToken))
+        {
+            await Harness.CallSucceedsAsync(
+                writer,
+                DiagramToolset.Edit,
+                """{"action":"add-node","id":"a","label":"甲"}""",
+                cancellationToken,
+                Harness.At(0));
+        }
+
+        await using var scoped = await Harness.ConnectAsync(
+            host,
+            Harness.ScopedToken,
+            cancellationToken: cancellationToken);
+
+        var refused = await Harness.CallAsync(
+            scoped,
+            DiagramToolset.Edit,
+            $$"""{"action":"set-node-field","id":"a","field":"layer","value":"{{Harness.ForbiddenLayer}}"}""",
+            cancellationToken,
+            Harness.At(1));
+
+        refused.GetProperty("errors")[0].GetProperty("code").GetString()
+            .Should().Be(ErrorCodes.LayerForbidden);
+        refused.GetProperty("errors")[0].GetProperty("parameter").GetString()
+            .Should().Be("value", "图层标识写在 value 上，不是 id 上");
+
+        host.Session.Document.Nodes.Single().Layer.Should().BeNull("被挡住的那次改动没落下去");
+    }
+
+    /// <summary>不受限的凭据照旧想改哪一层就改哪一层。</summary>
+    [Fact]
+    [Trait("Category", "McpSecurity")]
+    public async Task An_unrestricted_token_is_not_blocked_by_layers()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
+        await using var client = await Harness.ConnectAsync(host, cancellationToken: cancellationToken);
+
+        await Harness.CallSucceedsAsync(
+            client,
+            DiagramToolset.Edit,
+            $$"""{"action":"create-layer","id":"{{Harness.ForbiddenLayer}}"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        host.Session.Document.Layers.Should().ContainSingle(layer => layer.Id == Harness.ForbiddenLayer);
+    }
+
+    #endregion
+
     #region 限流
 
     /// <summary>
@@ -379,12 +503,7 @@ public sealed class SecurityTests
     #region 取数
 
     /// <summary>一条最小可用的工具调用请求。带不带版本声明由用例自己决定。</summary>
-    private static string Call(string tool, string arguments) =>
-        "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\""
-            + tool
-            + "\",\"arguments\":"
-            + arguments
-            + "}}";
+    private static string Call(string tool, string arguments) => Harness.CallBody(tool, arguments);
 
     #endregion
 }

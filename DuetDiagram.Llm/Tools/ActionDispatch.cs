@@ -133,6 +133,48 @@ internal static class ActionDispatch
     public static ToolResult Missing(string message, string parameter) =>
         ToolResult.Fail(ToolError.Of(ToolErrorCodes.ArgumentMissing, message, parameter));
 
+    /// <summary>
+    /// 这一次写入点名的图层许不许碰。
+    /// </summary>
+    /// <param name="context">这次调用的上下文，权限从它取。</param>
+    /// <param name="layerId">写入点名的图层标识。没点名时为空。</param>
+    /// <param name="parameter">图层标识写在哪个参数上，用来告诉调用方该改哪一个。</param>
+    /// <remarks>
+    /// <para>
+    /// 判定放在这里而不是传输层：一次写入有没有点名图层、点名的是哪个，藏在动作参数里——
+    /// 改节点归属时图层写在 <c>value</c> 上，建图层与改图层时写在 <c>id</c> 上。
+    /// 传输层要判就得把这张对照表抄一份，而抄漏的那一格会静默放行。
+    /// </para>
+    /// <para>
+    /// 许的时候返回空，调用方接着发命令；不许的时候返回一条失败，调用方直接把它交出去。
+    /// 用空表示"没被挡住"而不是用布尔，是为了让调用点写成一行短路，少一处
+    /// "先判布尔再决定返什么"的分叉。
+    /// </para>
+    /// </remarks>
+    public static ToolResult? DeniedLayer(DiagramToolContext context, string? layerId, string parameter)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var permissions = context.Permissions();
+
+        if (permissions.AllowsLayer(layerId))
+        {
+            return null;
+        }
+
+        // 可用的图层列在这里，而不是写进修复建议那张表：允许哪些图层随凭据变，
+        // 静态表里写不出来，写死了就是错的。
+        var allowed = permissions.Layers.Count == 0
+            ? "这份凭据一个图层都不许改"
+            : $"允许的图层：{string.Join('、', permissions.Layers.Order(StringComparer.Ordinal))}";
+
+        return ToolResult.Fail(ToolError.Of(
+            ErrorCodes.LayerForbidden,
+            $"这份凭据不许改图层 {layerId}，这一次改动没有发出去",
+            parameter,
+            allowed));
+    }
+
     /// <summary>发一条命令，并把结果翻译成工具结果。</summary>
     /// <remarks>
     /// 版本声明在发出去之前现读一次。带版本检查的通路上，不带声明会被判成

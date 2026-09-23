@@ -104,6 +104,15 @@ public static class ErrorCodes
     /// </remarks>
     public const string McpTimeout = "MCP_TIMEOUT";
 
+    /// <summary>这一次写入点名的图层不在凭据允许的范围里。</summary>
+    /// <remarks>
+    /// 与 <see cref="McpForbidden"/> 分开：那一条是"整份文档都不许改"，
+    /// 处置是换一份能改的凭据；这一条是"能改，但不能改这一层"，
+    /// 处置是换一个图层，或者去改那份凭据的图层范围。合成一个的话，
+    /// 调用方会去换凭据，而换来的那一份照样改不动这一层。
+    /// </remarks>
+    public const string LayerForbidden = "LAYER_FORBIDDEN";
+
     /// <summary>命令实现内部出错。对外只暴露这个码，不带任何内部细节。</summary>
     public const string InternalError = "INTERNAL_ERROR";
 

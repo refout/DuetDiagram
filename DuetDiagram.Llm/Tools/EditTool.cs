@@ -113,9 +113,20 @@ internal static class EditTool
             return error;
         }
 
-        return Missing(args.Field, "field", "字段名") is { } fieldError
-            ? fieldError
-            : ActionDispatch.Execute(context, new SetNodeFieldCommand(args.Id!, args.Field!, args.Value));
+        if (Missing(args.Field, "field", "字段名") is { } fieldError)
+        {
+            return fieldError;
+        }
+
+        // 改图层归属是一条图层级写入，而它点名的图层写在 value 上：field 是 layer 时，
+        // value 才是图层标识。别处那几条图层命令点的是 id。
+        if (string.Equals(args.Field, FieldNames.Layer, StringComparison.Ordinal)
+            && ActionDispatch.DeniedLayer(context, args.Value, "value") is { } denied)
+        {
+            return denied;
+        }
+
+        return ActionDispatch.Execute(context, new SetNodeFieldCommand(args.Id!, args.Field!, args.Value));
     }
 
     #endregion
@@ -214,13 +225,19 @@ internal static class EditTool
     private static ToolResult CreateLayer(DiagramToolContext context, EditArguments args) =>
         Missing(args.Id, "id", "图层标识") is { } error
             ? error
-            : ActionDispatch.Execute(context, new CreateLayerCommand(args.Id!, args.Label ?? string.Empty));
+            : ActionDispatch.DeniedLayer(context, args.Id, "id")
+                ?? ActionDispatch.Execute(context, new CreateLayerCommand(args.Id!, args.Label ?? string.Empty));
 
     private static ToolResult RenameLayer(DiagramToolContext context, EditArguments args)
     {
         if (Missing(args.Id, "id", "图层标识") is { } error)
         {
             return error;
+        }
+
+        if (ActionDispatch.DeniedLayer(context, args.Id, "id") is { } denied)
+        {
+            return denied;
         }
 
         // 名字允许是空串（那是"改成一个空名字"），但不能没给：没给多半是参数写漏了。
@@ -234,6 +251,11 @@ internal static class EditTool
         if (Missing(args.Id, "id", "图层标识") is { } error)
         {
             return error;
+        }
+
+        if (ActionDispatch.DeniedLayer(context, args.Id, "id") is { } denied)
+        {
+            return denied;
         }
 
         return args.Index is null

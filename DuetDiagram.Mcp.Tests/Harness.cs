@@ -239,6 +239,15 @@ internal static class Harness
     /// <summary>一份只被允许读的凭据。</summary>
     public const string ReadToken = "tok-read-7c31";
 
+    /// <summary>一份能改、但只被允许改 <see cref="ScopedLayer"/> 那一层的凭据。</summary>
+    public const string ScopedToken = "tok-scoped-4b8e";
+
+    /// <summary>上面那份凭据能碰的图层。</summary>
+    public const string ScopedLayer = "public";
+
+    /// <summary>一份能改、但够不着的图层。</summary>
+    public const string ForbiddenLayer = "secret";
+
     /// <summary>这个用例自己的工作区。</summary>
     public static string Workspace() => NewWorkspace();
 
@@ -263,6 +272,13 @@ internal static class Harness
             [
                 new AgentToken("writer", AgentScope.Full, FullToken),
                 new AgentToken("reader", AgentScope.Read, ReadToken),
+
+                // 能改、但只许碰一层。它验的是图层级那一道判定：
+                // 粗粒度那一档放它过，细的那一档要在动作参数上才看得出来。
+                new AgentToken("scoped", AgentScope.Edit, ScopedToken)
+                {
+                    Layers = new HashSet<string>([ScopedLayer], StringComparer.Ordinal),
+                },
             ],
             RequestsPerMinute = requestsPerMinute,
             CallTimeout = callTimeout ?? TimeSpan.FromSeconds(30),
@@ -346,6 +362,36 @@ internal static class Harness
 
         return JsonNode.Parse(text)?["code"]?.GetValue<string>()
             ?? throw new InvalidOperationException($"这条拒绝里没有错误码：{text}");
+    }
+
+    /// <summary>读一条拒绝的完整正文。要看差异那一份内容时用它。</summary>
+    public static async Task<JsonElement> RejectionAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        return JsonDocument.Parse(text).RootElement.Clone();
+    }
+
+    /// <summary>
+    /// 一条最小可用的工具调用请求，直接发到协议端点上。
+    /// </summary>
+    /// <remarks>
+    /// 用它而不是走客户端库，是为了看**传输层**的拒绝长什么样：客户端库会把非 2xx
+    /// 当成一次调用失败抛出来，而这一层要验的正是那个状态码与正文。
+    /// 声明写在参数元数据里，与客户端库的做法一致。
+    /// </remarks>
+    public static string CallBody(string tool, string arguments, SessionState? declaration = null)
+    {
+        var meta = declaration is null
+            ? string.Empty
+            : ",\"_meta\":{\"" + SessionState.CapabilityKey + "\":" + declaration.ToJson().ToJsonString() + "}";
+
+        return "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/call\",\"params\":{\"name\":\""
+            + tool
+            + "\",\"arguments\":"
+            + arguments
+            + meta
+            + "}}";
     }
 
     /// <summary>问一次变化源。</summary>

@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 39 | 9243 | 5201 | 2525 | 1517 |
+| DuetDiagram.App | 39 | 9247 | 5202 | 2527 | 1518 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 90 | 12562 | 7234 | 3463 | 1865 |
-| DuetDiagram.Core.Tests | 34 | 8848 | 6263 | 890 | 1695 |
+| DuetDiagram.Core | 94 | 12904 | 7363 | 3633 | 1908 |
+| DuetDiagram.Core.Tests | 36 | 9259 | 6542 | 936 | 1781 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4284 | 2390 | 1279 | 615 |
-| DuetDiagram.Llm.Tests | 15 | 3907 | 2822 | 286 | 799 |
-| DuetDiagram.Mcp | 10 | 1580 | 842 | 496 | 242 |
-| DuetDiagram.Mcp.Tests | 7 | 1949 | 1270 | 280 | 399 |
+| DuetDiagram.Llm | 25 | 4375 | 2429 | 1320 | 626 |
+| DuetDiagram.Llm.Tests | 16 | 4059 | 2924 | 306 | 829 |
+| DuetDiagram.Mcp | 11 | 1841 | 954 | 618 | 269 |
+| DuetDiagram.Mcp.Tests | 8 | 2450 | 1590 | 367 | 493 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **374** | **76793** | **48260** | **15751** | **12782** |
+| **合计** | **383** | **78555** | **49242** | **16239** | **13074** |
 
 ## 明细
 
@@ -65,7 +65,7 @@
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 72 |
+| ErrorPresenterTable.cs | 73 |
 | FieldEditBinder.cs | 257 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
@@ -137,7 +137,7 @@
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 93 |
-| ErrorCodes.cs | 46 |
+| ErrorCodes.cs | 47 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -147,6 +147,10 @@
 | PaletteFieldValue.cs | 73 |
 | SessionIds.cs | 8 |
 | ValidationResult.cs | 8 |
+| LayerAcl.cs | 25 |
+| PermissionSet.cs | 11 |
+| SoftLock.cs | 83 |
+| SoftLockOptions.cs | 6 |
 | IDiagnosticsSink.cs | 28 |
 | HistoryStack.cs | 64 |
 | AuditLog.cs | 52 |
@@ -180,7 +184,7 @@
 | SidecarStore.cs | 123 |
 | UserSidecar.cs | 48 |
 | ITimeProvider.cs | 22 |
-| DiagramWorkspace.cs | 47 |
+| DiagramWorkspace.cs | 50 |
 | DocumentLock.cs | 136 |
 | Heartbeat.cs | 62 |
 
@@ -212,10 +216,12 @@
 | NodeFieldTests.cs | 303 |
 | PageTagActionCommandTests.cs | 298 |
 | PaletteCommandTests.cs | 256 |
+| PermissionTests.cs | 105 |
 | RoundTripTests.cs | 139 |
 | SessionIdResolutionTests.cs | 57 |
 | SidecarBackupTests.cs | 245 |
 | SidecarTests.cs | 301 |
+| SoftLockTests.cs | 174 |
 | TempDirectory.cs | 22 |
 | TestCommands.cs | 109 |
 | UndoStressTests.cs | 77 |
@@ -314,12 +320,12 @@
 | SummaryFormatter.cs | 118 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 208 |
-| ActionDispatch.cs | 132 |
+| RepairHints.cs | 212 |
+| ActionDispatch.cs | 149 |
 | CompositeTool.cs | 64 |
-| DiagramToolContext.cs | 21 |
+| DiagramToolContext.cs | 23 |
 | DiagramToolset.cs | 173 |
-| EditTool.cs | 242 |
+| EditTool.cs | 258 |
 | ExportTool.cs | 52 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
@@ -341,8 +347,9 @@
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
 | ExportToolTests.cs | 106 |
-| Harness.cs | 78 |
+| Harness.cs | 82 |
 | HistoryToolTests.cs | 133 |
+| LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
 | RepairHintTests.cs | 147 |
 | SchemaTests.cs | 181 |
@@ -357,12 +364,13 @@
 | 文件 | 代码 |
 |---|---:|
 | Program.cs | 77 |
-| BearerAuth.cs | 71 |
+| BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
-| DiagramMcpServer.cs | 86 |
-| HttpHost.cs | 235 |
+| ConflictResponder.cs | 40 |
+| DiagramMcpServer.cs | 87 |
+| HttpHost.cs | 282 |
 | RateLimiter.cs | 43 |
-| SessionCore.cs | 63 |
+| SessionCore.cs | 71 |
 | SessionState.cs | 110 |
 | StdioLogging.cs | 11 |
 | WorkspaceGuard.cs | 60 |
@@ -372,10 +380,11 @@
 | 文件 | 代码 |
 |---|---:|
 | ChangeFeedTests.cs | 149 |
-| Harness.cs | 265 |
-| HttpTransportTests.cs | 203 |
+| ConflictResponseTests.cs | 205 |
+| Harness.cs | 289 |
+| HttpTransportTests.cs | 210 |
 | ProtocolTests.cs | 91 |
-| SecurityTests.cs | 237 |
+| SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
 | StdioTests.cs | 150 |
 

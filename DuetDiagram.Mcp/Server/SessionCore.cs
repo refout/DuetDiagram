@@ -2,6 +2,7 @@ using System.Globalization;
 using DuetDiagram.Core.Broadcasting;
 using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Concurrency;
 using DuetDiagram.Core.Diagnostics;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Serialization;
@@ -28,6 +29,7 @@ namespace DuetDiagram.Mcp.Server;
 public sealed class SessionCore : IAsyncDisposable
 {
     private readonly AsyncLocal<SessionState?> _declared = new();
+    private readonly AsyncLocal<PermissionSet?> _permissions = new();
 
     private SessionCore(DiagramCommandBus bus, InProcessBroadcaster broadcaster)
     {
@@ -106,6 +108,30 @@ public sealed class SessionCore : IAsyncDisposable
 
     /// <summary>本次调用要报给命令总线的版本声明。</summary>
     public VersionCheckRequest? DeclaredVersion() => _declared.Value?.ToVersionCheck();
+
+    /// <summary>
+    /// 这一次调用所属主体能改哪些图层。
+    /// </summary>
+    /// <remarks>
+    /// 没有主体时是不受限：标准输入输出那条通路下这个进程只服务一个客户端，
+    /// 它由客户端作为子进程拉起来，不存在"这一份凭据与那一份凭据"的分别。
+    /// </remarks>
+    public PermissionSet Permissions => _permissions.Value ?? PermissionSet.Full;
+
+    /// <summary>
+    /// 记下这一条请求所属的主体。
+    /// </summary>
+    /// <remarks>
+    /// 与声明同一个做法：**每条请求重写一次**。传输层是无状态的，上一条请求的主体留着不放的话，
+    /// 一次没带凭据的调用会继承上一条请求的图层范围——而那份范围可能是另一个调用方的，
+    /// 于是它要么被多挡一次，要么被少挡一次，两边都不报错。
+    /// </remarks>
+    public void Scope(PermissionSet permissions)
+    {
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        _permissions.Value = permissions;
+    }
 
     public async ValueTask DisposeAsync()
     {

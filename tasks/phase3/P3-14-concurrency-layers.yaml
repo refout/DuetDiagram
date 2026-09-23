@@ -13,19 +13,35 @@ files:
     - DuetDiagram.Mcp/Server/ConflictResponder.cs
     - DuetDiagram.Core.Tests/SoftLockTests.cs
     - DuetDiagram.Core.Tests/PermissionTests.cs
+    - DuetDiagram.Llm.Tests/LayerPermissionTests.cs
     - DuetDiagram.Mcp.Tests/ConflictResponseTests.cs
   modify:
     - DuetDiagram.Core/Commands/ErrorCodes.cs
     - DuetDiagram.Core/Workspace/DiagramWorkspace.cs
+    - DuetDiagram.Llm/Tools/DiagramToolContext.cs
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/EditTool.cs
+    - DuetDiagram.Llm.Tests/Harness.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
+    - DuetDiagram.Mcp/Server/DiagramMcpServer.cs
+    - DuetDiagram.Mcp/Server/SessionCore.cs
+    - DuetDiagram.Mcp/Server/BearerAuth.cs
+    - DuetDiagram.Mcp/Server/HttpHost.cs
+    - DuetDiagram.Mcp.Tests/Harness.cs
+    - DuetDiagram.Mcp.Tests/HttpTransportTests.cs
+    - DuetDiagram.Mcp.Tests/SecurityTests.cs
     - docs/Error-Codes.md
     - docs/Architecture.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=SoftLock"
-    expect: 全通过；拿锁、续期、无操作到期自动释放、被他人持有时的行为各有用例
+    expect: 全通过；拿锁、续期、无操作到期自动释放、被他人持有时的行为各有用例；"每二十九秒动一次"那一条不判过期
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Permission"
-    expect: 全通过；read 改不动、edit 改不动图层级禁止的部分、full 不受限
+    expect: 全通过；read 改不动、edit 改不动图层级禁止的部分、full 不受限；认不出的主体按只读
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=Permission"
+    expect: 全通过；工具层在动作参数上判图层，建 / 改 / 排序三条各判一次，改节点归属报的是 value
   - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Conflict"
-    expect: 全通过；四种冲突返回策略（FullSnapshot / Empty / Reference / FullSnapshot）逐条对上
+    expect: 全通过；四种冲突返回策略（FullSnapshot / Empty / Reference / FullSnapshot）逐条对上；网络那一档回 409 且正文里带差异
 constraints:
   - "**软锁与文档锁是两件事，不要合并。** 文档锁（P2-12）管的是「这个进程在编辑这份文件」，粒度是进程与文件，用独占句柄；软锁管的是「这个 agent 正在改这份文档」，粒度是文档，TTL 30 秒、无操作自动释放。合并的话，一个卡住的 agent 会让整个进程连只读都退不进去"
   - "**软锁到期要真的自动释放，且释放前要确认持有者没有再动。** 只看时间戳的话，一个每 29 秒动一次的 agent 会被判定为过期，而它其实正在写"
@@ -44,3 +60,131 @@ scope_note: |
   后者挡的是「两个进程同时开同一个文件」。粒度、寿命、判据都不同：
   文档锁靠独占句柄，抢不到就退只读；软锁靠时间戳，到期自动放。
   把它们合成一个的话，一个 agent 卡住会把整个进程锁在只读上，而用户看到的是一份改不动的文档。
+
+reconnaissance: |
+  **动手前对着命令总线、版本日志、两条传输与既有的文档锁核了一遍，结论如下。**
+
+  1. **§7.4 那张表与 `VersionLog.BuildDiff` 只差一处。** `BuildDiff` 的六个分支里，
+     「版本相等→空」「版本更靠前→参数错误」「超出日志范围→全量」「范围内且结构哈希一致→清单」
+     四条与表逐行对上；只有「范围内但哈希不一致」它给的是**逐条增量**，而表上写的是全量。
+     这一处按表来：走到那一步说明调用方声明的结构哈希与服务端对不上，
+     它的本地副本是否还对得上自己声明的那个版本无从验证，把字段级增量按在一份来路不明的副本上
+     正是产生静默改错的方式。逐条增量仍然留给界面那条通路，它手里的副本是本地的。
+
+  2. **「未声明」那一种现在根本没有落点。** 总线上未声明会被判成
+     `EXPECTED_VERSION_REQUIRED`，而那个结果里**不带任何内容**——调用方连"该声明哪一版"都问不出来。
+     §7.4 第一行要的是全量快照。所以传输层要提前判一次：写入工具没带声明时回 409 加全量快照。
+
+  3. **冲突内容只能落在传输层。** 工具调用的失败是**协议内的结果**（`isError`），不是 HTTP 状态；
+     把差异塞进工具结果里的话，「409 + 差异」这条 DoD 就没有落点。而中间件已经为了判越权
+     读了一次请求体，把声明一起读出来是同一套机器。总线那一道检查仍然说了算——
+     中间件判完之后到命令真正执行之间还有个窗口，那个窗口里的冲突由总线在锁内挡下。
+
+  4. **只有四个工具走版本检查。** `diagram_edit` / `diagram_style` / `diagram_layout` /
+     `diagram_composite` 的执行体经 `ActionDispatch.Execute` 带上声明；撤销重做走历史栈，
+     **不接受也不检查声明**。所以传输层的版本预判只对这四个工具做，
+     撤销重做那一档放它进去——对着一份旧副本撤销，是调用方自己的判断。
+
+  5. **声明的读取位置只能有一处。** 请求体里那份声明由 `SessionState.FromRequest` 读，
+     它有四种形态要认（对象、装着对象的 JSON 节点、装着文本的 JSON 值、原生文本）。
+     中间件自己再写一份解析的话，协议一动就会有一边静默失效。
+
+  6. **图层级的判据必须落到动作上，落不到传输层。** 「这次写入点名了哪个图层」这件事，
+     只有解析过动作参数的那一层知道：`set-node-field` 只有在 `field` 是 `layer` 时
+     `value` 才是图层，`create-layer` / `rename-layer` / `reorder-layer` 点的是 `id`。
+     传输层要判就得把这张对照表抄一份，而抄漏的那一格会静默放行。
+     所以工具层经 `DiagramToolContext` 拿权限，判定写在动作分发那一侧。
+
+  7. **权限随请求来，所以上下文里那个成员必须是委托。** 工具表是**按会话建一次**的
+     （网络那一档更是所有凭据共用同一份），而权限随每条请求的主体变。
+     这与 `ExpectedVersion` 是同一个坑，解法也一样：`Func<PermissionSet>`。
+     主体由传输层放进会话的随异步流走的槽里，与声明那一份同一个做法。
+
+  8. **软锁的到期判据只能是「最后一次操作」。** 记「拿到锁的时刻加三十秒」的话，
+     一个每二十九秒动一次的 agent 会被判成过期，而它其实正在写。
+     释放做成懒的：到期的锁在下一个拿锁的人看来就是空的，不另起清理线程——
+     那会多一个在退出时可能卡住的定时任务。
+
+  9. **软锁挂在 `DiagramWorkspace` 上。** 它是「一份文档加一条总线」那个运行单元的一部分，
+     而软锁的粒度正是文档。时钟取上下文里那一个，用例才好用可推进的时钟验过期。
+
+  10. **新增错误码要动四处。** `ErrorCodes.cs`、`docs/Error-Codes.md` 的两张表
+      （命令错误表与界面呈现表）、`ErrorPresenterTable.cs`、`RepairHints.cs`。
+      后两处各有一条门禁逐行核对，漏一处就红。
+
+  11. **两条既有用例的期望要改。** 网络那一档「过期声明被拒」与「未声明被拒」
+      这两条原来断言的是协议内的错误码；现在那两条在中间件就被挡下、回的是 409 加内容。
+      改的是**机制**不是意图：写入照样被拒、文档照样一个字节没动，只是拒绝的形状换了。
+
+  12. **命令行的 `--token` 表达不了图层。** 它的形态是 `名字:权限档:凭据`，
+      凭据本身可能带冒号，再切一刀会把凭据切坏。图层限制暂时只有
+      `HttpHostOptions.Tokens` 这一个配置入口，命令行那一处留到有需要时再定形态。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.Core/Concurrency/SoftLock.cs` 与 `SoftLockOptions.cs`：文档级软锁。
+    到期判据是**最后一次操作**，不是拿到锁的时刻；同一个人再拿一次算成功并顺带续期；
+    已经过期就续不上也放不掉；释放是懒的，没有后台清理线程。
+  - 新增 `PermissionSet.cs` 与 `LayerAcl.cs`：权限模型。两件事——能不能改这份文档、
+    能改哪些图层；图层集合为空表示不限；`LayerAcl` 绑主体不绑连接，认不出的主体按只读，
+    主体名重复直接拒绝装载。
+  - `DiagramWorkspace` 多一把 `SoftLock`，时钟取上下文里那一个。工作区只把它摆出来，
+    不在每条命令上自动拿它——拿不到时该报错还是该排队只有宿主知道。
+  - 新增 `DuetDiagram.Mcp/Server/ConflictResponder.cs`：§7.4 四行逐行实现。
+    第四行刻意退成全量（理由见「核掉的起草假设」第一条）。
+  - 网络那一档：中间件在权限档之后加了**版本预判**，冲突时回 409 加正文里那份内容；
+    同时把这一条请求所属主体的权限放进会话。`TransportRejection.WriteAsync` 多一个可选的
+    `diff` 参数，拒绝的正文形状仍只有一处。
+  - 工具层：`DiagramToolContext` 多一个 `Func<PermissionSet>`（与 `ExpectedVersion` 同一个坑、
+    同一个解法），`ActionDispatch.DeniedLayer` 是唯一的判定点，`EditTool` 的四个动作各调一次
+    （建 / 改 / 排序图层点的是 `id`，改节点归属点的是 `value`）。
+  - `ErrorCodes` 加一个码 `LAYER_FORBIDDEN`，呈现表、修复建议表与错误码文档各补一行。
+
+  **核掉的起草假设**
+
+  - **§7.4 那张表与 `VersionLog.BuildDiff` 差一行，而那一行差得很要紧。** 表上「范围内但
+    结构哈希对不上」要全量，实现给的是逐条增量。按表来：对端声明的哈希对不上，说明它的本地副本
+    是否还与它自己声明的那个版本对得上无从验证，把字段级增量按上去正是产生静默改错的方式。
+    逐条增量仍然留给界面那条通路。
+  - **「未声明」那一种原来根本没有落点。** 总线上未声明回的是 `EXPECTED_VERSION_REQUIRED`，
+    不带任何内容，调用方连「该声明哪一版」都问不出来。网络那一档改成 409 加全量快照。
+  - **冲突内容只能落在传输层。** 工具调用的失败是协议内的结果，不是 HTTP 状态；
+    把差异塞进工具结果里的话「409 + 差异」这条 DoD 就没有落点。总线那一道仍然说了算——
+    中间件判完之后到命令真正执行之间那个窗口里的冲突由总线在门锁内挡下。
+  - **图层级的判据只能落在工具层。** 「这次写入点名了哪个图层」藏在动作参数里，
+    传输层要判就得把那张对照表抄一份，抄漏的那一格会静默放行。于是权限分两档判在两处。
+  - **起草时列的 `files.modify` 少若干处**：`DiagramToolContext.cs`、`ActionDispatch.cs`、
+    `EditTool.cs`（图层级判定）、`RepairHints.cs` 与 `ErrorPresenterTable.cs`（新码要进两张表）、
+    `DiagramMcpServer.cs`（上下文多一项）、`BearerAuth.cs`（凭据多一个图层范围、拒绝多一个差异）、
+    `SessionCore.cs`（权限随请求放进会话）、`HttpHost.cs`（版本预判）、
+    以及三处测试文件。已在侦察与这里记明。
+
+  **两条既有用例的期望改了，改的是机制不是意图**
+
+  `Category=McpHttp` 里「过期声明被拒」与「未声明被拒」原来断言的是协议内的错误码；
+  现在那两条在中间件就被挡下、回的是 409 加内容。写入照样被拒、文档照样一个字节没动，
+  只是拒绝的形状换了——而那个形状正是 §14.3 要的「409 + diff」。
+
+  **门禁**
+
+  - `Category=SoftLock`：13 条全通过。
+  - `Category=Permission`（Core）：9 条全通过；（Llm）8 条全通过。
+  - `Category=Conflict`：11 条全通过。
+  - `Category=McpSecurity` 多 4 条图层级权限的用例；`Category=CommentDiscipline`、
+    `Category=ErrorPresentation`、`Category=RepairHint` 一并复核。
+  - 全量测试 Core 452 / Layout 75 / Render 145 / Mermaid 179 / Dsl 158 / Llm 188 / Mcp 80 /
+    E2E 81 全绿；`dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；
+    `tools/LocCounter --check` 退出码 0；全部任务 YAML 可解析。
+
+  **后续**
+
+  - 软锁只到「工作区上挂一把、宿主自己拿」，没有接到某条通路上：网络那一档是无状态的，
+    按主体的锁在那里没有落点。锁本身与它的判据都验过了，缺的是一个真的需要它的宿主。
+  - 图层级权限的配置入口只有 `HttpHostOptions.Tokens`。命令行那条 `--token` 的形态是
+    `名字:权限档:凭据`，而凭据本身可能带冒号，再切一刀会把凭据切坏。
+  - 没点名图层的写入不受图层限制（加一个节点、连一条边都不算图层级写入）。
+    要连它们一起挡下来的话，判据得是「这个元素现在落在哪个图层」——那要读文档。
+  - P3-15 的 Skill 机制与 P3-16 的真实代理验收未开工。
+
+status: done

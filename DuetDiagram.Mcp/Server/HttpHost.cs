@@ -1,8 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Concurrency;
 using DuetDiagram.Core.Diagnostics;
+using DuetDiagram.Core.Logging;
+using DuetDiagram.Core.Serialization;
 using DuetDiagram.Llm.Tools;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -96,6 +100,22 @@ public sealed class HttpHost : IAsyncDisposable
         DiagramToolset.UndoRedo,
     };
 
+    /// <summary>
+    /// 发命令时真的会报上版本声明的那几个工具。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 比上面那一份少一个撤销重做：它走的是历史栈，**不接受也不检查声明**。
+    /// 对着一个旧版本撤销是调用方自己的判断，这里替它挡下来只会让它无从知道该怎么撤。
+    /// </para>
+    /// <para>
+    /// 取的是动作表里那一份，不另抄一张：那张表说的正是"哪些工具把动作落到带版本检查的命令上"，
+    /// 抄一份的话，某个工具改走别的通路之后，这里会继续按老样子预判。
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<string> VersionedTools =
+        new(ActionTable.Wired, StringComparer.Ordinal);
+
     private readonly WebApplication _app;
     private readonly SessionCore _session;
     private readonly ChangeFeed _feed;
@@ -140,6 +160,10 @@ public sealed class HttpHost : IAsyncDisposable
         var auth = new BearerAuth(options.Tokens);
         var limiter = new RateLimiter(options.RequestsPerMinute);
 
+        // 主体名到权限的绑定。绑的是主体而不是连接：绑连接的话，同一个令牌换一条连接
+        // 就能绕开图层限制，而那条限制本来要说的是"这份凭据只许碰这几个图层"。
+        var acl = new LayerAcl(options.Tokens.Select(token => (token.Name, token.Permissions)));
+
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls(options.Url);
@@ -167,7 +191,8 @@ public sealed class HttpHost : IAsyncDisposable
         var app = builder.Build();
 
         // 挡在协议端点前面。顺序是有意的：先认凭据（不认得就不必再算别的），
-        // 再算频次（认得出才谈得上"这份凭据调得太快"），最后看权限档。
+        // 再算频次（认得出才谈得上"这份凭据调得太快"），再看权限档，
+        // 最后看版本声明（前几关都过了才谈得上"这次写入注定冲突"）。
         //
         // 审计写在最外层：被挡下的请求也要留一条。只记成功的调用等于没有审计，
         // 而真正要看的是"谁在反复撞门"——那一条恰恰从不成功。
@@ -193,6 +218,9 @@ public sealed class HttpHost : IAsyncDisposable
 
                 context.Items[IdentityKey] = identity;
 
+                // 图层范围随请求放进会话：工具表是所有凭据共用的一份，权限只能这样传下去。
+                session.Scope(acl.For(identity.Name));
+
                 if (!limiter.TryAcquire(identity.Name, out var retryAfterSeconds))
                 {
                     await TransportRejection.WriteAsync(
@@ -205,7 +233,9 @@ public sealed class HttpHost : IAsyncDisposable
                     return;
                 }
 
-                if (identity.Scope == AgentScope.Read && await NamesAWriteToolAsync(context).ConfigureAwait(false))
+                var shape = await InspectAsync(context).ConfigureAwait(false);
+
+                if (identity.Scope == AgentScope.Read && shape.NamesWriteTool)
                 {
                     await TransportRejection.WriteAsync(
                         context,
@@ -213,6 +243,12 @@ public sealed class HttpHost : IAsyncDisposable
                         BearerAuth.ForbiddenCode,
                         "这份凭据只被允许读。要改这份图就换一份能改的凭据。");
 
+                    return;
+                }
+
+                if (shape.VersionChecked
+                    && await RefuseConflictAsync(context, session, shape).ConfigureAwait(false))
+                {
                     return;
                 }
 
@@ -274,7 +310,58 @@ public sealed class HttpHost : IAsyncDisposable
     }
 
     /// <summary>
-    /// 这一条请求是不是要调一个改得动文档的工具。
+    /// 这一条请求要看出来的东西：它调的是哪个工具、那个工具改不改文档、带没带版本声明。
+    /// </summary>
+    /// <param name="NamesWriteTool">调的是改得动文档的那几个工具之一。</param>
+    /// <param name="VersionChecked">调的是会把动作落到带版本检查的命令上的那几个工具之一。</param>
+    /// <param name="Declared">请求里带的版本声明。没带时为空。</param>
+    private sealed record RequestShape(bool NamesWriteTool, bool VersionChecked, VersionCheckRequest? Declared);
+
+    /// <summary>
+    /// 这一次写入会不会注定冲突，会的话把内容回给调用方。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **判据只是"能不能只回差异"，不是"要不要让它进去"。** 版本一样就放它进去，
+    /// 报的版本更靠前也放它进去——那是参数错误，总线会带着明确的错误码回它，
+    /// 而在这里替它下结论会把一个参数问题说成一次冲突。
+    /// </para>
+    /// <para>
+    /// 命令总线那一道检查仍然是说了算的那一道。这里判完之后到命令真正执行之间还有个窗口，
+    /// 那个窗口里的冲突由总线在门锁内挡下，形状是工具结果里的错误码。
+    /// </para>
+    /// </remarks>
+    private static async Task<bool> RefuseConflictAsync(
+        HttpContext context,
+        SessionCore session,
+        RequestShape shape)
+    {
+        var answer = ConflictResponder.Decide(
+            shape.Declared,
+            session.Document,
+            session.Bus.Context.VersionLog,
+            () => DiagramSerializer.SerializeFull(session.Document));
+
+        // 空差异与"参数错误"都不算冲突，放它进去。
+        if (answer is not (FullSnapshotDiff or ReferenceDiff))
+        {
+            return false;
+        }
+
+        await TransportRejection.WriteAsync(
+            context,
+            StatusCodes.Status409Conflict,
+            ConflictResponder.Code,
+            shape.Declared is null
+                ? "要改这份图就得说明你看到的是哪一版。先读一次图，把版本号带上来再改。"
+                : "手上的副本旧了。按这份差异追平之后再改。",
+            diff: answer).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
+    /// 这一条请求调的是哪个工具、带没带版本声明。
     /// </summary>
     /// <remarks>
     /// <para>
@@ -282,16 +369,22 @@ public sealed class HttpHost : IAsyncDisposable
     /// 不复位的话协议那一层拿到的是一个已经读空的体，表现是"调用进去了、参数全丢了"。
     /// </para>
     /// <para>
-    /// 读不出来（不是 JSON、不是 POST、没有工具名）一律当"不是写调用"。
-    /// 当"是"的话，一个畸形请求会拿到 403 而不是它真正该拿的那个错误，
-    /// 而调用方会去换凭据。
+    /// 读不出来（不是 JSON、不是 POST、没有工具名）一律当"不是写调用、也没带声明"。
+    /// 当"是"的话，一个畸形请求会拿到 403 或 409，而不是它真正该拿的那个错误，
+    /// 而调用方会去换凭据或者去同步。
+    /// </para>
+    /// <para>
+    /// 声明交给会话那一层的读取器解析，不在这里另写一份：它有四种形态要认，
+    /// 而协议一动，另写的那一份就会静默失效。
     /// </para>
     /// </remarks>
-    private static async Task<bool> NamesAWriteToolAsync(HttpContext context)
+    private static async Task<RequestShape> InspectAsync(HttpContext context)
     {
+        var nothing = new RequestShape(false, false, null);
+
         if (!HttpMethods.IsPost(context.Request.Method) || !context.Request.HasJsonContentType())
         {
-            return false;
+            return nothing;
         }
 
         context.Request.EnableBuffering();
@@ -302,14 +395,23 @@ public sealed class HttpHost : IAsyncDisposable
                 .ParseAsync(context.Request.Body, cancellationToken: context.RequestAborted)
                 .ConfigureAwait(false);
 
-            return body.RootElement.TryGetProperty("params", out var parameters)
-                && parameters.TryGetProperty("name", out var name)
-                && name.ValueKind == JsonValueKind.String
-                && WriteTools.Contains(name.GetString()!);
+            if (body.RootElement.ValueKind != JsonValueKind.Object
+                || !body.RootElement.TryGetProperty("params", out var parameters)
+                || parameters.ValueKind != JsonValueKind.Object
+                || !parameters.TryGetProperty("name", out var name)
+                || name.ValueKind != JsonValueKind.String)
+            {
+                return nothing;
+            }
+
+            var tool = name.GetString()!;
+            var declared = SessionState.FromRequest(JsonNode.Parse(parameters.GetRawText()))?.ToVersionCheck();
+
+            return new RequestShape(WriteTools.Contains(tool), VersionedTools.Contains(tool), declared);
         }
         catch (JsonException)
         {
-            return false;
+            return nothing;
         }
         finally
         {

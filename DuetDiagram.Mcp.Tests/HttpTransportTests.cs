@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text.Json;
+using DuetDiagram.Core.Commands;
 using DuetDiagram.Llm.Tools;
 using DuetDiagram.Mcp.Server;
 using FluentAssertions;
@@ -181,7 +183,13 @@ public sealed class HttpTransportTests
         second.GetProperty("data").GetProperty("version").GetInt32().Should().Be(2);
     }
 
-    /// <summary>报了一个旧版本号就拿到冲突，而文档一个字节没动。</summary>
+    /// <summary>
+    /// 报了一个旧版本号就拿到 409，而文档一个字节没动。
+    /// </summary>
+    /// <remarks>
+    /// 这一条看的是**状态码**：冲突在传输那一层就被挡下，调用方不必先进协议、
+    /// 拿到一个工具结果再自己判断。正文里那份内容由冲突那一组逐条验。
+    /// </remarks>
     [Fact]
     [Trait("Category", "McpHttp")]
     public async Task A_stale_declaration_is_refused_and_the_document_is_untouched()
@@ -189,25 +197,30 @@ public sealed class HttpTransportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
-        await using var client = await Harness.ConnectAsync(host, cancellationToken: cancellationToken);
 
-        await Harness.CallSucceedsAsync(
-            client,
-            DiagramToolset.Edit,
-            """{"action":"add-node","id":"a","label":"甲"}""",
-            cancellationToken,
-            Harness.At(0));
+        await using (var client = await Harness.ConnectAsync(host, cancellationToken: cancellationToken))
+        {
+            await Harness.CallSucceedsAsync(
+                client,
+                DiagramToolset.Edit,
+                """{"action":"add-node","id":"a","label":"甲"}""",
+                cancellationToken,
+                Harness.At(0));
+        }
 
-        var refused = await Harness.CallAsync(
-            client,
-            DiagramToolset.Edit,
-            """{"action":"add-node","id":"b","label":"乙"}""",
-            cancellationToken,
-            Harness.At(0));
+        using var stale = Harness.RawClient(host, Harness.FullToken);
 
-        refused.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
-        refused.GetProperty("errors")[0].GetProperty("code").GetString()
-            .Should().Be("VERSION_CONFLICT");
+        using var response = await Harness.PostAsync(
+            stale,
+            Harness.CallBody(
+                DiagramToolset.Edit,
+                """{"action":"add-node","id":"b","label":"乙"}""",
+                Harness.At(0)),
+            cancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await Harness.RejectionCodeAsync(response, cancellationToken))
+            .Should().Be(ErrorCodes.VersionConflict);
 
         host.Session.Document.Nodes.Should().ContainSingle("版本对不上时那条命令不该落下去");
     }
@@ -216,6 +229,8 @@ public sealed class HttpTransportTests
     /// <remarks>
     /// 不声明也放行的话，外部代理会养成"不带版本"的习惯，而那条路一旦有人并发改，
     /// 后写的那一份会把前一份悄悄盖掉，两边都不报错。
+    /// 拒绝的形状是 409 加一份全量快照：只回一句"缺少版本声明"的话，
+    /// 调用方连"该声明哪一版"都问不出来，只能自己猜。
     /// </remarks>
     [Fact]
     [Trait("Category", "McpHttp")]
@@ -224,17 +239,21 @@ public sealed class HttpTransportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         await using var host = await Harness.StartAsync(Harness.Options(Harness.NewWorkspace()), cancellationToken);
-        await using var client = await Harness.ConnectAsync(host, cancellationToken: cancellationToken);
+        using var client = Harness.RawClient(host, Harness.FullToken);
 
-        var refused = await Harness.CallAsync(
+        using var response = await Harness.PostAsync(
             client,
-            DiagramToolset.Edit,
-            """{"action":"add-node","id":"a","label":"甲"}""",
+            Harness.CallBody(DiagramToolset.Edit, """{"action":"add-node","id":"a","label":"甲"}"""),
             cancellationToken);
 
-        refused.GetProperty("isSuccess").GetBoolean().Should().BeFalse();
-        refused.GetProperty("errors")[0].GetProperty("code").GetString()
-            .Should().Be("EXPECTED_VERSION_REQUIRED");
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var body = await Harness.RejectionAsync(response, cancellationToken);
+
+        body.GetProperty("code").GetString().Should().Be(ErrorCodes.VersionConflict);
+        body.GetProperty("diff").GetProperty("$diff").GetString().Should().Be("full-snapshot");
+
+        host.Session.Document.Nodes.Should().BeEmpty();
     }
 
     /// <summary>只读的那几个工具不带版本声明也调得动。</summary>

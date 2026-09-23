@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Concurrency;
+using DuetDiagram.Core.Logging;
+using DuetDiagram.Core.Serialization;
 using Microsoft.AspNetCore.Http;
 
 namespace DuetDiagram.Mcp.Server;
@@ -29,13 +32,37 @@ public enum AgentScope
 /// 一份凭据：它叫什么、能做什么。
 /// </summary>
 /// <remarks>
+/// <para>
 /// <see cref="Name"/> 是审计里用的那个名字，不是凭据本身。日志里写凭据的话，
 /// 任何能看到日志的人都能拿它去冒充——而日志是最容易被复制走的东西。
+/// </para>
+/// <para>
+/// 两个维度分开：<see cref="Scope"/> 是粗的那一档（能不能改这份文档），
+/// <see cref="Layers"/> 是细的那一档（能改哪些图层）。粗的那一档在传输层就判得出来，
+/// 细的那一档要等到解析过动作参数才判得出来。
+/// </para>
 /// </remarks>
 /// <param name="Name">这份凭据的名字，进审计。</param>
 /// <param name="Scope">能做什么。</param>
 /// <param name="Value">凭据本身。只在比对时用，绝不写进任何输出。</param>
-public sealed record AgentToken(string Name, AgentScope Scope, string Value);
+public sealed record AgentToken(string Name, AgentScope Scope, string Value)
+{
+    /// <summary>
+    /// 允许写入的图层标识。为空表示不限。
+    /// </summary>
+    /// <remarks>
+    /// 只对 <see cref="AgentScope.Edit"/> 那一档有意义：只读那一档连写都不许，
+    /// 谈图层范围没有意义。
+    /// </remarks>
+    public IReadOnlySet<string> Layers { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>这份凭据对应的权限。两档合成一份，判定处只认那一份。</summary>
+    public PermissionSet Permissions => new()
+    {
+        CanWrite = Scope != AgentScope.Read,
+        Layers = Layers,
+    };
+}
 
 /// <summary>
 /// 凭据表：从请求头里取出的凭据换成一份身份。
@@ -128,12 +155,20 @@ public static class TransportRejection
     /// <param name="code">错误码。</param>
     /// <param name="message">给人看的一句话。</param>
     /// <param name="retryAfterSeconds">过多久可以再来。只在限流那一档给。</param>
+    /// <param name="diff">
+    /// 调用方该拿去追平的那份内容。只在版本冲突那一档给。
+    /// </param>
+    /// <remarks>
+    /// 只回一句"版本冲突"的话，代理无从知道冲突在哪，只能整份重读再重试——
+    /// 而重试大概率还是冲突。差异算出来了就要带出去，不然等于白算。
+    /// </remarks>
     public static async Task WriteAsync(
         HttpContext context,
         int status,
         string code,
         string message,
-        int? retryAfterSeconds = null)
+        int? retryAfterSeconds = null,
+        DiffResult? diff = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -152,6 +187,11 @@ public static class TransportRejection
             // 正文里那一份是给只解析正文的调用方看的。少一个，总有一类调用方只能自己猜。
             context.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
             body["retryAfterSeconds"] = seconds;
+        }
+
+        if (diff is not null)
+        {
+            body["diff"] = JsonNode.Parse(DiagramSerializer.SerializeDiff(diff));
         }
 
         await context.Response.WriteAsync(body.ToJsonString(), context.RequestAborted).ConfigureAwait(false);

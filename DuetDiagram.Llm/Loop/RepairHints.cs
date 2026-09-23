@@ -255,6 +255,11 @@ public static class RepairHints
                 null,
                 "这份文档正被另一个进程编辑着，这一份只读。去改那一份，或者等对方放开再来。"),
 
+            [ErrorCodes.LayerForbidden] = new(
+                ErrorCodes.LayerForbidden,
+                null,
+                "这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。"),
+
             #endregion
 
             #region 工具层的参数校验

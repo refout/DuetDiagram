@@ -76,6 +76,9 @@ public static class ErrorPresenterTable
             [ErrorCodes.LayoutAllLevelsTimeout] = new(ErrorPresentationKind.LayoutFailureDialog, "布局全部降级失败，画面保留上一次成功的结果"),
             [ErrorCodes.McpUnauthorized] = new(ErrorPresentationKind.AuthFailed, "认证失败"),
             [ErrorCodes.McpRateLimited] = new(ErrorPresentationKind.StatusBar, "请求过于频繁", IsRetryable: true),
+            [ErrorCodes.McpForbidden] = new(ErrorPresentationKind.StatusBar, "这份凭据没有做这件事的权限"),
+            [ErrorCodes.McpPathEscaped] = new(ErrorPresentationKind.StatusBar, "这个路径在工作区之外"),
+            [ErrorCodes.McpTimeout] = new(ErrorPresentationKind.StatusBar, "这一次调用超时了，什么都没改", IsRetryable: true),
             [ErrorCodes.InternalError] = new(ErrorPresentationKind.StatusBar, "内部错误，已记录日志"),
 
             // 命令级前置条件。这些没有专门的界面动作，一句话说清就够。

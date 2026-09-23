@@ -15,6 +15,14 @@
 
   <ItemGroup>
     <!--
+      网络那一档的用例要在一个真端口上起服务端，再连上去调工具。
+      网络框架与它的测试主机都来自共享框架，不走 NuGet。
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       引用服务端工程：这些用例要把它作为子进程拉起来。
       工程引用还保证它先于测试被编译出来，用例不必自己去触发一次编译。
     -->

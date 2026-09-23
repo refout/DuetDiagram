@@ -36,13 +36,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
 | `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，通过标准输入输出对话；会话状态从每条请求现读、日志改道标准错误 | Phase 3 P3-12 已落地（标准输入输出）；网络传输、安全与主动推送未开工 |
-| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层的门禁 | 已落地 |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
+| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、四种拒绝与变化源的门禁 | 已落地 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-12（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路与
-标准输入输出那条传输）已落地，P3-13 起未开工。
+P3-01 ~ P3-13（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
+标准输入输出那条传输、网络传输与它前面那道关）已落地，P3-14 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -248,6 +248,18 @@ dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --fi
 # 自定义字段挂在能力声明的扩展位上、两个方向用各自的字段名、挂上去的工具与模型侧同源
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpProtocol"
 
+# 网络传输：在真端口上起服务端，无状态（换一个实例、不做任何握手，同一个请求照样成立）、
+# 版本声明随每条请求带上、旧声明被挡下且文档一个字节没动、从文件起服务端
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpHttp"
+
+# 网络那一档前面的那道关：无凭据 401、只读凭据改文档 403、超限 429 且带重试间隔、
+# 路径逃逸被拒（`..` 与符号链接都算）、没有时间预算时一条命令都不发、审计不记凭据与完整路径
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSecurity"
+
+# 变化源：有更新的版本立刻回、没有就长轮询到超时回空、挂在等待里的调用方被另一条连接上的
+# 改动叫醒、断了一段的调用方一次请求拿到当前版本、报的版本已经最新就等
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ChangeFeed"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -370,7 +382,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`、`McpHttp`、`McpSecurity`、`ChangeFeed`
 
 ## 新增一个命令的检查清单
 
@@ -494,3 +506,12 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 会话状态怎么读 | 从**每条请求**现读，服务端不保存任何会话上下文 | 无状态传输下服务端不持有服务容器，保存上下文的话，换个实例、重启一次，同一个调用就得到不同结果。逐条重写还包括「这次没声明」那一种：留着上一条的值会变成一次照着别人的版本改的写入 |
 | `DiagramToolContext.ExpectedVersion` 是委托而不是值 | 类型是 `Func<VersionCheckRequest?>`，由传输层填 | 它随每条请求变，而工具是按会话建一次、之后一直复用的。存一个值的话，第二次调用会拿着第一次声明的版本去比对，表现是「第一次改得动、第二次改不动」，且两边都不报错 |
 | 声明与应答共用扩展位但**字段名刻意不同** | 调用方报的版本叫 `hasVersion`，服务端报的版本叫 `serverVersion` | 同名的话，一份应答被当成声明读回来时不会被发现——而那条路会拿着服务端的版本当成自己看到的版本去比对，恰好总是相等，版本检查于是静默失效 |
+| §7.1「HTTP long-polling + WebSocket」 | 传输用依赖自带的流式 HTTP；**服务端主动推送做成一条独立的变化源端点**（长轮询），不走协议那条路 | 协议那条路在当前版本下走不通：无状态模式明文写着服务端主动发的消息与所有服务端发起的请求都不支持（响应可能落到另一个进程上），而有状态那条路上唯一能拿到会话对象的入口是实验性接口、它的空闲超时又被标为过时（而本仓把警告当错误）。变化源端点是普通的只读端点，形状仍是长轮询 |
+| §7.1 的 linked CTS 长轮询超时 | 变化源那条端点用「等信号加一个带截止的取消令牌」实现，没有照抄 linked CTS 的写法 | 那是自建长轮询传输时代的产物。传输已经由依赖提供，这里要的是「等一会儿看有没有变化」，用带截止的令牌表达更直接，也不会在每次唤醒时留下一个没人观察的定时任务 |
+| §7.2 的「主动推送」 | 只保存**最新的一份**状态，不保存通知历史 | 断线重连按版本号补差：调用方报上它见过的最后一版，服务端要么立刻回当前版本、要么等。存历史的话，一个断了一小时的调用方会把这一小时里的每一条都收一遍，而它真正需要的只是「现在是第几版、结构哈希是什么」 |
+| §7.2 的认证与授权 | 凭据表在启动时给出，权限档三档；越权的判据是「这个工具改不改得动文档」 | §7.5 还写了图层级 ACL，那要等图层能被改——现在还没有那条命令。中间那一档此刻与最高档同义，留着是为了让凭据表能表达这个意图，等有了只给最高档留的入口时改判据而不是改所有凭据的写法 |
+| 越权怎么判 | 中间件读一次请求体拿工具名，读完复位 | 工具名只在请求体里。不复位的话协议那一层拿到的是一个已经读空的体，表现是「调用进去了、参数全丢了」。读不出来一律当「不是写调用」——当「是」的话，一个畸形请求会拿到 403 而不是它真正该拿的那个错误 |
+| §7.2 的「单次调用 30s 超时」 | 预算在**发命令之前**检查，超了就直接回，一条命令都不发 | 命令是同步的，中途取消观察不到。能给的保证是「不会回一个超时响应、而那条命令还在后台把它改完」——那比放行还糟，因为调用方以为没改成 |
+| 新增三个错误码 | `MCP_FORBIDDEN`、`MCP_PATH_ESCAPED`、`MCP_TIMEOUT` 进 `ErrorCodes`，与已有的 `MCP_UNAUTHORIZED`、`MCP_RATE_LIMITED` 同一族 | 四种拒因要的处置完全不同（换凭据、换权限更高的凭据、退避重试、改路径），合成一个「拒绝」的话代理侧没法区分。`MCP_TIMEOUT` 也不是工具层的参数错误：它说的是这一次调用没时间了，处置是把活拆小 |
+| 包版本表删掉两项 | `Microsoft.Extensions.Hosting` 与 `Microsoft.Extensions.Logging.Console` 的登记删了 | 网络那一档引入共享框架之后这两个包由框架提供，显式引用会触发「这个包不需要」的编译期错误。那份清单自己的规则是「登记项必须有人用」，留着就多两条没有用户的条目 |
+| 两条传输共用一份会话 | 抽出 `SessionCore`，标准输入输出与 HTTP 都从它取文档、总线与声明 | 不抽的话，两份实现会在「每条请求都重写声明，包括这次没声明那一种」上分叉，而那条性质错了两边都不报错 |

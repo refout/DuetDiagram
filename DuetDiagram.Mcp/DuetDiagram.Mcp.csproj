@@ -17,15 +17,20 @@
 
   <ItemGroup>
     <!--
-      协议实现只带核心包：这一条只做标准输入输出，网络框架那一层留给网络传输那一条。
+      协议实现分三层：核心包、宿主集成包与网络框架集成包。
+      标准输入输出那条传输只用得上核心包，网络那条传输要网络框架集成包。
     -->
     <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--
-      宿主与日志的具体实现。协议实现的宿主集成包只依赖宿主的抽象层，
-      所以要自己引入这两个包；版本与协议实现声明的一致，避免两套抽象层混用。
+      宿主、日志与网络框架都由共享框架提供，不走 NuGet：
+      网络框架集成包已经把它那一层带上了，再单独引一次会让两边各拿一份，
+      而混用两套抽象层的问题在运行时才露出来。
     -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>

@@ -80,6 +80,30 @@ public static class ErrorCodes
     /// <summary>调用方触发了速率限制。</summary>
     public const string McpRateLimited = "MCP_RATE_LIMITED";
 
+    /// <summary>凭据通过了认证，但它带的权限档不够做这件事。</summary>
+    /// <remarks>
+    /// 与 <see cref="McpUnauthorized"/> 分开：那一条是"这份凭据不认得"，
+    /// 处置是去换一份；这一条是"这份凭据认得，但它只被允许读"，
+    /// 处置是换一份权限更高的凭据，或者把要做的事改成只读的。合成一个的话，
+    /// 调用方会去换一份同样不够的凭据，再撞一次。
+    /// </remarks>
+    public const string McpForbidden = "MCP_FORBIDDEN";
+
+    /// <summary>要打开的文件落在被限定的工作区之外。</summary>
+    /// <remarks>
+    /// 与上面两条都不是一类：那两条说的是调用方是谁、调得多快，这一条说的是
+    /// **它想碰的那份文件在不在允许的范围里**。合成一条的话，
+    /// 调用方会以为换个凭据就能打开。
+    /// </remarks>
+    public const string McpPathEscaped = "MCP_PATH_ESCAPED";
+
+    /// <summary>单次调用超过了它的时间预算。</summary>
+    /// <remarks>
+    /// 报出这个码时，那条命令**一条都没发出去**：预算是发命令之前检查的，
+    /// 超了就直接回，不留一条还在后台跑的命令。所以调用方看到它就可以放心重发。
+    /// </remarks>
+    public const string McpTimeout = "MCP_TIMEOUT";
+
     /// <summary>命令实现内部出错。对外只暴露这个码，不带任何内部细节。</summary>
     public const string InternalError = "INTERNAL_ERROR";
 

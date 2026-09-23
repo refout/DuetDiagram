@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using DuetDiagram.Core.Diagnostics;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Serialization;
 using DuetDiagram.Mcp.Server;
@@ -116,6 +118,8 @@ internal static class Harness
     /// <summary>服务端从空图开始那一份文档的标识。</summary>
     public const string DocumentId = "mcp-document";
 
+    #region 标准输入输出
+
     /// <summary>
     /// 找到服务端的可执行文件。
     /// </summary>
@@ -225,6 +229,143 @@ internal static class Harness
         return path;
     }
 
+    #endregion
+
+    #region 网络那一档
+
+    /// <summary>一份能做任何事的凭据。用例按它调工具。</summary>
+    public const string FullToken = "tok-full-2f9a";
+
+    /// <summary>一份只被允许读的凭据。</summary>
+    public const string ReadToken = "tok-read-7c31";
+
+    /// <summary>这个用例自己的工作区。</summary>
+    public static string Workspace() => NewWorkspace();
+
+    /// <summary>
+    /// 起一个网络服务端。
+    /// </summary>
+    /// <remarks>
+    /// 频次上限默认给得很宽：用例关心的是别的事，撞上限流会让失败看起来像另一个问题。
+    /// 只有限流那一条自己把上限压下来。
+    /// </remarks>
+    public static HttpHostOptions Options(
+        string workspace,
+        string? document = null,
+        int requestsPerMinute = 1000,
+        TimeSpan? callTimeout = null,
+        TimeSpan? changeWait = null,
+        IDiagnosticsSink? diagnostics = null) => new()
+        {
+            Workspace = workspace,
+            Document = document,
+            Tokens =
+            [
+                new AgentToken("writer", AgentScope.Full, FullToken),
+                new AgentToken("reader", AgentScope.Read, ReadToken),
+            ],
+            RequestsPerMinute = requestsPerMinute,
+            CallTimeout = callTimeout ?? TimeSpan.FromSeconds(30),
+            ChangeWait = changeWait ?? TimeSpan.FromMilliseconds(300),
+            Diagnostics = diagnostics ?? NullDiagnosticsSink.Instance,
+        };
+
+    /// <summary>起一个网络服务端并等它开始监听。</summary>
+    public static async Task<HttpHost> StartAsync(HttpHostOptions options, CancellationToken cancellationToken)
+    {
+        var host = HttpHost.Create(options);
+
+        await host.StartAsync(cancellationToken).ConfigureAwait(false);
+
+        return host;
+    }
+
+    /// <summary>连上网络服务端的协议端点。</summary>
+    public static async Task<McpClient> ConnectAsync(
+        HttpHost host,
+        string token = FullToken,
+        SessionState? declaration = null,
+        CancellationToken cancellationToken = default)
+    {
+        var transport = new HttpClientTransport(new HttpClientTransportOptions
+        {
+            Name = "duetdiagram-http-agent",
+            Endpoint = new Uri(host.Address, HttpHost.McpPath),
+            AdditionalHeaders = new Dictionary<string, string>
+            {
+                ["Authorization"] = $"Bearer {token}",
+            },
+        });
+
+        return await McpClient.CreateAsync(
+            transport,
+            ClientOptions(declaration),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>一个带凭据的裸 HTTP 客户端，用来打协议端点之外的请求、以及看拒绝长什么样。</summary>
+    public static HttpClient RawClient(HttpHost host, string? token)
+    {
+        var client = new HttpClient { BaseAddress = host.Address };
+
+        if (token is not null)
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        return client;
+    }
+
+    /// <summary>
+    /// 直接发一条协议请求。
+    /// </summary>
+    /// <remarks>
+    /// 两个接受类型都要带上：少一个会被协议端点以 406 挡回来，而那个 406 与本用例
+    /// 想看的拒绝长得很像，很容易被当成"没通过认证"。
+    /// </remarks>
+    public static async Task<HttpResponseMessage> PostAsync(
+        HttpClient client,
+        string body,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, HttpHost.McpPath)
+        {
+            Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
+        };
+
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+
+        return await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>读一条拒绝的正文里的错误码。</summary>
+    public static async Task<string> RejectionCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var text = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        return JsonNode.Parse(text)?["code"]?.GetValue<string>()
+            ?? throw new InvalidOperationException($"这条拒绝里没有错误码：{text}");
+    }
+
+    /// <summary>问一次变化源。</summary>
+    public static async Task<HttpResponseMessage> ChangesAsync(
+        HttpClient client,
+        int since,
+        CancellationToken cancellationToken,
+        int? waitSeconds = null)
+    {
+        var query = waitSeconds is { } wait
+            ? $"{HttpHost.ChangesPath}?since={since}&wait={wait}"
+            : $"{HttpHost.ChangesPath}?since={since}";
+
+        return await client.GetAsync(query, cancellationToken).ConfigureAwait(false);
+    }
+
+    #endregion
+
+    #region 取数
+
     /// <summary>每个用例自己一个临时目录。</summary>
     public static string NewWorkspace()
     {
@@ -248,4 +389,6 @@ internal static class Harness
         return directory?.FullName
             ?? throw new InvalidOperationException("从测试程序集的位置找不到仓库根。");
     }
+
+    #endregion
 }

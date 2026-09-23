@@ -162,7 +162,7 @@ internal sealed class ToolFunction(
     {
         var result = await handler(ToJson(arguments), cancellationToken).ConfigureAwait(false);
 
-        return JsonSerializer.SerializeToElement(result, ToolJsonContext.Default.ToolResult);
+        return result.ToJson();
     }
 
     /// <summary>

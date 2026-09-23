@@ -141,6 +141,17 @@ public sealed record ToolResult
     }
 
     /// <summary>
+    /// 把结果转成它交给两条入口时的那个形状。
+    /// </summary>
+    /// <remarks>
+    /// 形状只写一处。包一层的那两条入口（模型侧的函数、代理侧的工具）以及任何在
+    /// 半路上造出结果的地方都从这里取——各写一份的话，某天改了命名策略，
+    /// 只有一部分结果跟着变，而两种形状都能被解析，看不出差别。
+    /// </remarks>
+    public JsonElement ToJson() =>
+        JsonSerializer.SerializeToElement(this, ToolJsonContext.Default.ToolResult);
+
+    /// <summary>
     /// 能力还没接上。
     /// </summary>
     /// <remarks>

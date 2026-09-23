@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 39 | 9240 | 5198 | 2525 | 1517 |
+| DuetDiagram.App | 39 | 9243 | 5201 | 2525 | 1517 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 90 | 12538 | 7231 | 3445 | 1862 |
+| DuetDiagram.Core | 90 | 12562 | 7234 | 3463 | 1865 |
 | DuetDiagram.Core.Tests | 34 | 8848 | 6263 | 890 | 1695 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4258 | 2376 | 1271 | 611 |
+| DuetDiagram.Llm | 25 | 4284 | 2390 | 1279 | 615 |
 | DuetDiagram.Llm.Tests | 15 | 3907 | 2822 | 286 | 799 |
-| DuetDiagram.Mcp | 4 | 483 | 266 | 148 | 69 |
-| DuetDiagram.Mcp.Tests | 4 | 847 | 585 | 100 | 162 |
+| DuetDiagram.Mcp | 10 | 1580 | 842 | 496 | 242 |
+| DuetDiagram.Mcp.Tests | 7 | 1949 | 1270 | 280 | 399 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **365** | **74541** | **46979** | **15197** | **12365** |
+| **合计** | **374** | **76793** | **48260** | **15751** | **12782** |
 
 ## 明细
 
@@ -65,7 +65,7 @@
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 69 |
+| ErrorPresenterTable.cs | 72 |
 | FieldEditBinder.cs | 257 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
@@ -137,7 +137,7 @@
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 93 |
-| ErrorCodes.cs | 43 |
+| ErrorCodes.cs | 46 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -314,7 +314,7 @@
 | SummaryFormatter.cs | 118 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 196 |
+| RepairHints.cs | 208 |
 | ActionDispatch.cs | 132 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 21 |
@@ -329,7 +329,7 @@
 | StyleTool.cs | 123 |
 | ToolDescriptor.cs | 99 |
 | ToolRegistry.cs | 76 |
-| ToolResult.cs | 102 |
+| ToolResult.cs | 104 |
 | ValidateTool.cs | 28 |
 
 ### DuetDiagram.Llm.Tests
@@ -356,17 +356,26 @@
 
 | 文件 | 代码 |
 |---|---:|
-| Program.cs | 27 |
-| DiagramMcpServer.cs | 118 |
+| Program.cs | 77 |
+| BearerAuth.cs | 71 |
+| ChangeFeed.cs | 86 |
+| DiagramMcpServer.cs | 86 |
+| HttpHost.cs | 235 |
+| RateLimiter.cs | 43 |
+| SessionCore.cs | 63 |
 | SessionState.cs | 110 |
 | StdioLogging.cs | 11 |
+| WorkspaceGuard.cs | 60 |
 
 ### DuetDiagram.Mcp.Tests
 
 | 文件 | 代码 |
 |---|---:|
-| Harness.cs | 169 |
+| ChangeFeedTests.cs | 149 |
+| Harness.cs | 265 |
+| HttpTransportTests.cs | 203 |
 | ProtocolTests.cs | 91 |
+| SecurityTests.cs | 237 |
 | SessionStateTests.cs | 175 |
 | StdioTests.cs | 150 |
 

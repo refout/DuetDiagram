@@ -230,6 +230,21 @@ public static class RepairHints
                 null,
                 "请求太密了。等一会儿再发，别立刻重试——立刻重试只会再撞一次。"),
 
+            [ErrorCodes.McpForbidden] = new(
+                ErrorCodes.McpForbidden,
+                null,
+                "凭据的权限档不够做这件事。换成能改这份图的凭据，或者把要做的事改成只读的那些。"),
+
+            [ErrorCodes.McpPathEscaped] = new(
+                ErrorCodes.McpPathEscaped,
+                null,
+                "这个路径落在被限定的工作区之外，换凭据也打不开。把文件放进工作区，或者换一个在里面的路径。"),
+
+            [ErrorCodes.McpTimeout] = new(
+                ErrorCodes.McpTimeout,
+                null,
+                "这一次调用超时了，而文档一个字节都没改。把这一次的活拆小一点再发，或者过一会儿重试。"),
+
             [ErrorCodes.InternalError] = new(
                 ErrorCodes.InternalError,
                 null,

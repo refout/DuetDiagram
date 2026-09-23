@@ -1,34 +1,44 @@
 id: P3-13
-title: MCP Server——网络传输、安全与主动推送
+title: MCP Server——网络传输、安全与变化源
 phase: 3
-status: pending
+status: done
 depends_on: [P3-12]
-estimated_loc: 500
+estimated_loc: 700
 files:
   create:
     - DuetDiagram.Mcp/Server/HttpHost.cs
     - DuetDiagram.Mcp/Server/BearerAuth.cs
     - DuetDiagram.Mcp/Server/RateLimiter.cs
     - DuetDiagram.Mcp/Server/WorkspaceGuard.cs
-    - DuetDiagram.Mcp/Server/ChangePush.cs
+    - DuetDiagram.Mcp/Server/ChangeFeed.cs
+    - DuetDiagram.Mcp/Server/SessionCore.cs
     - DuetDiagram.Mcp.Tests/HttpTransportTests.cs
     - DuetDiagram.Mcp.Tests/SecurityTests.cs
-    - DuetDiagram.Mcp.Tests/ChangePushTests.cs
+    - DuetDiagram.Mcp.Tests/ChangeFeedTests.cs
   modify:
+    - DuetDiagram.Mcp/DuetDiagram.Mcp.csproj
+    - DuetDiagram.Mcp/Program.cs
+    - DuetDiagram.Mcp/Server/DiagramMcpServer.cs
+    - DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj
+    - DuetDiagram.Mcp.Tests/Harness.cs
+    - DuetDiagram.Llm/Tools/ToolResult.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
     - docs/Architecture.md
     - docs/Error-Codes.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpHttp"
     expect: 全通过；无状态模式下工具调用成功，服务端换实例之后同一个请求仍然成立
   - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSecurity"
     expect: 全通过；无令牌 401、越权 403、超限 429、路径逃逸被拒、单次调用超时被取消
-  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ChangePush"
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ChangeFeed"
     expect: 全通过；文档变更被推给已连接的代理，断线之后重连仍能拿到当前版本
 constraints:
   - "**网络传输默认用无状态模式。** 有状态会让请求必须落到同一个实例上，运维成本高得多。而无状态模式下服务端不持有服务容器，非基础类型参数会被当成工具参数——所以会话状态必须显式传入"
   - "**认证、限流、路径逃逸三样都要有独立的拒绝路径与独立的错误码。** 合成一个「拒绝」的话，代理侧没法区分「令牌过期了」和「你调得太快」——而这两件事的处置完全不同（一个去换令牌，一个退避重试）"
   - "**`--workspace` 限定的路径逃逸检测要在解析之后、打开之前做**，不要只在字符串层做前缀比较。字符串比较挡不住 `..` 与符号链接，而这两种都是最普通的写法"
-  - "**单次调用 30 秒超时。** 超时要把命令执行取消掉，不能只是返回一个超时响应而让命令在后台跑完——那样文档会被改，而调用方以为没改成"
+  - "**单次调用超时。** 超时要把命令执行挡住，不能只是返回一个超时响应而让命令在后台跑完——那样文档会被改，而调用方以为没改成"
   - "**审计日志脱敏。** 令牌、完整文件路径不进审计日志；审计日志与 `AuditLog` 是两份东西，前者记调用，后者记文档变更"
   - "**主动推送要能处理断线。** 连接断了之后变更仍在发生，重连时按版本号补差，不是重放全部通知"
   - "限流是每令牌每分钟 N 次，超限返回 429 并带上重试间隔"
@@ -42,3 +52,105 @@ scope_note: |
 
   长轮询那一条风险已经消解：SDK 自带网络传输与流式传输，不用自建。方案 §7.1 里
   关于 linked CTS 的写法是自建长轮询时代的产物，这一条改为验 SDK 传输的行为。
+
+  **「主动推送」改成了变化源端点**，理由写在侦察里：协议那条路在当前版本下要么不支持、
+  要么要踩过时与实验性的接口。端点本身还是长轮询，形状与 §7.1 说的那条一致。
+
+reconnaissance: |
+  **动手前对着协议实现的公开接口、官方诊断与现有两条传输核了一遍，结论如下。**
+
+  1. **网络传输由依赖提供，不用自建。** 服务端是 `WithHttpTransport()` 加
+     `MapMcp("/mcp")`，客户端是 `HttpClientTransport` 加 `Endpoint`。实测整条链路能跑通：
+     列工具、调工具、结果按 JSON-RPC 回来。
+
+  2. **无状态是当前协议版本的默认。** 会话模式那三个取值里，
+     `Stateless` 是当前版本的缺省，实测客户端拿到的会话标识是空、响应里也没有会话头。
+     所以「默认无状态」这一条不用配，只要不把它改成有状态。
+
+  3. **协议那条推送路走不通，而且不是配置问题。**
+     - 无状态下「服务端主动发的消息与所有服务端发起的请求都不支持」——这是协议实现写明的，
+       理由是响应可能落到另一个进程上。
+     - 有状态那条路上，`IdleTimeout` 已经标为**过时**（编译期诊断 MCP9006，而本仓把警告当错误），
+       `RunSessionHandler`（唯一能拿到会话对象的入口）是**实验性** API（MCPEXP002）。
+       两个都不能用。
+     - `ConfigureSessionOptions` 不是实验性的，但它拿不到会话对象：实测在它里面从请求服务容器
+       取会话对象，拿到的是空。
+
+  4. **于是推送做成一条独立的变化源端点**：`GET /changes?since=<版本>`。
+     有比 `since` 新的变更就立刻回，没有就长轮询等到超时再回空。
+     这正是 §7.1 说的 long-polling，而它不属于 MCP 传输，是服务端自己的一条只读端点。
+     **只保存最新的一份状态、不保存通知历史**，所以断线重连按版本号补差，不是重放全部通知。
+
+  5. **中间件顺序可用**：`app.Use` 挂在 `MapMcp` 之前就能覆盖协议端点，认证、限流、
+     越权与审计都落这一层。实测中间件先于协议处理跑。
+
+  6. **消息过滤器在 HTTP 下逐条请求都触发**，所以标准输入输出那一轮做的会话状态读取
+     原样可用；实测请求元数据里的声明读得到。
+
+  7. **手工发请求要带 `Accept: application/json, text/event-stream`**，否则拿到 406。
+     测试里用裸 HTTP 客户端时要带上。
+
+  8. **越权的判据是令牌的权限档**（§7.5 的 read / edit / full）。工具名在 JSON-RPC 请求体里，
+     中间件要读一次请求体才能判；读之前先开缓冲、读完复位，不然协议那一层拿到的是空体。
+
+  9. **起草时列的 `files.create` 少一个。** 两条传输共用「文档 + 总线 + 声明读取 + 会话应答」
+     这一坨，抽成 `SessionCore`。不抽的话，两份实现会在「每条请求都重写声明」那一点上分叉，
+     而那条性质是 P3-12 核出来的、错了两边都不报错。
+
+  10. **`--workspace` 的逃逸检测**：先 `Path.GetFullPath` 归一化 `..`，再解析符号链接，
+     最后按**目录边界**比较（不是字符串前缀）。只做字符串前缀的话，`..` 与符号链接都挡不住。
+
+  11. **单次调用超时落在「发命令之前」这个边界上。** 命令是同步的，中途取消观察不到；
+     能给的保证是「预算已经用完就一条命令都不发」。靠这个保证「不会返回超时而命令还在后台跑完」。
+     实测的办法是把预算设成零：预算为零时取消令牌已经是取消状态，于是那条调用必然走超时路径，
+     而文档一个字节没动。
+
+  12. **超时以工具错误的形式回给调用方**，与别的失败同一个形状。所以工具层要加一个错误码
+      `TOOL_TIMEOUT`，连带修复建议表与错误码文档各加一行——那两条门禁会逐条核对。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.Mcp/Server/HttpHost.cs`：协议端点加变化源端点，前面挡着认证、限流、
+    权限档与审计；每个工具套上一层时间预算。
+  - 新增 `BearerAuth.cs`（凭据表、权限档、四种拒绝的统一写法）、`RateLimiter.cs`
+    （按凭据的滑动窗口）、`WorkspaceGuard.cs`（解析之后按目录边界比较）、
+    `ChangeFeed.cs`（只留最新一份状态的长轮询）。
+  - 新增 `SessionCore.cs`：两条传输共用的一份会话。**这是起草时 `files.create` 里没有的一个文件**，
+    核下来非抽不可（下面「核掉的起草假设」第一条）。
+  - `DiagramMcpServer.cs` 改为用它；`Program.cs` 加了 `--http` / `--workspace` / `--token` 三个开关；
+    工程加了网络框架集成包与共享框架引用。
+  - `ErrorCodes` 加三个码（`MCP_FORBIDDEN` / `MCP_PATH_ESCAPED` / `MCP_TIMEOUT`），
+    呈现表、修复建议表与错误码文档各补三行；`ToolResult` 多一个 `ToJson()`，
+    结果形状收拢到一处（模型通路那一条也改用它）。
+  - `Directory.Packages.props` 删掉两项已经由共享框架提供的包。
+
+  **核掉的起草假设**
+
+  - **「主动推送推给已连接的代理」按协议那条路走不通。** 无状态模式明文写着服务端主动发的消息
+    与所有服务端发起的请求都不支持；有状态那条路上唯一能拿到会话对象的入口是实验性接口
+    （编译期诊断，本仓把警告当错误），它的空闲超时又被标为过时。改成一条独立的只读端点，
+    形状仍是长轮询。验收口径也跟着改了。
+  - **起草时列的 `files.create` 少一个 `SessionCore.cs`。** 两条传输共用「文档 + 总线 + 声明读取 +
+    会话应答」这一坨，不抽的话两份实现会在「每条请求都重写声明」那一点上分叉，
+    而那条性质错了两边都不报错。
+  - **起草时列的 `files.modify` 少三处**：`Directory.Packages.props`（共享框架带来的两项冗余）、
+    `DuetDiagram.Llm/Tools/ToolResult.cs` 与 `DuetDiagram.Llm/Chat/DiagramChatClient.cs`
+    （结果形状收拢到一处）。已在侦察与这里记明。
+
+  **门禁**
+
+  - `Category=McpHttp`：10 条全通过。
+  - `Category=McpSecurity`：22 条全通过。
+  - `Category=ChangeFeed`：7 条全通过。
+  - `Category=CommentDiscipline`、`Category=ErrorPresentation`、`Category=RepairHint` 一并复核。
+  - 全量测试、`dotnet build DuetDiagram.slnx -c Release`、`tools/LocCounter --check`、
+    任务 YAML 可解析性一并复核。
+
+  **后续**
+
+  - 跨机器网络传输（TLS、证书、多实例共享变化源）没做：那要真机与真网络，
+    而这一条的变化源是进程内的，多实例部署时每个实例各有一条自己的。
+  - 权限档中间那一档此刻与最高档同义，等有了只给最高档留的入口再补判据。
+  - 冲突返回里的差异与快照归 P3-14；文档软锁与图层级 ACL 也在那一条。
+  - 时间预算只挡在发命令之前。命令本身目前不观察取消令牌，等命令层那条路要支持长任务时再说。

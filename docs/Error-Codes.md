@@ -127,6 +127,9 @@
 | `LAYOUT_ALL_LEVELS_TIMEOUT` | `LayoutFailureDialog` |
 | `MCP_UNAUTHORIZED` | `AuthFailed` |
 | `MCP_RATE_LIMITED` | `StatusBar` |
+| `MCP_FORBIDDEN` | `StatusBar` |
+| `MCP_PATH_ESCAPED` | `StatusBar` |
+| `MCP_TIMEOUT` | `StatusBar` |
 | `INTERNAL_ERROR` | `StatusBar` |
 | `NODE_MISSING` | `StatusBar` |
 | `EDGE_MISSING` | `StatusBar` |
@@ -206,6 +209,9 @@
 | `LAYOUT_ALL_LEVELS_TIMEOUT` | — | 布局算不出来。减少一些约束或者把图拆小；改布局参数重试之前，先想清楚是哪一条约束让它算不动。 |
 | `MCP_UNAUTHORIZED` | — | 凭据没通过。这不是改参数能解决的，去换一份凭据或者找配置这件事的人。 |
 | `MCP_RATE_LIMITED` | — | 请求太密了。等一会儿再发，别立刻重试——立刻重试只会再撞一次。 |
+| `MCP_FORBIDDEN` | — | 凭据的权限档不够做这件事。换成能改这份图的凭据，或者把要做的事改成只读的那些。 |
+| `MCP_PATH_ESCAPED` | — | 这个路径落在被限定的工作区之外，换凭据也打不开。把文件放进工作区，或者换一个在里面的路径。 |
+| `MCP_TIMEOUT` | — | 这一次调用超时了，而文档一个字节都没改。把这一次的活拆小一点再发，或者过一会儿重试。 |
 | `INTERNAL_ERROR` | — | 服务端内部出错。原样重试一次；再失败就别再试，把这一次调用报给人。 |
 | `NODE_MISSING` | `id` | 节点标识写错了或已经没了。先读一次图拿到现有节点标识，再照着重发。 |
 | `EDGE_MISSING` | `id` | 边标识写错了或已经没了。先读一次图拿到现有边标识，再照着重发。 |

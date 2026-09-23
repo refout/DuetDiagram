@@ -120,7 +120,7 @@ public sealed class DiagramChatClient : IChatClient
 
         if (result.IsSuccess)
         {
-            return JsonSerializer.SerializeToElement(result, ToolJsonContext.Default.ToolResult);
+            return result.ToJson();
         }
 
         var batch = Errors.Feed(result);

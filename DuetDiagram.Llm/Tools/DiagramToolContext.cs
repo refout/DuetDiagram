@@ -42,6 +42,23 @@ public sealed record DiagramToolContext
     /// </remarks>
     public ITimeProvider Clock { get; init; } = SystemTimeProvider.Instance;
 
+    /// <summary>
+    /// 每条命令执行前要报给总线的版本声明。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 由传输层填：外部代理把「我这边看到的是第几版」随每条请求带上来，总线据此挡住
+    /// 照着旧副本改的那一类写入。为空表示这条通路不做版本检查——界面那条通路就是，
+    /// 它的写入方只有一个，没有别人可能改过这份文档。
+    /// </para>
+    /// <para>
+    /// **用委托而不是一个值。** 它随每条请求变，而工具是按会话建一次、之后一直复用的：
+    /// 存一个值的话，第二次调用会拿着第一次声明的版本去比对，而那个版本已经旧了，
+    /// 表现是「第一次改得动、第二次改不动」，且两边都不报错。
+    /// </para>
+    /// </remarks>
+    public Func<VersionCheckRequest?>? ExpectedVersion { get; init; }
+
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;
 

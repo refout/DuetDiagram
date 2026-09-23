@@ -1,7 +1,7 @@
 id: P3-12
 title: MCP Server——标准输入输出
 phase: 3
-status: pending
+status: done
 depends_on: [P3-05, P3-11]
 estimated_loc: 450
 files:
@@ -12,12 +12,17 @@ files:
     - DuetDiagram.Mcp/Server/SessionState.cs
     - DuetDiagram.Mcp/Server/StdioLogging.cs
     - DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj
+    - DuetDiagram.Mcp.Tests/Harness.cs
     - DuetDiagram.Mcp.Tests/StdioTests.cs
     - DuetDiagram.Mcp.Tests/SessionStateTests.cs
+    - DuetDiagram.Mcp.Tests/ProtocolTests.cs
   modify:
+    - DuetDiagram.Llm/Tools/DiagramToolContext.cs
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
     - DuetDiagram.slnx
-    - Directory.Packages.props
     - docs/Architecture.md
+    - AGENTS.md
+    - tasks/README.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpStdio"
     expect: 全通过；起一个子进程走标准输入输出，工具发现与工具调用都走通
@@ -32,6 +37,7 @@ constraints:
   - "**扩展位的值读取时要两种都认**：声明上是对象，往返之后拿到的是 JSON 节点，也可能被对端当成字符串。只认一种的话，会出现「字段明明在但读出来是空」这种很难查的现象"
   - "**会话状态作为显式参数传入，不依赖服务端注入。** 无状态传输下服务端不持有服务容器，非基础类型参数会被当成「必须由调用方提供」的工具参数，调用直接失败——而客户端只看到「调用出错」，原因只在服务端日志里"
   - "**不要按协议版本号硬编码分支。** 版本会变，而改名是静默的"
+  - "**声明的版本要真的接到命令上。** 光把它记进日志等于没做：文档被照着旧副本改掉，而两边都不报错。这一层的活就是把它翻成一次版本检查交给命令总线"
 context:
   - 方案 §7.1 的传输；§7.3 的会话初始化与 clientState；§7.4 的冲突返回策略
   - "`reports/phase0a-mcp.md` 的五条约束，那五条是实测结论不是推测"
@@ -44,3 +50,103 @@ scope_note: |
   `reports/phase0a-mcp.md` 里那条「服务端主动推送未覆盖」留在这里处理：
   变更广播要能推给已连接的代理，但 stdio 是请求-应答式的，推不了主动消息。
   这一条先只做应答；推送归 P3-13 的网络传输。
+
+  这一条只做标准输入输出这一条传输；网络传输、认证与限流归 P3-13。
+
+reconnaissance: |
+  **动手前对着官方协议实现的公开接口、P0-05 的取证报告与现有工具层核了一遍，结论如下。**
+
+  1. **注册已经建好的工具实例是支持的**：`WithTools(IEnumerable<McpServerTool>)` 存在，
+     直接把 `ToolRegistry.ToMcpTools()` 喂进去即可。不走 `[McpServerToolType]` 那套标注——
+     那套要求工具是静态方法、参数由服务端容器解析，正好撞上 P0-05 那条
+     「无状态传输下非基础类型参数会被当成工具参数」的坑。用实例还顺带保证了
+     代理侧与模型侧是同一份定义。
+
+  2. **服务端自己的状态放能力声明的扩展位**，客户端不挂任何拦截器就能读到。
+     `McpServerOptions.Capabilities` 是在会话建立之前配好的，所以那里放得下的只有
+     「服务端这一刻的状态」（文档标识、版本、结构哈希）——正好是 §7.3 那份应答要的三样。
+     逐客户端的接受与否要等冲突策略，那是后一条的事。
+
+  3. **那条应答里的版本号必须是活的。** 能力声明按会话序列化一次，
+     放一个建好就不动的对象进去，第二个会话拿到的是服务端启动时的版本——
+     而它可能已经落后几十版。所以应答里那个对象要在每次成功变更之后跟着更新，
+     变更通知正好带着新的版本号。
+
+  4. **调用时自带的会话状态在服务端有两个读法**：原始请求参数里的
+     `_meta` → 客户端能力声明 → 扩展位，以及请求上下文上那个已经解析好的
+     客户端能力对象。两个都试，第一个不成立时落到第二个。
+
+  5. **声明的版本必须真的接到命令上，而现有八个工具不带版本检查。**
+     工具的执行体是 `context.Bus.Execute(command)`，没有第二个参数；
+     而带版本检查的模式下不带声明会被判成「缺少版本声明」，每一条命令都发不出去。
+     所以在工具上下文上加一个「调用方声明的版本」的读取口，由分发那一步转发给总线。
+     **用委托而不是一个值**：它随每条请求变，而工具是按会话建一次、之后一直复用的；
+     存一个值的话，第二次调用会拿着第一次声明的版本去比对。
+
+  6. **三种形态都认**：扩展位的值声明上是对象，往返之后是 JSON 节点或 JSON 元素，
+     也可能被对端当成一段文本。三种都要能读出来。
+
+  7. **测试起子进程要拿到服务端可执行文件**：测试工程用工程引用把服务端带进来，
+     再按当前配置与目标框架在服务端的输出目录里找那个可执行文件；
+     找不到就直接报错，不要静默跳过——静默跳过的话，这一条验收会变成「零个用例通过」。
+
+  8. **标准错误是这个服务端唯一的观察窗口**，测试靠它看服务端到底收到了什么。
+     子进程的标准错误由传输选项上的回调逐行接住。
+
+  9. **起草时写的 `files.modify` 少了两个文件**：`DiagramToolContext.cs` 与
+     `ActionDispatch.cs`（上面第 5 条那个读取口）。核下来非改不可，补进去。
+
+  10. **这一条不碰冲突返回策略。** §7.4 那四种情形要的是差异与快照，
+      而这一条只做到「把声明翻成一次版本检查」——声明旧了会拿到冲突，这是命令层现成的行为；
+      拿到冲突之后回什么内容归后一条。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.Mcp` 工程：`Program.cs`（入口，只做组装与退出码）、
+    `Server/DiagramMcpServer.cs`（把八个工具挂上协议、逐条请求读会话状态、
+    把版本声明接到命令总线上）、`Server/SessionState.cs`（会话状态的读写与三种形态）、
+    `Server/StdioLogging.cs`（把日志改道标准错误）。
+  - 新增 `DuetDiagram.Mcp.Tests` 工程：`Harness.cs`（起子进程、按行接住标准错误、
+    连上客户端）、`StdioTests.cs`、`SessionStateTests.cs`、`ProtocolTests.cs`。
+  - `DuetDiagram.Llm/Tools/DiagramToolContext.cs` 加 `ExpectedVersion`，
+    `ActionDispatch.cs` 的 `Execute` 在发命令之前现读一次。
+  - `DuetDiagram.slnx` 加两个工程；`docs/Architecture.md` 加 MCP 一节并删掉那条已经做掉的未实现项。
+
+  **挂上去的是建好的工具实例，不是按标注扫出来的静态方法。** 标注那套要求参数由服务端容器
+  解析，而这条通路上服务端不持有容器，非基础类型参数会被当成工具参数、调用直接失败。
+  用实例还顺带保证了代理侧与模型侧是同一份定义——工具表里那八条本来就是从模型侧派生的。
+
+  **会话状态逐条请求现读，服务端不保存上下文。** 读的位置按
+  `_meta` → 客户端能力声明 → 扩展位，读不到再落到参数顶层。`Observe` 对**每一条**请求
+  重写一次，包括「这次没声明」那一种：留着上一条的值的话，一次没声明的调用会继承
+  上一条请求的版本，而那条版本可能是另一个调用方报的，于是变成一次照着别人的版本改的写入，
+  两边都不报错。
+
+  **版本声明用委托而不是一个值。** 工具是按会话建一次、之后一直复用的，存一个值的话，
+  第二次调用会拿着第一次声明的版本去比对，表现是「第一次改得动、第二次改不动」。
+  不带版本检查的通路上它本来就是空，读一次等于没读。
+
+  **核掉的起草假设**
+
+  - 侦察第 3 条写的「应答里的版本号必须是活的、要在每次变更之后跟着更新」在落地时改掉了：
+    这条传输下一个进程只服务一个会话，会话建立时读一次拿到的就是那一刻的值；
+    而 `ServerCapabilities` 是在会话建立之前配好的，逐请求改它要给一个共享对象加可变状态，
+    代价比收益大。应答因此是一份**握手快照**，之后每个调用方按服务端指令里的那句话
+    自己读摘要拿当前版本。这一条与指令文本是配套的，改一处要改另一处。
+  - 起草时写的 `files.modify` 少了 `DiagramToolContext.cs` 与 `ActionDispatch.cs`
+    （版本声明那个读取口），已在侦察里核出来并补进去。
+
+  **门禁**
+
+  - `Category=McpStdio`：7 条全通过。
+  - `Category=McpSession`：12 条全通过。
+  - `Category=McpProtocol`：7 条全通过。
+  - 全量测试、`dotnet build DuetDiagram.slnx -c Release`、`tools/LocCounter --check`、
+    任务 YAML 可解析性一并复核。
+
+  **后续**
+
+  - 网络传输、认证与限流归 P3-13；冲突返回里的差异与快照归 P3-14。
+  - 会话应答只报了「服务端这一刻的状态」，没有逐客户端记录接受与否——那要等冲突策略定下来。
+  - 服务端只从文件读文档、不回写；存盘归界面那条通路，代理侧这一轮只做编辑与读取。

@@ -36,12 +36,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
 | `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：标准输入输出、网络传输、安全、Skill | Phase 3 计划中（P3-12 起） |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，通过标准输入输出对话；会话状态从每条请求现读、日志改道标准错误 | Phase 3 P3-12 已落地（标准输入输出）；网络传输、安全与主动推送未开工 |
+| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层的门禁 | 已落地 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-11（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环与模型通路）已落地，
-P3-12 起未开工。
+P3-01 ~ P3-12（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路与
+标准输入输出那条传输）已落地，P3-13 起未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -234,6 +235,19 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 可空参数的数组形式两侧一致
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolParity"
 
+# 标准输入输出：起一个真的子进程连上去，工具发现与工具调用都走通、写入落到文档上、
+# 失败回的是结构化错误、日志落在标准错误上（标准输出被协议占着）、换个实例重跑结果一样
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpStdio"
+
+# 会话状态：声明从请求元数据与参数顶层两处都读得到、三种形态都认、
+# 调用级声明盖过会话级、旧声明被挡下且文档一个字节没动、版本超前算参数错误不算冲突、
+# 没声明只能读不能写、每条请求都自带声明
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpSession"
+
+# 协议层：会话建立那一次请求按位置取样而不是按方法名匹配（协议改名之后断言照样成立）、
+# 自定义字段挂在能力声明的扩展位上、两个方向用各自的字段名、挂上去的工具与模型侧同源
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=McpProtocol"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -356,7 +370,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`
 
 ## 新增一个命令的检查清单
 
@@ -473,3 +487,10 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `ScriptedChatClient` 进产品工程 | 假客户端放在 `DuetDiagram.Llm/Chat` 里，不放测试工程 | 它把「工具调用往返」这件事的形状固定在一处，测试与任何离线宿主用的是同一份；放在测试工程里的话，宿主想离线跑一遍就得再写一个 |
 | 工具层的错误码表多一个 `TOOL_RETRY_EXHAUSTED` | 到回环上限时回给模型的那一条用它，不复用某个参数错误 | 两者的处置相反：参数错误是改完参数再来，这一条是别再发同一个调用、把这件事报给人。复用的话，模型会照着参数错误的建议继续重试 |
 | 两侧 schema 一致性有两条用例 | `Category=ToolRegistry` 那条按规范 JSON 比（容忍键序与空白），`Category=ToolParity` 那条按原文比 | 原文比较更强，能挡住「有人把两侧改成各自维护」之后出现在键序或空白上的差异——那种差异结构比较看不出来，而两边已经开始分叉 |
+| §7.3 的会话初始化应答 | 应答里写的是**服务端会话建立那一刻**的状态，是一份握手快照；之后调用方按服务端指令里那句话自己读摘要拿当前版本 | 能力声明在会话建立之前就配好了，逐请求改它要给一个共享对象加可变状态；而这条传输下一个进程只服务一个会话，握手那一刻读到的就是当前值。报成「随时最新的版本」会与实现不符——调用方以为那个数字能用，实际上它只说明会话建立时服务端在哪一版 |
+| 把工具挂到协议上的方式 | 挂的是**已经建好的工具实例**，不用按标注扫描静态方法那一套 | 标注那套要求参数由服务端容器解析，而这条通路上服务端不持有容器，非基础类型参数会被当成工具参数、调用直接失败——客户端只看到「调用出错」，原因只在服务端日志里。用实例还顺带保证代理侧与模型侧是同一份定义 |
+| §7.4 的冲突返回策略 | 这一条只做到「把调用方声明的版本翻成一次版本检查」：声明旧了拿到的是命令层现成的冲突结果；冲突里回什么内容（差异、快照）归 P3-14 | 冲突要回的内容取决于同步策略，而同步还没定。但声明必须真的接到命令上——光把它记进日志等于没做，文档会被照着旧副本改掉，而两边都不报错 |
+| 服务端自己的状态挂在哪 | 挂在 `ServerCapabilities.Extensions`，不用协议给自定义字段留的元数据位 | 那个元数据位在当前协议版本下没有入口。扩展位两端都能按类型直接读到，客户端不需要挂拦截器去看原始消息 |
+| 会话状态怎么读 | 从**每条请求**现读，服务端不保存任何会话上下文 | 无状态传输下服务端不持有服务容器，保存上下文的话，换个实例、重启一次，同一个调用就得到不同结果。逐条重写还包括「这次没声明」那一种：留着上一条的值会变成一次照着别人的版本改的写入 |
+| `DiagramToolContext.ExpectedVersion` 是委托而不是值 | 类型是 `Func<VersionCheckRequest?>`，由传输层填 | 它随每条请求变，而工具是按会话建一次、之后一直复用的。存一个值的话，第二次调用会拿着第一次声明的版本去比对，表现是「第一次改得动、第二次改不动」，且两边都不报错 |
+| 声明与应答共用扩展位但**字段名刻意不同** | 调用方报的版本叫 `hasVersion`，服务端报的版本叫 `serverVersion` | 同名的话，一份应答被当成声明读回来时不会被发现——而那条路会拿着服务端的版本当成自己看到的版本去比对，恰好总是相等，版本检查于是静默失效 |

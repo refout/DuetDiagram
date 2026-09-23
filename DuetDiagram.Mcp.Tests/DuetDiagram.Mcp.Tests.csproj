@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      引用服务端工程：这些用例要把它作为子进程拉起来。
+      工程引用还保证它先于测试被编译出来，用例不必自己去触发一次编译。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Mcp\DuetDiagram.Mcp.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

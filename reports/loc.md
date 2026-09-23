@@ -15,14 +15,16 @@
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4236 | 2375 | 1251 | 610 |
+| DuetDiagram.Llm | 25 | 4258 | 2376 | 1271 | 611 |
 | DuetDiagram.Llm.Tests | 15 | 3907 | 2822 | 286 | 799 |
+| DuetDiagram.Mcp | 4 | 483 | 266 | 148 | 69 |
+| DuetDiagram.Mcp.Tests | 4 | 847 | 585 | 100 | 162 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **357** | **73189** | **46127** | **14929** | **12133** |
+| **合计** | **365** | **74541** | **46979** | **15197** | **12365** |
 
 ## 明细
 
@@ -315,7 +317,7 @@
 | RepairHints.cs | 196 |
 | ActionDispatch.cs | 132 |
 | CompositeTool.cs | 64 |
-| DiagramToolContext.cs | 20 |
+| DiagramToolContext.cs | 21 |
 | DiagramToolset.cs | 173 |
 | EditTool.cs | 242 |
 | ExportTool.cs | 52 |
@@ -349,6 +351,24 @@
 | ToolParityTests.cs | 53 |
 | ToolRegistryTests.cs | 222 |
 | ValidateToolTests.cs | 73 |
+
+### DuetDiagram.Mcp
+
+| 文件 | 代码 |
+|---|---:|
+| Program.cs | 27 |
+| DiagramMcpServer.cs | 118 |
+| SessionState.cs | 110 |
+| StdioLogging.cs | 11 |
+
+### DuetDiagram.Mcp.Tests
+
+| 文件 | 代码 |
+|---|---:|
+| Harness.cs | 169 |
+| ProtocolTests.cs | 91 |
+| SessionStateTests.cs | 175 |
+| StdioTests.cs | 150 |
 
 ### DuetDiagram.Mermaid
 

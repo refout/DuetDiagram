@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      宿主与协议实现都要用反射去建服务与反序列化协议消息，原生编译分析器看不出来，
+      而这一层的目标也不是发布成原生可执行文件：它作为子进程跑在本机。
+    -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DuetDiagram.Llm\DuetDiagram.Llm.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      协议实现只带核心包：这一条只做标准输入输出，网络框架那一层留给网络传输那一条。
+    -->
+    <PackageReference Include="ModelContextProtocol" />
+    <!--
+      宿主与日志的具体实现。协议实现的宿主集成包只依赖宿主的抽象层，
+      所以要自己引入这两个包；版本与协议实现声明的一致，避免两套抽象层混用。
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+
+</Project>

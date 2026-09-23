@@ -134,12 +134,17 @@ internal static class ActionDispatch
         ToolResult.Fail(ToolError.Of(ToolErrorCodes.ArgumentMissing, message, parameter));
 
     /// <summary>发一条命令，并把结果翻译成工具结果。</summary>
+    /// <remarks>
+    /// 版本声明在发出去之前现读一次。带版本检查的通路上，不带声明会被判成
+    /// 「缺少版本声明」而整条命令发不出去；不带版本检查的通路上它本来就是空，
+    /// 读一次等于没读。
+    /// </remarks>
     public static ToolResult Execute(DiagramToolContext context, IDiagramCommand command)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(command);
 
-        var result = context.Bus.Execute(command);
+        var result = context.Bus.Execute(command, context.ExpectedVersion?.Invoke());
 
         return result.IsSuccess ? Succeeded(context, result) : Failed(result);
     }

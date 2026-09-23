@@ -6,26 +6,37 @@ depends_on: [P3-04]
 estimated_loc: 480
 files:
   create:
-    - DuetDiagram.Core/Commands/Builtin/MoveToPageCommand.cs
+    - DuetDiagram.Core/Model/PageMembership.cs
+    - DuetDiagram.App/Controls/PageTabs.axaml
+    - DuetDiagram.App/Controls/PageTabs.axaml.cs
+    - DuetDiagram.App/ViewModels/PageTabsViewModel.cs
   modify:
     - DuetDiagram.Core/Model/NodeDef.cs
     - DuetDiagram.Core/Model/EdgeDef.cs
     - DuetDiagram.Core/Model/FieldRegistry.cs
-    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Core/Commands/NodeFieldValue.cs
+    - DuetDiagram.Core/Commands/EdgeFieldValue.cs
     - DuetDiagram.Core/Serialization/DiagramHashing.cs
-    - DuetDiagram.Core/Commands/CommandMemento.cs
     - DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs
-    - DuetDiagram.Core/Commands/Builtin/ConnectEdgeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/DeletePageCommand.cs
+    - DuetDiagram.Layout/LayoutRequestFactory.cs
     - DuetDiagram.Render/SceneBuilder.cs
-    - DuetDiagram.App/Controls/PageTabs.axaml
-    - DuetDiagram.App/Controls/PageTabs.axaml.cs
-    - DuetDiagram.App/ViewModels/PageTabsViewModel.cs
+    - DuetDiagram.App/SampleDiagram.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
     - DuetDiagram.Llm/Tools/ExportTool.cs
     - docs/IR-Schema.md
     - docs/Command-List.md
+    - docs/GUI.md
     - AGENTS.md
+    - reports/loc.md
   test:
     - DuetDiagram.Core.Tests/PageMembershipTests.cs
+    - DuetDiagram.Layout.Tests/LayoutRequestFactoryTests.cs
+    - DuetDiagram.Render.Tests/PageRenderTests.cs
     - DuetDiagram.E2E.Tests/PageTabsTests.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=PageMembership"
@@ -59,3 +70,53 @@ scope_note: |
   **画布上的元素归属哪一页由命令决定，不由界面猜。** 在第二页上画一个节点，
   它归第二页——这件事走 `add-node` 的一个参数，而不是界面画完之后再补一条归属命令：
   两条命令的话，中间那一刻的文档是自相矛盾的。
+
+reconnaissance: |
+  **动手前对着 IR、字段表、哈希、布局请求、渲染、命令层与工具侧的三个 pageId 核了一遍，
+  结论如下。**
+
+  1. **缺省页的口径：第一页（按次序，次序相同用标识断并列）。** 没声明归属的元素、
+     以及归属指向一个不存在的页面的元素，都归缺省页——与 P4-02 的缺省层同一形状。
+     **这条规则只在 Core 里写一份**（`PageMembership`），布局、渲染、导出、摘要四处都调它。
+     分成四份的话，"翻页之后有几个元素赖着不走"这类不一致迟早会出现，
+     而那时四处各自都自洽。
+
+  2. **删页的语义选「退回缺省页」，不是「一并删元素」。** 约束里说两条路都行、但必须写清。
+     选这条的理由：与归属悬空那条先例一致（按缺省处理），而 `DeletePageCommand`
+     一个字段都不用改；"一并删"要多记一批元素的 memento，且删除是不可逆方向的操作，
+     而用户点"删页"时想的多半是"这一页不要了"，不是"把这一页上的东西也删了"。
+     在 `docs/Command-List.md` 的页面那几行写清。
+
+  3. **翻页要过布局，不只是渲染。** 所以 `page` 字段的作用域是 `Structural`
+     （进结构哈希、报结构变更）：只滤渲染的话，别的页面上的节点照样在布局里占位置，
+     翻页之后当前页的坐标会跟着别页的内容变，而用户看到的是"我翻一页图就重排了"。
+     过滤因此要在 `LayoutRequestFactory.FromDocument` 里就发生。
+
+  4. **过滤只有一处实现，两个消费点共用。** `LayoutRequestFactory`（布局）与
+     `SceneBuilder`（绘制列表）各需要一个"这一页上有谁"的答案，两处各判一次的话，
+     布局算的位置与画出来的东西会分叉——表现是元素画在别处或者漏画。
+     形状照 P4-02 的 `LayerPlan`：算一次、查多次。
+
+  5. **当前页是会话的状态，不进 IR。** `CurrentPageId` 活在 `DiagramSession` 上，
+     翻页 = 换它 + `Reload()`。与"当前图层"同一口径：它不进任何哈希，撤销也回不到
+     "上一次看的那一页"——撤销该撤的是对文档做的事，而翻一页什么都没做。
+
+  6. **`add-node` 不用改签名。** 它收的是整个 `NodeDef`，所以"画在第二页上"就是
+     `NodeDef.Page` 填上第二页。界面把当前页填进新节点即可（会话生成节点时填）。
+     边的归属同理：`connect-edge` 收整个 `EdgeDef`。**但端点跨页的边要有个说法**：
+     端点不在同一页时按"两端都在同一页才算这一页的边"处理，也就是这种边两页都不画
+     ——约束里点名的那件事（一条边在两页上都画出来）正是要避免的。
+
+  7. **工具侧的三个 `pageId` 一起接上**：`diagram_read`、`diagram_export` 的
+     "还没接上"这一条之后不许再返回；导出按页过滤。`Category=ToolDispatch`
+     与导出那几条用例会核。
+
+  8. **校验器不补「指向不存在的页面」。** 与图层同一口径：悬空引用按缺省页处理，
+     渲染只需要别崩。记进 followups。
+
+  9. **属性面板那一格归属仍然隐藏**，入口在标签栏上（与图层归属的处置一致），
+     所以这次不用再动分节——`FieldRegistry` 里登记、描述表里写清为什么不显示即可。
+
+  10. **标签栏的位置**：画布那一格的最上面（`Grid` 里画布之上，停靠画布那一行的顶部），
+      不进 DockPanel 的停靠位——停靠会改画布尺寸，而画布一改尺寸视口就跟着跳，
+      开一次栏位图就挪一下。这一条与诊断面板、变更边栏同一条理由。

@@ -1,7 +1,7 @@
 id: P3-14
 title: 并发三层——乐观并发、文档软锁与图层级权限
 phase: 3
-status: pending
+status: done
 depends_on: [P3-12, P1-05, P1-02]
 estimated_loc: 480
 files:
@@ -186,5 +186,3 @@ result: |
   - 没点名图层的写入不受图层限制（加一个节点、连一条边都不算图层级写入）。
     要连它们一起挡下来的话，判据得是「这个元素现在落在哪个图层」——那要读文档。
   - P3-15 的 Skill 机制与 P3-16 的真实代理验收未开工。
-
-status: done

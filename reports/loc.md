@@ -15,16 +15,16 @@
 | DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4375 | 2429 | 1320 | 626 |
-| DuetDiagram.Llm.Tests | 16 | 4059 | 2924 | 306 | 829 |
-| DuetDiagram.Mcp | 11 | 1841 | 954 | 618 | 269 |
-| DuetDiagram.Mcp.Tests | 8 | 2450 | 1590 | 367 | 493 |
+| DuetDiagram.Llm | 25 | 4400 | 2439 | 1334 | 627 |
+| DuetDiagram.Llm.Tests | 16 | 4090 | 2944 | 311 | 835 |
+| DuetDiagram.Mcp | 13 | 2314 | 1230 | 738 | 346 |
+| DuetDiagram.Mcp.Tests | 10 | 2883 | 1864 | 432 | 587 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 40 | 9436 | 6420 | 1484 | 1532 |
-| **合计** | **383** | **78555** | **49242** | **16239** | **13074** |
+| **合计** | **387** | **79517** | **49822** | **16443** | **13252** |
 
 ## 明细
 
@@ -312,8 +312,8 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ChatOptionsFactory.cs | 20 |
-| DiagramChatClient.cs | 83 |
+| ChatOptionsFactory.cs | 27 |
+| DiagramChatClient.cs | 86 |
 | ScriptedChatClient.cs | 52 |
 | DiagramSummary.cs | 46 |
 | SummaryBuilder.cs | 73 |
@@ -342,7 +342,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ChatClientTests.cs | 180 |
+| ChatClientTests.cs | 200 |
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
@@ -367,13 +367,15 @@
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
-| DiagramMcpServer.cs | 87 |
-| HttpHost.cs | 282 |
+| DiagramMcpServer.cs | 91 |
+| HttpHost.cs | 284 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 71 |
 | SessionState.cs | 110 |
 | StdioLogging.cs | 11 |
 | WorkspaceGuard.cs | 60 |
+| SkillCatalog.cs | 252 |
+| SkillResource.cs | 18 |
 
 ### DuetDiagram.Mcp.Tests
 
@@ -383,9 +385,11 @@
 | ConflictResponseTests.cs | 205 |
 | Harness.cs | 289 |
 | HttpTransportTests.cs | 210 |
+| ProgressiveDisclosureTests.cs | 131 |
 | ProtocolTests.cs | 91 |
 | SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
+| SkillTests.cs | 143 |
 | StdioTests.cs | 150 |
 
 ### DuetDiagram.Mermaid

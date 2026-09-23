@@ -32,6 +32,7 @@ public sealed class DiagramChatClient : IChatClient
 
     private readonly ToolRegistry _registry;
     private readonly string? _instructions;
+    private readonly string? _skill;
     private readonly FunctionInvokingChatClient _loop;
 
     /// <param name="inner">真正的模型客户端。</param>
@@ -39,12 +40,17 @@ public sealed class DiagramChatClient : IChatClient
     /// <param name="instructions">系统提示。每一轮都带上。</param>
     /// <param name="errors">回环状态。为空时新建一个。</param>
     /// <param name="maxIterations">一轮里最多往返几次。</param>
+    /// <param name="skill">
+    /// 这一轮匹配上的 Skill 正文，接在系统提示后面。为空表示这一轮不需要。
+    /// 哪一份由建这个客户端的人决定——只有它知道这一次对话要做的是什么。
+    /// </param>
     public DiagramChatClient(
         IChatClient inner,
         ToolRegistry registry,
         string? instructions = null,
         ErrorLoop? errors = null,
-        int maxIterations = DefaultMaxIterations)
+        int maxIterations = DefaultMaxIterations,
+        string? skill = null)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(registry);
@@ -52,6 +58,7 @@ public sealed class DiagramChatClient : IChatClient
 
         _registry = registry;
         _instructions = instructions;
+        _skill = skill;
         Errors = errors ?? new ErrorLoop();
 
         _loop = new FunctionInvokingChatClient(inner)
@@ -77,7 +84,7 @@ public sealed class DiagramChatClient : IChatClient
 
         return _loop.GetResponseAsync(
             messages,
-            ChatOptionsFactory.Create(_registry, options, _instructions),
+            ChatOptionsFactory.Create(_registry, options, _instructions, _skill),
             cancellationToken);
     }
 
@@ -92,7 +99,7 @@ public sealed class DiagramChatClient : IChatClient
 
         return _loop.GetStreamingResponseAsync(
             messages,
-            ChatOptionsFactory.Create(_registry, options, _instructions),
+            ChatOptionsFactory.Create(_registry, options, _instructions, _skill),
             cancellationToken);
     }
 

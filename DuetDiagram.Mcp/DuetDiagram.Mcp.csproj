@@ -17,6 +17,21 @@
 
   <ItemGroup>
     <!--
+      Skill 的正文与它的资源文件随程序集走。放成输出目录里的松散文件的话，
+      换一种发布方式（单文件、容器、由宿主决定工作目录）它们就不在预期的位置上了。
+    -->
+    <EmbeddedResource Include="Skills\*.md" />
+
+    <!--
+      语法那一层的资源文件直接取仓库里那份文档，不另抄一份：
+      抄一份的话，两边迟早对不上，而对不上的表现是模型照着一份过期的语法写。
+      逻辑名要显式给，因为它在工程目录之外，按路径推出来的名字会带上两个点。
+    -->
+    <EmbeddedResource Include="..\docs\DSL-Syntax.md" LogicalName="DuetDiagram.Mcp.Skills.dsl-syntax.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
       协议实现分三层：核心包、宿主集成包与网络框架集成包。
       标准输入输出那条传输只用得上核心包，网络那条传输要网络框架集成包。
     -->

@@ -8,6 +8,7 @@ using DuetDiagram.Core.Diagnostics;
 using DuetDiagram.Core.Logging;
 using DuetDiagram.Core.Serialization;
 using DuetDiagram.Llm.Tools;
+using DuetDiagram.Mcp.Skills;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -182,6 +183,7 @@ public sealed class HttpHost : IAsyncDisposable
             })
             .WithHttpTransport(o => o.SessionMode = HttpServerSessionMode.Stateless)
             .WithTools(tools)
+            .WithResources(SkillCatalog.Default.ToMcpResources())
             .WithMessageFilters(filters => filters.AddIncomingFilter(next => async (messageContext, cancellationToken) =>
             {
                 session.Observe(messageContext.JsonRpcMessage);

@@ -28,6 +28,13 @@
     -->
     <ProjectReference Include="..\DuetDiagram.Mcp\DuetDiagram.Mcp.csproj" />
     <ProjectReference Include="..\DuetDiagram.Core\DuetDiagram.Core.csproj" />
+
+    <!--
+      语法那一层的资源文件里的例子要拿真的解析器跑一遍。引用 DSL 工程是为了这个：
+      自己写一个"看起来对"的校验等于什么都没验，而文档里的例子过期了不会报错，
+      只会让模型照着写错的东西。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Dsl\DuetDiagram.Dsl.csproj" />
   </ItemGroup>
 
 </Project>

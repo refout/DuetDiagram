@@ -3,6 +3,7 @@ using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Diagnostics;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Llm.Tools;
+using DuetDiagram.Mcp.Skills;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -102,6 +103,7 @@ public sealed class DiagramMcpServer : IAsyncDisposable
         builder.Services
             .AddMcpServer(options => ConfigureOptions(options, session.Ack.ToJson()))
             .WithTools(ToolRegistry.CreateDefault(ToolContext(session)).ToMcpTools())
+            .WithResources(SkillCatalog.Default.ToMcpResources())
             .WithMessageFilters(filters => filters.AddIncomingFilter(next => async (messageContext, cancellationToken) =>
             {
                 server.Observe(messageContext.JsonRpcMessage);
@@ -137,7 +139,14 @@ public sealed class DiagramMcpServer : IAsyncDisposable
     }
 
     /// <summary>给调用方看的那段话。两条传输说的是同一段。</summary>
+    /// <remarks>
+    /// 最后那一句是资源那一层的入口：不给它的话，调用方不会想到去看清单，
+    /// 那两份 Skill 就等于不存在。而它只说了「按当前任务取」——把正文抄进来的话，
+    /// 这一层就从「按需取」退化成了「一次性全给」，三层结构也就没有意义了。
+    /// </remarks>
     internal const string Instructions =
         "编辑当前打开的那份图。改之前先读一次摘要拿版本号，改的时候把它带上；" +
-        "版本对不上会拿到冲突，那就重读一次再改。";
+        "版本对不上会拿到冲突，那就重读一次再改。" +
+        "要按顺序改一份图、或者要写一整段 DSL 文本时，去看资源清单里那几份 Skill，" +
+        "按当前任务取需要的那一份，不要全取。";
 }

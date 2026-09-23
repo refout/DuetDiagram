@@ -1,7 +1,7 @@
 id: P3-15
 title: Skill 机制与渐进式披露
 phase: 3
-status: pending
+status: done
 depends_on: [P3-11, P3-12, P3-13, P1-16, P1-17]
 estimated_loc: 380
 files:
@@ -13,7 +13,12 @@ files:
     - DuetDiagram.Mcp.Tests/SkillTests.cs
     - DuetDiagram.Mcp.Tests/ProgressiveDisclosureTests.cs
   modify:
+    - DuetDiagram.Mcp/DuetDiagram.Mcp.csproj
+    - DuetDiagram.Mcp/Server/DiagramMcpServer.cs
+    - DuetDiagram.Mcp/Server/HttpHost.cs
+    - DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj
     - DuetDiagram.Llm/Chat/ChatOptionsFactory.cs
+    - DuetDiagram.Llm/Chat/DiagramChatClient.cs
     - docs/Architecture.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Skill"
@@ -37,3 +42,116 @@ scope_note: |
   真正花时间的是两个 Skill 的正文：操作顺序要对着工具层真实的行为写，
   语法例子要对着真的解析器写。两样都容易写成「看起来对」——
   所以判据里有一条是拿解析器把例子跑一遍。
+
+reconnaissance: |
+  **动手前对着协议实现、两条传输、工具层的真实行为与那份语法文档核了一遍，结论如下。**
+
+  1. **协议实现里本来就有资源这一档，落点是 `WithResources` 加 `McpServerResource.Create`。**
+     依赖里那个版本（`ModelContextProtocol` 2.2.0）有
+     `McpServerBuilderExtensions.WithResources(IMcpServerBuilder, IEnumerable<McpServerResource>)`；
+     `McpServerResource.Create` 收一个委托，形态用
+     `Func<RequestContext<ReadResourceRequestParams>, TextResourceContents>`，
+     协议那边的内容类型是 `ResourceContents` 的两个派生之一，文本那一个带 `Uri` / `MimeType` / `Text`。
+     清单与读取两条都由这一层接上，不需要自己写请求处理体。
+
+  2. **两条传输都要挂，而且都不该被现有的中间件挡下。** 标准输入输出那条在
+     `DiagramMcpServer.BuildHost`，网络那条在 `HttpHost.Create`。只挂一处的话，
+     「两个 Skill 按 `skill://` 取得到」就成了一条按传输而定的判据。
+     网络那一档的中间件不会误伤：请求体里没有工具名时它判的是「不是写调用、也没带声明」，
+     照常放行；凭据那一道仍然在前，资源不是白拿的。
+
+  3. **`skill://` 的路径判据与工作区那道关同一条口径：先解析，再判在不在根里。**
+     字符串前缀比较挡不住 `..`，也挡不住百分号编码过的 `..`；而直接用 `Uri` 去解析的话，
+     它自己会把 `..` 规范化掉——拿它的结果做判断等于把要判的东西先擦掉了。
+     所以自己切段、先解码再归一、`.` 丢掉、`..` 弹一层，弹到 Skill 名那一层就拒绝：
+     Skill 名就是这一层的根，越过去就没有落点。
+
+  4. **第三层的内容只能是 `docs/DSL-Syntax.md`。** 这一条只许在 `Skills/` 下新建两份正文，
+     而「资源文件才含精确语法」需要一份真的语法文件，`context` 里也写明那份文档是
+     `diagram-syntax` 的资源来源。做法是把它作为**嵌入资源**随程序集走，
+     程序集里那一份与文档逐字相同——「文档与实现不分叉」由构造保证，不靠人记得同步。
+     不选「运行时去读仓库里那条路径」：服务端是被拉起来的子进程，工作目录不由它决定。
+
+  5. **那份文档里的九个 `dsl` 围栏块已经拿真解析器跑过，全部干净。**
+     用一个一次性探针（引用 DSL 工程）把 `docs/DSL-Syntax.md` 里所有 ```dsl 块逐块交给
+     `DslParser.Parse`：九块全部 `IsClean`、诊断数为零。所以判据三可以直接写成
+     「把资源文件里的每个 ```dsl 块交给真解析器，要求零诊断」——这条顺带把文档里
+     那些从来没被验过的例子纳进了门禁。
+
+  6. **Skill 的元数据（名字、标题、版本、什么时候该取）只能写在正文文件的头部。**
+     版本是「带版本」那条判据的落点；「什么时候该取」是「按任务匹配」的入口——
+     调用方先看清单（便宜）再取匹配上的那一份（贵），没有它就只能全取。
+     写在代码里的话，加一份 Skill 要改两处，而漏改的那一处不会报错。
+
+  7. **内部那条通路的入口是 `ChatOptionsFactory`，而它不能认识 `SkillResource`。**
+     依赖方向是 `Mcp` 引用 `Llm`，而目录表把 `SkillCatalog` 放在 `Mcp` 里，
+     所以工厂只能收一段**纯文本**——这一轮匹配上的正文。选哪一份是调用方的事，
+     只有它知道这一轮的任务是什么。工厂只在真传了正文时把它接到系统提示后面；
+     不传时一个字都不加，缺省就是「这一档不需要」。
+     `DiagramChatClient` 要跟着多一个可选入参，否则工厂那个参数没有调用方。
+
+  8. **起草时列的 `files.modify` 少若干处**：`DuetDiagram.Mcp.csproj`（两份正文与那份文档
+     作为嵌入资源）、`HttpHost.cs`（网络那一档也要挂资源）、`DiagramChatClient.cs`
+     （把正文传下去）、`DiagramMcpServer.cs`（标准输入输出那一档挂资源）、
+     `DuetDiagram.Mcp.Tests.csproj`（要引用 DSL 工程才拿得到真解析器）。已在这里记明。
+
+  9. **新增两条分类，名字是前缀关系。** `Category=Skill` 与 `Category=SkillDisclosure`，
+     与既有的 `Category=Layout` / `Category=LayoutFallback` 是同一对关系，按既有口径照写。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.Mcp/Skills/`：`SkillResource.cs`（一份 Skill：标识、标题、版本、
+    「什么时候该取它」、正文，以及名下的资源文件）、`SkillCatalog.cs`（装载、按 URI 取、
+    挂到协议上），以及两份正文 `diagram-workflow.md` 与 `diagram-syntax.md`。
+  - 正文头部是那四项元数据，装载时逐项校验：缺一项、多一个不认识的键、把一项写两遍、
+    正文为空，四种都直接抛。它们都是构建期的事实，退回缺省值只会让问题一路装下去、
+    在调用方那里表现成一句空话。
+  - 第三层的那份资源文件就是 `docs/DSL-Syntax.md`，构建时作为嵌入资源随程序集走
+    （`LogicalName` 显式给，因为它在工程目录之外）。另抄一份的话两边迟早对不上，
+    而对不上的表现是模型照着一份过期的语法写。
+  - 两条传输都挂上了资源：标准输入输出那条在 `DiagramMcpServer.BuildHost`，
+    网络那条在 `HttpHost.Create`。只挂一处的话，「两个 Skill 按 `skill://` 取得到」
+    就成了按传输而定的判据。
+  - 服务端那段话加了一句「要按顺序改图或者要写一整段 DSL 时去看资源清单，按当前任务取，
+    不要全取」——它是资源那一层的入口，而它只说了去哪取，没把正文抄进来。
+  - `ChatOptionsFactory` 多一个可选的 `skill`，把这一轮匹配上的正文接在系统提示后面；
+    `DiagramChatClient` 跟着多一个可选入参把它传下去。选哪一份不在这里：
+    依赖方向是反的（代理那层引模型那层），这一层收的是一段纯文本。
+
+  **核掉的起草假设**
+
+  - **依赖里那个版本的协议实现里没有 SEP-2640**（全文搜不到），但它本来就有资源那一档。
+    所以落点是 `WithResources` 加 `McpServerResource.Create`，URI 协议名自己定成 `skill://`；
+    等扩展成为标准或者实现接上之后可以换过去，URI 与两份正文都不用动。
+  - **第三层只能是那份文档本身。** 这一条只许在 `Skills/` 下新建两份正文，
+    而「资源文件才含精确语法」要一份真的语法文件。做法是构建时把它嵌进程序集。
+  - **文档里的九个 `dsl` 围栏块拿真解析器跑过，全部零诊断**（动手前用一次性探针验的）。
+    所以判据三写成「每个块交给真解析器，要求零诊断」，那些从来没被验过的例子就此进了门禁。
+  - **`skill://` 的路径判据只能是「解析之后再判」**：前缀比较挡不住 `..` 与编码过的 `..`，
+    而交给 URI 那一层去解析的话它自己会把 `..` 规范化掉——拿它的结果做判断等于把要判的
+    东西先擦掉。所以自己切段、先解码再归一，弹到 Skill 名那一层就拒绝。
+  - **起草时列的 `files.modify` 少若干处**：`DuetDiagram.Mcp.csproj`（嵌入资源）、
+    `DiagramMcpServer.cs` 与 `HttpHost.cs`（两条传输各挂一次）、`DiagramChatClient.cs`
+    （把正文传下去，否则工厂那个参数没有调用方）、`DuetDiagram.Mcp.Tests.csproj`
+    （引用 DSL 工程）。已在侦察与这里记明。
+
+  **门禁**
+
+  - `Category=Skill`：22 条全通过。目录、清单、两条传输各取一遍、十五条 URI 逃逸用例、
+    协议对认不出的 URI 回错误，以及资源文件里每段例子的解析门禁。
+  - `Category=SkillDisclosure`：7 条全通过。工具描述单行且不超长、正文不含精确语法、
+    资源文件才含语法、始终在上下文的那一份不含任何一段正文、内部那条通路传与不传各一条。
+  - `Category=ChatClient` 多一条：正文接在系统提示后面，往返的每一轮都带上。
+  - 全量测试 Core 452 / Layout 75 / Render 145 / Mermaid 179 / Dsl 158 / Llm 189 /
+    Mcp 108 / E2E 81 全绿；`dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；
+    `Category=CommentDiscipline`、`Category=ErrorPresentation`、`Category=RepairHint`
+    一并复核通过。
+
+  **后续**
+
+  - 正文写得好不好用例判不了：判据只覆盖了形状与边界。要等 P3-16 拿真实代理跑过，
+    才知道「按顺序改」那几条是不是真的被用上了。
+  - 清单里没有「当前这一轮该取哪一份」的推荐：那是调用方的事，
+    而内部那条通路现在只有一个建客户端时定死的入参，没有按每一轮的任务动态挑的落点。
+  - P3-16 的真实代理验收未开工。

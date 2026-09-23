@@ -34,15 +34,15 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置（不进 sln） | Phase 3 计划中（P3-16） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌） | Phase 3 P3-05 ~ P3-11 / P3-14 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 / P3-14 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
 | `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁 | 已落地 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2 的代码都落地了（P0-02、P1-14、P2-13 三处
 分别卡在缺 C++ 工作负载与缺真人）。Phase 3 的 16 个任务 YAML 已产出，
-P3-01 ~ P3-14（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
-标准输入输出那条传输、网络传输与它前面那道关、并发三层）已落地，P3-15 起未开工。
+P3-01 ~ P3-15（命令层、工具定义、上下文摘要、八个工具的执行体、错误回环、模型通路、
+标准输入输出那条传输、网络传输与它前面那道关、并发三层、Skill 机制）已落地，P3-16 未开工。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -278,6 +278,16 @@ dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --
 # 改节点归属报的是 value（图层写在 value 上），被挡住时文档与版本号都没动
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=Permission"
 
+# Skill：两份都能按 skill:// 取到、正文非空且带版本，清单里带着"什么时候该取"，
+# 两条传输取回来的是同一份；URI 爬不出这一层（`..`、编码过的 `..`、反斜杠都算）；
+# 资源文件里每一段 DSL 例子交给真解析器，要求零诊断
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=Skill"
+
+# 渐进式披露的三层边界：工具描述单行且不超长、Skill 正文不含精确语法、
+# 资源文件才含语法；始终在上下文里的那一份不含任何一段 Skill 正文；
+# 内部那条通路不传 Skill 时一个字都不加，传了才接在系统提示后面
+dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=SkillDisclosure"
+
 # 性能基线（作业长度必须够：短作业的误差棒比均值还大，数字不可用）
 dotnet run --project DuetDiagram.Benchmarks -c Release -- --filter "*" --job medium
 
@@ -400,7 +410,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `NestedExecute`、`NestedExecuteCrossThread`、`Broadcaster`、`SessionIdResolution`、
 `UndoStress`、`Workspace`、`McpMode`、`CorePurity`、
 `IrHashing`、`IrSnapshot`、`IrReadOnly`、`IrValidator`、`IrConstruction`、
-`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`、`McpHttp`、`McpSecurity`、`ChangeFeed`、`Conflict`、`SoftLock`、`Permission`
+`ConflictPolicy`、`FieldMetadata`、`CommandGroups`、`Composite`、`Sidecar`、`SidecarBackup`、`Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、`CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、`Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、`Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、`MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、`DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、`ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、`LayoutTool`、`CompositeTool`、`ExportTool`、`ValidateTool`、`HistoryTool`、`ErrorLoop`、`RepairHint`、`ChatClient`、`ToolParity`、`McpStdio`、`McpSession`、`McpProtocol`、`McpHttp`、`McpSecurity`、`ChangeFeed`、`Conflict`、`SoftLock`、`Permission`、`Skill`、`SkillDisclosure`
 
 ## 新增一个命令的检查清单
 
@@ -437,6 +447,8 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | §三 整体架构 / §九 GUI 设计：渲染层 | 「Avalonia Canvas 渲染」**不进** `DuetDiagram.Render` | 渲染层只做到**绘制列表**为止（纯数据、可逐字节比较、文本度量可注入），画布控件放在主程序。带上窗口与面板之后快照测试就不再是「同一份输入永远同一份输出」——测试得起一个无头界面进程。而 §15.1 的端到端测试本来就单列了一层，用界面框架的无头模式，那是另一件事，不该和绘制列表的回归混在一起 |
 | §15.1 快照测试的工具 | 用仓库里的冻结文本加一段比对代码，没有引入测试分层表里列的那个快照库 | 那个库不在 §2 的技术选型表里，而这里要的东西只有两样：逐字节可比、差异能定位到元素。一份规范文本加一段比对就够了，多一个依赖反而多一处会随版本变的行为。绘制列表的快照在 `DuetDiagram.Render.Tests/Scenes/`，比对代码在 `Snapshot.cs` |
 | 测试框架 | xunit.v3 + Microsoft.Testing.Platform；`--filter` → `--filter-trait` | .NET 10 SDK 起 `dotnet test` 不再支持 VSTest 目标 |
+| §8 Skill 机制「遵循 SEP-2640」 | 落点是协议实现通用的**资源**那一档加一个自定义的 `skill://` 协议，没有 SEP-2640 那个扩展 | 依赖里那个版本的协议实现里没有这个扩展（全文搜不到），而它本来就有资源那一档：清单、读取、内容类型都齐。等扩展成为标准、或者实现接上之后可以换过去——URI 与两份正文都不用动 |
+| §8「两个 Skill 存于 `Diagram.Mcp/Skills/`」 | 第三层（精确语法）的那一份不新建文件，直接用仓库里既有的 `docs/DSL-Syntax.md`，构建时作为嵌入资源随程序集走 | 另抄一份的话两边迟早对不上，而对不上的表现是模型照着一份过期的语法写——本仓在错误码名上已经踩过一次同样的坑。接过来之后「文档与实现不分叉」由构造保证，再加一条拿真解析器跑里面每段例子的门禁 |
 | 测试断言库 | FluentAssertions **7.2.2** | 8.x 起改为商业许可；7.2.2 是最后一个 Apache-2.0 版本 |
 | 解决方案文件 | `DuetDiagram.slnx` | 本轮约定 |
 | §16 对比测试报告 `reports/compare.md` | 落在 `reports/compare-blind/`，且拆成结论与证据两份 | 一份文件装不下：解析统计、语义拒绝率、检查项可判定性、谓词口径各是一份证据，各有各的复现命令。混在一起之后没人知道哪一段该跟着哪条命令重新生成。另外装置不进 sln（见 `tools/CompareHarness` 那一行），所以它也没有 `Diagram.Compare.Tests` |

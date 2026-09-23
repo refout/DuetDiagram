@@ -115,6 +115,37 @@ public sealed class ChatClientTests
         sent.Tools.Should().HaveCount(8);
     }
 
+    /// <summary>这一轮匹配上的 Skill 正文接在系统提示后面，往返的每一轮都带上。</summary>
+    /// <remarks>
+    /// 只第一轮带是不够的：工具调用往返之后模型还在这一轮里，而那一轮里它最容易忘掉顺序。
+    /// 另外，正文是**接在**系统提示后面而不是替掉它——两者说的不是一回事。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "ChatClient")]
+    public async Task The_matched_skill_rides_along_with_the_system_prompt()
+    {
+        const string Skill = "这一轮要按顺序改图。";
+
+        var registry = Harness.Registry();
+        var inner = new ScriptedChatClient(
+            ScriptedChatClient.Calls(DiagramToolset.Edit, """{"action":"add-node","id":"a"}"""),
+            ScriptedChatClient.Says("加好了"));
+
+        var client = new DiagramChatClient(inner, registry, "基础提示", skill: Skill);
+
+        await client.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "加一个节点")],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        inner.Requests.Should().HaveCount(2);
+
+        foreach (var request in inner.Requests)
+        {
+            request.Options!.Instructions.Should().StartWith("基础提示");
+            request.Options.Instructions.Should().EndWith(Skill);
+        }
+    }
+
     #endregion
 
     #region 失败回灌

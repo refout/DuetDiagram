@@ -1,0 +1,53 @@
+id: P4-19
+title: 导入入口——Mermaid 文件导入
+phase: 4
+status: pending
+depends_on: [P4-01]
+estimated_loc: 460
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/ImportFragmentCommand.cs
+    - DuetDiagram.App/Services/ImportService.cs
+    - DuetDiagram.App/Controls/ImportDialog.axaml
+    - DuetDiagram.App/Controls/ImportDialog.axaml.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.Mermaid/Import/MermaidImporter.cs
+    - docs/Command-List.md
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/ImportCommandTests.cs
+    - DuetDiagram.E2E.Tests/ImportTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Import"
+    expect: 全通过；标识冲突消解、诊断的传递、失败整体回滚各有用例
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Import"
+    expect: 全通过；导入一份文件之后画布上多出那些元素，撤销一次全部消失
+  - command: dotnet test --project DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj -- --filter-trait "Category=MermaidCorpus"
+    expect: 全通过；语料里那五十份真实回答的导入路径与本条走的是同一条（导入器不许有第二条调用口径）
+constraints:
+  - "**导入器的诊断要原样带进结果。** Mermaid 导入是宽松模式，认不出的内容记诊断而不抛异常；那些诊断必须传到界面上，否则用户拿到一张少了几条边的图而不知道少了什么"
+  - "**标识冲突要消解。** 与模板实例化同一条口径：不消解的话拼出来的文档有两套同名标识，而校验器报错的位置离肇事的那一步很远"
+  - "**导入是一条命令，整体成功或整体失败。** 与所有命令同一条口径：解析到一半失败不留半份内容在文档里"
+  - "**导入的是「片段」，不是整份文档。** 导进当前文档并放在空白处；覆盖当前文档那是「打开文件」，是另一条路，不要混进来"
+  - "**格式由内容判，不只按扩展名。** 只按扩展名的话，一份 `.txt` 里的 Mermaid 就导不进来，而用户会以为程序不认识 Mermaid"
+  - "**不做自动布局之外的智能摆放。** 导入之后落在哪由布局决定，界面上不许自己算位置——自己算的话，导入进来的东西会与布局结果打架"
+  - "**只接 Mermaid 一种格式。** DSL 只有入方向且去留未定（决策门 1），其他格式的导入器方案没要求。写进 followups"
+context:
+  - 方案 §21 的入口总览里「文件导入导出 | 文件系统 | 所有人 | 持久化、Git 协作」
+  - "`DuetDiagram.Mermaid/Import/MermaidImporter.cs` 已经实现，但生产入口一处都没有——只被测试、基准与 `tools/CompareHarness` 调用"
+  - "`DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs` 等是片段导入要落到的那一层"
+  - "`DuetDiagram.App/Services/DocumentFile.cs` 是「打开文件」那条路，导入与它要分开"
+scope_note: |
+  **导入是「从零生成」那条端到端场景的入口。** §14.4 的第一条场景是
+  「用户说『画登录流程』，LLM 生成人工微调」，第四条是「导入 500 节点 Mermaid」。
+  现在导入器写好了、语料也验过了，但人在界面上够不着它——只有测试能调用它。
+  这一条把最后一段接上。
+
+  **导入是一条命令，这一条值得强调。** 导入 500 个节点如果直接改文档，
+  撤销就没法做，而「导错了想退回去」是导入之后最常见的第一个动作。
+  走命令层意味着这 500 个节点要能一次装进一条命令的 memento 里——
+  这一点要在侦察里核实代价，若不可行则如实记下并给出替代口径。

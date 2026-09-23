@@ -1,0 +1,44 @@
+id: P4-03
+title: 图层面板与归属入口
+phase: 4
+status: pending
+depends_on: [P4-01, P4-02]
+estimated_loc: 450
+files:
+  create:
+    - DuetDiagram.App/Controls/LayerPanel.axaml
+    - DuetDiagram.App/Controls/LayerPanel.axaml.cs
+    - DuetDiagram.App/ViewModels/LayerPanelViewModel.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.E2E.Tests/LayerPanelTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerPanel"
+    expect: 全通过；面板上每一条操作都发出一条命令，列表顺序与文档里的图层顺序一致
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerRender"
+    expect: 全通过；在面板上点一下可见性开关，画布上那批元素跟着消失又出现
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PropertyPanel"
+    expect: 全通过；属性面板里那个「图层归属」字段不再是隐藏的，它给出的入口指向面板
+constraints:
+  - "**面板不许自己改文档。** 开关、改名、排序、移入都发命令——与工具栏同一条口径"
+  - "**列表顺序取文档里的顺序，不另存一份。** 面板自己维护一份顺序的话，撤销之后两边会对不上，而画面上看起来只是「顺序没变回来」"
+  - "**归属入口要能批量。** 多选之后一次移入同一个图层是一条命令，不是每条选中各发一次——后者在撤销时要按很多次，而用户眼里是一次操作"
+  - "**当前图层要有明确落点。** 新建的元素归到哪一层由它决定；没有它就只能归到缺省层，而用户以为自己在第二层上画"
+  - "锁定图层上的元素不许被拖进别的图层；被拖出去的那些也不能落在锁定层里，两种都要给出结构化错误"
+context:
+  - 方案 §9.1 的图层分区与 §9.2 的「右键节点 → 图层归属」
+  - "`DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs` 里 `layer` 字段现在是刻意隐藏的，注释说入口在图层面板"
+  - "`docs/Command-List.md` 里 `assign-layer` 是被字段表吸收的那一条（归属走 `set-node-field` 的 `layer` 字段）"
+scope_note: |
+  **面板是「图层」这件事唯一看得见的地方。** 属性面板里那个图层字段是**刻意隐藏**的——
+  它一次只看得到一个元素的归属，而图层这件事的意义在于「一层里有谁」。
+  所以归属入口放在面板上（多选之后移入），属性面板那一处继续隐藏，注释指向这里。
+
+  **这一条不碰渲染。** 可见性与锁定怎么影响绘制与命中是 P4-02 的事，
+  这一条只做面板与命令的接线。两条并行不冲突：P4-02 改 `SceneBuilder`/`HitTester`，
+  这一条改 `MainWindow`/`DiagramSession` 与新建的控件。

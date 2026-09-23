@@ -1,0 +1,49 @@
+id: P4-08
+title: 文本样式预设的命令与界面
+phase: 4
+status: pending
+depends_on: [P3-02, P3-01]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/DefineTextPresetCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/UpdateTextPresetCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/RemoveTextPresetCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ApplyTextPresetCommand.cs
+    - DuetDiagram.Core/Commands/TextPresetMemento.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Model/SupportingDefs.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Commands/Builtin/RemovePaletteEntryCommand.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - docs/Command-List.md
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/TextPresetCommandTests.cs
+    - DuetDiagram.E2E.Tests/TextPresetTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；四条命令的失败路径与成功路径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=TextPreset"
+    expect: 全通过；应用预设只改声明了的字段，未声明的逐层继承不变
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=TextPreset"
+    expect: 全通过；面板上选一个预设，选中元素的字体与字号跟着变，撤销一次全部还原
+constraints:
+  - "**应用预设是「叠加」不是「替换」。** 预设里未声明的字段保持原样（`TextStyle` 本来就是逐层继承的），整份替换会把用户单独调过的字号抹掉，而他只想要一套字体"
+  - "**应用预设要能批量。** 多选之后一次应用是一条命令，不是每个元素各发一次"
+  - "**删预设要查引用。** 与调色板删条目同一条口径；顺带核一下 `RemovePaletteEntryCommand` 当初漏扫 `TagDef.Color` 的那类问题在预设上有没有同形的"
+  - "**预设进视觉哈希**（`TextPresets` 已经在视觉段），所以四条命令都报纯外观变更"
+  - "**样式字段仍走白名单。** 预设里的字段名不认识就拒绝，并把可用字段列在错误里——放行未知字段的话，渲染层拿到一个不认识的名字只会静默按默认画"
+context:
+  - 方案 §9.1 的属性面板「文本/字体」节与 §6.2 的样式白名单
+  - "`DuetDiagram.Core/Model/SupportingDefs.cs` 的 `TextStylePreset`：IR 有、序列化有、哈希有，命令与界面都没有"
+  - "`DuetDiagram.Core/Commands/Builtin/RemovePaletteEntryCommand.cs` 是同类命令的现成骨架"
+scope_note: |
+  **这是「调色板」题材里少掉的那一半。** 调色板管的是填充、描边与文字颜色，
+  而字号、字体、粗细这些管不着——它们在 `TextStyle` 里。预设就是文本样式的那份命名清单，
+  两者合起来才叫「样式可复用」。
+
+  它也是后面富文本那一条的前置：富文本要按 run 存样式，而 run 的样式从哪来、
+  有没有名字，答案就是预设。所以它排在富文本前面。

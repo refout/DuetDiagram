@@ -1,0 +1,47 @@
+id: P4-17
+title: PNG 导出
+phase: 4
+status: pending
+depends_on: [P4-16]
+estimated_loc: 440
+files:
+  create:
+    - DuetDiagram.Render/Export/BitmapExporter.cs
+    - DuetDiagram.Render/Export/BitmapOptions.cs
+  modify:
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - DuetDiagram.App/SelfTest.cs
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/BitmapExportTests.cs
+    - DuetDiagram.Llm.Tests/ExportToolTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=BitmapExport"
+    expect: 全通过；尺寸、缩放、背景、裁剪范围各有用例，且同一份绘制列表导出两次逐像素相同
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；`diagram_export` 的 `png` 不再返回「还没接上」
+  - command: dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/ci-selftest.png
+    expect: 退出码 0；自检那条路改走新的导出器之后仍然产出位图，且绘制列表被消费完
+constraints:
+  - "**导出必须消费绘制列表，与 SVG 同一条口径。** 不许重新遍历文档——两条绘制路径迟早对不上"
+  - "**导出必须无头。** 它要被 MCP 服务端与内部模型那条路调用，而那两处没有窗口平台。依赖窗口的话，命令行导出会失败而界面上一切正常"
+  - "**背景与透明度要显式给。** 缺省透明的话，PNG 贴到白底文档里会变成黑底——这是最常见的「导出看起来坏了」"
+  - "**裁剪范围要能选**：整份内容的外接框、或页面尺寸。只给一种的话，另一种场景要用户自己去裁"
+  - "**缩放要按倍数给，不给像素宽度。** 给宽度的话，同一份文档导出两次（一次 1000px、一次 2000px）字体的渲染结果会有细微差别，而用户以为是自己写错了"
+  - "**导出是确定性的**：同一份绘制列表与同一组选项导出两次逐像素相同。Skia 的某些抗锯齿开关在不同机器上不一致，这一条要在侦察里核实"
+  - "**导出是只读的，不进命令总线**，与 `diagram_export` 现有口径一致"
+context:
+  - 方案 §三 架构里「渲染层包含导出（SVG/PNG/PDF）」
+  - "`DuetDiagram.Render/SkiaTextMeasurer.cs` 说明渲染层本来就依赖 SkiaSharp，无头光栅化不需要窗口平台"
+  - "`DuetDiagram.App/SelfTest.cs` 现在自己脱屏渲染一帧存 PNG，这一条之后应该改走同一个导出器"
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `png` 分支现在返回结构化「还没接上」"
+scope_note: |
+  **PNG 是自检与取证要用的那一档，不只是给用户用的。** 现在 `SelfTest` 自己写一份
+  存位图的代码，而那条路只在自检里跑过。导出器落地之后两条并一条：
+  自检产出的位图就是导出器的产出，CI 上那份证据图从此验的是真导出路径。
+
+  **PDF 不在这一条里。** 方案把 PDF 的选型标成「Phase 4 验证」，
+  也就是它的落点还没定（矢量 PDF 还是位图嵌入）。两件事混在一条里的话，
+  选型的不确定性会拖住 PNG 这条已经确定的。

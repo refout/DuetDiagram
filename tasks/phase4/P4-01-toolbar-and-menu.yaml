@@ -1,0 +1,49 @@
+id: P4-01
+title: 工具栏与菜单栏骨架
+phase: 4
+status: pending
+depends_on: [P3-16]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - DuetDiagram.App/Controls/ToolBar.axaml
+    - DuetDiagram.App/Controls/ToolBar.axaml.cs
+    - DuetDiagram.App/Controls/MenuBar.axaml
+    - DuetDiagram.App/Controls/MenuBar.axaml.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.E2E.Tests/ToolBarTests.cs
+    - DuetDiagram.E2E.Tests/MenuBarTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ToolBar"
+    expect: 全通过；工具栏每一条点下去都发出一条命令，文档版本加一
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MenuBar"
+    expect: 全通过；菜单项的启用状态与选中、只读门、撤销栈对得上，没有哪一项点了什么都不发生
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+    expect: 全通过；被禁用的条目给出的理由与错误码呈现表里那一条一致
+constraints:
+  - "**条目按注册的方式组织，不许把清单写死在一个文件里。** 后面每一条（图层、页面、组合、调色板、形状库、模板、富文本、导出）都要往里加条目；写死的话每一条都要改同一个文件，而两个 agent 同时改一个文件就是一次冲突"
+  - "**工具栏与菜单不许自己改文档。** 每一条都发一条命令，与画布上直接操作走同一条通路——自己改文档的话，「人和 LLM 能力对等」当场不成立：LLM 那边没有工具栏可点，那条修改就缺入口"
+  - "**启用状态由上下文算，不写死。** 没有选中时对齐不可用、只读文档上一切写入不可用。写死的启用状态会在文档变只读之后还留着能点的按钮，而那就是一个能造成损坏的入口"
+  - "工具栏与菜单不持有文档，只发命令、读选中状态与撤销栈"
+  - "**禁用要给理由，不能只是灰掉。** 灰掉而不说为什么，用户会以为程序坏了；理由走错误码呈现表那张表，与别处的提示同一个口径"
+context:
+  - 方案 §9.1 的六个分区与 §9.2 的核心交互清单
+  - "`docs/GUI.md` 的「尚未实现」表里第一行就是菜单栏、工具栏、图层面板"
+  - "`DuetDiagram.App/Services/DiagramSession.cs` 是会话核心，命令入口与只读门都在那里"
+  - "`DuetDiagram.App/Services/ErrorPresenter.cs` 与 `ErrorPresenterTable.cs` 是禁用理由该走的那条路"
+scope_note: |
+  **这一条只搭骨架与接得上的那几档，不做后面几档的内容。** 「选择/连线/对齐/布局」
+  四档现在就有命令可发；「形状/导出」两档先留出位置并注册空实现，由后面那几条各自加条目。
+  菜单栏同理：文件（新建/打开/保存）、编辑（撤销/重做/删除）、视图（缩放/诊断面板）
+  这一轮接上，导入与导出那两个入口留到导入导出那几条。
+
+  **为什么它排在第一位。** 图层面板、调色板面板、形状库、模板库都要挂在工具栏或菜单上，
+  而它们各自又都是独立的界面任务。先把「挂的位置」与「注册的方式」定下来，
+  后面每一条才能各写各的文件、各改各的条目表。

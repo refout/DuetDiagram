@@ -1,0 +1,50 @@
+id: P4-13
+title: 富文本的排版与渲染
+phase: 4
+status: pending
+depends_on: [P4-12]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Render/RichTextLayout.cs
+  modify:
+    - DuetDiagram.Render/TextLayout.cs
+    - DuetDiagram.Render/ITextMeasurer.cs
+    - DuetDiagram.Render/SkiaTextMeasurer.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Render/DrawCommand.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.axaml.cs
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/RichTextLayoutTests.cs
+    - DuetDiagram.Render.Tests/RichTextRenderTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=RichTextLayout"
+    expect: 全通过；折行、行内样式混排、段间距、对齐各有用例，且同一个输入每次排出同样的结果
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SceneSnapshot"
+    expect: 全通过；富文本节点的绘制命令里每个 run 一段，样式逐段带上
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=TextMeasurement"
+    expect: 全通过；量出来的块尺寸与画出来的内容一致（量错的表现是文字溢出节点边框）
+constraints:
+  - "**排版必须确定性。** 同一个内容与同一份字体度量每次排出逐字相同的结果——用哈希做缓存键的地方全靠这一条，不确定的话视觉哈希会抖"
+  - "**折行不许把单词切断。** 一个词比整行还长时才许硬切。切错的表现是「英文单词中间断行」，而中文按字断行是正常的，两者要分开判"
+  - "**行高取行内最高的那个 run。** 取平均或取第一个的话，混排大字号的那一行会与下一行叠在一起"
+  - "**节点尺寸由排版结果算，不许按字符数估。** 估算的表现是「有的节点文字溢出、有的留一大片空白」，而两种在画面上都不报错"
+  - "**`TextLayout` 现在的口径是「只认真正的换行符、不做自动折行」，这一条要扩它而不是另写一份。** 另写一份的话，纯文本与富文本会走两条排版路径，而两条的边距与对齐必然对不上"
+  - "**度量接口要保持可注入。** 测试要用假度量（`FakeTextMeasurer`），真实现要能换——写死 Skia 的话，排版用例就跑不了"
+context:
+  - 方案 §9.2 的富文本编辑与 §10 的性能策略（排版在渲染层，测量由绘图库承担）
+  - "`DuetDiagram.Render/TextLayout.cs`：现在只按真正的换行符切分，不做自动折行"
+  - "`DuetDiagram.Render/ITextMeasurer.cs` 与 `SkiaTextMeasurer.cs` 是度量那两处"
+  - "`DuetDiagram.Render/SceneBuilder.cs` 把量出的块尺寸加成节点尺寸"
+  - "`DuetDiagram.Render.Tests/FakeTextMeasurer.cs` 是测试用的度量实现"
+scope_note: |
+  **排版是富文本里最难的一块，也是唯一一块「做错了画面上看得出来」的。**
+  模型错了会在序列化上暴露，界面错了会在操作上暴露，而排版错了只表现为
+  「这几行字看着有点怪」——所以这一条的用例密度要比别处高，且判据要写成
+  可数的（行数、每行的起止、块尺寸），不写成「看起来对」。
+
+  **不做竖排、不做双向文字、不做连字。** 三样都是各自独立的排版工程，
+  而方案的判据只说「富文本与数学正确」。竖排与双向文字记进 followups，
+  与 Phase 5 的 i18n 那一条接上。

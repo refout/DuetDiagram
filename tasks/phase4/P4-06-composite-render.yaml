@@ -1,0 +1,46 @@
+id: P4-06
+title: 组合的渲染、命中与拖动
+phase: 4
+status: pending
+depends_on: [P3-03]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Render/Composites/CompositeFrame.cs
+  modify:
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Render/HitTester.cs
+    - DuetDiagram.Render/DrawCommand.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.axaml.cs
+    - DuetDiagram.App/Interaction/DragSession.cs
+    - DuetDiagram.App/Interaction/DragController.cs
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/CompositeFrameTests.cs
+    - DuetDiagram.E2E.Tests/CompositeDragTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CompositeFrame"
+    expect: 全通过；四种形态各自画出可辨的框，泳道有方向、子流程有折叠标记
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Composite"
+    expect: 全通过；拖组合框带动全部成员，松手算一次操作，撤销一次全部回位
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=HitTest"
+    expect: 全通过；点组合框的空白处选中的是组合本身，点成员选中的是成员
+constraints:
+  - "**组合框画在成员下面。** 画在上面的话，成员被一个半透明的框罩住，颜色全部偏一层——而用户以为是自己的配色不对"
+  - "**四种形态要一眼分得开，且不靠颜色。** 与变更高亮同一条口径：颜色只是辅助线索。分组用实线圆角框、泳道用带方向的池+道、子流程用双线框加折叠标记、组合节点按普通节点画但可展开"
+  - "**拖组合带动成员，但拖动期间不改文档。** 与节点拖拽同一条口径：拖动中只改叠加层，松手才发一条命令（组合的固定位置 + 重布局）"
+  - "**拖动的落点判据与 P2-06 一致**：重叠固定节点被挡下、整次拖拽算一步撤销"
+  - "**组合的坐标从哪来要核。** 组合本身没有坐标字段，框的大小与位置由成员算出来——那么「拖组合」实际改的是全部成员的固定位置。这一点必须在 `docs/Render-Pipeline.md` 里写明，否则下一个人会去找一个不存在的组合坐标"
+  - "折叠状态（`Collapsed`）在结构哈希里，展开与折叠要触发重布局——这一条只做绘制与命中，展开折叠的交互留 followups"
+context:
+  - 方案 §9.2 的「框选右键 → 创建分组 / 泳道 / 子流程」与 §4.1 的组合定义
+  - "`DuetDiagram.Core/Model/Composites.cs` 的四种派生记录与 `CompositeLimits.MaxDepth`"
+  - "`DuetDiagram.App/Interaction/DragController.cs` 是节点拖拽的提交路径，可以照抄骨架"
+scope_note: |
+  **组合在画布上现在是隐形的。** 命令能建、校验会管、布局引擎按嵌套关系排，
+  但画面上什么都看不到——成员只是各自画各自的。这一条让组合可见、可点、可拖。
+
+  **「组合全部可用」这条判据由两条任务合起来满足**：P4-05 给入口（建、解散、移入），
+  这一条给呈现与操作（看得见、点得中、拖得动）。两条都落地之后，
+  §14.3 的 Phase 4 判据第二条才算有人验。

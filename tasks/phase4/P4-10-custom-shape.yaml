@@ -1,0 +1,50 @@
+id: P4-10
+title: 自定义形状——路径数据
+phase: 4
+status: pending
+depends_on: [P4-09]
+estimated_loc: 420
+files:
+  create:
+    - DuetDiagram.Core/Shapes/PathShape.cs
+    - DuetDiagram.Core/Shapes/PathParser.cs
+  modify:
+    - DuetDiagram.Core/Model/NodeDef.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Core/Serialization/DiagramHashing.cs
+    - DuetDiagram.Core/Shapes/ShapeRegistry.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Mermaid/Export/MermaidExporter.cs
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/PathShapeTests.cs
+    - DuetDiagram.Render.Tests/CustomShapeTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=PathShape"
+    expect: 全通过；路径解析认得的语法各有用例，认不出的给结构化错误而不是静默丢弃
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CustomShape"
+    expect: 全通过；同一个路径在缩放、端口位置与标签排版三处都算得对
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 全通过；路径非法、引用了不存在的形状名，两种都报结构化错误
+constraints:
+  - "**路径只许用形状坐标系的归一化坐标**（0..1 的方框），不许用绝对像素。用像素的话，同一个形状在不同尺寸的节点上会画错，而看起来像「形状没做对」"
+  - "**认不出的路径指令要拒绝，不许跳过。** 跳过的话画出来的形状缺一块，而用户以为是他自己写错了——错误要给出行号与那一段原文"
+  - "**路径进视觉哈希、不进结构哈希。** 形状不改坐标；但换形状会改端口位置，而端口位置影响走线——这一点要在侦察里核实，若端口位置确实依赖形状，则它必须进结构哈希"
+  - "**渲染层不许有第二条画路径的代码。** 内置形状与自定义形状走同一个提供者接口，否则自定义形状会是「另一个画法」，两边的边距与标签位置对不上"
+  - "**Mermaid 导出要把自定义形状列进丢失清单。** 现在 `ExportReport` 已经有这份清单（端口、富文本、数学模式、图层、页面、标签、动作），自定义形状要加进去——静默丢失会让模型以为导出的文本是全部内容"
+context:
+  - 方案 §19 的 `IShapeProvider`（提供形状定义列表）
+  - "`DuetDiagram.Core/Model/DiagramEnums.cs` 的 `NodeShape`（P4-09 之后几何搬到提供者）"
+  - "`DuetDiagram.Mermaid/Export/ExportReport.cs` 里那份丢失清单"
+  - "`docs/IR-Schema.md` 里 `NodeDef` 那一段：形状现在是八个固定值"
+scope_note: |
+  **自定义形状是形状库的一半，没有它「形状库」就只是「八个内置形状的列表」。**
+  但它的代价要如实记：一份带自定义形状的文档，在别处打开时要么认不出、
+  要么画得不一样。所以这一条同时要做的是**拒绝**——认不出就报错，
+  不许退回矩形，也不许画一半。
+
+  **不做形状的导入**（从 SVG 文件读路径、从 draw.io 形状库导入）。
+  它要决定文件放哪、坐标怎么归一化、许可证怎么处理，而方案没说。
+  这一条只做「路径数据作为字段存在 IR 里」这一层，导入记进 followups。

@@ -1,0 +1,50 @@
+id: P4-16
+title: SVG 导出
+phase: 4
+status: pending
+depends_on: [P3-09]
+estimated_loc: 470
+files:
+  create:
+    - DuetDiagram.Render/Export/SvgExporter.cs
+    - DuetDiagram.Render/Export/SvgOptions.cs
+  modify:
+    - DuetDiagram.Render/DrawList.cs
+    - DuetDiagram.Render/DrawCommand.cs
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/SvgExportTests.cs
+    - DuetDiagram.Llm.Tests/ExportToolTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SvgExport"
+    expect: 全通过；每一种绘制命令都有一条对应的 SVG 元素，没有哪一类被静默跳过
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SceneSnapshot"
+    expect: 全通过；同一份绘制列表导出两次逐字相同（导出必须是确定性的）
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；`diagram_export` 的 `svg` 不再返回「还没接上」，丢失清单如实带上
+  - command: dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/ci-selftest.png
+    expect: 退出码 0；画布上画的东西与导出出来的 SVG 元素逐类对得上（这一条防的是「导出与画布是两条绘制路径」）
+constraints:
+  - "**导出必须消费绘制列表，不许重新遍历文档。** 重新遍历的话，导出与画布是两条绘制路径，而两条迟早对不上——对不上的表现是「导出的图与屏幕上不一样」，而两边各自都自洽"
+  - "**文字这一档要先定：转路径还是留 `<text>`。** 转路径视觉一致但不含文字、搜索不到、也没法在 draw.io 里改；留 `<text>` 可编辑但依赖对方有同一份字体。两条路各有代价，由侦察定，定完写进 `docs/Render-Pipeline.md`，并把代价如实记在丢失清单里"
+  - "**导出要确定性。** 同一份绘制列表导出两次逐字相同——带时间戳或随机标识的话，SVG 没法进版本控制，而「导出的图有没有变」这个问题就永远答不了"
+  - "**坐标系要显式写出来。** 只写元素不写 viewBox 的话，不同查看器里的尺寸不一样，而用户以为是导出错了"
+  - "**每一类绘制命令都要有对应的 SVG 元素，且要有用例逐类核。** 漏一类的话，导出少画一样东西而没有任何报错——这类静默丢失在本仓已经踩过一次"
+  - "**丢失清单要原样带给调用方。** 与 Mermaid 导出同一条口径：静默丢失会让模型以为导出的文件就是全部内容"
+  - "**导出是只读的，不进命令总线。** 与 `diagram_export` 现有口径一致：版本号不动、历史栈不进、广播不发"
+context:
+  - 方案 §14.3 的「导出 SVG 给同事 draw.io 打开，视觉一致」与 §三 架构里「渲染层包含导出（SVG/PNG/PDF）」
+  - "`DuetDiagram.Render/DrawList.cs` 与 `DrawCommand.cs` 是导出要消费的那份中间表示"
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `svg` 分支现在返回结构化「还没接上」"
+  - "`DuetDiagram.App/SelfTest.cs` 是脱屏渲染一帧那条路，导出与它共用同一份绘制列表"
+scope_note: |
+  **这一条是「导入导出无损」那条判据的出口之一。** Phase 4 的 DoD 里有「导入导出无损」，
+  而它现在无处可验：能导出的只有 Mermaid 文本，而 Mermaid 的表达力比 IR 弱得多，
+  「无损」根本谈不上。SVG 是第一个**能承载完整视觉**的导出格式，也是 §14.3
+  那条端到端场景（导给同事用 draw.io 打开）真正需要的东西。
+
+  **不做「导入 SVG」。** 反方向要把 SVG 的元素反推成 IR，而 SVG 里没有语义
+  （哪个是节点、哪个是边、分组框是谁）——那是另一个工程，方案也没要求。

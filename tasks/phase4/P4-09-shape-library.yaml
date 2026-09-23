@@ -1,0 +1,56 @@
+id: P4-09
+title: 形状库与形状提供者接口
+phase: 4
+status: pending
+depends_on: [P4-01]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Core/Shapes/IShapeProvider.cs
+    - DuetDiagram.Core/Shapes/ShapeDefinition.cs
+    - DuetDiagram.Core/Shapes/BuiltinShapeProvider.cs
+    - DuetDiagram.Core/Shapes/ShapeRegistry.cs
+    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml
+    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml.cs
+  modify:
+    - DuetDiagram.Core/Model/DiagramEnums.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - DuetDiagram.Llm/Tools/StyleTool.cs
+    - docs/Architecture.md
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/ShapeRegistryTests.cs
+    - DuetDiagram.Render.Tests/ShapeProviderTests.cs
+    - DuetDiagram.E2E.Tests/ShapeLibraryTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=ShapeRegistry"
+    expect: 全通过；注册表里八个内置形状齐，名字与枚举逐条对得上，重复注册被拒
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=ShapeProvider"
+    expect: 全通过；每个形状的几何由提供者给出，渲染层按几何画而不是按枚举分支
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ShapeLibrary"
+    expect: 全通过；面板里点一个形状，选中节点换成它，撤销还原
+  - command: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
+    expect: 退出码 0，产出原生可执行文件；注册表在原生编译后仍然可用（这一条是它能不能上生产的前提）
+constraints:
+  - "**不许在运行时反射加载程序集。** 发布走原生编译，反射加载在原生下不可用——它会在开发机上一切正常、发布之后静默少掉几个形状。第三方形状的注册要走编译期能看见的那条路，这一点必须在侦察里定下来并写进 `docs/Architecture.md`"
+  - "**枚举不许删。** 八个形状已经写进序列化与哈希，删掉一个就是一次数据迁移。做法是枚举保留、几何搬到提供者里，两边由一条门禁核一致"
+  - "**几何由提供者给出，渲染层不再按枚举分支。** 现在 `DiagramCanvas` 里那个八分支 switch 就是「形状库」这件事不存在的原因：加一个形状要改渲染层"
+  - "**提供者不许访问文件系统或网络**（方案 §19 的沙箱要求）。这一条要把判据写成可执行的：接口上不给任何 IO 能力，且注册表在加载时校验"
+  - "**未知形状名要拒绝，不许退回矩形。** 退回的话，一份来自新版本的文档在旧版本里打开，用户看到的是「形状变了」而不是「认不出来」"
+  - "方案 §19 说第三方实现要过沙箱验证——这一条只落接口与内置实现，第三方加载那一步**不做**，写进 followups 并说明原因"
+context:
+  - 方案 §19 的 `IShapeProvider` 与 §9.1 工具栏的「形状」档
+  - "`DuetDiagram.Core/Model/DiagramEnums.cs` 的 `NodeShape` 八个枚举值"
+  - "`DuetDiagram.App/Controls/DiagramCanvas.cs` 里那个覆盖八个形状的 switch"
+  - "`DuetDiagram.Llm/Tools/StyleTool.cs` 的 `set-shape` 动作与它的白名单"
+scope_note: |
+  **接口是这一条的目的，八个内置形状只是它的第一个实现。** 现在的形状是枚举 + 渲染层的
+  switch，加一个形状要同时改三处（枚举、渲染、工具的取值表）。搬到提供者之后，
+  加形状只改一处——这是「形状库」这个词在方案里的意思。
+
+  **原生编译那一条是这一条的成败判据。** 插件机制与原生编译天然冲突，
+  而本仓从 P0-02 起就把原生发布当成前提。所以这一条第一件事是核「编译期注册能到什么程度」，
+  核不出来就照实记成限制，而不是先做一个在开发机上能跑、发布之后少东西的版本。

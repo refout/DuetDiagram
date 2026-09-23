@@ -1,0 +1,47 @@
+id: P4-05
+title: 框选与右键上下文菜单
+phase: 4
+status: pending
+depends_on: [P4-01, P3-03]
+estimated_loc: 460
+files:
+  create:
+    - DuetDiagram.App/Interaction/MarqueeSession.cs
+    - DuetDiagram.App/Controls/ContextMenuBuilder.cs
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.axaml.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.E2E.Tests/MarqueeTests.cs
+    - DuetDiagram.E2E.Tests/ContextMenuTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Marquee"
+    expect: 全通过；框选选中范围内的元素、框选期间不改文档、松手才算一次选中
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ContextMenu"
+    expect: 全通过；右键菜单的条目随选中内容变化，每一条点下去发一条命令
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Composite"
+    expect: 全通过；框选三个节点右键建分组，得到一条命令、一次撤销能整份还原
+constraints:
+  - "**框选期间不许改文档。** 与拖拽同一条口径：拖动中只改叠加层，松手才作为一条操作落定。边选边改的话，撤销要按很多次，而用户眼里是一次框选"
+  - "**框选的判据与命中测试同一条。** 两套判据的表现是「框进去的元素点不中、点得中的框不进」——而两处各自都自洽"
+  - "**不可见与锁定图层上的元素框不进来。** 见 P4-02 那条口径：命中测试跳过它们，框选也必须跳过，否则锁上之后还能被批量改"
+  - "**组合四种形态各有各的菜单条目，不许合成一个「新建组合」。** 分组、泳道、子流程、组合节点的参数与语义不同（泳道要方向、子流程要折叠），合成一个之后参数没地方给"
+  - "**菜单条目从注册表来。** 与工具栏同一套，条目与命令的对应关系在一处，别在控件里再写一遍"
+  - "右键在空白处与在元素上是两套条目：空白处是「粘贴/全选/新建泳道」，元素上是「编辑/组合/图层/删除」"
+context:
+  - 方案 §9.2 的「框选右键 → 创建分组 / 泳道 / 子流程」与「右键节点 → 编辑链接、添加动作、pin/unpin、图层归属」
+  - "`DuetDiagram.App/Controls/DiagramCanvas.axaml.cs` 的指针处理现在只有点选、拖拽、连线、重连，没有框选"
+  - "`tasks/phase3/P3-03-composite-layer-commands.yaml` 记着「命令先落地，界面入口留到 Phase 4」"
+  - "`DuetDiagram.App/Interaction/SelectionSet.cs` 是点选结果，多选要扩到这里"
+scope_note: |
+  **这一条是「组合」在界面上唯一的入口。** P3-03 把四类组合合成三条命令落了地，
+  但界面上一个入口都没有——也就是说现在只有 LLM 能建分组，人不能。
+  而 §14.3 的 Phase 4 判据里有一条是「组合全部可用」。
+
+  **框选与多选是同一件事的两半。** 多选现在只有单选（`SelectionSet` 是点选的产物），
+  而框选的结果就是一个多选集合。所以这一条顺带把多选补齐，
+  属性面板的「多个值」那条路（P2-05 已经做了）才有真的来源。

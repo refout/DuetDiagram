@@ -1,0 +1,52 @@
+id: P4-02
+title: 图层的可见性、锁定与渲染消费
+phase: 4
+status: pending
+depends_on: [P3-03]
+estimated_loc: 420
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/SetLayerVisibleCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/SetLayerLockedCommand.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Model/PageAndLayer.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Render/HitTester.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - docs/Command-List.md
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/LayerVisibilityTests.cs
+    - DuetDiagram.Render.Tests/LayerRenderTests.cs
+    - DuetDiagram.E2E.Tests/LayerVisibilityTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Atomicity"
+    expect: 全通过；两条新命令的失败路径与成功路径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayerVisibility"
+    expect: 全通过；可见性与锁定各自的作用范围清楚，改一条不影响另一条
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=LayerRender"
+    expect: 全通过；不可见图层不产生绘制命令也不被命中，锁定图层画出来但点不中
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerRender"
+    expect: 全通过；关掉一个图层之后画布上少一批元素，锁上之后拖不动
+constraints:
+  - "**可见与锁定是两件事，不许合成一个开关。** 可见是不画；锁定是画出来但不能改、点不中。合成一个的话，「我想看着它但别动它」这个最常见的诉求表达不出来"
+  - "**绘制次序按图层顺序（数值大的在上面）。** 不看顺序的话，图层就退化成一个分组标签，而用户以为自己在控制前后关系"
+  - "**没有图层的元素按一个隐含的缺省图层处理，位置固定。** 让它随图层顺序浮动的话，每加一个图层就有一批元素莫名其妙地换前后"
+  - "**命中测试跳过不可见与锁定，绘制列表只跳过不可见。** 两处判据不一致的表现是「点得中一个看不见的东西」"
+  - "**变更类型要如实报。** 三个字段（可见、锁定、顺序）都在**视觉哈希**里，所以只报外观变更；但锁定还改变命中测试的结果——要核宿主是不是只在结构变更时重建命中索引，是的话这一条要一并处理，否则锁上之后还能点中"
+  - "两条命令都要有原子性用例；`RestoreCore` 必须还原到改之前的值"
+context:
+  - 方案 §9.1 的图层面板（可见性与锁定是那两个开关）
+  - "`docs/IR-Schema.md` 里 `LayerDef` 那一段：字段在、命令与消费方都没有"
+  - "`tasks/phase3/P3-03-composite-layer-commands.yaml` 的 followups 记着「`visible`/`locked` 没有命令能改，渲染层也还没读图层」"
+  - "`DuetDiagram.Core/Serialization/DiagramHashing.cs` 里图层三项都在视觉段，可以照这个口径定变更类型"
+scope_note: |
+  **这一条把「图层」从一份数据变成一件能用的东西。** P3-03 落地的三条图层命令
+  （建/改名/排序）都报纯外观变更，而渲染层根本没读图层——也就是说现在图层是一个
+  只有命令、没有效果的字段。这一条补上效果，图层面板（P4-03）才有东西可显示。
+
+  **两条命令而不是一条。** P3-03 把建、改名、排序各写了一条，三条的参数形状各不相同。
+  可见与锁定都是「改一个布尔」，形状相同，所以也可以合成一条由参数给出字段名——
+  这一点由这一条的侦察定，定完在 `docs/Command-List.md` 里如实记。

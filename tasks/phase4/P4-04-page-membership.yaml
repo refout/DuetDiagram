@@ -1,0 +1,61 @@
+id: P4-04
+title: 页面的元素归属与翻页
+phase: 4
+status: pending
+depends_on: [P3-04]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Core/Commands/Builtin/MoveToPageCommand.cs
+  modify:
+    - DuetDiagram.Core/Model/NodeDef.cs
+    - DuetDiagram.Core/Model/EdgeDef.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Core/Serialization/DiagramHashing.cs
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Commands/Builtin/AddNodeCommand.cs
+    - DuetDiagram.Core/Commands/Builtin/ConnectEdgeCommand.cs
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.App/Controls/PageTabs.axaml
+    - DuetDiagram.App/Controls/PageTabs.axaml.cs
+    - DuetDiagram.App/ViewModels/PageTabsViewModel.cs
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - docs/IR-Schema.md
+    - docs/Command-List.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/PageMembershipTests.cs
+    - DuetDiagram.E2E.Tests/PageTabsTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=PageMembership"
+    expect: 全通过；元素归属某一页，删页时那一页上的元素要一并处理且撤销能还原
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 全通过；新增的 Memento 记录都补了 [JsonDerivedType]
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PageTabs"
+    expect: 全通过；翻页之后画布上只剩那一页的元素，标签栏的顺序与文档一致
+  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ToolDispatch"
+    expect: 全通过；`diagram_export` 的 `pageId` 不再返回「还没接上」，按页导出得到的是那一页
+constraints:
+  - "**归属字段要同时加在节点与边上。** 只加节点的话，跨页的边会被算进哪一页就由它两端的节点决定，而用户会看到一条边在两页上都画出来"
+  - "**缺省页要有明确口径。** 没声明归属的元素属于哪一页，要在校验与渲染两处用同一个判据；两处不一致的表现是「翻页之后有几个元素赖着不走」"
+  - "**归属进结构哈希。** 换页会改变这一页里有什么，也就改变这一页的布局结果——报成外观变更的话，翻页之后不重排"
+  - "**删页不是删元素。** 删掉一页之后那一页上的元素要么一并删、要么回到缺省页，两条路都行，但**必须在命令清单里写清是哪一条**，且撤销要能整份还原"
+  - "`diagram_read` 与 `diagram_export` 的 `pageId` 参数现在返回结构化「还没接上」，这一条之后不许再返回它"
+  - "新增的字段要在 `FieldRegistry` 里登记，否则属性面板与 `set-node-field` 都够不着它"
+context:
+  - 方案 §9.1 的页面标签栏、§4.1 的 IR 集合
+  - "`DuetDiagram.Core/Model/PageAndLayer.cs` 里 `PageDef` 的注释：只取最小字段集，等多页交互开工时再补"
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 里 `pageId` 那一段：认下这个参数而按整份文档回，会让调用方以为导出的是某一页"
+  - "`docs/IR-Schema.md` 里页面那一段：三样都能经命令层增删了，但渲染层与界面都还没读它们"
+scope_note: |
+  **这一条同时动了 IR、渲染与界面，因为它们本来就是一件事。** 只加归属字段不改渲染，
+  翻页没有效果；只做标签栏不加归属，翻页之后画布上什么都不会变。三条一起才是一条能验的判据。
+
+  **多页的「视口」这一轮不做。** 每页各自记住缩放与平移位置是常见的做法，但它要落到
+  sidecar 还是文档里是个新决定，而方案没说。这一轮翻页沿用同一个视口，
+  由这一条的侦察决定要不要记进 followups。
+
+  **画布上的元素归属哪一页由命令决定，不由界面猜。** 在第二页上画一个节点，
+  它归第二页——这件事走 `add-node` 的一个参数，而不是界面画完之后再补一条归属命令：
+  两条命令的话，中间那一刻的文档是自相矛盾的。

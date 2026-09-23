@@ -1,0 +1,48 @@
+id: P4-18
+title: PDF 导出——选型验证与落地
+phase: 4
+status: pending
+depends_on: [P4-17]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Render/Export/PdfExporter.cs
+    - reports/phase4-pdf.md
+  modify:
+    - DuetDiagram.Render/DuetDiagram.Render.csproj
+    - Directory.Packages.props
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - docs/Architecture.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/PdfExportTests.cs
+    - DuetDiagram.Llm.Tests/ExportToolTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=PdfExport"
+    expect: 全通过；页尺寸、多页、矢量与位图两条路的取舍各有用例
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；`diagram_export` 的 `pdf` 不再返回「还没接上」
+  - command: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
+    expect: 退出码 0；选中的 PDF 库在原生编译后可用（选型的第一条判据）
+constraints:
+  - "**先出选型报告再写代码。** 方案 §2 把 PDF 导出标成「QuestPDF / PdfSharpCore / 位图嵌入，Phase 4 验证」——也就是说主选没定。报告要核四条：原生编译、许可证、中文字体嵌入、矢量还是位图。四条里有一条不过就换下一个候选"
+  - "**许可证要单独核。** 三个候选里有的对商用有条件，而这一条选错不是技术债、是法律债——报告里要写明许可证与它的条件"
+  - "**中文字体必须嵌入。** 不嵌的话，导出的 PDF 在没有那份字体的机器上显示成方块，而本仓的用户与内容都以中文为主"
+  - "**矢量优先，位图作为兜底。** 位图嵌入是最省事的，但它与 PNG 导出重复了——PDF 的意义正在于矢量（缩放不糊、能选中文字）"
+  - "**新依赖进 `Directory.Packages.props` 并精确锁定**，与仓库约定一致"
+  - "**导出要确定性**，与 SVG/PNG 同一条口径"
+  - "**若四个候选都不满足，结论写成「不做 PDF」也可以，但要写明理由。** 判据里没有 PDF 这一条，方案把它列在选型表里是为了先验证"
+context:
+  - 方案 §2 的 PDF 导出选型与 §三 架构里「渲染层包含导出（SVG/PNG/PDF）」
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `pdf` 分支现在返回结构化「还没接上」"
+  - "`DuetDiagram.AotSmokeTest` 是原生编译可用性那条判据的落点"
+  - "`docs/Architecture.md` 的选型表是结论该写进去的地方"
+scope_note: |
+  **这一条按「选型验证」写，不按「实现一个导出器」写。** 两者的差别在于
+  验收判据：后者是「导出正确」，前者是「四条判据逐条有结论，结论写进文档」。
+  候选里没有满足全部四条的，就选满足得最多的那个并把缺口如实记下，
+  或者干脆记成「不做」——本仓在 P0-02 上已经立过一次「做不了就照实记」。
+
+  **`reports/phase4-pdf.md` 是这一条的产物之一，不是副产品。** 选型报告要能独立复现：
+  每条判据一个命令或一段代码，读的人不必信结论、可以自己跑。

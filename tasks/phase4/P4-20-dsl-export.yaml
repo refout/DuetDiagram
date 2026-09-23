@@ -1,0 +1,46 @@
+id: P4-20
+title: DSL 导出
+phase: 4
+status: blocked
+depends_on: [P3-09]
+estimated_loc: 400
+files:
+  create:
+    - DuetDiagram.Dsl/Export/DslExporter.cs
+    - DuetDiagram.Dsl/Export/DslExportReport.cs
+  modify:
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.Llm/DuetDiagram.Llm.csproj
+    - docs/DSL-Syntax.md
+    - docs/Architecture.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Dsl.Tests/DslExportTests.cs
+    - DuetDiagram.Dsl.Tests/DslRoundTripTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslExport"
+    expect: 全通过；每一种 IR 元素都有一条对应的写法，没有哪一类被静默跳过
+  - command: dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslRoundTrip"
+    expect: 全通过；导出再导入得到的文档与原来的结构哈希相同（这一条是「无损」的可验形式）
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；`diagram_export` 的 `dsl` 不再返回「还没接上」
+constraints:
+  - "**不许在决策门 1 关掉之前动手。** DSL 去留没有定论，判掉之后写出来的导出器要整个删掉——`diagram_export` 现在拒绝这一档正是这个理由"
+  - "**若决策门 1 的结论是「去掉 DSL」，这一条不是「完成」，是「删掉」**：把这条任务与 `DuetDiagram.Dsl` 的关系在 `tasks/README.md` 里如实记，并回到 `diagram_export` 把那一档的措辞从「还没有定论」改成「不支持」"
+  - "**往返无损是这一条唯一的判据形式。** 「导出正确」没法验；「导出再导入结构哈希相同」可以验，且它恰好是决策门 1 关心的那件事"
+  - "**丢失清单要原样带给调用方。** IR 的表达力严格强于 DSL（端口、富文本、数学、图层、页面、标签、动作都写不进去），静默丢失会让模型以为导出的文本是全部内容"
+  - "**导出方向不许反向影响语法。** 为了让导出好写而改语法的话，对比测试（P1-14）量到的东西就变了——那条测试是决策门 1 的输入，动它等于自己改判据"
+context:
+  - 方案 §13.8 的「导入导出」与 §13.5 的 P1-16 / P1-17 / P1-14
+  - "`DuetDiagram.Dsl` 现在只有词法、语法与语义映射三样，没有导出方向"
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `dsl` 分支现在返回「DSL 的导出方向还没实现，而 DSL 去留还没有定论」"
+  - "`reports/compare-blind/` 是决策门 1 的输入，它要人打分"
+scope_note: |
+  **这一条标 `blocked`，卡的是决策门 1。** 与 P0-02 那种「环境缺东西」不同，
+  这里卡的是一个人工判断：DSL 这套格式留不留。留的话这一条照做；
+  不留的话这一条要**删掉**，而且 `DuetDiagram.Dsl` 整个工程都要删——
+  也就是说这一条的前置不是「等人腾出手」，是「等人做一个决定」。
+
+  决策门 1 要读的是 `reports/compare-blind/` 下的人工评分，
+  而那份评分要人来打（P1-14 是同一个门）。所以这一条与 P1-14 一起等着，
+  谁先动取决于门先关哪一边。

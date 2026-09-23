@@ -1,0 +1,48 @@
+id: P4-14
+title: 富文本编辑界面
+phase: 4
+status: pending
+depends_on: [P4-13]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.App/Controls/RichTextEditor.axaml
+    - DuetDiagram.App/Controls/RichTextEditor.axaml.cs
+    - DuetDiagram.App/ViewModels/RichTextEditorViewModel.cs
+    - DuetDiagram.App/Interaction/TextEditSession.cs
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.axaml.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.E2E.Tests/RichTextEditorTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=RichTextEditor"
+    expect: 全通过；双击进编辑、改字、套样式、退出提交各一步，撤销一次还原整次编辑
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=RichText"
+    expect: 全通过；编辑出来的内容与模型里存的内容逐段逐段一致（界面不自己发明格式）
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+    expect: 全通过；编辑期间文档变成只读时给出提示并停下，不把半截内容写进去
+constraints:
+  - "**整次编辑算一条命令。** 与拖拽同一条口径：编辑期间改的是叠加层里的一份草稿，退出时才发一条 `set-rich-label`。每敲一个字发一条命令的话，撤销栈会被一次编辑灌满"
+  - "**退出即提交，除非明确取消。** Esc 取消、点别处提交——两条路都要在用例里，因为它们的差别正是「我的改动去哪了」这个问题"
+  - "**编辑控件不许直接改文档。** 它改的是会话里的草稿，提交那一步才走命令层；直接改的话，只读门与版本检查都被绕过"
+  - "**样式按钮的作用对象是选区，不是整个标签。** 没有选区时作用于随后输入的文字。作用于整个标签的话，用户想加粗一个词却整段变粗"
+  - "**这一轮只做六项行内样式**（粗体、斜体、下划线、删除线、字号、颜色），不做段落级对齐与列表。做全的话，编辑控件会长成一个独立的富文本编辑器，而它要维护的每一件事都与画布的排版重复一遍"
+  - "**编辑期间画布要停止重排。** 每敲一个字重排一次的话，节点边框会随着打字跳来跳去，而用户正在看的就是那一块"
+  - "**中文输入法要能正常用。** 组合输入（拼音候选）期间不许提交中间态——把拼音字母写进文档的话，用户得自己删掉"
+context:
+  - 方案 §9.2 的「双击节点 → 编辑标签（富文本模式）」
+  - "`DuetDiagram.App/Interaction/DragSession.cs` 是「编辑期间只改草稿、退出才提交」的现成形状"
+  - "`DuetDiagram.App/Services/DiagramSession.cs` 的只读门与命令入口"
+  - "`docs/GUI.md` 里「这一轮 `label` 只做纯文本——富文本属 Phase 4，不在这里做一半一个假的富文本控件」"
+scope_note: |
+  **这一条把「富文本」从数据变成一件能做的事。** 模型（P4-12）与排版（P4-13）
+  落地之后，文档里可以有富文本，但人没法输入——而 §9.2 里那条交互写的是「双击节点」，
+  也就是人这条路。LLM 那条路走 `diagram_edit`，与这一条无关。
+
+  **不做就地编辑的完整排版反馈。** 编辑期间显示的是同一套排版结果（因为复用 P4-13），
+  但光标定位、选区的像素级对齐这些属于文本编辑器本身的工程。这一轮用一个覆盖在节点上的
+  编辑控件，位置与尺寸取排版结果，看起来是就地编辑即可。

@@ -1,0 +1,55 @@
+id: P4-12
+title: 富文本内容模型
+phase: 4
+status: pending
+depends_on: [P4-08, P3-01]
+estimated_loc: 470
+files:
+  create:
+    - DuetDiagram.Core/Model/RichTextContent.cs
+    - DuetDiagram.Core/Commands/Builtin/SetRichLabelCommand.cs
+  modify:
+    - DuetDiagram.Core/Model/NodeDef.cs
+    - DuetDiagram.Core/Model/FieldRegistry.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Core/Serialization/DiagramHashing.cs
+    - DuetDiagram.Core/Serialization/DiagramJsonContext.cs
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Llm/Tools/ContextSummary.cs
+    - DuetDiagram.Llm/Tools/EditTool.cs
+    - DuetDiagram.Mermaid/Export/MermaidExporter.cs
+    - docs/IR-Schema.md
+    - docs/Command-List.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/RichTextTests.cs
+    - DuetDiagram.Llm.Tests/RichTextSummaryTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=RichText"
+    expect: 全通过；段落与行内样式的往返序列化、校验与哈希口径各有用例
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+    expect: 全通过；新增的 Memento 记录都补了 [JsonDerivedType]
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+    expect: 全通过；富文本在归一化摘要里有一个确定性的纯文本投影，且同一个内容每次投影相同
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
+    expect: 全通过；`diagram_edit` 改标签那条路对富文本与纯文本给出同样形状的结果
+constraints:
+  - "**`Label` 要留着，不许被富文本取代。** 它是纯文本投影，Mermaid 导出、归一化摘要、搜索都靠它。删掉它的话，那三处各自去解析富文本，而三处的降级写法必然不一样"
+  - "**纯文本与富文本只能有一份是权威。** 两份都存而不同步的话，会出现「画布上是新的、导出去是旧的」。口径由侦察定，定完写进 `docs/IR-Schema.md`"
+  - "**内容模型只许有段落与行内样式两级，不许有第三级。** 列表、表格、嵌套这些一旦进来，排版与导出都要跟着长，而方案的判据只说「富文本与数学正确」"
+  - "**富文本进视觉哈希。** `Label` 现在就在视觉段里，内容模型换上去之后要保证同样的改动仍然改变视觉哈希——漏掉的话，改了文字而版本号不动"
+  - "**认不出的样式字段要拒绝。** 与样式白名单同一条口径：放行的话，渲染层拿到不认识的名字只会按默认画"
+  - "**`RichText` 那个布尔与内容模型的关系要定清楚。** 两者同时存在的话会有四种组合，其中「布尔为真但没有内容」这一种必须有个明确含义"
+  - "**LLM 那侧要有纯文本投影且确定性。** 同一个内容每次投影必须逐字相同——否则归一化摘要会抖动，而摘要抖动会让每一轮都像是「文档变了」"
+context:
+  - 方案 §9.2 的「双击节点 → 编辑标签（富文本模式）」与 §4.1 的 IR
+  - "`DuetDiagram.Core/Model/NodeDef.cs` 的 `RichText` 布尔与 `MathMode` 枚举：现在是空壳字段"
+  - "`docs/IR-Schema.md` 的「尚未实现」一节列着「`NodeDef` 之外的富文本内容模型」"
+  - "`DuetDiagram.Llm/Tools/ContextSummary.cs` 是归一化摘要那一处，`diagram_read` 的输出口径在那里"
+scope_note: |
+  **这一条只做模型，不做排版与界面。** 模型先落地、先把序列化与哈希口径钉死，
+  排版（P4-13）与编辑界面（P4-14）才有一个稳定的东西可依赖。
+  三条一起做的话，模型会在排版的需求下反复改，而每次改都要动哈希与序列化。
+
+  **样式预设（P4-08）是这一条的前置。** 行内样式要不要能引用一个有名字的预设，
+  这个问题的答案在预设落地之后才清楚。先有预设，再定 run 的样式从哪来。

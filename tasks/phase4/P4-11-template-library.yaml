@@ -1,0 +1,60 @@
+id: P4-11
+title: 模板库与模板应用
+phase: 4
+status: pending
+depends_on: [P4-01, P4-09]
+estimated_loc: 470
+files:
+  create:
+    - DuetDiagram.Core/Templates/TemplateDocument.cs
+    - DuetDiagram.Core/Templates/TemplateInstantiator.cs
+    - DuetDiagram.Core/Commands/Builtin/InsertTemplateCommand.cs
+    - DuetDiagram.App/Services/TemplateCatalog.cs
+    - DuetDiagram.App/Controls/TemplatePanel.axaml
+    - DuetDiagram.App/Controls/TemplatePanel.axaml.cs
+    - DuetDiagram.App/Templates/Basic.template.json
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.App/DuetDiagram.App.csproj
+    - DuetDiagram.App/Services/MenuRegistry.cs
+    - DuetDiagram.App/Services/DocumentLaunch.cs
+    - docs/Architecture.md
+    - docs/IR-Schema.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Core.Tests/TemplateTests.cs
+    - DuetDiagram.E2E.Tests/TemplateTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Template"
+    expect: 全通过；装载、标识冲突消解、实例化与失败回滚各有用例
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Template"
+    expect: 全通过；从面板里取一个模板放进画布，得到的是一条命令、一次撤销能整份还原
+  - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=IrValidator"
+    expect: 全通过；实例化之后文档整体校验零问题（模板本身合法不代表拼进去之后合法）
+constraints:
+  - "**模板的标识冲突要消解，不许直接拼。** 模板里的节点标识在目标文档里可能已经存在；不消解的话拼出来的文档有两套同名标识，而校验器报错的位置离肇事的那一步很远"
+  - "**实例化是一条命令，不是一串命令。** 拼进去十个节点如果发十条命令，撤销要按十次，而用户眼里是一次「放了一个模板」"
+  - "**失败整体回滚。** 与所有命令同一条口径：模板里有一处非法就整体不落，不留半个模板在文档里"
+  - "**模板文件是文档片段，不是第二套 IR。** 它复用 `DiagramSerializer` 那套格式，只是少几个集合。另造一套格式的话，IR 每加一个字段就有两个地方要改"
+  - "**模板目录的路径要能注入。** 写死一个相对路径的话，装好之后运行目录一变就找不到了——而症状是「模板列表是空的」，没有任何报错"
+  - "**模板不带页面归属。** 带了的话，放进第二页的东西会被模板带回第一页"
+  - "**模板文件随程序集走要显式声明。** 构建输出里没有它的话，开发机上一切正常、发布之后模板列表是空的"
+context:
+  - 方案 §13.8 的「模板」与 §14.3 的「图层/页面/形状库/模板可用」
+  - "`DuetDiagram.Core/Serialization/` 是模板文件该复用的那套序列化"
+  - "`DuetDiagram.App/Services/DocumentLaunch.cs` 是「新建文档」那条路，模板入口要与它接上"
+  - "`DuetDiagram.App/DuetDiagram.App.csproj` 里已经有嵌入资源的先例（Skill 那份语法文档）"
+scope_note: |
+  **方案对「模板」只写了两个字，形态由这一条的侦察定。** 这里按 draw.io 的语境取
+  「可复用的一份文档片段」——一组节点、边、组合与它们的样式，放在
+  `DuetDiagram.App/Templates/` 下作为独立文件随程序集走，面板里列出、放进画布；
+  另加「把选中内容存成模板」。侦察之后如果发现这个取法与 `docs/` 里已有的说法冲突，
+  以文档为准并回来改这一条。
+
+  **不新开工程。** 模板的解析与实例化是核心层的事（它操作 `DiagramDocument`），
+  目录发现是宿主的事。为一个 JSON 文件开一个工程的话，多一个工程要维护，
+  而它里面只有几个类。
+
+  **模板与形状库的区别要守住：形状是一个节点的外观，模板是一批元素。**
+  把模板做成「复杂形状」的话，模板里的东西就不能单独选中与修改了，
+  而用户放一个模板进去之后第一件事就是改里面的文字。

@@ -1,0 +1,46 @@
+id: P4-07
+title: 调色板面板
+phase: 4
+status: pending
+depends_on: [P4-01, P3-02]
+estimated_loc: 440
+files:
+  create:
+    - DuetDiagram.App/Controls/PalettePanel.axaml
+    - DuetDiagram.App/Controls/PalettePanel.axaml.cs
+    - DuetDiagram.App/ViewModels/PalettePanelViewModel.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - DuetDiagram.App/Services/FieldEditBinder.cs
+    - docs/GUI.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.E2E.Tests/PalettePanelTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PalettePanel"
+    expect: 全通过；新建、编辑、删除条目各发一条命令，撤销能整份还原
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PropertyPanel"
+    expect: 全通过；在面板上改一条目的颜色之后，用那个令牌的元素跟着变色
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+    expect: 全通过；删一个还在被引用的条目给出结构化错误，并列出引用它的元素
+constraints:
+  - "**删条目要先查引用。** 命令层可能已经挡了，面板这一侧也要把「谁在用」显示出来——只报一句「有引用」的话，用户得自己一个个找"
+  - "**面板改的是条目，不是元素。** 「把选中的元素改成某个令牌」是另一件事（属性面板里那个样式令牌字段），不要混进来：混进来之后一次点击会发两条命令，而撤销要按两次"
+  - "**条目预览要用真的渲染结果，不是面板自己画的色块。** 面板自己画的话，边线的粗细与虚线这些在预览上看不出来，而用户以为它们没生效"
+  - "**改条目要报纯外观变更。** 调色板在视觉哈希里、不在结构哈希里——报成结构变更的话，改一个颜色会触发一次全量重布局"
+  - "条目名不许为空、不许重名；两条都要在面板上给出结构化错误而不是静默覆盖"
+context:
+  - 方案 §9.1 的属性面板分区（样式/调色板）与 §6.1 的 `diagram_style`
+  - "`DuetDiagram.Core/Model/Palette.cs` 的 `PaletteEntry` 与三条调色板命令（P3-02 已落地）"
+  - "`DuetDiagram.App/Services/FieldEditBinder.cs` 与 `PanelPalette` 是面板配色那一处，条目预览要与它同一个来源"
+  - "`DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs` 的「样式与调色板」节现在只有令牌输入框"
+scope_note: |
+  **这一条把调色板从「一个能填的名字」变成「一份能编的清单」。** P3-02 落了三条命令，
+  而界面上只能在一个文本框里填令牌名——用户填了一个不存在的名字会被命令层挡下，
+  但挡下之后他能做的事仍然只是再猜一个名字。面板补上的正是「有哪些名字可用」这件事。
+
+  **不做「从选中元素提取一条调色板条目」。** 那是常见的便利功能，但它要决定
+  「提取哪几个属性、冲突时用谁的值」，而方案没说。这一轮先把列、增、改、删做全，
+  提取记进 followups。

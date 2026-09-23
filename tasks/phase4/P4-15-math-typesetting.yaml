@@ -1,0 +1,53 @@
+id: P4-15
+title: 数学排版
+phase: 4
+status: pending
+depends_on: [P4-13]
+estimated_loc: 500
+files:
+  create:
+    - DuetDiagram.Render/Math/MathTypesetter.cs
+    - DuetDiagram.Render/Math/MathLayout.cs
+    - DuetDiagram.Render/Math/MathSyntax.cs
+  modify:
+    - DuetDiagram.Render/SceneBuilder.cs
+    - DuetDiagram.Render/DrawCommand.cs
+    - DuetDiagram.Core/Model/DiagramValidator.cs
+    - DuetDiagram.Mermaid/Export/MermaidExporter.cs
+    - Directory.Packages.props
+    - docs/Architecture.md
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+  test:
+    - DuetDiagram.Render.Tests/MathTypesettingTests.cs
+    - DuetDiagram.Render.Tests/MathSnapshotTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathTypesetting"
+    expect: 全通过；支持的语法各有一条用例，不支持的语法给结构化错误而不是画错
+  - command: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathSnapshot"
+    expect: 全通过；行内模式与独立成行模式各出一份快照，基线与居中的处理不同
+  - command: dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
+    expect: 退出码 0；排版器在原生编译后可用（若选了第三方库，这一步是它能不能上生产的前提）
+constraints:
+  - "**支持的语法边界要写进文档并由用例守住。** 一个「大部分能画」的排版器比一个「只支持十二种记号」的排版器危险得多：前者画错的时候看起来像画对了"
+  - "**认不出的输入给结构化错误，不许原样画出来。** 原样画的话，用户看到的是一串花括号，而他以为是自己语法写错了"
+  - "**行内与独立成行的基线处理不同**，`MathMode` 分这两档就是为了这件事。行内要与周围文字对齐，独立成行要单独占一块并居中——两档用同一套处理的话，行内公式会把整行文字顶起来"
+  - "**先选型再写代码。** 依赖清单里现在没有排版库，而仓库约定「不引入未在选型清单中的依赖」。侦察要核三件事：候选库在原生编译下能不能用、体积与许可证、它支持到哪一档语法。核不出来就自己写一个最小子集，并把边界如实写进文档"
+  - "**排版结果要确定性**，与 P4-13 同一条口径"
+  - "**Mermaid 导出把数学模式列进丢失清单**（那份清单里已经有它，这一条之后要把「有数学内容」也算进丢失统计，而不只是字段非空）"
+  - "**公式的度量走 `ITextMeasurer` 那条路**，不要另起一套字体加载——两套字体栈的表现是「公式里的字与旁边的字不是同一个字体」"
+context:
+  - 方案 §4.1 的 `MathMode`（None / Inline / Block）与 §13.8 的「富文本与数学排版」
+  - "`DuetDiagram.Core/Model/NodeDef.cs` 的 `MathMode`：现在是空壳字段，渲染层一处都没读"
+  - "`DuetDiagram.Mermaid/Export/ExportReport.cs` 的丢失清单里已经有「节点数学排版」"
+  - "`Directory.Packages.props` 是精确版本锁定那一处，新增依赖要在这里"
+scope_note: |
+  **这一条的核心是「边界」而不是「能力」。** 数学排版没有终点：LaTeX 的子集一层套一层，
+  每一层都能说「再支持一个记号就好」。所以判据写成「支持的集合有清单、清单外一律结构化错误」，
+  而不是「渲染正确」——后者没有可验的形式。
+
+  **选型是这一条最大的不确定项。** 依赖清单里没有排版库，而候选库要在原生编译下可用，
+  这两条同时满足的库不多。所以侦察要排在写代码之前，且**结论要如实写**：
+  自己写一个最小子集是可接受的结论，写进文档的边界由用例守住就行。
+  这一点与 P3-15 处理 SEP-2640 是同一条路——依赖里没有那个东西，就退到通用机制上，
+  把差异写进已知差异表。

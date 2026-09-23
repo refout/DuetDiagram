@@ -1,0 +1,46 @@
+id: P4-22
+title: Phase 4 收尾——四条判据与端到端
+phase: 4
+status: pending
+depends_on: [P4-01, P4-02, P4-03, P4-04, P4-05, P4-06, P4-07, P4-08, P4-09, P4-10, P4-11, P4-12, P4-13, P4-14, P4-15, P4-16, P4-17, P4-18, P4-19, P4-21]
+estimated_loc: 420
+files:
+  create:
+    - reports/phase4.md
+    - DuetDiagram.E2E.Tests/Phase4ScenarioTests.cs
+  modify:
+    - AGENTS.md
+    - tasks/README.md
+    - .github/workflows/ci.yml
+    - reports/loc.md
+    - docs/Architecture.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Phase4Scenario"
+    expect: 全通过；§14.4 那条「导入 500 节点 Mermaid，渲染 < 2s，可交互」与「导出 SVG 给同事打开」两条场景各有一条端到端用例
+  - command: dotnet run --project tools/CoverageAudit -c Release
+    expect: 退出码 0，覆盖率 ≥ 85%，四条判据逐条指向证据
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+  - command: dotnet run --project tools/LocCounter -c Release -- --root "$PWD" --check
+    expect: 退出码 0；`reports/loc.md` 与代码一致
+  - command: dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c Release
+    expect: 退出码 0；Phase 4 加进来的东西没有破坏原生发布（界面程序这一条在带 C++ 工具链的机器上跑）
+constraints:
+  - "**四条判据逐条指向证据，不许只写「已通过」。** 组合全部可用、图层/页面/形状库/模板可用、富文本与数学正确、导入导出无损——每一条要给出验它的是哪个命令或哪份报告"
+  - "**报告里要写明哪几条只有自建用例、没有真人用过。** 与 P1-14 的人工评分、P2-13 的真人数据、P3-16 的真实代理同一类：装置齐了不等于测过了"
+  - "**跨机器与跨平台没做的那几条要如实列**（原生发布只在带 C++ 工具链的机器上验过、PDF 若选了位图嵌入则「矢量」那条没验）。写进遗留，不写成通过"
+  - "**CI 要把 Phase 4 新增的门禁补上。** 新增的分类（形状库、模板、富文本、数学、导出、导入、图层面板、页面标签）要单列成步骤——只加测试工程的话，它们退化了不会让别的测试变红"
+  - "**端到端用例要跑真的窗口。** 与 Phase 2 那批同一口径：无头模式下起窗口、送输入、抓一帧"
+context:
+  - 方案 §14.3 的 Phase 4 四条判据与 §14.4 的端到端场景
+  - "`reports/phase3-mcp.md` 是「逐条判据 + 谁验的 + 遗留」这份格式的先例"
+  - "`.github/workflows/ci.yml` 的 `app-and-aot` 那一组要跑窗口与原生发布"
+  - "`DuetDiagram.E2E.Tests/HeadlessFixture.cs` 是起窗口那套装置"
+scope_note: |
+  **这一条核的是「四条判据在这套实现上到底有没有出口」，与 P3-16 同一条口径。**
+  没有出口的那一条要如实记成「没出口」，并说清是「做不了」还是「没做」——
+  P3-16 里那个 `accepted=false` 就是这样记下来的，那一份记录比一句「已通过」有用得多。
+
+  **Phase 5 的任务 YAML 由这一条结束时产出**（方案 §13.6 的约定）。
+  所以这一条还要顺带看一眼：Phase 5 的六条判据（布局评分、1000 节点流畅、内存、
+  冷启动、无障碍、i18n）在这套实现上各需要什么前置，哪些已经被 Phase 4 顺带做了。

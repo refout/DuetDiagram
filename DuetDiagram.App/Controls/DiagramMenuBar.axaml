@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.DiagramMenuBar">
+  <!--
+    顶级菜单与下面的项都在代码里按注册表搭出来（见 .axaml.cs）。
+    这一层只给一个空的菜单容器。
+  -->
+  <Menu Name="Body"
+        VerticalAlignment="Center" />
+</UserControl>

@@ -118,6 +118,22 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<PropertyPanel>().Single();
     }
 
+    /// <summary>窗口里那条工具栏。</summary>
+    public static DiagramToolBar ToolBar(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<DiagramToolBar>().Single();
+    }
+
+    /// <summary>窗口里那条菜单栏。</summary>
+    public static DiagramMenuBar MenuBar(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<DiagramMenuBar>().Single();
+    }
+
     /// <summary>
     /// 某个字段在界面上对应的那个编辑器。
     /// </summary>

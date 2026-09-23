@@ -26,8 +26,10 @@ namespace DuetDiagram.App;
 /// 而用户以为遇到的是两个问题。
 /// </para>
 /// <para>
-/// 菜单栏、工具栏、图层面板还没有，它们各自依赖的东西（图层面板的入口、
-/// 对齐与导出命令）还没做。
+/// 菜单栏与工具栏的条目由 <see cref="MenuRegistry"/> 给出，两处读同一份。
+/// 这个窗口负责在改动、换选中之后让它们刷新启用状态，以及把快捷键也接到同一批条目上——
+/// 快捷键另跑一遍的话，菜单上写的组合键与实际生效的那个迟早会对不上。
+/// 图层面板还没有，它依赖图层那一层的可见性与锁定。
 /// </para>
 /// </remarks>
 public sealed partial class MainWindow : Window
@@ -111,6 +113,11 @@ public sealed partial class MainWindow : Window
         DiffView.Session = Session;
         StatusBarView.Status = Status;
 
+        // 菜单栏与工具栏读同一份条目表。它们只在建窗口时搭一次，
+        // 之后换选中、换文档都只刷新启用状态——重建的话，连续点选时整条工具栏会闪。
+        MenuBarView.Attach(this);
+        ToolBarView.Attach(this);
+
         // 提示上的按钮只把选择交回来，办不办由这里定：提示自己会去调布局的话，
         // 那件事就有了两个入口，两条路径迟早会对同一次失败给出不同的处置。
         LayoutFailureView.RetryRequested += OnRetryLayout;
@@ -167,43 +174,78 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 快捷键：再开一个窗口看同一份文档、写回文件、开关诊断面板。
+    /// 快捷键：再开一个窗口、写回文件，以及菜单上写着的那几个组合键。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 键盘消息只发给有焦点的控件，而画布在指针按下时会把焦点收过去。
     /// 所以这里不能假设焦点在窗口上——好在按键事件是从焦点控件往上冒泡的，
     /// 画布不认这几个键，它们就冒到这儿了。
+    /// </para>
+    /// <para>
+    /// **带条目的那几个键与菜单走同一条路**（见 <see cref="Invoke"/>）。
+    /// 两处各跑一遍的话，菜单上显示的组合键与实际生效的那个迟早会对不上，
+    /// 而那种对不上只有在用户按了没反应时才会被发现。
+    /// </para>
     /// </remarks>
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
 
-        if (e.Handled || !e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Handled)
         {
             return;
         }
 
-        // 再开一个窗口。它取的是同一个工作区，所以两边看的是同一份文档：
-        // 一边改了另一边会被通知到，版本号也天然一致。
-        if (e.Key == Key.N)
+        // 开窗口与写文件不办命令层的事，没有对应条目可走，所以留在这一层。
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            OpenAnotherWindow();
-            e.Handled = true;
+            if (e.Key == Key.N)
+            {
+                OpenAnotherWindow();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.S)
+            {
+                Save();
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (Shortcut(e) is not { } entryId)
+        {
             return;
         }
 
-        if (e.Key == Key.S)
-        {
-            SaveDocument();
-            e.Handled = true;
-            return;
-        }
+        Invoke(entryId);
+        e.Handled = true;
+    }
 
-        if (e.Key == Key.P && e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+    /// <summary>
+    /// 这一下按键对应哪一条条目。
+    /// </summary>
+    /// <remarks>
+    /// 写成一张表而不是一串 if：表里每一条都要在注册表里有一个同名的条目，
+    /// 而"表里有、条目里没有"这种错会在这里被立刻发现（<see cref="Invoke"/> 会抛）。
+    /// </remarks>
+    private static string? Shortcut(KeyEventArgs e)
+    {
+        var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+        var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        return (e.Key, control, shift) switch
         {
-            Model.Diagnostics.Toggle();
-            e.Handled = true;
-        }
+            (Key.Z, true, false) => "edit.undo",
+            (Key.Y, true, false) => "edit.redo",
+            (Key.A, true, false) => "edit.select-all",
+            (Key.Delete, false, false) => "edit.delete",
+            (Key.F5, false, false) => "layout.relayout",
+            (Key.P, true, true) => "view.diagnostics",
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -231,7 +273,7 @@ public sealed partial class MainWindow : Window
     /// 再叠一条只会让用户以为刚刚发生了一件新事。文档没有文件时给一句灰显说明——
     /// 那种情况下按了没反应，用户会以为快捷键坏了。
     /// </remarks>
-    private void SaveDocument()
+    public void Save()
     {
         if (Session.IsReadOnly)
         {
@@ -282,7 +324,11 @@ public sealed partial class MainWindow : Window
     private void OnSelectionRequested(string? elementId, bool additive) =>
         Session.Select(elementId, additive);
 
-    private void OnSelectionChanged() => Model.SetSelection(Session.SelectedIds);
+    private void OnSelectionChanged()
+    {
+        Model.SetSelection(Session.SelectedIds);
+        RefreshMenu();
+    }
 
     /// <summary>
     /// 高亮标记变了，让画布重画一帧。
@@ -322,6 +368,9 @@ public sealed partial class MainWindow : Window
         // 排出来了就把上一次的失败提示收掉。不收的话，用户按了重试、
         // 图已经正常了，那条红字还挂着，看起来像失败还在。
         SyncLayoutFailure();
+
+        // 一次改动之后撤销栈、选中、只读门都可能变了，菜单栏与工具栏跟着刷一遍。
+        RefreshMenu();
     }
 
     /// <summary>
@@ -339,6 +388,44 @@ public sealed partial class MainWindow : Window
         {
             Status.Show(presentations[0]);
         }
+
+        // 一次失败之后那些"能不能点"的判据可能也变了（例如删除失败是因为选中没了）。
+        RefreshMenu();
+    }
+
+    /// <summary>
+    /// 按标识执行一条菜单或工具栏上的条目。
+    /// </summary>
+    /// <remarks>
+    /// 快捷键与点击走同一条路：两边各跑一遍的话，显示出来的组合键与实际生效的那个
+    /// 迟早会对不上——而那种对不上只有在用户按了没反应时才会被发现。
+    /// </remarks>
+    public void Invoke(string entryId)
+    {
+        ArgumentNullException.ThrowIfNull(entryId);
+
+        if (MenuRegistry.Default.Find(entryId) is not { } entry)
+        {
+            throw new ArgumentException($"没有这条条目：{entryId}", nameof(entryId));
+        }
+
+        var context = new MenuContext(this);
+
+        if (entry.Refusal(context) is { } reason)
+        {
+            Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBarMuted, reason));
+
+            return;
+        }
+
+        entry.Run(context);
+        RefreshMenu();
+    }
+
+    private void RefreshMenu()
+    {
+        MenuBarView.Refresh();
+        ToolBarView.Refresh();
     }
 
     private void OnLayoutFailed() => SyncLayoutFailure();
@@ -455,6 +542,10 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 DiffView 的边栏");
         StatusBarView = this.FindControl<StatusBar>(nameof(StatusBarView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 StatusBarView 的状态栏");
+        MenuBarView = this.FindControl<DiagramMenuBar>(nameof(MenuBarView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 MenuBarView 的菜单栏");
+        ToolBarView = this.FindControl<DiagramToolBar>(nameof(ToolBarView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ToolBarView 的工具栏");
         LayoutFailureView = this.FindControl<LayoutFailureDialog>(nameof(LayoutFailureView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayoutFailureView 的提示");
         SidecarRecoveryView = this.FindControl<SidecarRecoveryDialog>(nameof(SidecarRecoveryView))

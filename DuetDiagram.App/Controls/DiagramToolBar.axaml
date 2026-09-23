@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.DiagramToolBar">
+  <!--
+    按钮在代码里按注册表搭出来（见 .axaml.cs）。这一层只给一个横向的容器：
+    档与档之间那条竖线也是代码加的，因为档的条数取决于注册表。
+  -->
+  <StackPanel Name="Body"
+              Orientation="Horizontal"
+              Spacing="8"
+              Margin="8,6" />
+</UserControl>

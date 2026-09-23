@@ -1,30 +1,35 @@
 id: P4-01
 title: 工具栏与菜单栏骨架
 phase: 4
-status: pending
+status: done
 depends_on: [P3-16]
 estimated_loc: 480
 files:
   create:
     - DuetDiagram.App/Services/MenuRegistry.cs
-    - DuetDiagram.App/Controls/ToolBar.axaml
-    - DuetDiagram.App/Controls/ToolBar.axaml.cs
-    - DuetDiagram.App/Controls/MenuBar.axaml
-    - DuetDiagram.App/Controls/MenuBar.axaml.cs
+    - DuetDiagram.App/Services/MenuEntries.cs
+    - DuetDiagram.App/Controls/DiagramToolBar.axaml
+    - DuetDiagram.App/Controls/DiagramToolBar.axaml.cs
+    - DuetDiagram.App/Controls/DiagramMenuBar.axaml
+    - DuetDiagram.App/Controls/DiagramMenuBar.axaml.cs
   modify:
     - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/MainWindow.axaml.cs
     - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - DuetDiagram.E2E.Tests/ModeSwitchTests.cs
     - docs/GUI.md
     - AGENTS.md
+    - tasks/README.md
+    - reports/loc.md
   test:
     - DuetDiagram.E2E.Tests/ToolBarTests.cs
     - DuetDiagram.E2E.Tests/MenuBarTests.cs
 acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ToolBar"
-    expect: 全通过；工具栏每一条点下去都发出一条命令，文档版本加一
+    expect: 全通过；工具栏四档的次序固定，每一条点下去**要么变了、要么说了话**，不能点的把理由挂在提示上
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MenuBar"
-    expect: 全通过；菜单项的启用状态与选中、只读门、撤销栈对得上，没有哪一项点了什么都不发生
+    expect: 全通过；两处对同一条给出同样的启用状态，没选中时给理由，只读时该挡的挡住、不该挡的留着
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
     expect: 全通过；被禁用的条目给出的理由与错误码呈现表里那一条一致
 constraints:
@@ -39,11 +44,144 @@ context:
   - "`DuetDiagram.App/Services/DiagramSession.cs` 是会话核心，命令入口与只读门都在那里"
   - "`DuetDiagram.App/Services/ErrorPresenter.cs` 与 `ErrorPresenterTable.cs` 是禁用理由该走的那条路"
 scope_note: |
-  **这一条只搭骨架与接得上的那几档，不做后面几档的内容。** 「选择/连线/对齐/布局」
-  四档现在就有命令可发；「形状/导出」两档先留出位置并注册空实现，由后面那几条各自加条目。
-  菜单栏同理：文件（新建/打开/保存）、编辑（撤销/重做/删除）、视图（缩放/诊断面板）
-  这一轮接上，导入与导出那两个入口留到导入导出那几条。
+  **这一条只搭骨架与接得上的那几档，不做后面几档的内容。** 侦察核下来工具栏上是四档：
+  编辑（撤销/重做/删除/全选/清空选择）、对齐（同层/对齐约束）、布局（方向/间距/重排）、
+  导出（占位，等后面几条各自换掉）。**「连线」档不做**：画布本来就没有工具模式，
+  连线是从端口拖一下，加一档反而多一步。「形状」档留给 P4-09。
+  菜单栏同理：文件（新建窗口/保存）、编辑、对齐、布局、视图（诊断面板）这一轮接上，
+  导入那一条留到 P4-19。**起草时把「选择」单列成一档，核下来它只有两个动作、
+  而且都是编辑动作，于是并进编辑档**——档越多，用户找东西的位置感越差。
 
   **为什么它排在第一位。** 图层面板、调色板面板、形状库、模板库都要挂在工具栏或菜单上，
   而它们各自又都是独立的界面任务。先把「挂的位置」与「注册的方式」定下来，
   后面每一条才能各写各的文件、各改各的条目表。
+
+reconnaissance: |
+  **动手前对着画布的手势处理、命令清单、会话接口与界面标记核了一遍，结论如下。**
+  核下来推翻了一条起草假设，也补出了两处会话层缺的入口。
+
+  1. **画布没有「工具模式」这个概念，「选择/连线」不是互斥的两档。**
+     连线是从端口拖出（`DiagramSession.BeginConnect`），选择是点选（`Select`），
+     两者同时可用，谁都不需要先切一档。给它们加模式的话，连线会从「从端口拖一下」
+     变成「先点连线档、再从端口拖」——多一步，而且用户会忘了切回去。
+     所以起草时写的那六档里，**「连线」档去掉**，理由记进 followups；
+     「选择」档保留，但它只放「全选」「清空选择」两个动作。
+
+  2. **「对齐」没有独立命令，它走布局约束。** 命令清单里没有 align 一族，
+     对齐与同层是 `add-layout-constraint` 的两类（`LayoutConstraintSpec.Align` 与
+     `.SameRank`，两者都要求至少两个成员）。所以对齐档的条目是「加同层」「加对齐」，
+     成员取当前选中。
+
+  3. **「布局」这一档有东西可接**：`set-direction`（方向是文档属性，所以单立一条命令）、
+     `set-spacing`，以及会话上的 `RetryLayout`。
+
+  4. **「导出」这一档现在只有 Mermaid 接上了**（P3-09 的 `diagram_export`），
+     SVG / PNG / PDF 要等 P4-16 ~ P4-18。所以导出档这一轮先注册一个占位条目，
+     由后面那几条各自换掉。
+
+  5. **「打开文档」那条路不存在**，`docs/GUI.md` 的「尚未实现」表里就有它。
+     所以文件菜单只有「新建窗口」与「保存」，导入那一条留到 P4-19。
+
+  6. **撤销与重做在总线上，会话没有包装。** 入口是 `DiagramCommandBus.Undo()/Redo()`，
+     启用状态读 `Bus.Context.History.PeekUndo()/PeekRedo()`。会话要补两个包装方法，
+     形状与 `Apply` / `AddConstraint` 一致：先过只读门、执行、有变更就重算。
+
+  7. **「删除选中」也没有。** 要按选中集合分发：节点走 `remove-node`、边走 `disconnect-edge`。
+     一次选中里两种都有是常态，所以它是一个动作而不是两颗按钮。
+
+  8. **只读门在会话那一层**（`Refuse()`），工具栏只读 `IsReadOnly` 决定启用状态——
+     真正的挡住仍留在会话里。界面这一层漏掉一处也造不成损坏，这一条是有意的冗余。
+
+  9. **控件名要避开界面框架自己的类型名。** 文件与类都用 `DiagramToolBar` / `DiagramMenuBar`，
+     不叫 `ToolBar` / `MenuBar`——后者与框架里的名字太近，一旦撞上报的是「类型不明确」，
+     而那种错指向 using，不指向命名。`files.create` 里的两个文件名按此修正。
+
+result: |
+  **落地。**
+
+  - 新增 `DuetDiagram.App/Services/MenuRegistry.cs`：`MenuEntry`（标识、档、显示名、
+    快捷键、出现在哪一处、拒绝理由、执行体）、`MenuContext`（会话、画布状态、状态栏、
+    选中、撤销栈、只读门一次给全）、`MenuGroups`（六个档名与两处的次序）、
+    `MenuRegistry`（注册与按档取用，标识重复或档不存在直接抛）。默认那一份是 `Build()`
+    按档拼出来的，每档一个 `Register` 方法——**清单没有写死在一个文件里**。
+  - 新增 `DuetDiagram.App/Services/MenuEntries.cs`：六档的条目与四条共用拒绝理由
+    （`ReadOnly` / `NoSelection` / `WriteToSelection` / `WriteToGroup`）。
+    只读那一句取自错误码呈现表，所以它与命令层被拒时说的是同一句。
+    共 18 条：文件 2（新建窗口、保存）、编辑 5（撤销、重做、删除、全选、清空选择）、
+    对齐 2（同层、对齐）、布局 7（四个方向、收紧、放宽、重排）、视图 1（诊断面板）、
+    导出 1（一直拒绝的占位）。
+  - 新增 `DuetDiagram.App/Controls/DiagramToolBar.axaml(.cs)` 与 `DiagramMenuBar.axaml(.cs)`：
+    两处都按注册表生成，档间加竖线；拒绝理由挂 `ToolTip`；点的时候**再判一次**启用状态
+    （键盘与自动化能触发一个禁用的控件），被拒就把理由摆到状态栏。菜单项的快捷键用
+    `InputGesture` 显示，但真正按键仍走主窗口那一份条目。
+  - `DiagramSession` 补：`AllNodeIds`、`DeleteSelection()`（按选中分发，节点走 `remove-node`，
+    先全部校验再逐条执行、删完先清选中再重算）、`NudgeSpacing(double)`（按倍数、有下限）、
+    `SetDirection(Direction)`、`CanUndo` / `CanRedo` / `Undo()` / `Redo()`。
+    形状与 `Apply` 一致：先过只读门、执行、`IsEffectiveSuccess` 就 `Reload()`。
+  - `MainWindow`：`SaveDocument` 改名 `Save` 并公开；新增 `Invoke(entryId)` 与
+    `RefreshMenu()`；`OnKeyDown` 先办 Ctrl+N / Ctrl+S，其余交给一张
+    「按键 → 条目标识」的表，走的是与菜单同一条路。改动、换选中、命令被拒之后各刷一次。
+  - `MainWindow.axaml` 顶部那句占位文字换成 `DiagramMenuBar` + `DiagramToolBar`。
+  - 新增两个分类：`Category=ToolBar` 三条、`Category=MenuBar` 五条。
+    `HeadlessFixture` 补 `ToolBar(window)` / `MenuBar(window)` 两个取控件的助手。
+
+  **两处与起草时不一样的地方**
+
+  - **工具栏的档从六档收成四档。** 起草时把「选择」单列一档、另有「连线」一档。
+    核下来画布没有工具模式（连线是从端口拖，不是切档），而「选择」那两个动作都是编辑动作，
+    于是并进编辑档。菜单栏那边仍是六个顶级菜单（文件、编辑、对齐、布局、视图、导出）。
+    记在 `scope_note` 与侦察第 1 条。
+  - **判据从「文档版本加一」改成「要么变了、要么说了话」。** 起草时写的是版本加一，
+    跑起来才发现有几条合法的条目本来就不改文档：全选、清空选择改的是选中，
+    重排改的是绘制列表与手动布局档，把方向设成它已经是的那个是合法无操作
+    （无操作会给一句灰显的「无操作」，`ErrorPresenter` 本来就有这一档）。
+    拿版本加一当判据的话，这几条会被逼着去改一个不该改的东西。
+    所以快照里带上选中、绘制列表版本、手动布局档、面板开关与两个间距，
+    判据是「快照变了 **或** 状态栏说了话」。`acceptance` 里的措辞按此改正。
+
+  **一处刻意的例外**
+
+  - **「重排」在只读文档上仍然点得动。** 它不写文档，只是让布局再解一次、
+    把画面换到解出来的那一份上；把它也挡住的话，用户在只读的图上连重新排一下都做不到，
+    而重排对一份不许改的图恰恰是最安全的操作。所以它的拒绝理由是 `_ => null`，
+    用例里也把它列在「只读时照样能用」那一组。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - `Category=ToolBar` 3/3 通过；`Category=MenuBar` 5/5 通过；
+    `Category=ErrorPresentation` 在其中，仍然全绿。
+  - 全量测试 Core 452 / Layout 75 / Render 145 / Mermaid 179 / Dsl 158 / Llm 189 /
+    Mcp 109 / **E2E 89** 全绿（E2E 改动前的基线是 81，多的 8 条就是这两个分类）。
+  - `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0（`reports/loc.md` 已重新生成：
+    389 个文件 / 81302 行 / 50882 行代码）。
+
+  **过程中修掉的错**
+
+  - 两个新用例文件起初编译不过：`ToolTip` 缺 `Avalonia.Controls`、
+    `CaptureRenderedFrame` 缺 `Avalonia.Headless`、`DocumentLock` 缺 `DuetDiagram.Core.Workspace`，
+    还有一处可空警告（`Find` 返回可空，取提示前要先断言不为空）。
+  - **FluentAssertions 的 `Equal` 一路逗号分隔会绑到 `params T[]` 重载上**，
+    于是末尾那句说明被当成第五个期望元素，报的是「少了一项」而不是「说明不对」。
+    改成显式数组加独立的 because 参数。
+  - 逐条点一遍那条用例起初在「被拒」分支 `continue` 掉了 `window.Close()`，
+    窗口会一直开着、租约一直攒着；改成 `try/finally` 一条一开一关。
+  - **`Category=ModeSwitch` 里有一条非确定的判据，与本任务无关，顺手修了。**
+    第一次全量门禁里 E2E 报了 1 条失败，随后连跑 9 遍不复现；再按全量顺序带构建负载连跑，
+    在第 3 遍复现，是 `ModeSwitchTests.The_frame_that_switches_does_no_extra_work`。
+    根因是**分子只取了一次读数**：换档那一帧只量一遍，机器上别的事情（构建、别的测试）
+    拖慢它之后，它照样是一条「换档帧比稳态慢」的读数，判据变红却指向
+    「重活挪到换档帧上了」这个并不存在的原因。分母本来就已经取了八帧的中间值，
+    注释里写着「单帧的耗时在无头环境里抖动不小」——分子漏了同一件事。
+    改成换档那一轮跑 4 遍、**分子与分母都取最快的一次**：真把建索引挤进换档帧的话，
+    哪一次都快不了；只要有一次快，就说明那一帧本来就没有重活。
+    修完之后带同样的构建负载连跑 8 遍全绿。
+    这条改的是 `DuetDiagram.E2E.Tests/ModeSwitchTests.cs`，与工具栏没有关系，
+    写在这里是因为它是跑这一条的门禁时发现的。
+
+  **后续**
+
+  - 导出档那一条是占位，由 P4-16（SVG）/ P4-17（PNG）/ P4-18（PDF）/ P4-19（导入）各自换掉。
+  - 形状档留给 P4-09，图层面板留给 P4-03，调色板面板留给 P4-07，模板库留给 P4-11。
+  - 视图档这一轮只有诊断面板的开关，没有缩放档位——缩放现在靠画布手势，等有人要再说。

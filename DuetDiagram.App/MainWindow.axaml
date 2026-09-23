@@ -7,10 +7,14 @@
         Title="DuetDiagram"
         Width="900" Height="600">
   <DockPanel>
-    <TextBlock DockPanel.Dock="Top"
-               Margin="16,12"
-               FontSize="13"
-               Text="技术栈验证界面：画布、属性面板与诊断数字已接通，菜单栏与工具栏在后续阶段实现。" />
+    <!--
+      菜单栏与工具栏都停靠在顶部。它们与画布之间是"占一行"的关系，
+      不像诊断面板那样浮着——浮着的工具栏会盖住画布上沿，而画布上沿正是
+      用户第一眼要看的地方。
+    -->
+    <controls:DiagramMenuBar x:Name="MenuBarView" DockPanel.Dock="Top" />
+
+    <controls:DiagramToolBar x:Name="ToolBarView" DockPanel.Dock="Top" />
 
     <!--
       状态栏。坐标、缩放与最近一次失败的提示共用一个数据上下文，不靠互相回调——

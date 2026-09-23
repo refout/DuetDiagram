@@ -22,8 +22,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open` |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地 |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 已落地 |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 已落地 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -44,8 +44,9 @@ Phase 3 的 16 个任务（命令层、工具定义、上下文摘要、八个�
 标准输入输出那条传输、网络传输与它前面那道关、并发三层、Skill 机制、实机验收与多 agent 并发）
 都是 `done`。P3-16 里"用真的 Codex CLI / Claude Code 接上服务端"那一步需要人看着跑，
 结论记在 `reports/phase3-mcp.md`——装置齐了不等于测过了，那一步没跑成就不写成通过。
-Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出，全部 `pending`，
-其中 **`P4-20`（DSL 导出）标 `blocked`**，卡在决策门 1 上——留则照做，不留则整条删掉。
+Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`（工具栏与菜单栏骨架）
+已落地**（`done`），其余 `pending`，其中 **`P4-20`（DSL 导出）标 `blocked`**，
+卡在决策门 1 上——留则照做，不留则整条删掉。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -389,6 +390,12 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 # 多窗口：同一进程两个窗口看同一份文档，一边改了另一边跟着刷新、版本不分叉；
 # 只读那一份逐个写入口都要禁掉，会话那一层再拒一次
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MultiWindow"
+
+# 工具栏：四档的次序固定，每一条点下去要么变了、要么说了话，不能点的把理由挂在提示上
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ToolBar"
+
+# 菜单栏：两处对同一条给出同样的启用状态，没选中时给理由，只读时该挡的挡住、不该挡的留着
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MenuBar"
 
 # 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"

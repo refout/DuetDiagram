@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 39 | 9247 | 5202 | 2527 | 1518 |
+| DuetDiagram.App | 43 | 10283 | 5812 | 2786 | 1685 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 94 | 12904 | 7363 | 3633 | 1908 |
 | DuetDiagram.Core.Tests | 36 | 9259 | 6542 | 936 | 1781 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 13 | 3372 | 2175 | 522 | 675 |
+| DuetDiagram.E2E.Tests | 15 | 3801 | 2445 | 596 | 760 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
 | DuetDiagram.Llm | 25 | 4400 | 2439 | 1334 | 627 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
 | DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **383** | **79837** | **50002** | **16503** | **13332** |
+| **合计** | **389** | **81302** | **50882** | **16836** | **13584** |
 
 ## 明细
 
@@ -41,6 +41,8 @@
 | App.axaml.cs | 18 |
 | DiagnosticsPanel.axaml.cs | 12 |
 | DiagramCanvas.cs | 814 |
+| DiagramMenuBar.axaml.cs | 93 |
+| DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
 | HighlightOverlay.cs | 17 |
 | LayoutFailureDialog.axaml.cs | 29 |
@@ -56,17 +58,19 @@
 | EdgeHandleHitTest.cs | 118 |
 | HighlightTracker.cs | 167 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 232 |
+| MainWindow.axaml.cs | 284 |
 | Program.cs | 78 |
 | SampleDiagram.cs | 100 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
-| DiagramSession.cs | 659 |
+| DiagramSession.cs | 755 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 73 |
 | FieldEditBinder.cs | 257 |
+| MenuEntries.cs | 177 |
+| MenuRegistry.cs | 87 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
 | ConstraintEditorViewModel.cs | 165 |
@@ -266,12 +270,14 @@
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 124 |
+| HeadlessFixture.cs | 134 |
 | HighlightTests.cs | 70 |
 | LayoutFailureTests.cs | 217 |
-| ModeSwitchTests.cs | 198 |
+| MenuBarTests.cs | 131 |
+| ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
 | PropertyPanelTests.cs | 144 |
+| ToolBarTests.cs | 118 |
 
 ### DuetDiagram.Layout
 

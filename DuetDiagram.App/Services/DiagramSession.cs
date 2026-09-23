@@ -280,6 +280,16 @@ public sealed class DiagramSession : IDisposable
     }
 
     /// <summary>
+    /// 文档里全部节点的标识。全选那一档用它。
+    /// </summary>
+    /// <remarks>
+    /// 只有节点：边与组合现在还选不中（见 <see cref="SelectedIds"/> 的说明），
+    /// 把它们也算进来的话，全选之后选中集合里会攒下一批画不出选中框的标识，
+    /// 而面板那边会按一份读不出来的选中去查字段。
+    /// </remarks>
+    public IReadOnlyList<string> AllNodeIds => [.. Document.Nodes.Select(node => node.Id)];
+
+    /// <summary>
     /// 选中一个元素。
     /// </summary>
     /// <param name="elementId">要选中的标识。传空清掉选中。</param>
@@ -508,6 +518,177 @@ public sealed class DiagramSession : IDisposable
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 删掉选中的那些节点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 一个一个删，与 <see cref="Apply"/> 同一个形状：一条命令改多处的话，
+    /// 失败时要还原的东西不止一处；而撤销栈上也是一节点一条，用户按一次撤销退回一个，
+    /// 与"我删了哪一个"这件事对得上。
+    /// </para>
+    /// <para>
+    /// **不为关联的边另发命令。** 删节点那条命令自己会连带删掉它的边，
+    /// 再发一条删边的话，第二条会报"边不存在"——而那时第一条已经写进去了。
+    /// </para>
+    /// </remarks>
+    public CommandResult DeleteSelection()
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var nodes = SelectedNodes;
+
+        if (nodes.Count == 0)
+        {
+            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, "没有选中的节点")));
+        }
+
+        var commands = new List<IDiagramCommand>(nodes.Count);
+
+        foreach (var node in nodes)
+        {
+            var command = new RemoveNodeCommand(node.Id);
+            var validation = command.Validate(Document);
+
+            if (!validation.IsValid)
+            {
+                return Report(CommandResult.Fail(validation.Errors));
+            }
+
+            commands.Add(command);
+        }
+
+        var changed = false;
+        var last = CommandResult.NoOp();
+
+        foreach (var command in commands)
+        {
+            last = Bus.Execute(command);
+
+            if (!last.IsSuccess)
+            {
+                return Report(last);
+            }
+
+            changed |= last.IsEffectiveSuccess;
+        }
+
+        if (changed)
+        {
+            // 先清选中再重算：被删掉的那些留在选中里的话，重算之后的绘制列表
+            // 找不到它们，而选中框会按旧的那份停在原地。
+            SetSelection([]);
+            Reload();
+        }
+
+        return Report(last);
+    }
+
+    /// <summary>
+    /// 按一个倍数收放两个间距。
+    /// </summary>
+    /// <remarks>
+    /// 按倍数而不是按绝对值：绝对值写死之后，不同规模的图会得到同一个间距，
+    /// 而"收紧一点"这个意思与图有多大无关。下限挡住零——间距为零会让同一层的节点
+    /// 全部叠在一起，而画面上的表现是"图坏了"，看不出是间距设成了零。
+    /// </remarks>
+    public CommandResult NudgeSpacing(double factor)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        if (!double.IsFinite(factor) || factor <= 0)
+        {
+            return Report(CommandResult.Fail(
+                CommandError.Of(ErrorCodes.FieldValueInvalid, "间距倍数要是大于零的有限数")));
+        }
+
+        var layout = Document.Layout;
+        var result = Bus.Execute(new SetSpacingCommand(
+            nodeSpacing: Math.Max(MinimumSpacing, layout.NodeSpacing * factor),
+            layerSpacing: Math.Max(MinimumSpacing, layout.LayerSpacing * factor)));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>改主方向。</summary>
+    /// <remarks>
+    /// 方向是文档自己的属性，不在元素字段表里，所以它走的是自己那条命令。
+    /// 改完必须重排：方向决定坐标，只重绘的话画面纹丝不动。
+    /// </remarks>
+    public CommandResult SetDirection(Direction direction)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new SetDirectionCommand(direction));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>间距的下限。再小下去同一层的节点会叠在一起。</summary>
+    private const double MinimumSpacing = 8;
+
+    #endregion
+
+    #region 历史
+
+    /// <summary>撤销栈上还有东西。</summary>
+    public bool CanUndo => Bus.Context.History.PeekUndo() is not null;
+
+    /// <summary>重做栈上还有东西。</summary>
+    public bool CanRedo => Bus.Context.History.PeekRedo() is not null;
+
+    /// <summary>
+    /// 撤销一步。
+    /// </summary>
+    /// <remarks>
+    /// 只读时一并挡住，与别的写入同一条口径。撤销改的是内存里这份文档，
+    /// 而只读那一份的成因是"另一个进程正拿着这个文件"——往回带同样会与对方打架，
+    /// 只是打架的结果到存盘那一刻才显出来。
+    /// </remarks>
+    public CommandResult Undo() => Step(undo: true);
+
+    /// <summary>重做一步。</summary>
+    public CommandResult Redo() => Step(undo: false);
+
+    private CommandResult Step(bool undo)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = undo ? Bus.Undo() : Bus.Redo();
+
+        if (result.IsEffectiveSuccess)
+        {
+            // 撤销可能把选中的东西删了（撤销一次"删除"就是把它加回来，反过来也一样）。
+            // 不清一遍的话，选中框会停在一个刚刚被撤销掉的位置上。
+            SetSelection(_selectedIds);
+            Reload();
+        }
+
+        return Report(result);
     }
 
     #endregion

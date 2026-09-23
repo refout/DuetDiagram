@@ -28,6 +28,17 @@ public sealed record SummaryInput
 
     /// <summary>变更记录，通常取命令总线版本日志的快照。</summary>
     public IReadOnlyList<VersionEntry> RecentChanges { get; init; } = [];
+
+    /// <summary>
+    /// 只看这一页。传空表示整份文档。
+    /// </summary>
+    /// <remarks>
+    /// **它必须是一个真的存在的页。** 这是调用方点名要的东西，与元素上那个归属字段
+    /// 不同：归属指向一个不存在的页面时按缺省页处理（那是文档内部的引用），
+    /// 而这里点的是一个不存在的页面时该如实说一句，否则调用方会拿着一张别的页去办事。
+    /// 校验在工具那一层做，这里只负责照着过滤。
+    /// </remarks>
+    public string? PageId { get; init; }
 }
 
 /// <summary>
@@ -54,8 +65,11 @@ public static class SummaryBuilder
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        var document = input.Document;
-        var (layerCount, groups) = ProjectLayers(input.Placement);
+        // 按页投影一次，后面全都用这一份。投影只留这一页上的节点与边，
+        // 而"缺省页是哪一页、跨页的边算谁的"那套口径在 Core 里只有一份。
+        var document = PageMembership.Project(input.Document, input.PageId);
+        var placement = Placement(input.Placement, document);
+        var (layerCount, groups) = ProjectLayers(placement);
 
         return new DiagramSummary(
             document.Id,
@@ -76,6 +90,27 @@ public static class SummaryBuilder
             // 不存在的令牌去设样式，而命令层只能回一句「没有这个令牌」。
             [.. document.Palette.Entries.Keys.OrderBy(token => token, StringComparer.Ordinal)],
             Recent(input.RecentChanges));
+    }
+
+    /// <summary>
+    /// 把同层分布裁到投影之后还剩下的那些节点。
+    /// </summary>
+    /// <remarks>
+    /// 层分布是从最近一次布局来的，而布局算的是整份文档。不裁的话，
+    /// 按页读出来的摘要里会列出一批不在这一页上的节点，而读的人会去找它们。
+    /// </remarks>
+    private static IReadOnlyList<NodeRank> Placement(
+        IReadOnlyList<NodeRank> placement,
+        DiagramDocument document)
+    {
+        if (placement.Count == 0 || placement.Count == document.Nodes.Count)
+        {
+            return placement;
+        }
+
+        var onPage = document.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+
+        return [.. placement.Where(rank => onPage.Contains(rank.Id))];
     }
 
     /// <summary>

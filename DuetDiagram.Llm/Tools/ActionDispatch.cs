@@ -136,6 +136,51 @@ internal static class ActionDispatch
         ToolResult.Fail(ToolError.Of(ToolErrorCodes.ArgumentMissing, message, parameter));
 
     /// <summary>
+    /// 这一次点名的页面不在文档里时的答复。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **与元素上那个归属字段的处理刻意不同。** 归属指向一个不存在的页面时按缺省页处理
+    /// （那是文档内部的引用，按缺省处理不会出错）；而参数里点的页面是调用方要读或要导出的
+    /// 东西——认下来按别的页回，它拿到的是一张不是它要的图，而它看不出来。
+    /// </para>
+    /// <para>
+    /// 现有页面列在这里而不是写进修复建议那张表：有哪些页面随文档变，
+    /// 静态表里写不出来，写死了就是错的。
+    /// </para>
+    /// </remarks>
+    /// <returns>要拒绝时返回一条失败，没点名或页面存在时返回空。</returns>
+    public static ToolResult? PageMissing(DiagramToolContext context, string? pageId)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (pageId is null)
+        {
+            return null;
+        }
+
+        var pages = context.Document.Pages;
+
+        if (pages.Any(page => string.Equals(page.Id, pageId, StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        var known = pages.Count == 0
+            ? "这份文档一页都没有"
+            : $"现有的页面：{string.Join('、', pages
+                .OrderBy(page => page.Order)
+                .ThenBy(page => page.Id, StringComparer.Ordinal)
+                .Select(page => page.Id))}";
+
+        return ToolResult.Fail(ToolError.Of(
+            ErrorCodes.PageMissing,
+            $"文档里没有 {pageId} 这一页，这一次读的不是你以为的那一份东西",
+            "pageId",
+            known));
+    }
+
+    /// <summary>
     /// 这一次写入点名的图层许不许碰。
     /// </summary>
     /// <param name="context">这次调用的上下文，权限从它取。</param>

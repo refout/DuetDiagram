@@ -87,11 +87,15 @@ public static class SceneBuilder
     /// <param name="layout">布局结果。提供坐标、折线与内容范围。</param>
     /// <param name="theme">外观查表。</param>
     /// <param name="measurer">文本度量。</param>
+    /// <param name="pageId">
+    /// 只看这一页上的元素。传空表示不过滤——单页文档与旧调用点走那条路。
+    /// </param>
     public static DrawList Build(
         DiagramDocument document,
         EngineLayoutResult layout,
         Theme theme,
-        ITextMeasurer measurer)
+        ITextMeasurer measurer,
+        string? pageId = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(layout);
@@ -109,20 +113,48 @@ public static class SceneBuilder
         var plan = LayerPlan.Of(document);
 
         // 缺省层在最底下：组合框、连线，以及没有图层归属的节点都在这一档。
-        AppendComposites(document, CompositeBoxes(document, placed, theme, plan), theme, measurer, commands);
-        AppendEdges(document, layout, theme, measurer, commands, plan);
-        AppendNodes(document, placed, theme, measurer, commands, plan, layer: null);
+        AppendComposites(document, CompositeBoxes(document, placed, theme, plan, pageId), theme, measurer, commands);
+        AppendEdges(document, layout, theme, measurer, commands, plan, pageId);
+        AppendNodes(document, placed, theme, measurer, commands, plan, layer: null, pageId);
 
         // 已声明的图层按次序一档一档往上画。
         foreach (var layer in plan.PaintOrder.Skip(1))
         {
-            AppendNodes(document, placed, theme, measurer, commands, plan, layer);
+            AppendNodes(document, placed, theme, measurer, commands, plan, layer, pageId);
         }
 
         return new DrawList(commands, layout.Width, layout.Height, theme.Background)
         {
-            Blocked = plan.BlockedNodes,
+            Blocked = Blocked(plan, document, pageId),
         };
+    }
+
+    /// <summary>
+    /// 画出来但点不中的那一份名单，把不在这一页上的节点并进来。
+    /// </summary>
+    /// <remarks>
+    /// 别的页面上的节点本来就没有指令、也就点不中，并进来是为了让这一份**单独**
+    /// 就能回答"谁能被点中"——与图层那一条同一个理由。
+    /// 边不进这份名单：它一进去，同一页上的边也会变得点不中。
+    /// </remarks>
+    private static IReadOnlySet<string> Blocked(LayerPlan plan, DiagramDocument document, string? pageId)
+    {
+        if (pageId is null)
+        {
+            return plan.BlockedNodes;
+        }
+
+        var blocked = new HashSet<string>(plan.BlockedNodes, StringComparer.Ordinal);
+
+        foreach (var node in document.Nodes)
+        {
+            if (!PageMembership.Shows(document, node, pageId))
+            {
+                blocked.Add(node.Id);
+            }
+        }
+
+        return blocked;
     }
 
     #region 组合
@@ -207,13 +239,14 @@ public static class SceneBuilder
         DiagramDocument document,
         IReadOnlyDictionary<string, PlacedNode> placed,
         Theme theme,
-        LayerPlan plan)
+        LayerPlan plan,
+        string? pageId)
     {
         var members = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
         foreach (var composite in document.Composites)
         {
-            members[composite.Id] = composite.Members;
+            members[composite.Id] = Members(document, composite, pageId);
         }
 
         var boxes = new Dictionary<string, SpatialRect>(StringComparer.Ordinal);
@@ -224,6 +257,31 @@ public static class SceneBuilder
         }
 
         return boxes;
+    }
+
+    /// <summary>一个组合在这一页上还剩哪些成员。</summary>
+    /// <remarks>
+    /// 节点看它在不在这一页；嵌套的组合没有自己的归属，先留着。
+    /// 于是成员全在别的页面上的组合算不出框，也就不画——与成员全被藏起来时同一处置。
+    /// </remarks>
+    private static IReadOnlyList<string> Members(
+        DiagramDocument document,
+        CompositeDef composite,
+        string? pageId)
+    {
+        if (pageId is null)
+        {
+            return composite.Members;
+        }
+
+        return
+        [
+            .. composite.Members.Where(member =>
+                document.Nodes.FirstOrDefault(node => string.Equals(node.Id, member, StringComparison.Ordinal))
+                    is { } node
+                    ? PageMembership.Shows(document, node, pageId)
+                    : document.Composites.Any(item => string.Equals(item.Id, member, StringComparison.Ordinal))),
+        ];
     }
 
     private static SpatialRect? Box(
@@ -315,7 +373,8 @@ public static class SceneBuilder
         Theme theme,
         ITextMeasurer measurer,
         List<DrawCommand> commands,
-        LayerPlan plan)
+        LayerPlan plan,
+        string? pageId)
     {
         var routed = new Dictionary<string, RoutedEdge>(StringComparer.Ordinal);
 
@@ -334,6 +393,12 @@ public static class SceneBuilder
             // 端点在被藏起来的图层上就不画：一条线连着看不见的东西，
             // 画出来是一根悬空的线，而用户会去找它另一头在哪。
             if (plan.HiddenNodes.Contains(edge.From) || plan.HiddenNodes.Contains(edge.To))
+            {
+                continue;
+            }
+
+            // 不在这一页上的边不画。跨页的边两页都不画，理由见边的归属字段。
+            if (!PageMembership.Shows(document, edge, pageId))
             {
                 continue;
             }
@@ -454,10 +519,15 @@ public static class SceneBuilder
         ITextMeasurer measurer,
         List<DrawCommand> commands,
         LayerPlan plan,
-        string? layer)
+        string? layer,
+        string? pageId)
     {
         foreach (var node in document.Nodes)
         {
+            if (!PageMembership.Shows(document, node, pageId))
+            {
+                continue;
+            }
             if (!string.Equals(plan.EffectiveLayerId(node), layer, StringComparison.Ordinal)
                 || plan.HiddenNodes.Contains(node.Id))
             {

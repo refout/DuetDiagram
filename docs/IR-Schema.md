@@ -110,6 +110,7 @@ setter 又是 `internal`——外部算得出、赋不进去。Mermaid 导入（
 | `shape` | `NodeShape` | `Rect` | 视觉 |
 | `parent` | `string?` | `null` | 结构 |
 | `layer` | `string?` | `null` | 视觉 |
+| `page` | `string?` | `null` | **结构** |
 | `styleToken` | `string?` | `null` | 视觉 |
 | `style` | `NodeStyle?` | `null` | 视觉 |
 | `text` | `TextStyle?` | `null` | 视觉 |
@@ -137,6 +138,12 @@ setter 又是 `internal`——外部算得出、赋不进去。Mermaid 导入（
 | `fromPort` / `toPort` | `string?` | `null` | 结构 |
 | `label` | `string` | `""` | 视觉 |
 | `style` | `EdgeStyle` | 空 | 视觉 |
+| `page` | `string?` | `null` | **结构** |
+
+**边的 `page` 与节点的那一个有一处不同：没声明时跟着两端走。** 一律按缺省页算的话，
+两端都在第二页而边没声明归属时，它会归到第一页，于是两页都不画它——
+一条两端都在、却哪儿都看不见的边。两端不在同一页时哪一页都不画，
+理由见 `docs/Render-Pipeline.md`。
 
 `Line` / `Arrow` / `StyleToken` 是 `style` 上的只读便捷属性，不是独立字段。
 **这个形状与节点不同**：节点的样式令牌留在顶层，边则全部收在样式里。
@@ -257,7 +264,7 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 
 | 哈希 | 覆盖 |
 |---|---|
-| 结构 | `kind`、`direction`；节点 `id` / `parent` / `ports`；边 `id` / `from` / `to` / `fromPort` / `toPort`；组合 `id` / `parent` / `direction` / `collapsed` / `members`；字体全部字段；布局提示的间距与四类约束 |
+| 结构 | `kind`、`direction`；节点 `id` / `parent` / `page` / `ports`；边 `id` / `from` / `to` / `fromPort` / `toPort` / `page`；组合 `id` / `parent` / `direction` / `collapsed` / `members`；字体全部字段；布局提示的间距与四类约束 |
 | 视觉 | 结构部分的全部内容，加上节点 `label` / `shape` / `layer` / `styleToken` / `desc` / `richText` / `mathMode` / `style` / `text`；边 `label` / `style`；组合 `label` / `style` / `localLayout`；标签、文本预设、图层、页面、调色板、画布设置 |
 
 ### 三样刻意不覆盖的东西
@@ -353,9 +360,12 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 | 项 | 说明 |
 |---|---|
 | `ApplySnapshot` | 语义待澄清。协作同步设计清楚之前不实现 |
-| `PageDef` / `LayerDef` 的字段 | 方案只列出集合存在，未给字段。现取最小集合，等对应交互开工时再补 |
+| `PageDef` / `LayerDef` 的字段 | 方案只列出集合存在，未给字段。现取最小集合：标识、名字、次序（页面另有可见性与锁定，图层另有）。页面的重命名与挪次序还没有命令 |
 | 图层引用不存在的图层 | 节点上的 `layer` 指向一个不存在的图层时，命令层与校验器都不报（`DiagramValidator` 只查图层集合自身），渲染按缺省层处理。补一条校验记在 P4-02 的 followups |
-| 页面、标签、动作的消费方 | 三样都能经命令层增删了，但渲染层与界面都还没读它们：翻页、标签着色、动作触发都还没有接线。IR 与命令先就位，是为了让「一份带页面与标签的文档能存下来、能往返」这件事先成立 |
+| 页面引用不存在的页面 | 节点与边上的 `page` 指向一个不存在的页面时，命令层与校验器都不报，按缺省页处理（次序最小的那一页）。判据只有一份，在 `PageMembership` 里 |
+| 页面归属与端点不一致的边 | 边声明了归属而两端不在那一页上时，两页都不画它，校验器也不报。补一条校验记在 P4-04 的 followups |
+| 标签与动作的消费方 | 标签着色、动作触发还没有接线。IR 与命令先就位，是为了让「一份带标签与动作的文档能存下来、能往返」这件事先成立 |
+| 每页各自的视口 | 翻页沿用同一个缩放与平移位置。每页各记一份要落到 sidecar 还是文档里是个新决定，方案没说 |
 | 多态序列化的标识符 | 目前每个多态体系各自用 `$` 前缀字段名，尚未统一约定 |
 
 ## 三样关系是单向的

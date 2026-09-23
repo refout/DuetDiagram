@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DuetDiagram.App.ViewModels"
+             x:Class="DuetDiagram.App.Controls.PageTabs"
+             x:DataType="vm:PageTabsViewModel">
+
+  <!--
+    标签栏停在画布那一格的最上面，不进 DockPanel 的停靠位里那一段之外的地方。
+    它常驻：显隐会改画布高度，而画布一改尺寸视口就跟着跳，开一次栏位图就挪一下位置。
+  -->
+  <Border Background="#f7f9fb"
+          BorderBrush="#d8dee7"
+          BorderThickness="0,0,0,1">
+    <DockPanel Margin="8,6">
+
+      <!-- 当前页那几个数字。翻页之后给一个"这一页不是空的"的凭据。 -->
+      <TextBlock x:Name="Note"
+                 DockPanel.Dock="Right"
+                 Margin="10,0,0,0"
+                 VerticalAlignment="Center"
+                 FontSize="11"
+                 Foreground="#7a8492" />
+
+      <!-- 新建与删页。作用对象是当前页。 -->
+      <StackPanel x:Name="Actions"
+                  DockPanel.Dock="Right"
+                  Orientation="Horizontal"
+                  Spacing="6" />
+
+      <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="Tabs"
+                    Orientation="Horizontal"
+                    Spacing="4" />
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

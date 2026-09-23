@@ -40,35 +40,40 @@
                             Width="300" />
 
     <!--
-      画布与诊断面板叠在同一格里。面板不进 DockPanel 的停靠位：
-      停靠会改变画布的尺寸，而画布一改尺寸视口就跟着变——开关一次面板图就跳一下。
+      画布那一格里再分一次：标签栏停在画布上方，而画布与那几个浮层叠在同一格里。
+      浮层不进停靠位——停靠会改变画布的尺寸，而画布一改尺寸视口就跟着变，
+      开关一次面板图就跳一下。
     -->
-    <Grid>
-      <controls:DiagramCanvas x:Name="Canvas" />
-      <controls:DiagnosticsPanel HorizontalAlignment="Right"
-                                 VerticalAlignment="Top"
-                                 Margin="12"
-                                 IsVisible="{Binding Diagnostics.IsOpen}" />
-      <!--
-        变更边栏浮在右下角。它与诊断面板一样不进停靠位：停靠会改画布尺寸，
-        而尺寸一变视口就跳，开一次边栏图就挪一下位置。
-      -->
-      <controls:DiffSidebar x:Name="DiffView"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Bottom"
-                            Margin="12" />
-      <!--
-        两条提示都浮在正中间，默认收起来。它们不进停靠位：一出现就改画布尺寸的话，
-        图会在"出错的那一刻"跟着跳一下，而用户正在盯着它看出错在哪。
-      -->
-      <controls:LayoutFailureDialog x:Name="LayoutFailureView"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    IsVisible="False" />
-      <controls:SidecarRecoveryDialog x:Name="SidecarRecoveryView"
+    <DockPanel>
+      <controls:PageTabs x:Name="PageTabsView" DockPanel.Dock="Top" />
+
+      <Grid>
+        <controls:DiagramCanvas x:Name="Canvas" />
+        <controls:DiagnosticsPanel HorizontalAlignment="Right"
+                                   VerticalAlignment="Top"
+                                   Margin="12"
+                                   IsVisible="{Binding Diagnostics.IsOpen}" />
+        <!--
+          变更边栏浮在右下角。它与诊断面板一样不进停靠位：停靠会改画布尺寸，
+          而尺寸一变视口就跳，开一次边栏图就挪一下位置。
+        -->
+        <controls:DiffSidebar x:Name="DiffView"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Bottom"
+                              Margin="12" />
+        <!--
+          两条提示都浮在正中间，默认收起来。它们不进停靠位：一出现就改画布尺寸的话，
+          图会在"出错的那一刻"跟着跳一下，而用户正在盯着它看出错在哪。
+        -->
+        <controls:LayoutFailureDialog x:Name="LayoutFailureView"
                                       HorizontalAlignment="Center"
                                       VerticalAlignment="Center"
                                       IsVisible="False" />
-    </Grid>
+        <controls:SidecarRecoveryDialog x:Name="SidecarRecoveryView"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        IsVisible="False" />
+      </Grid>
+    </DockPanel>
   </DockPanel>
 </Window>

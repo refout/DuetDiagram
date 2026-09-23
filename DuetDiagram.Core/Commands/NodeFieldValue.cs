@@ -53,6 +53,7 @@ public static class NodeFieldValue
             FieldNames.Shape => node.Shape.ToString(),
             FieldNames.Parent => node.Parent,
             FieldNames.Layer => node.Layer,
+            FieldNames.Page => node.Page,
             FieldNames.StyleToken => node.StyleToken,
             FieldNames.Style => node.Style is null
                 ? null
@@ -141,6 +142,10 @@ public static class NodeFieldValue
 
             case FieldNames.Layer:
                 updated = node with { Layer = text };
+                return true;
+
+            case FieldNames.Page:
+                updated = node with { Page = text };
                 return true;
 
             case FieldNames.StyleToken:

@@ -43,6 +43,22 @@ public sealed record NodeDef : IDefinition
     /// <summary>所属图层。只影响可见性与归属，不影响布局计算。</summary>
     public string? Layer { get; init; }
 
+    /// <summary>
+    /// 所属页面。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **它进结构哈希**：布局是按页算的，同一份文档在第二页上解出来的坐标与在第一页上
+    /// 不是一回事。报成外观变更的话，翻页之后不重排。
+    /// </para>
+    /// <para>
+    /// **空值指向缺省页**（次序最小的那一页），指向一个不存在的页面也按缺省页处理。
+    /// 这条口径在 <see cref="PageMembership"/> 里只有一份——布局、渲染、导出与摘要
+    /// 四处都调它，各判一次的话表现是"翻页之后有几个元素赖着不走"。
+    /// </para>
+    /// </remarks>
+    public string? Page { get; init; }
+
     /// <summary>调色板令牌名（例如 primary、danger）。属于视觉信息，已展开后的具体颜色不入 IR。</summary>
     public string? StyleToken { get; init; }
 
@@ -92,6 +108,7 @@ public sealed record NodeDef : IDefinition
         && Shape == other.Shape
         && string.Equals(Parent, other.Parent, StringComparison.Ordinal)
         && string.Equals(Layer, other.Layer, StringComparison.Ordinal)
+        && string.Equals(Page, other.Page, StringComparison.Ordinal)
         && string.Equals(StyleToken, other.StyleToken, StringComparison.Ordinal)
         && Equals(Style, other.Style)
         && Equals(Text, other.Text)
@@ -110,6 +127,7 @@ public sealed record NodeDef : IDefinition
         hash.Add(Shape);
         hash.Add(Parent, StringComparer.Ordinal);
         hash.Add(Layer, StringComparer.Ordinal);
+        hash.Add(Page, StringComparer.Ordinal);
         hash.Add(StyleToken, StringComparer.Ordinal);
         hash.Add(Style);
         hash.Add(Text);

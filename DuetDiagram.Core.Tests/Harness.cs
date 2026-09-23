@@ -238,6 +238,41 @@ internal sealed class Harness : IDisposable
     public CommandResult PutOnLayer(string nodeId, string layerId, ChangeSource source = ChangeSource.Human)
         => SetField(nodeId, FieldNames.Layer, layerId, source);
 
+    /// <summary>把一个节点归到某一页上。走字段写入那条命令。</summary>
+    public CommandResult PutOnPage(string nodeId, string pageId, ChangeSource source = ChangeSource.Human)
+        => SetField(nodeId, FieldNames.Page, pageId, source);
+
+    /// <summary>把一批节点一次归到同一页上。</summary>
+    /// <remarks>
+    /// 归属没有批命令（页归属是按"在某一页上画东西"发生的，不是多选之后整批挪），
+    /// 所以这里是逐条发。要一次进一条历史的话，那是另一条命令的事。
+    /// </remarks>
+    public CommandResult AssignPage(
+        IEnumerable<string> nodeIds,
+        string pageId,
+        ChangeSource source = ChangeSource.Human)
+    {
+        ArgumentNullException.ThrowIfNull(nodeIds);
+
+        CommandResult last = CommandResult.NoOp();
+
+        foreach (var id in nodeIds)
+        {
+            last = PutOnPage(id, pageId, source);
+        }
+
+        return last;
+    }
+
+    /// <summary>改一条边的一个字段。</summary>
+    public CommandResult SetEdgeField(
+        string edgeId,
+        string field,
+        string? value,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetEdgeFieldCommand(edgeId, field, value)
+            .WithContext(ChangeContext.For(source, "tester")));
+
     /// <summary>把一批节点一次归到同一个图层上。</summary>
     public CommandResult AssignLayer(IEnumerable<string> nodeIds, string layerId, ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new AssignLayerCommand(layerId, [.. nodeIds])

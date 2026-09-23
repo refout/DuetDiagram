@@ -126,6 +126,14 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<LayerPanel>().Single();
     }
 
+    /// <summary>窗口里那条页面标签栏。</summary>
+    public static PageTabs PageTabs(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<PageTabs>().Single();
+    }
+
     /// <summary>窗口里那条工具栏。</summary>
     public static DiagramToolBar ToolBar(Window window)
     {

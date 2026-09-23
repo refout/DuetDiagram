@@ -98,7 +98,8 @@ public static class SampleDiagram
         ITextMeasurer measurer,
         IReadOnlyDictionary<string, Anchor>? pinnedNodes,
         ILayoutEngine? engine = null,
-        TimeSpan? budget = null)
+        TimeSpan? budget = null,
+        string? pageId = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(theme);
@@ -119,14 +120,15 @@ public static class SampleDiagram
         var job = LayoutRequestFactory.FromDocument(
             document,
             node => SceneBuilder.MeasureNode(node, theme, measurer),
-            layoutPins);
+            layoutPins,
+            pageId);
 
         var layoutWatch = Stopwatch.StartNew();
         var result = new LayoutCoordinator(engine ?? new ConstraintLayoutEngine()).Compute(job, budget);
         layoutWatch.Stop();
 
         var drawListWatch = Stopwatch.StartNew();
-        var drawList = SceneBuilder.Build(document, result.Layout, theme, measurer);
+        var drawList = SceneBuilder.Build(document, result.Layout, theme, measurer, pageId);
         drawListWatch.Stop();
 
         return new SampleScene(
@@ -155,7 +157,8 @@ public static class SampleDiagram
         DiagramDocument document,
         Theme theme,
         ITextMeasurer measurer,
-        SampleScene previous)
+        SampleScene previous,
+        string? pageId = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(theme);
@@ -163,7 +166,7 @@ public static class SampleDiagram
         ArgumentNullException.ThrowIfNull(previous);
 
         var watch = Stopwatch.StartNew();
-        var drawList = SceneBuilder.Build(document, previous.Result.Layout, theme, measurer);
+        var drawList = SceneBuilder.Build(document, previous.Result.Layout, theme, measurer, pageId);
         watch.Stop();
 
         return previous with

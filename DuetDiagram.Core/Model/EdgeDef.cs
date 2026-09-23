@@ -52,6 +52,26 @@ public sealed record EdgeDef : IDefinition
     /// <summary>边上的文字，例如"是""否"。</summary>
     public string Label { get; init; } = string.Empty;
 
+    /// <summary>
+    /// 所属页面。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **边也要有归属**，不能只由两端决定。跨页的边（两端不在同一页）**哪一页都不画**：
+    /// 挑一页画出来的话，用户在那一页上会看到一条通向空处的线，而它在另一页上才接得上。
+    /// 判据见 <see cref="PageMembership"/>。
+    /// </para>
+    /// <para>
+    /// **没声明时跟着两端走**（两端在同一页就归那一页）。一律按"缺省页"算的话，
+    /// 两端都在第二页而边没声明归属时，它会归到第一页，于是两页都不画它——
+    /// 一条两端都在、却哪儿都看不见的边。
+    /// </para>
+    /// <para>
+    /// 与节点的同名字段一样进结构哈希。
+    /// </para>
+    /// </remarks>
+    public string? Page { get; init; }
+
     public EdgeStyle Style { get; init; } = new();
 
     /// <summary>线型的便捷读取。未声明时按实线处理，与渲染的缺省行为一致。</summary>

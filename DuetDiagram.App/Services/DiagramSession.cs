@@ -65,6 +65,14 @@ public sealed class DiagramSession : IDisposable
     private LayoutFailedException? _layoutFailure;
     private bool _manualLayout;
 
+    /// <summary>
+    /// 正在看的那一页。空表示文档里没有页面，那时不过滤。
+    /// </summary>
+    /// <remarks>
+    /// 由 <see cref="SyncCurrentPage"/> 保证它总是一个存在的页，或者空。
+    /// </remarks>
+    private string? _currentPageId;
+
     private readonly Dictionary<string, Anchor> _pinned = new(StringComparer.Ordinal);
     private readonly Stack<PinSnapshot> _pinUndo = new();
     private readonly Stack<PinSnapshot> _pinRedo = new();
@@ -163,7 +171,8 @@ public sealed class DiagramSession : IDisposable
 
         // 第一份布局不走 Reload：那时还没有"上一次成功的结果"可以退守，
         // 算不出来就是算不出来，如实抛出比留一份空画面让人以为文档是空的要好。
-        Scene = SampleDiagram.Build(Document, Theme, _measurer, null, _engine);
+        _currentPageId = PageMembership.DefaultPageId(Document);
+        Scene = SampleDiagram.Build(Document, Theme, _measurer, null, _engine, budget: null, pageId: _currentPageId);
         _sceneVersion = Document.Version;
 
         // 别的窗口改的是同一份文档、同一条总线，所以通知能到这一份上来。
@@ -339,7 +348,14 @@ public sealed class DiagramSession : IDisposable
             // 锁定的元素选不中。命中测试那边已经把它们挡住了，这里再筛一遍：
             // 选中集合不止由点选驱动（全选、撤销之后的重整都走这条路），
             // 漏掉这一处的话，全选会把锁着的元素也选上，接着一次删除就把它们删了。
-            if (Find(id) is { } node && !IsLocked(node) && !accepted.Contains(id, StringComparer.Ordinal))
+            //
+            // 不在当前页上的元素同样选不中，理由一样：命中测试管的是画布上的点选，
+            // 管不到全选与撤销之后的重整。留着它们的话，属性面板会显示一个
+            // 画布上根本看不见的东西的字段。
+            if (Find(id) is { } node
+                && !IsLocked(node)
+                && PageMembership.Shows(Document, node, _currentPageId)
+                && !accepted.Contains(id, StringComparer.Ordinal))
             {
                 accepted.Add(id);
             }
@@ -517,10 +533,14 @@ public sealed class DiagramSession : IDisposable
 
     private void Reload(TimeSpan? budget)
     {
+        // 先看当前页还在不在。删一页、或者撤销掉一次建页之后它可能已经没了，
+        // 而那时按一个不存在的页去算，画面会空掉——用户看不出为什么。
+        SyncCurrentPage();
+
         if (_manualLayout)
         {
             // 手动布局模式：不再问引擎，位置冻在最近一次成功的布局上。
-            Scene = SampleDiagram.Rebuild(Document, Theme, _measurer, Scene);
+            Scene = SampleDiagram.Rebuild(Document, Theme, _measurer, Scene, _currentPageId);
             _sceneVersion = Document.Version;
             SceneChanged?.Invoke();
             return;
@@ -528,7 +548,7 @@ public sealed class DiagramSession : IDisposable
 
         try
         {
-            Scene = SampleDiagram.Build(Document, Theme, _measurer, _pinned, _engine, budget);
+            Scene = SampleDiagram.Build(Document, Theme, _measurer, _pinned, _engine, budget, _currentPageId);
             _layoutFailure = null;
             _sceneVersion = Document.Version;
             SceneChanged?.Invoke();
@@ -971,6 +991,152 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 页面
+
+    /// <summary>文档里的页面，按次序排好。</summary>
+    public IReadOnlyList<PageDef> Pages => PageMembership.Ordered(Document);
+
+    /// <summary>
+    /// 当前正在看的那一页。
+    /// </summary>
+    /// <remarks>
+    /// **它不是文档里的东西。** 它是"我在看哪一页"这个意图，只活在会话里：
+    /// 不进 IR、不进任何哈希，撤销也回不到"上一次看的那一页"——
+    /// 撤销该撤的是对文档做的事，而翻一页什么都没做。
+    /// 一个页面都没有时为空，那时不过滤，整份文档就是那一页。
+    /// </remarks>
+    public string? CurrentPageId => _currentPageId;
+
+    /// <summary>
+    /// 翻到某一页。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 翻页要**重算**，不只是重画：布局是按页算的，每一页上的元素不同，
+    /// 解出来的坐标也不同。只重画的话，用户会看到上一页的坐标配上这一页的内容。
+    /// </para>
+    /// <para>
+    /// 翻页之后选中要筛一遍：不在这一页上的元素点不中，留着它们会让属性面板
+    /// 显示一个画布上根本看不见的东西的字段。
+    /// </para>
+    /// </remarks>
+    /// <returns>翻过去了为真。页标识不存在时为假，当前页不动。</returns>
+    public bool SwitchPage(string pageId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageId);
+
+        if (!Document.Pages.Any(page => string.Equals(page.Id, pageId, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (string.Equals(_currentPageId, pageId, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        _currentPageId = pageId;
+
+        // 先筛选中再重算：重算会按新的绘制列表重画选中框，而那时选中集合该已经筛过了。
+        SetSelection(_selectedIds);
+        Reload();
+
+        return true;
+    }
+
+    /// <summary>新建一页，标识由会话生成。成功后切到新页。</summary>
+    /// <remarks>
+    /// 建完就切过去：用户刚建一页，接下来多半要往里放东西，
+    /// 而画面还停在原来那一页的话，画出来的东西会落在别处。
+    /// </remarks>
+    public CommandResult CreatePage(string? name = null)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var pageId = NextPageId();
+        var result = Bus.Execute(new CreatePageCommand(pageId, name ?? string.Empty));
+
+        if (result.IsEffectiveSuccess)
+        {
+            _currentPageId = pageId;
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 删掉一页。
+    /// </summary>
+    /// <remarks>
+    /// **删页不是删元素。** 那一页上的元素不跟着删，它们退回缺省页——
+    /// 归属指向一个不存在的页面时按缺省页处理，这条口径在 <see cref="PageMembership"/> 里。
+    /// 一并删的话要多记一批元素的 memento，而用户点"删页"时想的多半是"这一页不要了"。
+    /// </remarks>
+    public CommandResult DeletePage(string pageId)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new DeletePageCommand(pageId));
+
+        if (result.IsEffectiveSuccess)
+        {
+            // 当前页没了就回缺省页，这件事在 SyncCurrentPage 里，由 Reload 开头调。
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>当前页没了就回到缺省页。</summary>
+    /// <remarks>
+    /// 删页、以及撤销掉一次建页都会走到这里。当前页指向一个不存在的页时，
+    /// 按它去算的结果是空画面——用户看不出为什么，只会以为文档空了。
+    /// </remarks>
+    private void SyncCurrentPage()
+    {
+        var pages = Document.Pages;
+
+        if (pages.Count == 0)
+        {
+            _currentPageId = null;
+            return;
+        }
+
+        if (_currentPageId is null
+            || !pages.Any(page => string.Equals(page.Id, _currentPageId, StringComparison.Ordinal)))
+        {
+            _currentPageId = PageMembership.DefaultPageId(Document);
+        }
+    }
+
+    /// <summary>
+    /// 下一个可用的页面标识。
+    /// </summary>
+    /// <remarks>
+    /// 判据是九个集合共用的那份占用检查，与图层那边同一个理由。
+    /// </remarks>
+    private string NextPageId()
+    {
+        for (var index = 1; ; index++)
+        {
+            var candidate = $"page{index}";
+
+            if (!Document.IsIdTaken(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    #endregion
+
     #region 布局失败
 
     /// <summary>最近一次布局失败。之后有一次布局成功就清空。</summary>
@@ -1376,6 +1542,10 @@ public sealed class DiagramSession : IDisposable
             FromPort = gesture.SourcePort,
             To = targetId,
             ToPort = targetPort,
+
+            // 画在哪一页就归哪一页。不填的话，在第二页上连出来的线会归缺省页，
+            // 而那一眼就能看出不对：线在第二页上画着，翻到第一页它也在。
+            Page = _currentPageId,
         };
 
         var result = Bus.Execute(new ConnectEdgeCommand(edge));

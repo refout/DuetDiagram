@@ -1,3 +1,4 @@
+using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Llm.Tools;
 using FluentAssertions;
@@ -127,15 +128,46 @@ public sealed class ExportToolTests
 
     [Fact]
     [Trait("Category", "ExportTool")]
-    public void Exporting_one_page_is_not_wired_yet()
+    public void Exporting_a_page_that_is_not_there_is_refused()
     {
         var registry = Harness.Registry(new DiagramDocument("doc"));
 
         var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"mermaid","pageId":"p1"}""");
 
-        Harness.CodeOf(result).Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Parameter.Should().Be("pageId",
-            "认下这个参数而按整份文档回，会让调用方以为它导出的是某一页");
+        // 点名的页面不在文档里要如实说，而不是按整份文档导出——那会让调用方
+        // 以为它导出的是某一页。
+        Harness.CodeOf(result).Should().Be(ErrorCodes.PageMissing);
+        result.Errors[0].Parameter.Should().Be("pageId");
+        result.Errors[0].Expected.Should().NotBeNullOrEmpty("要说清现有的页面有哪些");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Exporting_a_page_leaves_the_other_page_out()
+    {
+        // 两页各放一个节点。导出第二页时只该有第二页上的那个。
+        var document = DiagramDocument.CreateFromContent(
+            "doc",
+            DiagramKind.Flowchart,
+            Direction.TB,
+            pages: [new PageDef { Id = "p1", Order = 0 }, new PageDef { Id = "p2", Order = 1 }],
+            nodes:
+            [
+                new NodeDef { Id = "first", Label = "第一页上的", Page = "p1" },
+                new NodeDef { Id = "second", Label = "第二页上的", Page = "p2" },
+            ]);
+
+        var result = Harness.Invoke(
+            Harness.Registry(document),
+            DiagramToolset.Export,
+            """{"format":"mermaid","pageId":"p2"}""");
+
+        result.IsSuccess.Should().BeTrue();
+
+        var text = result.Data!.Value.GetProperty("text").GetString();
+
+        text.Should().Contain("second");
+        text.Should().NotContain("first", "别的页面上的节点不该出现在这一页的导出里");
     }
 
     #endregion

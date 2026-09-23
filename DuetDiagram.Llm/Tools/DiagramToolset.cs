@@ -139,21 +139,17 @@ public static class DiagramToolset
         #region diagram_read
 
         public Task<ToolResult> Read(
-            [Description("要读的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null)
+            [Description("要读的页面标识。留空表示整份文档。")][Pattern(Patterns.DiagramId)] string? pageId = null)
         {
-            // 页面还没有消费方：渲染、界面与摘要都还没读它，所以整份文档就是当前页。
-            // 认下这个参数而按整份文档回，会让调用方以为它读的是某一页——
-            // 一个静默的错误答案比一句「还没接上」糟得多。
-            if (pageId is not null)
+            // 点名的页面不在文档里要如实说：与元素自己的归属字段不同，
+            // 那一条指向不存在的页面按缺省页处理（文档内部的引用），
+            // 而这里点的是调用方要读的东西——认下来按别的页回，它拿到的是一张不是它要的图。
+            if (ActionDispatch.PageMissing(_context, pageId) is { } missing)
             {
-                return Task.FromResult(ToolResult.Fail(ToolError.Of(
-                    ToolErrorCodes.NotSupported,
-                    $"按页过滤还没接上：页面现在还没有消费方，摘要取的是整份文档",
-                    "pageId",
-                    "不带 pageId 可以读到整份文档")));
+                return Task.FromResult(missing);
             }
 
-            var summary = SummaryBuilder.Build(_context.ToSummaryInput());
+            var summary = SummaryBuilder.Build(_context.ToSummaryInput(pageId));
             var payload = new SummaryPayload(
                 SummaryFormatter.Format(summary, _context.Clock.UtcNow),
                 summary);

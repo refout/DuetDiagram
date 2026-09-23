@@ -93,6 +93,7 @@ public static class DiagramHashing
             builder.Append("n|")
                 .Append(node.Id).Append('|')
                 .Append(node.Parent ?? string.Empty).Append('|')
+                .Append(node.Page ?? string.Empty).Append('|')
                 .Append(Ports(node)).Append('\n');
         }
 
@@ -103,7 +104,8 @@ public static class DiagramHashing
                 .Append(edge.From).Append('|')
                 .Append(edge.To).Append('|')
                 .Append(edge.FromPort ?? string.Empty).Append('|')
-                .Append(edge.ToPort ?? string.Empty).Append('\n');
+                .Append(edge.ToPort ?? string.Empty).Append('|')
+                .Append(edge.Page ?? string.Empty).Append('\n');
         }
 
         foreach (var composite in document.Composites.OrderBy(c => c.Id, StringComparer.Ordinal))

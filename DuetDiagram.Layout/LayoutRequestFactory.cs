@@ -57,14 +57,18 @@ public static class LayoutRequestFactory
     public static LayoutJob FromDocument(
         DiagramDocument document,
         Func<NodeDef, Size> measure,
-        IReadOnlyDictionary<string, LayoutPoint>? pinnedNodes = null)
+        IReadOnlyDictionary<string, LayoutPoint>? pinnedNodes = null,
+        string? pageId = null)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(measure);
 
         var pinned = pinnedNodes ?? new Dictionary<string, LayoutPoint>(StringComparer.Ordinal);
 
+        // 只把这一页上的东西交给引擎。不过滤的话，别的页面上的节点照样占位置，
+        // 翻页之后当前页的坐标会跟着别页的内容变——用户看到的是"我翻一页，图就重排了"。
         var nodes = document.Nodes
+            .Where(node => PageMembership.Shows(document, node, pageId))
             .Select(node =>
             {
                 var size = measure(node);
@@ -80,16 +84,45 @@ public static class LayoutRequestFactory
             .ToArray();
 
         var edges = document.Edges
+            .Where(edge => PageMembership.Shows(document, edge, pageId))
             .Select(edge => new LayoutEdge(edge.Id, edge.From, edge.To, edge.FromPort, edge.ToPort))
             .ToArray();
 
         // 组合只传结构与成员：包围盒要等求解之后由成员的最终坐标算。
         // 成员表是权威的那一份，不从节点的父级反推。
+        // 成员按页裁一遍：把不在这一页上的成员交给引擎，它会去要一个没被传进去的节点。
         var groups = document.Composites
-            .Select(composite => new LayoutGroup(composite.Id, composite.Members))
+            .Select(composite => new LayoutGroup(composite.Id, Members(document, composite, pageId)))
+            .Where(group => group.Members.Count > 0)
             .ToArray();
 
         return new LayoutJob(nodes, edges, document.Direction, document.Layout) { Groups = groups };
+    }
+
+    /// <summary>一个组合在这一页上还剩哪些成员。</summary>
+    /// <remarks>
+    /// 节点看它在不在这一页；嵌套的组合没有自己的归属，先留着——它在这一页上还有没有
+    /// 东西由下一层自己的成员决定。取不到的标识直接去掉（悬空引用整体校验器会报）。
+    /// 不过滤页时原样返回，那条路上一次都不该多走。
+    /// </remarks>
+    private static IReadOnlyList<string> Members(
+        DiagramDocument document,
+        CompositeDef composite,
+        string? pageId)
+    {
+        if (pageId is null)
+        {
+            return composite.Members;
+        }
+
+        return
+        [
+            .. composite.Members.Where(member =>
+                document.Nodes.FirstOrDefault(node => string.Equals(node.Id, member, StringComparison.Ordinal))
+                    is { } node
+                    ? PageMembership.Shows(document, node, pageId)
+                    : document.Composites.Any(item => string.Equals(item.Id, member, StringComparison.Ordinal))),
+        ];
     }
 
     private static IReadOnlyList<LayoutPort>? Ports(NodeDef node) =>

@@ -22,6 +22,66 @@ public sealed class LayoutRequestFactoryTests
 
     [Fact]
     [Trait("Category", "Layout")]
+    public void Only_the_current_page_reaches_the_engine()
+    {
+        var document = Document(
+            pages: [new PageDef { Id = "p1", Order = 0 }, new PageDef { Id = "p2", Order = 1 }],
+            nodes:
+            [
+                new NodeDef { Id = "a", Page = "p1" },
+                new NodeDef { Id = "b", Page = "p2" },
+                new NodeDef { Id = "c", Page = "p2" },
+            ],
+            edges:
+            [
+                new EdgeDef { Id = "e1", From = "b", To = "c" },
+                new EdgeDef { Id = "e2", From = "a", To = "c" },
+            ]);
+
+        var request = LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40), pageId: "p2");
+
+        // 别的页面上的节点不进请求：进来的话它们照样占位置，
+        // 而当前页解出来的坐标会跟着别页的内容变——用户看到的是"翻一页图就重排了"。
+        request.Nodes.Select(node => node.Id).Should().Equal("b", "c");
+
+        // 跨页的那条边两边都不进：它的端点不全在这一页上。
+        request.Edges.Select(edge => edge.Id).Should().Equal("e1");
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void A_group_keeps_only_the_members_on_that_page()
+    {
+        var document = Document(
+            pages: [new PageDef { Id = "p1", Order = 0 }, new PageDef { Id = "p2", Order = 1 }],
+            nodes:
+            [
+                new NodeDef { Id = "a", Page = "p1" },
+                new NodeDef { Id = "b", Page = "p2" },
+            ],
+            composites: [new GroupDef { Id = "g", Members = ["a", "b"] }]);
+
+        var request = LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40), pageId: "p2");
+
+        // 把不在这一页上的成员交给引擎，它会去要一个没被传进去的节点。
+        request.Groups.Single().Members.Should().Equal("b");
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void Asking_for_the_whole_document_still_sends_everything()
+    {
+        var document = Document(
+            pages: [new PageDef { Id = "p1", Order = 0 }, new PageDef { Id = "p2", Order = 1 }],
+            nodes: [new NodeDef { Id = "a", Page = "p1" }, new NodeDef { Id = "b", Page = "p2" }]);
+
+        var request = LayoutRequestFactory.FromDocument(document, _ => new Size(80, 40));
+
+        request.Nodes.Should().HaveCount(2, "不传页时不过滤，与从前一样");
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
     public void Nodes_are_measured_and_ports_carried()
     {
         var document = Document(
@@ -196,14 +256,15 @@ public sealed class LayoutRequestFactoryTests
         IReadOnlyList<EdgeDef>? edges = null,
         IReadOnlyList<CompositeDef>? composites = null,
         Direction direction = Direction.TB,
-        LayoutHints? layout = null) => new(
+        LayoutHints? layout = null,
+        IReadOnlyList<PageDef>? pages = null) => new(
             "layout-test",
             DiagramKind.Flowchart,
             direction,
             version: 0,
             structuralHash: "s",
             visualHash: "v",
-            pages: null,
+            pages: pages,
             layers: null,
             nodes,
             edges,

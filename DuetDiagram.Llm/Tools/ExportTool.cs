@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DuetDiagram.Core.Model;
 using DuetDiagram.Mermaid.Export;
 
 namespace DuetDiagram.Llm.Tools;
@@ -45,20 +46,15 @@ internal static class ExportTool
             return ActionDispatch.Missing("要给出导出格式", "format");
         }
 
-        // 页面还没有消费方，整份文档就是当前页。认下这个参数而按整份文档回，
-        // 会让调用方以为它导出的是某一页——一个静默的错误答案比一句「还没接上」糟得多。
-        if (args.PageId is not null)
+        // 点名的页面不在文档里要如实说，理由与按页读那一条相同。
+        if (ActionDispatch.PageMissing(context, args.PageId) is { } missing)
         {
-            return ToolResult.Fail(ToolError.Of(
-                ToolErrorCodes.NotSupported,
-                "按页导出还没接上：页面现在还没有消费方，导出取的是整份文档",
-                "pageId",
-                "不带 pageId 可以导出整份文档"));
+            return missing;
         }
 
         return args.Format switch
         {
-            "mermaid" => Mermaid(context),
+            "mermaid" => Mermaid(context, args.PageId),
 
             // 这一条不是「还没排到」，是**不该现在做**：DSL 的导出方向还没有实现，
             // 而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。
@@ -73,14 +69,17 @@ internal static class ExportTool
         };
     }
 
-    private static ToolResult Mermaid(DiagramToolContext context)
+    private static ToolResult Mermaid(DiagramToolContext context, string? pageId)
     {
-        var result = MermaidExporter.Export(context.Document, new ExportOptions());
+        // 按页导出就是拿一份投影去导：目标格式只认文档，不认识"页"这个概念，
+        // 而"这一页上有谁"那套口径在 Core 里只有一份。
+        var document = PageMembership.Project(context.Document, pageId);
+        var result = MermaidExporter.Export(document, new ExportOptions());
 
         var payload = new ExportPayload("mermaid", result.Text, result.Report.Dropped);
 
         var message = result.Report.Dropped.Count == 0
-            ? "已导出 Mermaid 文本"
+            ? pageId is null ? "已导出 Mermaid 文本" : $"已导出 {pageId} 这一页的 Mermaid 文本"
             : $"已导出 Mermaid 文本，有 {result.Report.Dropped.Count} 类内容写不进去，见 dropped";
 
         return ToolResult.Ok(

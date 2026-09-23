@@ -1,7 +1,7 @@
 id: P4-04
 title: 页面的元素归属与翻页
 phase: 4
-status: pending
+status: done
 depends_on: [P3-04]
 estimated_loc: 480
 files:
@@ -45,8 +45,10 @@ acceptance:
     expect: 全通过；新增的 Memento 记录都补了 [JsonDerivedType]
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=PageTabs"
     expect: 全通过；翻页之后画布上只剩那一页的元素，标签栏的顺序与文档一致
-  - command: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=ToolDispatch"
-    expect: 全通过；`diagram_export` 的 `pageId` 不再返回「还没接上」，按页导出得到的是那一页
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
+    expect: 全通过；`diagram_export` 的 `pageId` 不再返回「还没接上」，按页导出得到的是那一页；点一个不存在的页面要如实拒绝
+  - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+    expect: 全通过；`diagram_read` 的 `pageId` 只读那一页，不存在的页面同样如实拒绝
 constraints:
   - "**归属字段要同时加在节点与边上。** 只加节点的话，跨页的边会被算进哪一页就由它两端的节点决定，而用户会看到一条边在两页上都画出来"
   - "**缺省页要有明确口径。** 没声明归属的元素属于哪一页，要在校验与渲染两处用同一个判据；两处不一致的表现是「翻页之后有几个元素赖着不走」"
@@ -120,3 +122,71 @@ reconnaissance: |
   10. **标签栏的位置**：画布那一格的最上面（`Grid` 里画布之上，停靠画布那一行的顶部），
       不进 DockPanel 的停靠位——停靠会改画布尺寸，而画布一改尺寸视口就跟着跳，
       开一次栏位图就挪一下。这一条与诊断面板、变更边栏同一条理由。
+
+result: |
+  **翻页换的是一整批元素。** 元素归哪一页进了 IR（节点的 `page` 与边的 `page`，都在结构哈希里），
+  布局按页过滤，绘制列表按页过滤，界面上多了一条常驻的标签栏。
+
+  **落地了什么**
+
+  - `DuetDiagram.Core/Model/PageMembership.cs`（新建）：缺省页、元素实际归哪一页、
+    这一页上画不画某个节点/某条边、以及把一份文档投影成"只有这一页"。
+    布局、渲染、导出、摘要四处都调它，判据只有一份。
+  - `NodeDef.Page` 与 `EdgeDef.Page`（**结构哈希**：布局按页算，换了页坐标就变）。
+    `NodeDef` 的相等性与 `GetHashCode` 是手写的，两个都要同步补上——
+    漏掉它俩的表现是"改了归属却报空操作"（记录自动生成的相等性管不到手写的那一份）。
+  - `FieldRegistry` 加 `page`（节点与边各一条，作用域结构），`NodeFieldValue` /
+    `EdgeFieldValue` 加读写分支；属性面板的描述表里加一条隐藏说明（入口在标签栏上）。
+  - `LayoutRequestFactory.FromDocument` 与 `SceneBuilder.Build` 各加一个页参数：
+    布局只把这一页的节点与边交给引擎（组合的成员也按页裁），
+    渲染只给这一页的元素出笔；不在这一页上的节点并进 `DrawList.Blocked`——
+    与图层那一条同一个理由，让那份名单单独就能回答"谁能被点中"。
+  - `DiagramSession`：`CurrentPageId`、`SwitchPage`、`CreatePage`、`DeletePage`、
+    `NextPageId`，以及 `SyncCurrentPage`（当前页没了就回缺省页）。
+    选中集合的筛选加了页这一条（全选因此只收当前页的元素），
+    新连出来的边填当前页。
+  - `PageTabsViewModel` + `PageTabViewModel` + `Controls/PageTabs.axaml(.cs)`（新建）：
+    一格一页、右端是当前页的名字与元素个数、新建与删页。标签栏停在画布那一格的最上面，
+    常驻，与图层面板同一条理由（不进停靠位）。
+  - `diagram_read` / `diagram_export` 的 `pageId` 接上：按页过滤，
+    点一个不存在的页面时如实拒绝（`PAGE_MISSING`）——与元素上那个归属字段刻意不同，
+    那一处按缺省页处理是文档内部的引用，这一处点的是调用方要的东西。
+  - 文档：`IR-Schema.md` 的字段表与哈希覆盖、`Command-List.md` 的删页语义、
+    `GUI.md` 的标签栏与「翻页换的是一整批元素」一节、`Render-Pipeline.md` 的层叠那一段、
+    `AGENTS.md` / `README.md` / `tasks/README.md`。
+  - 用例：Core `PageMembershipTests` 17 条、Layout 3 条、Render `PageRenderTests` 6 条、
+    E2E `PageTabsTests` 10 条；Llm 那边把两条"还没接上"改成了按页过滤的判据。
+
+  **两处与侦察时不一样的地方**
+
+  - **边"没声明归属时跟着两端走"。** 侦察里定的是"边自己的归属要匹配、没声明就按缺省页"。
+    落地时发现那条规则有个洞：两端都在第二页、而边没声明归属时，它归缺省页，
+    于是两页都不画它——一条两端都在、却哪儿都看不见的边。改成跟着两端走，
+    而"两端不在同一页时哪一页都不画"照旧。`EdgeDef.Page` 的注释与 IR 文档都写清了这一条。
+  - **验收里那条 `Category=ToolDispatch` 落在了 Mcp.Tests 上，而它其实在 Llm.Tests 上**
+    （那条分类管的是四个动作工具的动作表）。按实际改成 `Category=ExportTool`
+    与 `Category=ContextSummary` 两条。工具侧那两条动作表门禁仍然在跑，见下。
+
+  **一个刻意的取舍**
+
+  - **删页退回缺省页，不删元素。** 见上面的侦察。`DeletePageCommand` 一个字段都没改。
+  - **页面的重命名与挪次序不做**：没有命令，而标签栏这一轮不需要它们。
+  - **每页各自的视口不做**，"从界面上新建节点"也没有（人这边建不出节点，
+    所以"新元素归到当前页"暂时没有落点）。两条都记进了 `docs/GUI.md` 的缺口表。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 四条验收：`Category=PageMembership` 17/17、`Category=MementoRegistration` 10/10、
+    `Category=PageTabs` 10/10、`Category=ExportTool` 11/11；另加
+    `Category=ContextSummary` 22/22、`Category=PageRender` 6/6、`Category=ToolDispatch` 18/18。
+  - 全量测试：Core 496 / Layout 78 / Render 165 / Mermaid 179 / Dsl 158 / Llm 192 /
+    Mcp 109 / E2E 123 全绿。
+  - `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：408 个文件 / 87122 行 / 54477 行代码）。
+
+  **后续**
+
+  - 页面归属与端点不一致的边（声明了另一页而两端不在）校验器不报，补一条记进 followups。
+  - 每页的视口、页面的改名与挪次序、从界面上新建节点（填当前页）。

@@ -36,6 +36,7 @@ public static class EdgeFieldValue
         return field switch
         {
             FieldNames.Label => edge.Label,
+            FieldNames.Page => edge.Page,
             FieldNames.Style => edge.Style is null
                 ? null
                 : JsonSerializer.Serialize(edge.Style, DiagramJsonContext.Default.EdgeStyle),
@@ -72,6 +73,10 @@ public static class EdgeFieldValue
         {
             case FieldNames.Label:
                 updated = edge with { Label = text ?? string.Empty };
+                return true;
+
+            case FieldNames.Page:
+                updated = edge with { Page = text };
                 return true;
 
             case FieldNames.Style:

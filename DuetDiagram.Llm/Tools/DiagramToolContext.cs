@@ -85,9 +85,11 @@ public sealed record DiagramToolContext
     public DiagramDocument Document => Bus.Context.Document;
 
     /// <summary>把上下文里那几样非 IR 的内容收成摘要输入。</summary>
-    internal SummaryInput ToSummaryInput() => new()
+    /// <param name="pageId">只看这一页。传空表示整份文档。</param>
+    internal SummaryInput ToSummaryInput(string? pageId = null) => new()
     {
         Document = Document,
+        PageId = pageId,
         Placement = Placement,
         PinnedNodes = PinnedNodes,
         RecentChanges = Bus.Context.VersionLog.Snapshot(),

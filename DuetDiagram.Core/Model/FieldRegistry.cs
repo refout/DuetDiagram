@@ -75,6 +75,7 @@ public static class FieldNames
     public const string Shape = "shape";
     public const string Parent = "parent";
     public const string Layer = "layer";
+    public const string Page = "page";
     public const string StyleToken = "styleToken";
     public const string Style = "style";
     public const string Text = "text";
@@ -187,6 +188,7 @@ public static class FieldRegistry
         new(FieldNames.Shape, "节点", FieldScope.Visual),
         new(FieldNames.Parent, "节点", FieldScope.Structural),
         new(FieldNames.Layer, "节点", FieldScope.Visual),
+        new(FieldNames.Page, "节点", FieldScope.Structural),
         new(FieldNames.StyleToken, "节点", FieldScope.Visual),
         new(FieldNames.Style, "节点", FieldScope.Visual),
         new(FieldNames.Text, "节点", FieldScope.Visual),
@@ -223,6 +225,7 @@ public static class FieldRegistry
         new(FieldNames.ToPort, "边", FieldScope.Structural),
         new(FieldNames.Label, "边", FieldScope.Visual),
         new(FieldNames.Style, "边", FieldScope.Visual),
+        new(FieldNames.Page, "边", FieldScope.Structural),
 
         // 组合
         new(FieldNames.Label, "组合", FieldScope.Visual),

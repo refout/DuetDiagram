@@ -373,6 +373,7 @@ public sealed class NodeFieldTests
         Shape = NodeShape.Hexagon,
         Parent = "g",
         Layer = "l1",
+        Page = "p1",
         StyleToken = "primary",
         Style = new NodeStyle
         {

@@ -362,7 +362,7 @@ public sealed class SummaryTests
 
     [Fact]
     [Trait("Category", "ContextSummary")]
-    public async Task Asking_for_one_page_says_the_filter_is_not_wired_yet()
+    public async Task Asking_for_a_page_that_is_not_there_is_refused()
     {
         var registry = Registry(Sample(), []);
 
@@ -371,12 +371,45 @@ public sealed class SummaryTests
             JsonDocument.Parse("""{"pageId":"p2"}""").RootElement,
             TestContext.Current.CancellationToken);
 
+        // 点名的页面不在文档里要如实说，而不是按整份文档回——那会让调用方
+        // 以为它读的是某一页。与元素上那个归属字段的处理刻意不同：那一条按缺省页处理。
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
-        result.Errors[0].Code.Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Parameter.Should().Be("pageId",
-            "认下这个参数而按整份文档回，会让调用方以为它读的是某一页");
-        result.Errors[0].Expected.Should().NotBeNullOrEmpty("要给一条走得通的做法");
+        result.Errors[0].Code.Should().Be(ErrorCodes.PageMissing);
+        result.Errors[0].Parameter.Should().Be("pageId");
+        result.Errors[0].Expected.Should().NotBeNullOrEmpty("要把现有的页面列出来");
+    }
+
+    [Fact]
+    [Trait("Category", "ContextSummary")]
+    public async Task Asking_for_a_page_reads_only_that_page()
+    {
+        // 两页各放两个节点。读第二页只该看到第二页上的那两个。
+        var document = TwoPages();
+
+        var result = await Harness.Registry(document, []).Invoke(
+            DiagramToolset.Read,
+            JsonDocument.Parse("""{"pageId":"p2"}""").RootElement,
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Message.Should().Contain("2 个节点、1 条边", "第一页上的那两个节点与那条边不该出现");
+    }
+
+    [Fact]
+    [Trait("Category", "ContextSummary")]
+    public void The_summary_of_one_page_leaves_the_other_page_out()
+    {
+        var summary = SummaryBuilder.Build(new SummaryInput
+        {
+            Document = TwoPages(),
+            PageId = "p2",
+            Placement = Placement(("start", 0), ("check", 1), ("pass", 2), ("fail", 2)),
+        });
+
+        summary.Nodes.Select(node => node.Id).Should().Equal("fail", "pass");
+        summary.Edges.Select(edge => edge.Id).Should().Equal("e2");
+        summary.Layout.LayerCount.Should().Be(1, "第二页上那两个在同一层——层分布也按页裁过");
     }
 
     #endregion
@@ -403,14 +436,41 @@ public sealed class SummaryTests
     private static DiagramDocument Sample(
         IReadOnlyList<NodeDef>? nodes = null,
         IReadOnlyList<EdgeDef>? edges = null,
-        Palette? palette = null) =>
+        Palette? palette = null,
+        IReadOnlyList<PageDef>? pages = null) =>
         DiagramDocument.CreateFromContent(
             "sample",
             DiagramKind.Flowchart,
             Direction.LR,
+            pages,
             nodes: nodes ?? SampleNodes,
             edges: edges ?? SampleEdges,
             palette: palette ?? Palette("primary", "success", "warning", "danger", "muted"));
+
+    /// <summary>
+    /// 两页的一份文档，各放两个节点。
+    /// </summary>
+    /// <remarks>
+    /// 两页之间不连边：跨页的边两边都不画，那种边在这里只会把"按页读"这件事搅浑。
+    /// </remarks>
+    private static DiagramDocument TwoPages() => Sample(
+        pages:
+        [
+            new PageDef { Id = "p1", Order = 0 },
+            new PageDef { Id = "p2", Name = "第二页", Order = 1 },
+        ],
+        nodes:
+        [
+            new() { Id = "start", Label = "开始", Page = "p1" },
+            new() { Id = "check", Label = "校验", Shape = NodeShape.Diamond, Page = "p1" },
+            new() { Id = "pass", Label = "成功", Page = "p2" },
+            new() { Id = "fail", Label = "失败", Page = "p2" },
+        ],
+        edges:
+        [
+            new() { Id = "e1", From = "start", To = "check", Page = "p1" },
+            new() { Id = "e2", From = "pass", To = "fail", Page = "p2" },
+        ]);
 
     private static Palette Palette(params string[] tokens) => new()
     {

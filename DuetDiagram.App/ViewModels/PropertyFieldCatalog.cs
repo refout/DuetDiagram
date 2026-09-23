@@ -101,6 +101,7 @@ internal static class PropertyFieldCatalog
         {
             [FieldNames.Parent] = "归属组合。入口在分组操作里，面板上改它等于绕开成员列表的一致性校验",
             [FieldNames.Layer] = "图层归属。改它的入口在图层面板上（那里才看得到全部图层，也多选之后一次移入）；这里只在「图层」那一节里把当前归属显示出来",
+            [FieldNames.Page] = "页面归属。改它的入口在画布上方的标签栏上——那里才看得到全部页面，而归属是按「在某一页上画东西」发生的",
             [FieldNames.Style] = "样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Text] = "文本样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Ports] = "端口整体。入口在连线交互里，那里才看得到连线的出入点",

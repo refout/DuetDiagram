@@ -14,6 +14,12 @@ namespace DuetDiagram.Render;
 /// 正着找会把压在下面的元素选出来，用户点在最上面的东西上却选中了背后的另一个。
 /// </para>
 /// <para>
+/// **画出来不等于点得中。** 锁定的元素照常画，但不该被点中，所以调用方把那一批标识
+/// 传进来（见 <see cref="DrawList.Blocked"/>）。这份名单与指令是同一刻算出来的，
+/// 不会出现"画的是这一批、判的是另一批"。不可见的元素本来就没有指令，
+/// 传不传都不影响结果。
+/// </para>
+/// <para>
 /// 坐标是文档坐标，不是屏幕坐标。视口变换在外面做，这里只认几何——
 /// 这样它不依赖任何视口状态，同一份列表与同一个点永远给出同一个答案。
 /// </para>
@@ -28,16 +34,30 @@ public static class HitTester
     /// <param name="tolerance">
     /// 折线的命中容差，文档坐标。传零表示必须正好落在线上。
     /// </param>
+    /// <param name="blocked">
+    /// 画出来但不该被点中的元素标识。传空表示画出来的都能点。
+    /// </param>
     /// <returns>元素标识。这一点上没有东西时返回空。</returns>
-    public static string? Hit(IReadOnlyList<DrawCommand> commands, DrawPoint point, double tolerance = 0)
+    public static string? Hit(
+        IReadOnlyList<DrawCommand> commands,
+        DrawPoint point,
+        double tolerance = 0,
+        IReadOnlySet<string>? blocked = null)
     {
         ArgumentNullException.ThrowIfNull(commands);
 
         for (var index = commands.Count - 1; index >= 0; index--)
         {
-            if (Contains(commands[index], point, tolerance))
+            var command = commands[index];
+
+            if (blocked is not null && blocked.Contains(command.ElementId))
             {
-                return commands[index].ElementId;
+                continue;
+            }
+
+            if (Contains(command, point, tolerance))
+            {
+                return command.ElementId;
             }
         }
 

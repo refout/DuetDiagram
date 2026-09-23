@@ -22,7 +22,8 @@ public sealed record PageDef : IDefinition
 /// 图层定义。
 /// </summary>
 /// <remarks>
-/// 同样只取最小集合。可见性与锁定是图层面板最先要用到的两个开关，先放进来；
+/// 同样只取最小集合。可见性与锁定各自有命令能改，渲染层也照它们办事
+/// （见 <c>LayerPlan</c>）：可见是不画，锁定是画出来但点不中、改不了。
 /// 图层样式、混合模式这类尚未确定的东西不提前加。
 /// </remarks>
 public sealed record LayerDef : IDefinition

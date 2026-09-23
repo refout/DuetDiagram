@@ -71,7 +71,8 @@ public sealed class CreateLayerCommand : DiagramCommandBase
                 },
             ],
 
-            // 图层现在只进视觉哈希：渲染层还没有读它，所以没有坐标要重算。
+            // 图层只进视觉哈希：加一个图层不改变任何坐标，改的是"哪些元素画出来、
+            // 按什么前后画"。所以没有坐标要重算，但画面要重画。
             structural: false,
             visual: true);
     }

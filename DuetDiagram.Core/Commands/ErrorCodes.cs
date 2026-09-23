@@ -42,6 +42,16 @@ public static class ErrorCodes
     /// <summary>要操作的图层不存在。</summary>
     public const string LayerMissing = "LAYER_MISSING";
 
+    /// <summary>
+    /// 要改的元素在一个锁定的图层上。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="LayerForbidden"/> 分开：那一条是"这份凭据够不着这一层"，
+    /// 处置是换凭据或让人放开权限；这一条是"这一层被用户锁上了"，
+    /// 处置是解锁。合成一个码的话，用户看到的处置与真正该做的那件事对不上。
+    /// </remarks>
+    public const string LayerLocked = "LAYER_LOCKED";
+
     /// <summary>要操作的页面不存在。</summary>
     public const string PageMissing = "PAGE_MISSING";
 

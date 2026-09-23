@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 43 | 10283 | 5812 | 2786 | 1685 |
+| DuetDiagram.App | 43 | 10420 | 5889 | 2824 | 1707 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 94 | 12904 | 7363 | 3633 | 1908 |
-| DuetDiagram.Core.Tests | 36 | 9259 | 6542 | 936 | 1781 |
+| DuetDiagram.Core | 96 | 13139 | 7488 | 3708 | 1943 |
+| DuetDiagram.Core.Tests | 37 | 9556 | 6741 | 965 | 1850 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 15 | 3801 | 2445 | 596 | 760 |
+| DuetDiagram.E2E.Tests | 16 | 4042 | 2599 | 632 | 811 |
 | DuetDiagram.Layout | 19 | 2941 | 1582 | 968 | 391 |
 | DuetDiagram.Layout.Tests | 6 | 1676 | 1197 | 169 | 310 |
-| DuetDiagram.Llm | 25 | 4400 | 2439 | 1334 | 627 |
+| DuetDiagram.Llm | 25 | 4405 | 2443 | 1334 | 628 |
 | DuetDiagram.Llm.Tests | 16 | 4090 | 2944 | 311 | 835 |
 | DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 20 | 3101 | 1594 | 1052 | 455 |
-| DuetDiagram.Render.Tests | 12 | 2744 | 1959 | 259 | 526 |
+| DuetDiagram.Render | 21 | 3390 | 1726 | 1168 | 496 |
+| DuetDiagram.Render.Tests | 13 | 3040 | 2160 | 294 | 586 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **389** | **81302** | **50882** | **16836** | **13584** |
+| **合计** | **395** | **82802** | **51774** | **17165** | **13863** |
 
 ## 明细
 
@@ -63,11 +63,11 @@
 | SampleDiagram.cs | 100 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
-| DiagramSession.cs | 755 |
+| DiagramSession.cs | 831 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 73 |
+| ErrorPresenterTable.cs | 74 |
 | FieldEditBinder.cs | 257 |
 | MenuEntries.cs | 177 |
 | MenuRegistry.cs | 87 |
@@ -129,6 +129,8 @@
 | SetDirectionCommand.cs | 65 |
 | SetEdgeFieldCommand.cs | 110 |
 | SetKindCommand.cs | 65 |
+| SetLayerLockedCommand.cs | 39 |
+| SetLayerVisibleCommand.cs | 39 |
 | SetNodeFieldCommand.cs | 108 |
 | SetPlaceCommand.cs | 113 |
 | SetSpacingCommand.cs | 89 |
@@ -141,11 +143,11 @@
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 93 |
-| ErrorCodes.cs | 47 |
+| ErrorCodes.cs | 48 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
-| LayerAccess.cs | 46 |
+| LayerAccess.cs | 92 |
 | NodeFieldValue.cs | 361 |
 | PageAccess.cs | 36 |
 | PaletteFieldValue.cs | 73 |
@@ -209,10 +211,11 @@
 | DocumentLockTests.cs | 177 |
 | DocumentSettingCommandTests.cs | 219 |
 | EdgeCommandTests.cs | 276 |
-| Harness.cs | 215 |
+| Harness.cs | 223 |
 | IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
 | LayerCommandTests.cs | 180 |
+| LayerVisibilityTests.cs | 191 |
 | LayoutCommandTests.cs | 318 |
 | LayoutConstraintTests.cs | 307 |
 | MementoRegistrationTests.cs | 66 |
@@ -272,6 +275,7 @@
 | ErrorPresentationTests.cs | 208 |
 | HeadlessFixture.cs | 134 |
 | HighlightTests.cs | 70 |
+| LayerVisibilityTests.cs | 154 |
 | LayoutFailureTests.cs | 217 |
 | MenuBarTests.cs | 131 |
 | ModeSwitchTests.cs | 209 |
@@ -326,7 +330,7 @@
 | SummaryFormatter.cs | 118 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 212 |
+| RepairHints.cs | 216 |
 | ActionDispatch.cs | 149 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 23 |
@@ -440,14 +444,15 @@
 | DiagnosticsFrame.cs | 14 |
 | DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 80 |
-| DrawList.cs | 54 |
+| DrawList.cs | 64 |
 | Highlight.cs | 181 |
-| HitTester.cs | 59 |
+| HitTester.cs | 68 |
 | ITextMeasurer.cs | 6 |
+| LayerPlan.cs | 87 |
 | ModeSwitch.cs | 44 |
 | QuadTree.cs | 260 |
 | RenderMode.cs | 6 |
-| SceneBuilder.cs | 371 |
+| SceneBuilder.cs | 397 |
 | SkiaTextMeasurer.cs | 70 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 22 |
@@ -466,6 +471,7 @@
 | FakeTextMeasurer.cs | 17 |
 | HighlightTests.cs | 143 |
 | HitTesterTests.cs | 104 |
+| LayerRenderTests.cs | 201 |
 | Layouts.cs | 59 |
 | ModeSwitchTests.cs | 113 |
 | QuadTreeTests.cs | 285 |

@@ -13,9 +13,16 @@ namespace DuetDiagram.Render;
 /// 这里只负责重建得对。
 /// </para>
 /// <para>
-/// **层叠顺序**：组合在最下，然后连线，最后节点。连线画在节点之下，是因为
+/// **层内次序**：组合在最下，然后连线，最后节点。连线画在节点之下，是因为
 /// 折线的两端落在节点边界上，压在节点上会把边界盖住，看上去像线穿进了框里。
 /// 组合在连线之下，是因为成员节点就画在组合框里面。
+/// </para>
+/// <para>
+/// **层与层之间按图层次序。** 每一档内部仍然按上面那个次序出笔，
+/// 图层只决定档与档的先后（见 <see cref="LayerPlan"/>）。没有图层的文档只有一档，
+/// 出笔次序与从前逐字节相同。连线与组合没有图层归属，画在缺省层里；
+/// **端点落在被藏起来的图层上的连线不画**——一条线连着看不见的东西，
+/// 画出来是一根悬空的线。
 /// </para>
 /// <para>
 /// 选中、高亮、拖动预览这些都不在这里。它们是画布的状态而不是文档的状态，
@@ -99,12 +106,23 @@ public static class SceneBuilder
         }
 
         var commands = new List<DrawCommand>();
+        var plan = LayerPlan.Of(document);
 
-        AppendComposites(document, CompositeBoxes(document, placed, theme), theme, measurer, commands);
-        AppendEdges(document, layout, theme, measurer, commands);
-        AppendNodes(document, placed, theme, measurer, commands);
+        // 缺省层在最底下：组合框、连线，以及没有图层归属的节点都在这一档。
+        AppendComposites(document, CompositeBoxes(document, placed, theme, plan), theme, measurer, commands);
+        AppendEdges(document, layout, theme, measurer, commands, plan);
+        AppendNodes(document, placed, theme, measurer, commands, plan, layer: null);
 
-        return new DrawList(commands, layout.Width, layout.Height, theme.Background);
+        // 已声明的图层按次序一档一档往上画。
+        foreach (var layer in plan.PaintOrder.Skip(1))
+        {
+            AppendNodes(document, placed, theme, measurer, commands, plan, layer);
+        }
+
+        return new DrawList(commands, layout.Width, layout.Height, theme.Background)
+        {
+            Blocked = plan.BlockedNodes,
+        };
     }
 
     #region 组合
@@ -179,11 +197,17 @@ public static class SceneBuilder
     /// 没有成员的组合不出现在结果里——它没有地方可画。画一个空框出来，
     /// 用户会以为那是个可以往里放东西的位置，而它其实只是没填成员。
     /// </para>
+    /// <para>
+    /// **被藏起来的成员不算进框里。** 成员全被藏起来的组合因此算不出框，也就不画。
+    /// 让框仍然包着看不见的成员的话，用户会看到一个空荡荡的大框，
+    /// 而看不出它是为了谁留的。
+    /// </para>
     /// </remarks>
     private static Dictionary<string, SpatialRect> CompositeBoxes(
         DiagramDocument document,
         IReadOnlyDictionary<string, PlacedNode> placed,
-        Theme theme)
+        Theme theme,
+        LayerPlan plan)
     {
         var members = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 
@@ -196,7 +220,7 @@ public static class SceneBuilder
 
         foreach (var composite in document.Composites)
         {
-            Box(composite.Id, members, placed, theme, boxes, []);
+            Box(composite.Id, members, placed, theme, plan, boxes, []);
         }
 
         return boxes;
@@ -207,6 +231,7 @@ public static class SceneBuilder
         IReadOnlyDictionary<string, IReadOnlyList<string>> members,
         IReadOnlyDictionary<string, PlacedNode> placed,
         Theme theme,
+        LayerPlan plan,
         Dictionary<string, SpatialRect> boxes,
         HashSet<string> visiting)
     {
@@ -224,9 +249,14 @@ public static class SceneBuilder
 
         foreach (var child in children)
         {
+            if (plan.HiddenNodes.Contains(child))
+            {
+                continue;
+            }
+
             var childBox = placed.TryGetValue(child, out var node)
                 ? new SpatialRect(node.X, node.Y, node.Width, node.Height)
-                : Box(child, members, placed, theme, boxes, visiting);
+                : Box(child, members, placed, theme, plan, boxes, visiting);
 
             if (childBox is null)
             {
@@ -284,7 +314,8 @@ public static class SceneBuilder
         EngineLayoutResult layout,
         Theme theme,
         ITextMeasurer measurer,
-        List<DrawCommand> commands)
+        List<DrawCommand> commands,
+        LayerPlan plan)
     {
         var routed = new Dictionary<string, RoutedEdge>(StringComparer.Ordinal);
 
@@ -296,6 +327,13 @@ public static class SceneBuilder
         foreach (var edge in document.Edges)
         {
             if (!routed.TryGetValue(edge.Id, out var route) || route.Points.Length < 2)
+            {
+                continue;
+            }
+
+            // 端点在被藏起来的图层上就不画：一条线连着看不见的东西，
+            // 画出来是一根悬空的线，而用户会去找它另一头在哪。
+            if (plan.HiddenNodes.Contains(edge.From) || plan.HiddenNodes.Contains(edge.To))
             {
                 continue;
             }
@@ -401,15 +439,31 @@ public static class SceneBuilder
 
     #region 节点
 
+    /// <summary>
+    /// 出一档图层的节点指令。
+    /// </summary>
+    /// <param name="layer">要出的那一档。空表示缺省层。</param>
+    /// <remarks>
+    /// 按档遍历而不是给每个节点算一个档位再排序：排序要遍历两遍、还要为并列定规则，
+    /// 而档的个数就是图层的个数，逐档筛一遍足够，也更容易看出"每一档内部保持声明顺序"。
+    /// </remarks>
     private static void AppendNodes(
         DiagramDocument document,
         IReadOnlyDictionary<string, PlacedNode> placed,
         Theme theme,
         ITextMeasurer measurer,
-        List<DrawCommand> commands)
+        List<DrawCommand> commands,
+        LayerPlan plan,
+        string? layer)
     {
         foreach (var node in document.Nodes)
         {
+            if (!string.Equals(plan.EffectiveLayerId(node), layer, StringComparison.Ordinal)
+                || plan.HiddenNodes.Contains(node.Id))
+            {
+                continue;
+            }
+
             if (!placed.TryGetValue(node.Id, out var box))
             {
                 continue;

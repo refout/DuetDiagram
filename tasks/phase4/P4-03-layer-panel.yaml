@@ -13,6 +13,10 @@ files:
     - DuetDiagram.App/MainWindow.axaml
     - DuetDiagram.App/Services/DiagramSession.cs
     - DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs
+    - DuetDiagram.Llm/Tools/ActionDispatch.cs
+    - DuetDiagram.Llm/Tools/EditTool.cs
+    - DuetDiagram.Llm/Tools/EditArguments.cs
+    - docs/Command-List.md
     - docs/GUI.md
     - AGENTS.md
   test:
@@ -34,6 +38,7 @@ context:
   - 方案 §9.1 的图层分区与 §9.2 的「右键节点 → 图层归属」
   - "`DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs` 里 `layer` 字段现在是刻意隐藏的，注释说入口在图层面板"
   - "`docs/Command-List.md` 里 `assign-layer` 是被字段表吸收的那一条（归属走 `set-node-field` 的 `layer` 字段）"
+  - "**两个图层开关（`set-layer-visible` / `set-layer-locked`）的工具侧动作要跟着面板一起接。** P4-02 落了命令与渲染消费，但故意没接进 `diagram_edit` 的动作表——`EditArguments` 没有任何布尔参数，加参数与把 `value` 当字符串布尔用都是**接口层面的决定**（`diagram_edit` 的参数表是外部代理照着写代码的冻结接口），不该夹在一条渲染任务里做。面板是「人这边的开关」，它一落地就会出现「面板上能关图层、模型不能」的不对等，所以两个动作在这一条里一起落地。核过的既有事实：`ActionDispatch` 与 `EditTool` 已经把 P3-03 的三条图层命令都接上了，**照它们的形状加两条即可**，代价在参数怎么传而不在分发；`Category=ToolDispatch` 只管「动作表里的每条动作都有执行体、且指向已实现的命令」，**不要求每条命令都有动作**，所以漏接不会让门禁变红。"
 scope_note: |
   **面板是「图层」这件事唯一看得见的地方。** 属性面板里那个图层字段是**刻意隐藏**的——
   它一次只看得到一个元素的归属，而图层这件事的意义在于「一层里有谁」。

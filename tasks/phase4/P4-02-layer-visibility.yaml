@@ -1,20 +1,25 @@
 id: P4-02
 title: 图层的可见性、锁定与渲染消费
 phase: 4
-status: pending
+status: done
 depends_on: [P3-03]
 estimated_loc: 420
 files:
   create:
     - DuetDiagram.Core/Commands/Builtin/SetLayerVisibleCommand.cs
     - DuetDiagram.Core/Commands/Builtin/SetLayerLockedCommand.cs
+    - DuetDiagram.Render/LayerPlan.cs
   modify:
-    - DuetDiagram.Core/Commands/CommandMemento.cs
-    - DuetDiagram.Core/Model/PageAndLayer.cs
+    - DuetDiagram.Render/DrawList.cs
     - DuetDiagram.Render/SceneBuilder.cs
     - DuetDiagram.Render/HitTester.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
     - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.Core/Commands/Builtin/CreateLayerCommand.cs
+    - DuetDiagram.Core/Model/PageAndLayer.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
     - docs/Command-List.md
+    - docs/Error-Codes.md
     - docs/IR-Schema.md
     - AGENTS.md
   test:
@@ -50,3 +55,157 @@ scope_note: |
   **两条命令而不是一条。** P3-03 把建、改名、排序各写了一条，三条的参数形状各不相同。
   可见与锁定都是「改一个布尔」，形状相同，所以也可以合成一条由参数给出字段名——
   这一点由这一条的侦察定，定完在 `docs/Command-List.md` 里如实记。
+
+reconnaissance: |
+  **动手前对着模型、哈希、命令层、渲染层、命中测试与工具侧的动作表核了一遍，结论如下。**
+
+  1. **两条命令分开，不合成一条。** 侦察时先看的是「能不能像 `set-node-field` 那样
+     由参数给出字段名」——不能，理由是那一条的字段名来自 `FieldRegistry`（一张按字段
+     登记的元数据表，界面按它选编辑器），而 `LayerDef` 的三个字段都不在那张表里，
+     没有名字可查。硬造一个字段名进来，等于在字段表之外再开一套字段命名。
+     所以照 P3-03 的形状各写一条：`set-layer-visible` 与 `set-layer-locked`，
+     各自一个布尔参数，各自 NoOp（值没变就是没变）。
+
+  2. **`LayerMemento` 够用，`CommandMemento.cs` 不用改。** 三条既有图层命令的撤销
+     都是「整份图层集合换回去」，两条新命令改的也是图层集合里的一个元素，同一份备忘录
+     原样复用。起草时把它列进 `files.modify` 是保守起见，核下来不必动。
+
+  3. **命中测试没有独立的索引，它直接读绘制列表。** `HitTester.Hit(commands, point, tolerance)`
+     只收指令列表，而调用它的是 `CanvasViewModel.Pick`——视图模型手上**没有文档**。
+     所以「锁定图层点不中」这件事要有一个地方把「哪些元素画出来但点不中」交给命中测试。
+     两个候选：让视图模型也持一份文档（第二份真相，会过期），或者**把这份信息挂在绘制列表上**
+     （`DrawList` 加一个「画了但不可命中」的集合，由 `SceneBuilder` 从文档算出来）。
+     选后者：它与指令在同一处、同一刻算出来，不可能与指令不同步。
+     `CanvasViewModel.Pick` 因此不必知道图层的存在。
+
+  4. **起草时担心的「宿主是不是只在结构变更时重建命中索引」不成立，但结论要写清。**
+     `DiagramSession.Reload` 一律走 `SampleDiagram.Build` 重建整份绘制列表，
+     不区分结构变更与外观变更；而可见性与锁定都在**视觉哈希**段，
+     所以改这两个字段一定会走到重建。**锁上之后还能点中**这个隐患不存在。
+     顺带说明：这条依赖的是「Reload 不做增量」这个现状，而它正是 P1 定的口径。
+
+  5. **元素与图层的对应关系只有节点有。** `NodeDef.Layer` 是唯一的图层归属字段；
+     `EdgeDef` 与 `CompositeDef` 都没有。所以：
+     - 节点按自己的 `Layer` 归到那一层；没有归属、或者指向一个不存在的图层时，
+       归到一个**隐含的缺省层**。
+     - 缺省层的次序**固定在最底下**（比任何已声明的图层都低）。让它随图层增减浮动的话，
+       每加一个图层都会有一批没有归属的元素莫名其妙地换前后——这正是约束里点名的那件事。
+     - 边与组合没有归属，画在缺省层里。这与现在的次序（组合 → 连线 → 节点）不冲突：
+       没有图层时全部元素同属缺省层，结果与今天逐字节相同，`Category=SceneSnapshot`
+       的十份快照不受影响。
+     - **端点在被隐藏的图层上的边不画。** 一条线连着看不见的东西，画出来是一根悬空的线。
+       同理，成员全被隐藏的组合不画（它的框算不出来）。
+     - **指向不存在的图层按缺省层处理，不报错。** 校验器现在不查这个（`DiagramValidator`
+       只查图层集合自身），渲染的立场与它处理组合成环时一致：合法的文档里不会有，
+       渲染只需要别崩。校验器补这一条记进 followups。
+
+  6. **层内次序不变。** 每一层内部仍然按「组合 → 连线 → 节点」出笔，理由与现在一样
+     （连线压在节点上会盖住边框）。图层只决定**层与层**的先后。
+
+  7. **工具侧的两个动作这一条不做，记进 followups 并挂到 P4-03 上。**
+     起草时 `files.modify` 里没有 `DuetDiagram.Llm`。核下来 `diagram_edit` 的动作表
+     已经把 P3-03 的三条图层命令都接上了（`ActionDispatch.cs` 与 `EditTool.cs`），
+     所以只加命令不加动作，确实会留下「人能关图层、模型不能」的不对等。
+     但真去接的时候发现代价不在那十几行：`EditArguments` **没有任何布尔参数**，
+     两个开关要么新加一个参数（`diagram_edit` 的参数表是冻结的接口，
+     外部代理照着它写代码，动它要连着改参数表、schema 派生与 Skill 里那份说明），
+     要么把 `value` 当字符串布尔用（`"true"` / `"false"`），而 `value` 现在的说明是
+     「字段要写成的值」，用在开关上没有字段可指。
+     **两种都是接口层面的决定，不该夹在一条渲染任务里做。** 而且此刻并不存在不对等——
+     人这边的开关要等 P4-03 的面板。所以这一条只做命令与消费，把两个动作记进 followups，
+     并在 P4-03 的 `context` 里点明「开关的两侧入口一起落地」。
+
+  8. **只读与锁定的两层门不要混。** 只读（另一个进程拿着文件）在会话那一层挡写入；
+     图层锁定是文档内部的约束，挡的是「改这一层上的元素」。两者都返回结构化拒绝，
+     但错误码不同：前者 `DOCUMENT_READ_ONLY`。锁定的那个码当时想直接复用
+     `LAYER_FORBIDDEN`（`ErrorCodes` 里已经有它，P3-14 的图层级权限在用），
+     实现时核出来不行：那一条说的是「这份凭据够不着这一层」，处置是换凭据；
+     锁定说的是「用户把这一层锁上了」，处置是解锁。**另开一个 `LAYER_LOCKED`**，
+     两者分开的写法照 `PageRequired` 与 `PageMissing` 那一处的先例。这一条只把锁定接到
+     会话的写入口上：字段编辑、删除、拖动、连线、重连。选中不挡——锁定是「别动」，
+     不是「别看」，连点都点不动会让人以为文档没打开。
+     （写在这里而不是改掉上面那句，是因为「当时打算复用」这件事本身有用：
+     凭据与锁定在概念上确实像，而定下「另开一个」的理由要留在纸上。）
+
+result: |
+  **图层的两个开关从命令到画面接通了。** 原来图层是一个只有命令、没有效果的字段：
+  三条命令都在，渲染层却根本没读它。这一条之后，面板（P4-03）一落地就有东西可显示。
+
+  **落地了什么**
+
+  - 两条命令：`DuetDiagram.Core/Commands/Builtin/SetLayerVisibleCommand.cs` 与
+    `SetLayerLockedCommand.cs`（各一个布尔参数、各自 NoOp、都只报外观变更），
+    共用 `LayerAccess.cs` 里新加的 `LayerCommands`——结果里的变更类型与撤销用的快照
+    必须一致，两处各写一遍迟早会分叉。
+  - `DuetDiagram.Render/LayerPlan.cs`（新建）：一次算好「谁画在谁上面、谁不画、
+    谁画了但点不中」。缺省层（没有归属的节点，以及全部连线与组合）固定在最底下；
+    图层次序相同时用标识断掉并列，结果确定；指向不存在的图层按缺省层处理，不报错。
+  - `SceneBuilder` 改成逐档出笔：缺省层一档，然后按次序一档一档往上。
+    **每一档内部仍是「组合 → 连线 → 节点」**，与从前一样。端点在不可见图层上的连线不画，
+    成员全被藏起来的组合不画（框算不出来）。没有图层的文档只有一档，
+    出笔次序与从前逐字节相同——`Category=SceneSnapshot` 那十份快照没动。
+  - `DrawList` 加 `Blocked`（画出来但点不中），`HitTester.Hit` 多收一个名单。
+    名单挂在绘制列表上，而不是让命中测试自己去读文档：读文档就意味着「画的是什么」
+    与「点得中什么」成了两处各自算的判断。`CanvasViewModel.Pick` 因此不必知道图层存在。
+    `DrawList` 的相等性与哈希把 `Blocked` 算进去——把一层锁上只改这一份、不改任何指令，
+    不算的话宿主会认为绘制列表没变、不通知界面重画。
+  - `DiagramSession`：`SetLayerVisible` / `SetLayerLocked`（先过只读门、执行、重算），
+    写入口逐个补上锁定检查（字段编辑、删除、拖动、连线、重连），
+    锁上之后还调一次 `SetSelection` 把选中里的锁定元素筛掉。
+  - 新错误码 `LAYER_LOCKED`，三处落点齐：`ErrorCodes`、`ErrorPresenterTable`（灰显一句话）、
+    `docs/Error-Codes.md`（三张表各一行，另加一段说明它与 `LAYER_FORBIDDEN`、
+    `DOCUMENT_READ_ONLY` 的区别）、`RepairHints`（模型侧拿到的修复建议）。
+  - 文档：`docs/Command-List.md` 加两行，`docs/IR-Schema.md` 把「图层没有消费方」那条
+    换成「图层引用不存在的图层」这个真正的缺口，`docs/GUI.md` 把命中、锁定与只读的分工写清。
+  - 三个分类：`Category=LayerVisibility` 8 条（Core）、`Category=LayerRender`
+    14 条（Render）+ 7 条（E2E），另加 7 条 `Category=Atomicity`。
+
+  **两处与侦察时不一样的地方**
+
+  - **锁定的错误码另开了一个。** 侦察里打算复用 `LAYER_FORBIDDEN`，实现时核出来不行：
+    那一条是「这份凭据够不着这一层」，处置是换凭据；锁定是「用户把这一层锁上了」，
+    处置是解锁。合成一个的话，同一句提示会在两种情形下出现，
+    而其中一种的处置用户做不到。新开的 `LAYER_LOCKED` 照 `PageRequired` /
+    `PageMissing` 那一处的先例（原因不同就分开，不省那个码）。侦察第 8 条按此改写。
+  - **「端点在被隐藏图层上的边不画」这一条比侦察里写的更要紧。** 侦察里它只是
+    「一条线连着看不见的东西是一根悬空的线」；实现时发现它还影响**组合框**：
+    成员全被藏起来的组合算不出框，于是也不画。两处都按「看不见的不参与」处理，
+    于是需要给 `CompositeBoxes` 与 `Box` 传 `LayerPlan`。
+
+  **一个刻意的例外**
+
+  - **锁定的元素仍然可以「被看见」与「被重排」。** 选中被筛掉、拖动被挡住，
+    但重排（`layout.relayout`）照样能用——它不写文档。锁定的意思是「别动这一层的东西」，
+    不是「别看这张图」。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - `Category=LayerVisibility` 8/8；`Category=LayerRender`（Render 14/14、E2E 7/7）；
+    `Category=Atomicity` 141/141 全绿。
+  - 全量测试 Core 467 / Layout 75 / Render 159 / Mermaid 179 / Dsl 158 / Llm 189 /
+    Mcp 109 / **E2E 96** 全绿（E2E 改动前的基线是 89，多的 7 条就是这个分类）。
+  - `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0（`reports/loc.md` 已重新生成：
+    395 个文件 / 82802 行 / 51774 行代码）。
+
+  **过程中修掉的错**
+
+  - 三个新用例文件里只有 E2E 那个编译不过一次：`ErrorCodes` 缺 `DuetDiagram.Core.Commands`
+    的 using。其余两边一次过。
+  - `files.create` 里的 `LayerRules.cs` 按实际落地的类名改成 `LayerPlan.cs`。
+
+  **后续**
+
+  - **两个工具侧动作（`set-layer-visible` / `set-layer-locked`）故意没接**，
+    记在 P4-03 的 `context` 上一起落地。理由见侦察第 7 条：`diagram_edit` 的参数表是
+    冻结的接口而它没有任何布尔参数，加参数与把它当字符串用都是接口层面的决定。
+    此刻不存在「人能关、模型不能」的不对等——人这边的开关要等 P4-03 的面板。
+    门禁不会因为漏接而变红（`Category=ToolDispatch` 只管「动作表里的每条动作都有执行体」，
+    不要求每条命令都有动作），所以这一条只能靠人核。
+  - **校验器要补一条「节点上的 `layer` 指向不存在的图层」。** 命令层与校验器现在都不报，
+    渲染按缺省层处理（合法文档里不会有，渲染只需要别崩）。`docs/IR-Schema.md`
+    的缺口表里把它记成未做项。
+  - **图层次序的「层内次序」还没入口。** 每一层内部仍是声明顺序，用户改不了层内前后。
+    真有人要的话，那是 `reorder-element` 那一类，不在这一条的范围。
+

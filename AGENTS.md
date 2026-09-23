@@ -11,19 +11,19 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型 |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED` |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档、帧时采样器 | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序） |
+| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层 |
 | `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、剔除判据、换档编排与帧时采样 | 已落地 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 已落地 |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 已落地 |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层开关与锁定的写入口 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 已落地 |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 已落地 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -45,8 +45,8 @@ Phase 3 的 16 个任务（命令层、工具定义、上下文摘要、八个�
 都是 `done`。P3-16 里"用真的 Codex CLI / Claude Code 接上服务端"那一步需要人看着跑，
 结论记在 `reports/phase3-mcp.md`——装置齐了不等于测过了，那一步没跑成就不写成通过。
 Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`（工具栏与菜单栏骨架）
-已落地**（`done`），其余 `pending`，其中 **`P4-20`（DSL 导出）标 `blocked`**，
-卡在决策门 1 上——留则照做，不留则整条删掉。
+与 `P4-02`（图层的可见性、锁定与渲染消费）已落地**（`done`），其余 `pending`，
+其中 **`P4-20`（DSL 导出）标 `blocked`**，卡在决策门 1 上——留则照做，不留则整条删掉。
 两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
@@ -396,6 +396,13 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 
 # 菜单栏：两处对同一条给出同样的启用状态，没选中时给理由，只读时该挡的挡住、不该挡的留着
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=MenuBar"
+
+# 图层：两个开关各自的作用范围互不干涉，都只算外观变更，失败不改文档、撤销回得去
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=LayerVisibility"
+
+# 图层怎么影响画面：不可见的不画、锁定的画了但点不中、按次序前后、缺省层固定在最底下
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=LayerRender"
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayerRender"
 
 # 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"

@@ -215,13 +215,17 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     /// 容差按屏幕像素给，换算成文档单位再传下去。缩放倍数大时同样的屏幕距离
     /// 对应更小的文档距离，不换算的话放大之后连线会变得极难点中。
     /// </para>
+    /// <para>
+    /// 锁定图层上那些元素在列表里、但点不中，名单由绘制列表自己带着。
+    /// 视图模型因此不必知道图层这回事。
+    /// </para>
     /// </remarks>
     public string? Pick(double screenX, double screenY, double tolerancePixels = 4)
     {
         var document = _viewport.Transform.ToDocument(screenX, screenY);
         var scale = _viewport.Scale <= 0 ? 1 : _viewport.Scale;
 
-        return HitTester.Hit(_drawList.Commands, document, tolerancePixels / scale);
+        return HitTester.Hit(_drawList.Commands, document, tolerancePixels / scale, _drawList.Blocked);
     }
 
     /// <summary>

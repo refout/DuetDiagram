@@ -120,6 +120,10 @@ public static class ErrorPresenterTable
             // 图层级权限挡住的那一次写入。它也不是"做错了什么"，而是"这份凭据够不着这一层"，
             // 与只读那一档同一个口径。
             [ErrorCodes.LayerForbidden] = new(ErrorPresentationKind.StatusBarMuted, "这份凭据改不动这个图层"),
+
+            // 图层被用户锁上。同样不是"做错了什么"，而是"这一层现在别动"。
+            // 与上一条分开：那一句说的是凭据，这一句说的是这一层自己锁着，处置也不同。
+            [ErrorCodes.LayerLocked] = new(ErrorPresentationKind.StatusBarMuted, "这一层锁着，先解锁再改"),
         };
 
     /// <summary>全部登记过的呈现方式，供门禁逐个核对。</summary>

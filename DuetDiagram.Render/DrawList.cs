@@ -32,7 +32,26 @@ public sealed record DrawList(
     double Height,
     string Background)
 {
+    private static readonly IReadOnlySet<string> None = new HashSet<string>(StringComparer.Ordinal);
+
     private int _elementCount = -1;
+
+    /// <summary>
+    /// 画出来了但点不中的元素标识。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 锁定的图层走这里。**它挂在绘制列表上，而不是让命中测试自己去读文档**：
+    /// 命中测试只认几何，读文档就意味着"画的是什么"与"点得中什么"成了两处各自算的
+    /// 判断，而它们迟早会不一致——表现是"点得中一个看不见的东西"。
+    /// 挂在这里，两者是同一刻、同一处算出来的。
+    /// </para>
+    /// <para>
+    /// 不可见的元素本来就没有指令，所以它们进不进这一份都不影响结果。
+    /// 由构建方决定放不放；放进去的好处是这一份单独就能回答"谁能被点中"。
+    /// </para>
+    /// </remarks>
+    public IReadOnlySet<string> Blocked { get; init; } = None;
 
     /// <summary>空列表。没有内容时用它，宽高为零、背景取白。</summary>
     public static DrawList Empty { get; } = new([], 0, 0, "#ffffff");
@@ -84,7 +103,11 @@ public sealed record DrawList(
     /// 结构化相等。
     /// </summary>
     /// <remarks>
-    /// 必须重写：<see cref="Commands"/> 是集合，记录自动生成的相等性对它用引用比较。
+    /// 必须重写：<see cref="Commands"/> 与 <see cref="Blocked"/> 都是集合，
+    /// 记录自动生成的相等性对它们用引用比较。
+    /// <see cref="Blocked"/> 也要算进来：把一层锁上只改这一份、不改任何指令，
+    /// 不算的话宿主会认为绘制列表没变，于是不通知界面重画——而画布上
+    /// "这一片点不动了"这件事正是刚发生的变化。
     /// </remarks>
     public bool Equals(DrawList? other) =>
         other is not null
@@ -92,7 +115,9 @@ public sealed record DrawList(
         && Height.Equals(other.Height)
         && string.Equals(Background, other.Background, StringComparison.Ordinal)
         && Commands.Count == other.Commands.Count
-        && Commands.SequenceEqual(other.Commands);
+        && Commands.SequenceEqual(other.Commands)
+        && Blocked.Count == other.Blocked.Count
+        && Blocked.SetEquals(other.Blocked);
 
     /// <inheritdoc/>
     public override int GetHashCode()
@@ -108,6 +133,16 @@ public sealed record DrawList(
         {
             hash.Add(command);
         }
+
+        // 集合作和：与集合内部的次序无关，而相等性本来就不看次序。
+        var blocked = 0;
+
+        foreach (var id in Blocked)
+        {
+            blocked ^= StringComparer.Ordinal.GetHashCode(id);
+        }
+
+        hash.Add(blocked);
 
         return hash.ToHashCode();
     }

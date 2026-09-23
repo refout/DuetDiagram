@@ -95,6 +95,11 @@ public static class RepairHints
                 "id",
                 "图层标识写错了或已经没了。读一次图看现有图层，或者先建一个。"),
 
+            [ErrorCodes.LayerLocked] = new(
+                ErrorCodes.LayerLocked,
+                "id",
+                "这个图层锁着。先解锁再改，或者把要改的东西换到别的图层上。"),
+
             [ErrorCodes.PageMissing] = new(
                 ErrorCodes.PageMissing,
                 "id",

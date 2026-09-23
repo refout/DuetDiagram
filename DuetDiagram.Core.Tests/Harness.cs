@@ -224,6 +224,20 @@ internal sealed class Harness : IDisposable
         => Bus.Execute(new ReorderLayerCommand(layerId, index)
             .WithContext(ChangeContext.For(source, "tester")));
 
+    /// <summary>把一个图层藏起来或者放出来。</summary>
+    public CommandResult SetLayerVisible(string layerId, bool visible, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetLayerVisibleCommand(layerId, visible)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>锁上一个图层或者解锁。</summary>
+    public CommandResult SetLayerLocked(string layerId, bool locked, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetLayerLockedCommand(layerId, locked)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>把一个节点归到某个图层上。走字段写入那条命令，与界面走的是同一条路。</summary>
+    public CommandResult PutOnLayer(string nodeId, string layerId, ChangeSource source = ChangeSource.Human)
+        => SetField(nodeId, FieldNames.Layer, layerId, source);
+
     /// <summary>新建一页。</summary>
     public CommandResult CreatePage(string pageId, string name = "", ChangeSource source = ChangeSource.Human)
         => Bus.Execute(new CreatePageCommand(pageId, name)

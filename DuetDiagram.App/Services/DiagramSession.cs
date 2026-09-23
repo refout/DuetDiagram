@@ -336,7 +336,10 @@ public sealed class DiagramSession : IDisposable
 
         foreach (var id in ids)
         {
-            if (Find(id) is not null && !accepted.Contains(id, StringComparer.Ordinal))
+            // 锁定的元素选不中。命中测试那边已经把它们挡住了，这里再筛一遍：
+            // 选中集合不止由点选驱动（全选、撤销之后的重整都走这条路），
+            // 漏掉这一处的话，全选会把锁着的元素也选上，接着一次删除就把它们删了。
+            if (Find(id) is { } node && !IsLocked(node) && !accepted.Contains(id, StringComparer.Ordinal))
             {
                 accepted.Add(id);
             }
@@ -372,6 +375,48 @@ public sealed class DiagramSession : IDisposable
     private CommandResult Refuse() =>
         Report(CommandResult.Fail(CommandError.Of(ErrorCodes.DocumentReadOnly, ReadOnlyReason)));
 
+    /// <summary>
+    /// 拒绝一次改动，并给出"这一层锁着"。
+    /// </summary>
+    /// <remarks>
+    /// 与只读门分开，两条的原因与处置都不同：只读说的是整份文档（另一个进程拿着文件），
+    /// 处置是等对方放开或者另存一份；锁定说的是某一层，处置是解锁。
+    /// 错误码也分开，否则同一句提示会在两种情形下出现，而其中一种的处置用户做不到。
+    /// </remarks>
+    private CommandResult RefuseLocked(string layerId) =>
+        Report(CommandResult.Fail(CommandError.Of(ErrorCodes.LayerLocked, layerId)));
+
+    /// <summary>这个元素在不在一个锁定的图层上。</summary>
+    private bool IsLocked(NodeDef node) =>
+        node.Layer is { } layerId && FindLayer(layerId) is { Locked: true };
+
+    /// <summary>这些元素里第一个锁着的那个，返回它所在的图层标识。都没有就返回空。</summary>
+    private string? LockedLayer(IEnumerable<NodeDef> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            if (IsLocked(node))
+            {
+                return node.Layer;
+            }
+        }
+
+        return null;
+    }
+
+    private LayerDef? FindLayer(string layerId)
+    {
+        foreach (var layer in Document.Layers)
+        {
+            if (string.Equals(layer.Id, layerId, StringComparison.Ordinal))
+            {
+                return layer;
+            }
+        }
+
+        return null;
+    }
+
     #endregion
 
     #region 改动
@@ -404,6 +449,11 @@ public sealed class DiagramSession : IDisposable
         if (nodes.Count == 0)
         {
             return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, "没有选中的节点")));
+        }
+
+        if (LockedLayer(nodes) is { } locked)
+        {
+            return RefuseLocked(locked);
         }
 
         var commands = new List<IDiagramCommand>(nodes.Count);
@@ -546,6 +596,11 @@ public sealed class DiagramSession : IDisposable
         if (nodes.Count == 0)
         {
             return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, "没有选中的节点")));
+        }
+
+        if (LockedLayer(nodes) is { } locked)
+        {
+            return RefuseLocked(locked);
         }
 
         var commands = new List<IDiagramCommand>(nodes.Count);
@@ -757,6 +812,53 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 图层
+
+    /// <summary>
+    /// 把一个图层藏起来或者放出来。
+    /// </summary>
+    /// <remarks>
+    /// **藏起来之后画布要重算。** 它不改坐标，但改"画哪些元素"，
+    /// 而绘制列表是重算出来的那一份；只重绘不重算的话，被藏起来的元素照样在画面上。
+    /// </remarks>
+    public CommandResult SetLayerVisible(string layerId, bool visible) =>
+        Layer(new SetLayerVisibleCommand(layerId, visible));
+
+    /// <summary>
+    /// 锁上一个图层或者解锁。
+    /// </summary>
+    /// <remarks>
+    /// **锁上之后要把选中筛一遍。** 锁上的元素选不中（见 <see cref="SetSelection"/>），
+    /// 而刚刚锁上时选中集合里可能正留着它们——不筛的话，属性面板会继续显示一个
+    /// 已经点不中的元素的字段，而用户改不动它却说不出为什么。
+    /// </remarks>
+    public CommandResult SetLayerLocked(string layerId, bool locked) =>
+        Layer(new SetLayerLockedCommand(layerId, locked), refilterSelection: true);
+
+    private CommandResult Layer(IDiagramCommand command, bool refilterSelection = false)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(command);
+
+        if (result.IsEffectiveSuccess)
+        {
+            if (refilterSelection)
+            {
+                SetSelection(_selectedIds);
+            }
+
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    #endregion
+
     #region 布局失败
 
     /// <summary>最近一次布局失败。之后有一次布局成功就清空。</summary>
@@ -833,6 +935,13 @@ public sealed class DiagramSession : IDisposable
         if (IsReadOnly)
         {
             Select(node.Id, additive);
+            return null;
+        }
+
+        // 锁定的图层上拖不动。锁着的那一层照常画出来，但拖它等于改它。
+        if (IsLocked(node))
+        {
+            RefuseLocked(node.Layer!);
             return null;
         }
 
@@ -1082,7 +1191,7 @@ public sealed class DiagramSession : IDisposable
     /// </remarks>
     public bool BeginConnect(string sourceId, string? sourcePort, DrawPoint startDoc)
     {
-        if (Find(sourceId) is null)
+        if (Find(sourceId) is not { } source)
         {
             return false;
         }
@@ -1090,6 +1199,13 @@ public sealed class DiagramSession : IDisposable
         if (IsReadOnly)
         {
             Refuse();
+            return false;
+        }
+
+        // 锁定的图层上连不出线来：那会往这一层里加一条边。
+        if (IsLocked(source))
+        {
+            RefuseLocked(source.Layer!);
             return false;
         }
 
@@ -1134,6 +1250,13 @@ public sealed class DiagramSession : IDisposable
             return ConnectOutcome.Rejected;
         }
 
+        // 终点锁着也连不过去：落一条边到那一层上同样是改它。
+        if (Find(targetId) is { } target && IsLocked(target))
+        {
+            RefuseLocked(target.Layer!);
+            return ConnectOutcome.Failed;
+        }
+
         var edge = new EdgeDef
         {
             Id = NextEdgeId(),
@@ -1165,6 +1288,12 @@ public sealed class DiagramSession : IDisposable
         if (IsReadOnly)
         {
             return Refuse();
+        }
+
+        // 两端都要能改：重连改的是这条边，而它连着的那两层上有一层锁着就不许动。
+        if (LockedLayer([.. new[] { from, to }.Select(Find).OfType<NodeDef>()]) is { } locked)
+        {
+            return RefuseLocked(locked);
         }
 
         var command = new ReconnectEdgeCommand(edgeId, from, fromPort, to, toPort);

@@ -56,6 +56,7 @@
 | `COMPOSITE_MISSING` | 校验失败 | 要操作的组合不存在 | 状态栏一句话 |
 | `COMPOSITE_TOO_DEEP` | 校验失败 | 组合的嵌套深度超过上限 | 状态栏一句话 |
 | `LAYER_MISSING` | 校验失败 | 要操作的图层不存在 | 状态栏一句话 |
+| `LAYER_LOCKED` | 校验失败 | 要改的元素在一个锁定的图层上 | 状态栏灰显一句话 |
 | `PAGE_MISSING` | 校验失败 | 要操作的页面不存在 | 状态栏一句话 |
 | `PAGE_REQUIRED` | 校验失败 | 要删的是最后一页，文档至少要留一页 | 状态栏一句话 |
 | `TAG_MISSING` | 校验失败 | 要操作的标签不存在 | 状态栏一句话 |
@@ -66,6 +67,13 @@
 这一种是"这一页确实在，但删掉之后文档就没有页了"，处置是先建一页再删。
 渲染层拿到空页面集合时该画什么没有定义，所以这条限制放在命令层挡住，
 而不是留给渲染层去兜底。
+
+`LAYER_LOCKED` 与 `LAYER_FORBIDDEN` 分开：两条都是"这个图层上的东西改不动"，
+但原因与处置都不同。前者是**用户把这一层锁上了**，处置是解锁；
+后者是**这份凭据够不着这一层**，处置是换一份凭据或者让配凭据的人放开权限。
+合成一个码的话，同一个提示会在两种情形下出现，而其中一种的处置是用户做不到的事。
+两者与 `DOCUMENT_READ_ONLY` 也各是一回事：那一条说的是整份文档（另一个进程拿着文件），
+这两条说的是某一层。
 
 `PALETTE_ENTRY_IN_USE` 与删边那一处留下的悬空引用**刻意不同**：删边之后约束指向一条
 不存在的边，这件事由整体校验器报 `LAYOUT_ORDER_EDGE_MISSING`，所以命令层留着不管；
@@ -157,6 +165,7 @@
 | `COMPOSITE_MISSING` | `StatusBar` |
 | `COMPOSITE_TOO_DEEP` | `StatusBar` |
 | `LAYER_MISSING` | `StatusBar` |
+| `LAYER_LOCKED` | `StatusBarMuted` |
 | `PAGE_MISSING` | `StatusBar` |
 | `PAGE_REQUIRED` | `StatusBar` |
 | `TAG_MISSING` | `StatusBar` |
@@ -206,6 +215,7 @@
 | `GROUP_CYCLE` | `targetId` | 目标组合在这个元素的子树里，移进去会成环。换一个不在它下面的组合，或者先把中间那一层解散。 |
 | `COMPOSITE_TOO_DEEP` | `targetId` | 嵌套已经到上限了。别再往里套，或者先把中间那几层解散再套。 |
 | `LAYER_MISSING` | `id` | 图层标识写错了或已经没了。读一次图看现有图层，或者先建一个。 |
+| `LAYER_LOCKED` | `id` | 这个图层锁着。先解锁再改，或者把要改的东西换到别的图层上。 |
 | `PAGE_MISSING` | `id` | 页面标识写错了或已经没了。读一次图看现有页面，或者先建一页。 |
 | `PAGE_REQUIRED` | `id` | 这是最后一页，删了文档就没有页了。先建一页，再删这一页。 |
 | `TAG_MISSING` | `id` | 标签标识写错了或已经没了。读一次图看现有标签，或者先建一个。 |

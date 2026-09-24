@@ -53,6 +53,7 @@
 | `LAYOUT_CONSTRAINT_MISSING` | 校验失败 | 要删除的布局约束不存在 | 状态栏一句话 |
 | `PALETTE_ENTRY_MISSING` | 校验失败 | 要改或要删的调色板条目不存在 | 状态栏一句话 |
 | `PALETTE_ENTRY_IN_USE` | 校验失败 | 这条调色板条目还被样式令牌引用着，删除会让那些元素悄悄变样 | 高亮引用它的元素 |
+| `TEXT_PRESET_MISSING` | 校验失败 | 要改、要删或要应用的文本预设不存在 | 状态栏一句话 |
 | `COMPOSITE_MISSING` | 校验失败 | 要操作的组合不存在 | 状态栏一句话 |
 | `COMPOSITE_TOO_DEEP` | 校验失败 | 组合的嵌套深度超过上限 | 状态栏一句话 |
 | `LAYER_MISSING` | 校验失败 | 要操作的图层不存在 | 状态栏一句话 |
@@ -162,6 +163,7 @@
 | `LAYOUT_CONSTRAINT_MISSING` | `StatusBar` |
 | `PALETTE_ENTRY_MISSING` | `StatusBar` |
 | `PALETTE_ENTRY_IN_USE` | `HighlightTargets` |
+| `TEXT_PRESET_MISSING` | `StatusBar` |
 | `COMPOSITE_MISSING` | `StatusBar` |
 | `COMPOSITE_TOO_DEEP` | `StatusBar` |
 | `LAYER_MISSING` | `StatusBar` |
@@ -247,6 +249,7 @@
 | `ACTION_TARGET_MISSING` | `targetId` | 动作的目标不存在。先把目标建出来，或者把目标换成一个存在的元素。 |
 | `PALETTE_ENTRY_MISSING` | `token` | 这个样式令牌不在调色板里。先读一次图看现有令牌，或者先建一个。 |
 | `PALETTE_ENTRY_IN_USE` | `token` | 还有元素在用这个令牌。先把引用它的节点、边与标签改成别的令牌，再删它。 |
+| `TEXT_PRESET_MISSING` | `id` | 这个文本预设不在文档里。先读一次图看现有预设，或者先建一个。 |
 | `DOCUMENT_READ_ONLY` | — | 这份文档正被另一个进程编辑着，这一份只读。去改那一份，或者等对方放开再来。 |
 | `LAYER_FORBIDDEN` | — | 这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。 |
 | `TOOL_UNKNOWN` | — | 工具名不在表里。换成已登记的那几个工具名，别自己拼一个。 |

@@ -28,14 +28,16 @@
       常驻还有一个好处：图层这件事的意义在于「一层里有谁」，随时看得见才谈得上。
     -->
     <!--
-      左栏上下分两截：图层在上面，调色板在下面。调色板也是常驻分区（§9.1 的样式/调色板），
-      理由与图层那条相同——「有哪些名字可用」随时看得见，令牌才填得出来。
+      左栏上下分三截：图层在上面，调色板在中间，文本预设收在下面。
+      调色板与文本预设都是常驻分区（§9.1 的样式分区），理由与图层那条相同——
+      「有哪些名字可用」随时看得见，令牌与预设才挑得出来。
     -->
     <Grid DockPanel.Dock="Left"
           Width="240"
-          RowDefinitions="Auto,*">
+          RowDefinitions="Auto,*,Auto">
       <controls:LayerPanel x:Name="LayersView" Grid.Row="0" />
       <controls:PalettePanel x:Name="PaletteView" Grid.Row="1" />
+      <controls:TextPresetPanel x:Name="TextPresetsView" Grid.Row="2" />
     </Grid>
 
     <!--

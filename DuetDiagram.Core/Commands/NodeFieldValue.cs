@@ -381,8 +381,12 @@ public static class NodeFieldValue
     /// 大小写不敏感。字段值是人手敲进面板的，为一次大小写差异报错没有意义。
     /// 空文本表示"这个成员没有值"，与文本字段同一口径。
     /// </para>
+    /// <para>
+    /// 对同程序集开放而不只留给本类：文本预设的字段读写（<see cref="TextPresetFieldValue"/>）
+    /// 解析的是同一批 TextStyle 成员，值语法必须与这里逐字一致——各写一份迟早对出两套。
+    /// </para>
     /// </remarks>
-    private static bool TryEnum<TEnum>(string? text, out TEnum? parsed, out string? error)
+    internal static bool TryEnum<TEnum>(string? text, out TEnum? parsed, out string? error)
         where TEnum : struct, Enum
     {
         parsed = null;
@@ -405,7 +409,8 @@ public static class NodeFieldValue
     }
 
     /// <summary>解析一个可空的开关。空文本表示"没有设置"，与"设成假"是两回事。</summary>
-    private static bool TryFlag(string? text, out bool? parsed, out string? error)
+    /// <remarks>开放给 <see cref="TextPresetFieldValue"/>，理由与 <see cref="TryEnum{TEnum}"/> 相同。</remarks>
+    internal static bool TryFlag(string? text, out bool? parsed, out string? error)
     {
         parsed = null;
 
@@ -430,10 +435,15 @@ public static class NodeFieldValue
     /// 解析一个可空的数值。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 按不变文化解析。跟随当前区域设置的话，同一段文本在不同机器上会解析成不同的数，
     /// 而文档是会被共享的——"1,5"在一台机器上是 1.5，在另一台上是 15。
+    /// </para>
+    /// <para>
+    /// 开放给 <see cref="TextPresetFieldValue"/>，理由与 <see cref="TryEnum{TEnum}"/> 相同。
+    /// </para>
     /// </remarks>
-    private static bool TryNumber(string? text, out double? parsed, out string? error)
+    internal static bool TryNumber(string? text, out double? parsed, out string? error)
     {
         parsed = null;
 
@@ -506,7 +516,8 @@ public static class NodeFieldValue
             : style;
 
     /// <inheritdoc cref="Trim(NodeStyle?)"/>
-    private static TextStyle? Trim(TextStyle? style) =>
+    /// <remarks>对同程序集开放：应用预设把成员抄进节点的文本样式时，要用同一个口径折空样式。</remarks>
+    internal static TextStyle? Trim(TextStyle? style) =>
         style is null
         || (style.FontFamily is null
             && style.FontSize is null

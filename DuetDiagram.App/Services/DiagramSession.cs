@@ -1406,6 +1406,148 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 文本预设
+
+    /// <summary>
+    /// 定义一个新的文本样式预设，样式从空开始。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **标识由这一层给，不让界面拼。** 标识要在九个集合里都不撞，而界面上看不到别的集合；
+    /// 让界面拼的话，它只能靠"看起来没用过"来猜，猜错的表现是新建被拒，
+    /// 而那句话里只有一句"标识重复"，用户无从下手。与新建图层同一套做法。
+    /// </para>
+    /// <para>
+    /// 样式从空开始，成员由改字段的命令逐个补：预设的价值在名字，
+    /// 先把名字立起来，成员随后填。
+    /// </para>
+    /// </remarks>
+    public CommandResult DefineTextPreset(string name)
+    {
+        // 名为空不在这里抛：面板要的是一条摆得出的结构化错误，
+        // 不是一句只有日志看得见的异常——挡人的事让命令层回答。
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new DefineTextPresetCommand(new TextStylePreset
+        {
+            Id = NextPresetId(),
+            Name = name.Trim(),
+            Style = new TextStyle(),
+        }));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 改一个文本样式预设的一个成员。
+    /// </summary>
+    /// <remarks>
+    /// 一次一个字段，与改节点、改调色板条目那几条同形状：一边改字号、一边改字重可以共存，
+    /// 整份样式一起写的话，两次互不相干的修改会被判成冲突。
+    /// </remarks>
+    public CommandResult UpdateTextPreset(string presetId, string field, string? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(presetId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(field);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new UpdateTextPresetCommand(presetId, field, value));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 删掉一个文本样式预设。
+    /// </summary>
+    /// <remarks>
+    /// 应用是按值把成员抄到节点上的，删掉一个预设不会有任何东西悬空，
+    /// 所以这里没有「谁在用」要查——与删调色板条目的处境刻意不同。
+    /// </remarks>
+    public CommandResult RemoveTextPreset(string presetId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(presetId);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new RemoveTextPresetCommand(presetId));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 把一个文本样式预设应用到一批节点上；不点名时对当前选中的节点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 选中的组合不算：预设改的是节点上的文本样式，组合没有文本样式可言。
+    /// 选中集合里的组合标识在这里被跳过，而不是让命令报"节点不存在"——
+    /// 多选里混着一个组合就整条失败的话，用户得先弄清选中集合的成分才能用这条功能。
+    /// </para>
+    /// <para>
+    /// 批量是一条命令：撤销按一次就把这一批全部还原，与归层那一条同一套约定。
+    /// </para>
+    /// </remarks>
+    public CommandResult ApplyTextPreset(string presetId, IReadOnlyList<string>? nodeIds = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(presetId);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var targets = nodeIds ?? [.. SelectedNodes.Select(node => node.Id)];
+        var result = Bus.Execute(new ApplyTextPresetCommand(presetId, targets));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>下一个可用的预设标识。九个集合共用一个命名空间，判据与图层同一套。</summary>
+    private string NextPresetId()
+    {
+        for (var index = 1; ; index++)
+        {
+            var candidate = $"preset{index}";
+
+            if (!Document.IsIdTaken(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    #endregion
+
     #region 布局失败
 
     /// <summary>最近一次布局失败。之后有一次布局成功就清空。</summary>

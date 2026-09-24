@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DuetDiagram.App.ViewModels"
+             x:Class="DuetDiagram.App.Controls.TextPresetPanel"
+             x:DataType="vm:TextPresetPanelViewModel">
+
+  <!--
+    与调色板面板同一条布局口径：分栏常驻，不做成浮层——浮层的开关会改画布尺寸，
+    而画布一改尺寸视口就跟着跳。
+  -->
+  <Border Background="#fbfcfd"
+          BorderBrush="#d8dee7"
+          BorderThickness="0,0,1,0">
+    <DockPanel Margin="12,10">
+
+      <TextBlock DockPanel.Dock="Top"
+                 FontSize="13"
+                 FontWeight="SemiBold"
+                 Foreground="#2b3440"
+                 Text="文本预设" />
+
+      <TextBlock DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#8a6d1f"
+                 TextWrapping="Wrap"
+                 Text="{Binding ReadOnlyNote}"
+                 IsVisible="{Binding HasReadOnlyNote}" />
+
+      <!--
+        错误单独一块地方。应用被挡下来或者整批没变的时候，这里把原因摆出来——
+        挤在状态栏的一行里，用户得逐个数。
+      -->
+      <TextBlock x:Name="ErrorText"
+                 DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#a13c3c"
+                 TextWrapping="Wrap" />
+
+      <StackPanel x:Name="Footer"
+                  DockPanel.Dock="Bottom"
+                  Margin="0,10,0,0"
+                  Spacing="6" />
+
+      <ScrollViewer Margin="0,8,0,0"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="Rows" Spacing="2" />
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

@@ -36,6 +36,8 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(SetDirectionMemento), "set-direction")]
 [JsonDerivedType(typeof(SetKindMemento), "set-kind")]
 [JsonDerivedType(typeof(PaletteMemento), "palette")]
+[JsonDerivedType(typeof(TextPresetMemento), "text-preset")]
+[JsonDerivedType(typeof(TextPresetApplyMemento), "text-preset-apply")]
 [JsonDerivedType(typeof(CanvasMemento), "canvas")]
 [JsonDerivedType(typeof(CompositeMemento), "composite")]
 [JsonDerivedType(typeof(LayerMemento), "layer")]

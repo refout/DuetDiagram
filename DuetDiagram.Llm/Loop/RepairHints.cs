@@ -205,6 +205,11 @@ public static class RepairHints
                 "token",
                 "还有元素在用这个令牌。先把引用它的节点、边与标签改成别的令牌，再删它。"),
 
+            [ErrorCodes.TextPresetMissing] = new(
+                ErrorCodes.TextPresetMissing,
+                "id",
+                "这个文本预设不在文档里。先读一次图看现有预设，或者先建一个。"),
+
             [ErrorCodes.VersionConflict] = new(
                 ErrorCodes.VersionConflict,
                 null,

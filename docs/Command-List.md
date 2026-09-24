@@ -39,6 +39,10 @@
 | `remove-action` | `RemoveActionCommand` | 动作存在 | 与新增同一口径：两个标志都假，且没有悬空引用要清理——目标引用挂在动作自己身上，被指向的元素上没有回指字段 |
 | `set-kind` | `SetKindCommand` | 图类型是已定义的枚举值 | 图类型是文档自己的属性，不在元素字段表里。它算**结构**变更：换了类型之后分层的语义与可用形状都可能变。改成同一个值是 NoOp |
 | `set-canvas-settings` | `SetCanvasSettingsCommand` | 六项至少给一项；枚举值已定义；网格尺寸与纸张宽高都是大于零的有限数 | 六项各自可选，传空表示不动那一项——整份替换会逼调用方先把其余五项读回来再写回去，而那份值可能已经过期。**每改一项发一条变更明细**：一边调网格、一边调背景色是两次互不相干的修改。背景色用**空串表示清除**、空引用表示不动。只计外观 |
+| `define-text-preset` | `DefineTextPresetCommand` | 标识非空且**在九个集合里都没被占用**；显示名非空 | 预设是文本样式的命名清单（调色板管填充描边与文字颜色，字号字体粗细这些在这里）。样式成员在这里不做白名单校验：定义走的是强类型的 `TextStyle` 记录，不存在"不认识的字段名"。只计外观，不触发重排 |
+| `update-text-preset` | `UpdateTextPresetCommand` | 预设存在；字段名在已注册的预设字段内（`preset.fontFamily` / `preset.fontSize` / `preset.fontWeight` / `preset.italic` / `preset.underline` / `preset.strikethrough` / `preset.fontColor` / `preset.align`）；值能解析成该字段要的类型 | 一次只改一个成员，与改节点、改调色板条目同一个形状。字段名认不出时把可用字段列在错误载荷里。预设不存在报 `TEXT_PRESET_MISSING` 而**不顺手新建**。只计外观 |
+| `remove-text-preset` | `RemoveTextPresetCommand` | 预设存在 | **不查引用者，这与删调色板条目刻意不同**：应用是按值把样式成员抄到节点上，IR 里没有任何一处回指预设，删除不会造成悬空引用。已经应用过的样式原样长在各节点上。报 `TEXT_PRESET_MISSING`。只计外观 |
+| `apply-text-preset` | `ApplyTextPresetCommand` | 预设存在；点名至少一个节点；节点都在 | **叠加，不是替换**：预设里声明了的成员抄到节点的文本样式上，没声明的保持原样——整份替换会把用户单独调过的字号抹掉。批量是多选之后的一条命令，先整批算出要写什么再写，有一个节点不在就整条被拒；撤销按一次把这一批全部还原。只计外观 |
 
 **结构还是纯外观，取决于被改的值进的是哪个哈希。**
 

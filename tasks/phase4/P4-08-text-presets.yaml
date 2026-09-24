@@ -1,7 +1,7 @@
 id: P4-08
 title: 文本样式预设的命令与界面
 phase: 4
-status: pending
+status: done
 depends_on: [P3-02, P3-01]
 estimated_loc: 400
 files:
@@ -47,3 +47,86 @@ scope_note: |
 
   它也是后面富文本那一条的前置：富文本要按 run 存样式，而 run 的样式从哪来、
   有没有名字，答案就是预设。所以它排在富文本前面。
+
+result: |
+  **文本样式也有了一份能编的命名清单。** 调色板管填充、描边与文字颜色，字号、字体、
+  粗细这些在 `TextStyle` 里，此前没有任何入口——节点上要调只能一个个改。预设补上的
+  就是这一半，也是后面富文本按 run 存样式时「样式从哪来、有没有名字」的答案。
+
+  **落地了什么**
+
+  - 四条命令：`define-text-preset` / `update-text-preset` / `remove-text-preset` /
+    `apply-text-preset`（`DefineTextPresetCommand` 等四个），各带 memento——
+    定义、删除、应用各存一份「上一版预设清单」或「上一版这些节点的文本」，
+    更新存改动前后的一对值。`TextPresetMemento` / `TextPresetApplyMemento` 注册进
+    `CommandMemento` 的多态表（`"text-preset"` / `"text-preset-apply"`）。
+  - `TextPresetFieldValue`：预设成员的读写与白名单。白名单取自字段表里登记在
+    「预设」名下的八个 `preset.*` 子字段（字体、字号、字重、斜体、下划线、删除线、
+    文字颜色、水平对齐）；值语法与节点文本字段共用一套解析（数值按不变文化、
+    枚举只认名字、开关只认 true/false、空文本表示没设置）。
+  - `TextPresetPanel`（axaml + cs）+ `TextPresetPanelViewModel`：清单（名字 + 摘要）、
+    成员编辑器（八个）、新建、删除，以及**「应用到选中」**——面板上唯一改元素的入口，
+    多选一次应用是一条命令。接线与调色板面板同一套（SceneChanged 刷新、行在增删时重建、
+    编辑器只在换选中时重建，免得正在输入的框失焦）。
+  - 会话四个入口 `DefineTextPreset` / `UpdateTextPreset` / `RemoveTextPreset` /
+    `ApplyTextPreset`，校验全在命令层，会话只接命令、重算画面、报结果。
+  - `TEXT_PRESET_MISSING` 错误码，三张表都补齐（`Error-Codes.md` 的码表、呈现表、
+    `RepairHints`）。
+
+  **刻意的取舍与判断**
+
+  - **应用是「叠加」不是「替换」。** 只把预设声明了的成员盖到节点的 `Text` 上，
+    没声明的保持节点自己的值——`TextStyle` 本来就是逐层继承的。整份替换会把用户
+    单独调过的字号抹掉，而他只想要一套字体。
+  - **批量应用是一条命令。** `apply-text-preset` 收一组节点标识，一次进一次历史，
+    撤销按一次整批还原；不是每个元素各发一条。
+  - **删预设不查引用，这是核过的结论不是省掉的一步。** 约束要求「与调色板删条目
+    同一条口径，顺带核 `RemovePaletteEntryCommand` 当初漏扫 `TagDef.Color` 那类问题
+    有没有同形的」。核下来：IR 里**没有任何字段按标识引用预设**——应用是把成员值
+    抄到节点上（按值），删掉预设不会让任何元素变样。所以这里不存在「谁在用」这个
+    集合，referrer 检查结构上是空的。命令只查「存不存在」，代码与面板都把这条理由
+    写在注释里，不让它看起来像漏了一步。
+  - **样式字段仍走白名单，认不出就拒绝，并把可用字段列在错误里**（`FIELD_UNKNOWN`
+    的 payload 带「可用的有 …」）。放行未知字段的话，渲染层拿到一个不认识的名字
+    只会静默按默认画。
+  - **四条命令都报纯外观变更**（`structural: false, visual: true`）：`TextPresets`
+    已经在文档的视觉哈希段里，改预设等于改画出来的样子，不动坐标。
+
+  **与任务清单不一样的地方**
+
+  - **入口是面板，不是菜单。** 清单的 `files.modify` 列了 `MenuRegistry.cs`，
+    但条目表（`MenuEntry`）是**静态的纯函数**，没有「按文档内容长出若干条」的机制，
+    列预设这种动态清单塞不进去。P4-07 的调色板面板也是这么办的（同样没动
+    MenuRegistry），两条保持一致：左栏多一截常驻面板。因此 `MenuRegistry.cs` 未改。
+  - **新增了 `TextPresetFieldValue.cs`**（清单没列）：预设成员的读写要单独一处，
+    否则白名单与解析会散进四个命令里。
+  - **`SupportingDefs.cs` 未改**：`TextStylePreset` 早就有了（IR、序列化、哈希都在），
+    这一条只补命令与界面。
+  - **`RemovePaletteEntryCommand.cs` 未改**：上面那条核下来预设没有同形问题，
+    没有可以共用的 referrer 助手要抽。
+  - 错误码、呈现表、`RepairHints`、`docs/GUI.md`、`docs/Error-Codes.md`、`README.md`、
+    `tasks/README.md` 也在改动之列（清单只列了 Command-List / IR-Schema / AGENTS）。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=Atomicity` 170/170、`Category=TextPreset`（Core）9/9、
+    `Category=TextPreset`（E2E）7/7。
+  - 全量测试：Core 525 / Layout 78 / Render 171 / Mermaid 179 / Dsl 158 / Llm 192 /
+    Mcp 109 / **E2E 164**（改动前 157）全绿。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：429 个文件 / 93911 行 / 58376 行代码）。
+
+  **顺带记一条环境坑**
+
+  - `dotnet test`（MTP 桥）**不能带 `--nologo`**：带了会被当成未知参数转给测试应用，
+    结果是「运行了零个测试」加退出码 5，看着像整个测试套件坏了。去掉 `--nologo`
+    即恢复正常。这一轮先在这里记下来，不夹进本任务的改动。
+
+  **后续**
+
+  - 预设成员只收了节点属性面板上已有编辑控件的那八个；`TextStyle` 其余成员
+    （行高、内边距、垂直对齐、书写方向等）等有了编辑控件再收。
+  - 从选中元素的文本样式「提取一条预设」（要定提取哪些成员、冲突用谁的值）。
+  - 预设的重命名与排序。

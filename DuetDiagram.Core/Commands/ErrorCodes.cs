@@ -204,6 +204,13 @@ public static class ErrorCodes
     /// </remarks>
     public const string PaletteEntryInUse = "PALETTE_ENTRY_IN_USE";
 
+    /// <summary>要改、要删或要应用的文本预设不存在。</summary>
+    /// <remarks>
+    /// 单独一个码而不是复用"条目不存在"：调用方拼错的是预设的标识，
+    /// 处置是换个标识再来，与"先把引用改掉"那类事完全不同。
+    /// </remarks>
+    public const string TextPresetMissing = "TEXT_PRESET_MISSING";
+
     /// <summary>
     /// 这份文档这一份是只读的：另一个进程正拿着它。
     /// </summary>

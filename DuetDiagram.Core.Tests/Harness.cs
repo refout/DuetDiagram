@@ -176,6 +176,38 @@ internal sealed class Harness : IDisposable
         => Bus.Execute(new RemovePaletteEntryCommand(name)
             .WithContext(ChangeContext.For(source, "tester")));
 
+    /// <summary>定义一条文本预设。样式不传就是空的，成员随后由改字段的命令补。</summary>
+    public CommandResult DefinePreset(
+        string presetId,
+        string name,
+        TextStyle? style = null,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new DefineTextPresetCommand(
+                new TextStylePreset { Id = presetId, Name = name, Style = style ?? new TextStyle() })
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>改一条文本预设的一个成员。</summary>
+    public CommandResult UpdatePreset(
+        string presetId,
+        string field,
+        string? value,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new UpdateTextPresetCommand(presetId, field, value)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>删一条文本预设。</summary>
+    public CommandResult RemovePreset(string presetId, ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new RemoveTextPresetCommand(presetId)
+            .WithContext(ChangeContext.For(source, "tester")));
+
+    /// <summary>把一条文本预设应用到一批节点上。</summary>
+    public CommandResult ApplyPreset(
+        string presetId,
+        IEnumerable<string> nodeIds,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new ApplyTextPresetCommand(presetId, [.. nodeIds])
+            .WithContext(ChangeContext.For(source, "tester")));
+
     /// <summary>给一个节点挂上样式令牌。走字段写入那条命令，与界面走的是同一条路。</summary>
     public CommandResult SetStyleToken(string nodeId, string token, ChangeSource source = ChangeSource.Human)
         => SetField(nodeId, FieldNames.StyleToken, token, source);

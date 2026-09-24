@@ -158,6 +158,25 @@ public static class FieldNames
 
     #endregion
 
+    #region 文本预设的子字段
+    //
+    // 与调色板那一组同一个口径：预设的样式记录拆成子字段，界面上一个成员一个控件，
+    // 冲突判定也要能认出"一边改字号、一边改字重"可以共存。
+    //
+    // 名字用 preset. 前缀而不是复用 text.*：text.* 登记在节点名下，写在节点上；
+    // 这一组写在预设的样式记录上，归属不同。取值的语法两边一致——都是 TextStyle 的成员。
+
+    public const string PresetFontFamily = "preset.fontFamily";
+    public const string PresetFontSize = "preset.fontSize";
+    public const string PresetFontWeight = "preset.fontWeight";
+    public const string PresetItalic = "preset.italic";
+    public const string PresetUnderline = "preset.underline";
+    public const string PresetStrikethrough = "preset.strikethrough";
+    public const string PresetFontColor = "preset.fontColor";
+    public const string PresetAlign = "preset.align";
+
+    #endregion
+
     /// <summary>是否表示"整个元素被增删"。</summary>
     public static bool IsElementLevel(string? name) => name?.StartsWith('@') ?? false;
 
@@ -251,6 +270,16 @@ public static class FieldRegistry
         new(FieldNames.PaletteStroke, "调色板", FieldScope.Visual),
         new(FieldNames.PaletteText, "调色板", FieldScope.Visual),
         new(FieldNames.PaletteWeight, "调色板", FieldScope.Visual),
+
+        // 文本预设。与调色板同一口径：预设进视觉哈希，它的子字段也只计外观。
+        new(FieldNames.PresetFontFamily, "预设", FieldScope.Visual),
+        new(FieldNames.PresetFontSize, "预设", FieldScope.Visual),
+        new(FieldNames.PresetFontWeight, "预设", FieldScope.Visual),
+        new(FieldNames.PresetItalic, "预设", FieldScope.Visual),
+        new(FieldNames.PresetUnderline, "预设", FieldScope.Visual),
+        new(FieldNames.PresetStrikethrough, "预设", FieldScope.Visual),
+        new(FieldNames.PresetFontColor, "预设", FieldScope.Visual),
+        new(FieldNames.PresetAlign, "预设", FieldScope.Visual),
 
         // 画布设置。整个子对象只计外观：网格、背景、纸张尺寸都不改变任何坐标。
         new(FieldNames.CanvasGrid, "画布", FieldScope.Visual),

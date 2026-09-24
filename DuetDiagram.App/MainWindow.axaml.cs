@@ -92,6 +92,7 @@ public sealed partial class MainWindow : Window
         Properties = new PropertyPanelViewModel(Session);
         Layers = new LayerPanelViewModel(Session);
         Palette = new PalettePanelViewModel(Session);
+        TextPresets = new TextPresetPanelViewModel(Session);
         Pages = new PageTabsViewModel(Session);
         Status = new StatusBarViewModel(Model);
         Status.SetReadOnly(Session.ReadOnlyReason);
@@ -131,6 +132,7 @@ public sealed partial class MainWindow : Window
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
         PaletteView.DataContext = Palette;
+        TextPresetsView.DataContext = TextPresets;
         PageTabsView.DataContext = Pages;
         DataContext = Model;
 
@@ -158,6 +160,9 @@ public sealed partial class MainWindow : Window
     /// <summary>图层面板的状态。</summary>
     public LayerPanelViewModel Layers { get; }    /// <summary>调色板面板的状态。</summary>
     public PalettePanelViewModel Palette { get; }
+
+    /// <summary>文本预设面板的状态。</summary>
+    public TextPresetPanelViewModel TextPresets { get; }
 
     /// <summary>标签栏的状态。</summary>
     public PageTabsViewModel Pages { get; }
@@ -556,6 +561,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayersView 的面板");
         PaletteView = this.FindControl<PalettePanel>(nameof(PaletteView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PaletteView 的面板");
+        TextPresetsView = this.FindControl<TextPresetPanel>(nameof(TextPresetsView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextPresetsView 的面板");
         PageTabsView = this.FindControl<PageTabs>(nameof(PageTabsView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PageTabsView 的标签栏");
         DiffView = this.FindControl<DiffSidebar>(nameof(DiffView))

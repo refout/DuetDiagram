@@ -383,6 +383,24 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 悬空引用有整体校验器会报，命令层留着不管；而被删掉的令牌没有任何东西会报——
 渲染层只是静默退回元素自己的样式，用户看到的是一批元素悄悄换了外观。
 
+## 文本样式预设
+
+`textPresets`（P4-08）是文本样式的那份命名清单：调色板管填充、描边与文字颜色，
+字号、字体、粗细这些在 `TextStyle` 里，预设给它们名字。四个命令：
+`define-text-preset` / `update-text-preset` / `remove-text-preset` / `apply-text-preset`。
+
+- **应用是按值叠加，不是替换。** 把预设里声明了的成员抄到节点的 `text` 上，
+  没声明的保持原样——`TextStyle` 本来就是逐层继承的，整份替换会把用户单独调过的
+  字号抹掉。批量应用是多选之后的一条命令，撤销按一次把这一批全部还原。
+- **删预设不查引用者，与删调色板条目刻意不同。** IR 里没有任何一处回指预设——
+  节点与边的样式令牌、标签的颜色，三处指的都是调色板条目，没有一处指预设。
+  已经应用过的样式原样长在各个节点上，删除不会造成悬空引用。
+- **改预设的样式成员走白名单。** 可写字段是 `preset.fontFamily` / `preset.fontSize` /
+  `preset.fontWeight` / `preset.italic` / `preset.underline` / `preset.strikethrough` /
+  `preset.fontColor` / `preset.align`——只收节点属性面板上已经有编辑控件的那八个成员。
+  认不出的字段名报 `FIELD_UNKNOWN` 并把可用字段列在载荷里；放行未知字段的话，
+  渲染层只会静默按默认画。定义那一条走强类型的 `TextStyle` 记录，不做这个校验。
+
 ## 相关文件
 
 Sidecar（`.dsl` / `.layout.json` / `.user.json`）的文件格式、完整性校验与失败处置见

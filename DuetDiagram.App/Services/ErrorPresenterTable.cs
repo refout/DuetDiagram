@@ -105,6 +105,8 @@ public static class ErrorPresenterTable
             // 用户才知道该先改哪些元素。只给一句话的话，他无从知道是谁在用这个令牌。
             [ErrorCodes.PaletteEntryInUse] = new(ErrorPresentationKind.HighlightTargets, "还有元素在用这个样式令牌"),
 
+            [ErrorCodes.TextPresetMissing] = new(ErrorPresentationKind.StatusBar, "这个文本预设已经不在了"),
+
             [ErrorCodes.CompositeMissing] = new(ErrorPresentationKind.StatusBar, "这个组合已经不在了"),
             [ErrorCodes.CompositeTooDeep] = new(ErrorPresentationKind.StatusBar, "组合嵌套得太深了"),
             [ErrorCodes.LayerMissing] = new(ErrorPresentationKind.StatusBar, "这个图层已经不在了"),

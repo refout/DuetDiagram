@@ -1,7 +1,7 @@
 id: P4-15
 title: 数学排版
 phase: 4
-status: pending
+status: done
 depends_on: [P4-13]
 estimated_loc: 500
 files:
@@ -51,3 +51,68 @@ scope_note: |
   自己写一个最小子集是可接受的结论，写进文档的边界由用例守住就行。
   这一点与 P3-15 处理 SEP-2640 是同一条路——依赖里没有那个东西，就退到通用机制上，
   把差异写进已知差异表。
+
+result: |
+  **这一条的核心是边界而不是能力。** LaTeX 的子集一层套一层，每一层都能说
+  "再支持一个记号就好"，所以判据定成"支持的集合有清单、清单外一律结构化错误"，
+  而不是"画得对"——后者没有可验的形式。
+
+  **选型：不引第三方库。** 侦察核了三件事，两条都不成立：
+  能查到的只有 `CSharpMath.SkiaSharp`，稳定版停在 2021 年（0.5.1）之后只有预发布版；
+  它自带一套 SkiaSharp 字体加载与整形，而约束点名的正是"公式的度量走 `ITextMeasurer`，
+  不要另起一套字体加载"——接进来的表现是同一个节点里两种字形；
+  原生编译下能不能用查不出来，许可证在包页面上也没核实到。
+  仓库的约定是"不引入未在选型清单中的依赖"，核不出来就不登记，
+  所以 **`Directory.Packages.props` 一个字没动**。理由写进 `docs/Architecture.md`。
+
+  **落地了什么**
+
+  - `DuetDiagram.Core/Model/MathSyntax.cs`：认得的清单（符号表、函数表、间距表）与递归下降解析。
+    产出是语法树加"码 + 出错处下标 + 一句话"的结构化错误。
+    **放在 Core 而不是 Render**：整体校验在 Core，而 Core 不得引用 Render；
+    语法是文档语言的边界，归 Core，排版要用度量，归 Render。
+  - `DuetDiagram.Render/Math/MathLayout.cs`：语法树排成"有位置、有尺寸、有基线"的一整块。
+    只吃 `ITextMeasurer` 给的宽与高，基线比例、轴线高度、上下标抬降全是写死的常数。
+  - `DuetDiagram.Render/Math/MathTypesetter.cs`：这一层的入口，也是"认不认得"的唯一判据。
+    解析与排版分在两个文件里，对外只有这一个口子。
+  - `DuetDiagram.Render/SceneBuilder.cs`：`MeasureNode` 与出指令两处接上公式。
+    公式拆成**普通的文本段与折线**（分数线与根号的上横线是 `DrawPolyline`），
+    不另立一种指令——画布、剔除、高亮、命中、快照与将来的导出都照原样认识它，一处都不用改。
+    所以 `DrawCommand.cs` 这一轮**没有改动**，与清单里列的不一样，理由如上。
+  - `DuetDiagram.Core/Model/DiagramValidator.cs`：新增 `CheckMath`，认不出的公式报
+    `MATH_SYNTAX_INVALID`（带位置与建议）。新码配套补了 `docs/Error-Codes.md` 的两张表、
+    `RepairHints` 与 `ErrorPresenterTable`。
+  - `DuetDiagram.Mermaid/Export/MermaidExporter.cs`：丢失清单里那一条的理由改成
+    "导出的是公式原文"，让"丢了什么"落到实处。
+
+  **三处口径**
+
+  - **清单外一律结构化错误，渲染层不画。** 原样画出来的话，用户看到的是一串花括号，
+    而他会以为是自己语法写错了；抛异常又会让一处笔误把整张图变成画不出来。
+    哪一处不认得由整体校验报出来，界面上高亮那个节点。
+  - **行内与独立成行两档的差别全在基线上**，尺寸一样（节点框总要装得下公式）。
+    行内那一档公式的基线落在这一行的文字基线上，独立成行那一档整块居中。
+    两档用同一套处理的话，带分数的行内公式会把整行文字顶起来。
+  - **只用注入的度量器。** 代价是拿不到字体的升部降部，所以公式里每一处间距都是写死的比例；
+    好处是同一份输入在任何机器上排出同一份结果，快照因此可逐字节比。
+
+  **门禁**
+
+  - `dotnet build -c Release`：0 警告 0 错误。
+  - 两条验收：`Category=MathTypesetting` 24/24、`Category=MathSnapshot` 5/5
+    （含新场景 `12-math-inline` / `13-math-block`）。
+  - `dotnet publish DuetDiagram.AotSmokeTest -c Release`：**退出码 1，与本条无关**。
+    报的是 `Platform linker not found`——这台机器缺 C++ 工作负载，
+    与 P0-02 卡住的是同一件事。这一轮没有引入任何依赖（`Directory.Packages.props` 一个字没动），
+    原生编译这条路与从前逐字节相同；**没跑成就不写成通过**。
+  - 全量测试：Core 639 / Layout 78 / Render 253 / Mermaid 181 / Dsl 158 / Llm 200 /
+    Mcp 109 / E2E 187 全绿；`Category=MultiAgent` 通过（Mcp 1/1）；
+    `tools/McpHarness -- protocol` 8/8 通过；`tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：469 个文件 / 104867 行 / 65272 行代码）。
+
+  **后续**
+
+  - 上下标的二次压缩、`\left` / `\right`、`\text{}`、矩阵、多行对齐、根号的指数都不做，
+    清单写在 `docs/Render-Pipeline.md` 的「支持的清单」一节里。
+  - `\sum` 与 `\int` 的上下标一律挂在右边，不因为换到独立成行就挪到上下。
+  - 编辑界面里还没有公式的输入辅助（清单提示、错误定位），这一轮只做到"排得出来"。

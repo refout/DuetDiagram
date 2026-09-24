@@ -543,7 +543,9 @@ public static class MermaidExporter
             DropIds("节点所属图层", Ids(n => n.Layer, _document.Nodes), "Mermaid 没有图层。");
             DropIds("节点富文本标记", Ids(n => n.RichText ? n.Id : null, _document.Nodes), "Mermaid 的方括号标签是纯文本，标记符会原样显示。");
             DropIds("节点富文本内容", Ids(n => n.RichLabel is null ? null : n.Id, _document.Nodes), "Mermaid 的方括号标签只收纯文本，段落与行内样式一律拉平，导出的是投影后的纯文本。");
-            DropIds("节点数学排版", Ids(n => n.MathMode == MathMode.None ? null : n.Id, _document.Nodes), "Mermaid 的标签不做数学排版。");
+            // 判据是"真的有公式内容"，不是"字段非空"：数学模式开着而标签是空的节点
+            // 没有任何东西可排，列进报告只会把真正的丢失淹掉。
+            DropIds("节点数学排版", Ids(n => n.MathMode != MathMode.None && n.Label.Length > 0 ? n.Id : null, _document.Nodes), "Mermaid 的标签不做数学排版，导出的是公式原文。");
             DropIds("节点文本样式", Ids(n => n.Text is null ? null : n.Id, _document.Nodes), "Mermaid 的字号与对齐由主题统一决定。");
             DropIds("节点说明", Ids(n => n.Desc, _document.Nodes), "Mermaid 没有不渲染的说明字段。");
             DropIds("节点端口", Ids(n => n.Ports.Count == 0 ? null : n.Id, _document.Nodes), "Mermaid 没有端口语法，连线只能落在节点的边中点附近。");

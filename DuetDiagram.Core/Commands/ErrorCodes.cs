@@ -269,5 +269,22 @@ public static class ErrorCodes
     /// </remarks>
     public const string RichTextMismatch = "RICH_TEXT_MISMATCH";
 
+    /// <summary>
+    /// 数学模式开着，而标签里的公式认不出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 单独一个码而不是并进"值不合法"：那一条说的是"这一段文本解析不出该字段要的类型"，
+    /// 而这一条说的是**文本本身没问题，是公式的语法不在认得的清单里**——
+    /// 处置是改公式的写法，或者把数学模式关掉。
+    /// </para>
+    /// <para>
+    /// 具体是"不认识的命令"还是"括号不配对"，由解析器分开报（见
+    /// <see cref="Model.MathErrorCodes"/>），但文档级只报这一个：
+    /// 细分码要配套写进错误码表、修复建议表与界面呈现表，而它们给用户的处置是同一句话。
+    /// </para>
+    /// </remarks>
+    public const string MathSyntaxInvalid = "MATH_SYNTAX_INVALID";
+
     #endregion
 }

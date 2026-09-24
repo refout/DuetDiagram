@@ -1,0 +1,13 @@
+canvas 400×300 background=#ffffff
+shape n1 Rect (40, 40, 89.855×61.16) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (56, 61.13, 8.82×18.9) "a" color=#161d26 font=Inter/14/Normal italic=True underline=False strikethrough=False
+text n1 (65.52, 59.366, 5.88×13.23) "2" color=#161d26 font=Inter/9.8/Normal
+text n1 (71.4, 61.13, 8.4×18.9) "+" color=#161d26 font=Inter/14/Normal
+text n1 (79.8, 52.17, 8.82×18.9) "b" color=#161d26 font=Inter/14/Normal italic=True underline=False strikethrough=False
+text n1 (79.8, 74.43, 8.82×18.9) "c" color=#161d26 font=Inter/14/Normal italic=True underline=False strikethrough=False
+text n1 (88.62, 61.13, 8.4×18.9) "≤" color=#161d26 font=Inter/14/Normal
+text n1 (105.035, 59.73, 8.82×18.9) "d" color=#161d26 font=Inter/14/Normal italic=True underline=False strikethrough=False
+polyline n1 color=#161d26 weight=0.84 line=Solid arrow=None points=[(79.8, 72.75) (88.62, 72.75)]
+polyline n1 color=#161d26 weight=0.84 line=Solid arrow=None points=[(97.02, 70.125) (99.005, 73.338)]
+polyline n1 color=#161d26 weight=0.84 line=Solid arrow=None points=[(99.005, 73.338) (101.121, 59.31)]
+polyline n1 color=#161d26 weight=0.84 line=Solid arrow=None points=[(101.121, 59.31) (113.855, 59.31)]

@@ -139,6 +139,7 @@ public static class ErrorPresenterTable
             // 两份文字对不上：处置是改其中一边，所以要把那个节点指出来——
             // 只给一句话的话，用户还得自己在图上找是哪个节点。
             [ErrorCodes.RichTextMismatch] = new(ErrorPresentationKind.HighlightTargets, "富文本内容与标签对不上"),
+            [ErrorCodes.MathSyntaxInvalid] = new(ErrorPresentationKind.HighlightTargets, "公式里有认不出来的写法"),
         };
 
     /// <summary>全部登记过的呈现方式，供门禁逐个核对。</summary>

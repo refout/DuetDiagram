@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 66 | 16940 | 9693 | 4410 | 2837 |
+| DuetDiagram.App | 66 | 16939 | 9694 | 4408 | 2837 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 116 | 17445 | 9849 | 5063 | 2533 |
+| DuetDiagram.Core | 117 | 18062 | 10218 | 5209 | 2635 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 26 | 7632 | 4947 | 1073 | 1612 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4586 | 2540 | 1395 | 651 |
+| DuetDiagram.Llm | 25 | 4591 | 2544 | 1395 | 652 |
 | DuetDiagram.Llm.Tests | 17 | 4403 | 3160 | 354 | 889 |
 | DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
-| DuetDiagram.Mermaid | 12 | 2685 | 1564 | 704 | 417 |
+| DuetDiagram.Mermaid | 12 | 2687 | 1564 | 706 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
-| DuetDiagram.Render | 23 | 4434 | 2313 | 1485 | 636 |
-| DuetDiagram.Render.Tests | 19 | 4252 | 2986 | 464 | 802 |
+| DuetDiagram.Render | 25 | 4963 | 2599 | 1654 | 710 |
+| DuetDiagram.Render.Tests | 21 | 4776 | 3329 | 556 | 891 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **464** | **103191** | **64269** | **21519** | **17403** |
+| **合计** | **469** | **104867** | **65272** | **21926** | **17669** |
 
 ## 明细
 
@@ -80,7 +80,7 @@
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 79 |
+| ErrorPresenterTable.cs | 80 |
 | FieldEditBinder.cs | 271 |
 | MenuEntries.cs | 185 |
 | MenuRegistry.cs | 101 |
@@ -173,7 +173,7 @@
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 97 |
-| ErrorCodes.cs | 53 |
+| ErrorCodes.cs | 54 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -201,12 +201,13 @@
 | DefinitionCollection.cs | 36 |
 | DiagramDocument.cs | 332 |
 | DiagramEnums.cs | 99 |
-| DiagramValidator.cs | 417 |
+| DiagramValidator.cs | 440 |
 | EdgeDef.cs | 15 |
 | FieldRegistry.cs | 215 |
 | IDefinition.cs | 5 |
 | LayoutConstraintSpec.cs | 44 |
 | LayoutHints.cs | 91 |
+| MathSyntax.cs | 345 |
 | NodeDef.cs | 68 |
 | PageAndLayer.cs | 15 |
 | PageMembership.cs | 91 |
@@ -390,7 +391,7 @@
 | SummaryFormatter.cs | 119 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 236 |
+| RepairHints.cs | 240 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 24 |
@@ -511,11 +512,13 @@
 | HitTester.cs | 113 |
 | ITextMeasurer.cs | 6 |
 | LayerPlan.cs | 87 |
+| MathLayout.cs | 183 |
+| MathTypesetter.cs | 45 |
 | ModeSwitch.cs | 44 |
 | QuadTree.cs | 260 |
 | RenderMode.cs | 6 |
 | RichTextLayout.cs | 190 |
-| SceneBuilder.cs | 432 |
+| SceneBuilder.cs | 490 |
 | SkiaTextMeasurer.cs | 77 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 78 |
@@ -538,6 +541,8 @@
 | HitTesterTests.cs | 104 |
 | LayerRenderTests.cs | 201 |
 | Layouts.cs | 59 |
+| MathSnapshotTests.cs | 85 |
+| MathTypesettingTests.cs | 258 |
 | ModeSwitchTests.cs | 113 |
 | PageRenderTests.cs | 117 |
 | QuadTreeTests.cs | 285 |

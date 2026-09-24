@@ -290,6 +290,11 @@ public static class RepairHints
                 null,
                 "富文本内容与标签对不上。把标签改成内容投影出的那段文字，或者重写一次内容：两者只能有一份说了算。"),
 
+            [ErrorCodes.MathSyntaxInvalid] = new(
+                ErrorCodes.MathSyntaxInvalid,
+                null,
+                "公式里有认不出来的写法。按报出来的位置改那一处——公式只认清单里的命令与记号；也可以把数学模式关掉，按普通文字排。"),
+
             #endregion
 
             #region 工具层的参数校验

@@ -58,6 +58,7 @@
 | `PALETTE_ENTRY_IN_USE` | 校验失败 | 这条调色板条目还被样式令牌引用着，删除会让那些元素悄悄变样 | 高亮引用它的元素 |
 | `TEXT_PRESET_MISSING` | 校验失败 | 要改、要删或要应用的文本预设不存在 | 状态栏一句话 |
 | `RICH_TEXT_MISMATCH` | 校验失败 | 富文本内容与纯文本标签（或富文本开关）互相矛盾 | 高亮该节点 |
+| `MATH_SYNTAX_INVALID` | 校验失败 | 数学模式开着，而标签里的公式认不出来 | 高亮该节点 |
 | `COMPOSITE_MISSING` | 校验失败 | 要操作的组合不存在 | 状态栏一句话 |
 | `COMPOSITE_TOO_DEEP` | 校验失败 | 组合的嵌套深度超过上限 | 状态栏一句话 |
 | `LAYER_MISSING` | 校验失败 | 要操作的图层不存在 | 状态栏一句话 |
@@ -182,6 +183,7 @@
 | `LAYER_FORBIDDEN` | `StatusBarMuted` |
 | `TEMPLATE_EMPTY` | `StatusBarMuted` |
 | `RICH_TEXT_MISMATCH` | `HighlightTargets` |
+| `MATH_SYNTAX_INVALID` | `HighlightTargets` |
 
 呈现方式只有这几种，因为用户能做的事只有这几种：
 
@@ -264,6 +266,7 @@
 | `LAYER_FORBIDDEN` | — | 这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。 |
 | `TEMPLATE_EMPTY` | — | 这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。 |
 | `RICH_TEXT_MISMATCH` | — | 富文本内容与标签对不上。把标签改成内容投影出的那段文字，或者重写一次内容：两者只能有一份说了算。 |
+| `MATH_SYNTAX_INVALID` | — | 公式里有认不出来的写法。按报出来的位置改那一处——公式只认清单里的命令与记号；也可以把数学模式关掉，按普通文字排。 |
 | `TOOL_UNKNOWN` | — | 工具名不在表里。换成已登记的那几个工具名，别自己拼一个。 |
 | `TOOL_ARGUMENT_MISSING` | — | 必填参数没给。按报出来的那个参数名把它补上再发，其余参数不用动。 |
 | `TOOL_ARGUMENT_INVALID` | — | 参数值不满足它的约束。按期望那一栏给的形式重写这个参数；形式对不上时这一次调用什么都没改。 |

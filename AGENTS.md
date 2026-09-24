@@ -11,12 +11,12 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限、形状库与自定义形状的路径解析、模板的解析与装配、富文本内容模型 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED`；P4-03 加了批量归属的 `assign-layer`；P4-04 加了页面归属（节点与边上的 `page` 字段）与 `PageMembership` 那一份判据；P4-09 加了形状库；P4-10 加了自定义形状的路径字段与解析器；P4-11 加了模板（文档片段）的读写、标识冲突消解与 `insert-template` 命令；P4-12 加了富文本内容（段落 + 行内片段）、`richLabel` 字段、`set-rich-label` 命令与 `RICH_TEXT_MISMATCH` |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限、形状库与自定义形状的路径解析、模板的解析与装配、富文本内容模型、公式语法（认得的清单与结构化错误） | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED`；P4-03 加了批量归属的 `assign-layer`；P4-04 加了页面归属（节点与边上的 `page` 字段）与 `PageMembership` 那一份判据；P4-09 加了形状库；P4-10 加了自定义形状的路径字段与解析器；P4-11 加了模板（文档片段）的读写、标识冲突消解与 `insert-template` 命令；P4-12 加了富文本内容（段落 + 行内片段）、`richLabel` 字段、`set-rich-label` 命令与 `RICH_TEXT_MISMATCH`；P4-15 加了公式语法（`MathSyntax`）与整体校验的 `MATH_SYNTAX_INVALID` |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐、按页过滤的布局请求 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地；P4-04 让请求只带当前页的元素 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 绘制列表、文本度量、富文本排版（分段、折行、行内样式混排）、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖；P4-10 让自定义形状的几何在构建列表时算好带进 `DrawShape`；P4-13 加了富文本排版（`RichTextLayout`）并让 `DrawText` 带上斜体、下划线与删除线 |
-| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照 |
+| `DuetDiagram.Render` | 绘制列表、文本度量、富文本排版（分段、折行、行内样式混排）、数学排版（分数、根号、上下标）、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖；P4-10 让自定义形状的几何在构建列表时算好带进 `DrawShape`；P4-13 加了富文本排版（`RichTextLayout`）并让 `DrawText` 带上斜体、下划线与删除线；P4-15 加了数学排版（`MathTypesetter`），公式拆成普通的文本段与折线出指令 |
+| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、数学排版与度量、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照；P4-15 加了 `Category=MathTypesetting` / `MathSnapshot` 与两档模式的场景快照 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地；P4-10 把自定义形状加进导出的丢失清单 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
@@ -51,7 +51,7 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-08`（文本样式预设的命令与界面）与 `P4-09`（形状库与形状提供者接口）与
 `P4-10`（自定义形状的路径数据）与 `P4-11`（模板库与模板应用）与
 `P4-12`（富文本内容模型）与 `P4-13`（富文本的排版与渲染）与
-`P4-14`（富文本编辑界面）已落地**（`done`），
+`P4-14`（富文本编辑界面）与 `P4-15`（数学排版）已落地**（`done`），
 其余 `pending`，
 其中 **`P4-20`（DSL 导出）标 `blocked`**，
 卡在决策门 1 上——留则照做，不留则整条删掉。
@@ -387,6 +387,12 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 
 # 错误码到界面呈现的对照表：覆盖全部错误码，且与错误码文档里那张表逐行一致
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ErrorPresentation"
+
+# 数学排版：清单里的每一种写法都排得出来、清单外的每一种都给结构化错误（码 + 位置）、
+# 认不出的公式一条指令都不出、行内按基线对齐而独立成行整块居中、
+# 同一个输入每次排出同样的结果；两档各有一份场景快照
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathTypesetting"
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathSnapshot"
 
 # 布局失败之后：画面停在上一次成功的结果上、状态栏变红、重试 / 手动布局 / 简化图三个选项都在
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayoutFailure"

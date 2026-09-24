@@ -39,8 +39,48 @@ public static class DiagramValidator
         CheckLayoutHints(document, issues);
         CheckShapes(document, issues);
         CheckRichText(document, issues);
+        CheckMath(document, issues);
 
         return issues;
+    }
+
+    /// <summary>
+    /// 数学模式开着时，标签里的公式必须认得出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **认不出的公式渲染层不画。** 所以这一条报的是"那个节点上标签的位置会是空的"，
+    /// 而不是一句可有可无的提醒——不报的话，用户看到的是一块空白的框，
+    /// 而他会以为是自己把标签删掉了。
+    /// </para>
+    /// <para>
+    /// 报位置而不是只报"语法错了"：一段长公式里用户要自己找那一处，
+    /// 而找不到就会把整段删掉重写。
+    /// </para>
+    /// </remarks>
+    private static void CheckMath(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        foreach (var node in document.Nodes)
+        {
+            if (node.MathMode == MathMode.None)
+            {
+                continue;
+            }
+
+            if (MathSyntax.TryParse(node.Label, out _, out var error))
+            {
+                continue;
+            }
+
+            issues.Add(new ValidationIssue
+            {
+                Code = ErrorCodes.MathSyntaxInvalid,
+                Message = $"节点 {node.Id} 的公式认不出来：第 {error!.Position + 1} 个字符处{error.Detail}。",
+                RelatedId = node.Id,
+                Suggestion = $"改节点 {node.Id} 的标签：公式只认清单里那些写法，"
+                             + "或者把它的数学模式关掉，按普通文字排。",
+            });
+        }
     }
 
     /// <summary>九个集合共用一个命名空间，标识重复会让引用产生歧义。</summary>

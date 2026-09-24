@@ -50,6 +50,10 @@ public static class SceneBuilder
     /// **有富文本内容时量的是内容，不是标签。** 内容在的时候它是权威，而标签只是它的投影——
     /// 按标签量的话，混排了大字号的那一块会量矮，字就溢到框外面。
     /// </para>
+    /// <para>
+    /// **数学模式开着时量的是公式，标签是公式原文。** 两种模式下量的都是公式本身：
+    /// 差别在**基线怎么放**，不在占多大——节点框总要装得下它。
+    /// </para>
     /// </remarks>
     public static Size MeasureNode(NodeDef node, Theme theme, ITextMeasurer measurer)
     {
@@ -59,11 +63,22 @@ public static class SceneBuilder
 
         var appearance = theme.Node(node);
         var text = theme.Text(node.Text, appearance.Text);
-        var block = Block(node, text, theme, measurer);
+
+        var block = MathTypesetter.HasMath(node)
+            ? MathTypesetter.Measure(node.Label, text, measurer)
+            : LabelSize(node, text, theme, measurer);
 
         return new Size(
             Math.Max(block.Width + (theme.NodePaddingX * 2), theme.MinNodeWidth),
             Math.Max(block.Height + (theme.NodePaddingY * 2), theme.MinNodeHeight));
+    }
+
+    /// <summary>量一个节点标签块。</summary>
+    private static Size LabelSize(NodeDef node, TextAppearance text, Theme theme, ITextMeasurer measurer)
+    {
+        var block = Block(node, text, theme, measurer);
+
+        return new Size(block.Width, block.Height);
     }
 
     /// <summary>
@@ -567,13 +582,84 @@ public static class SceneBuilder
 
             var text = theme.Text(node.Text, appearance.Text);
 
-            AppendBlock(commands, node.Id, Block(node, text, theme, measurer), rect, text);
+            AppendLabel(commands, node.Id, node, text, theme, measurer, rect);
         }
     }
 
     #endregion
 
     #region 文本
+
+    /// <summary>
+    /// 把一个节点的标签排进它的框。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 公式与文本是两条路，但**汇到同一处**：都按节点框定位、都用同一份外观。
+    /// 分在两处的话，"标签在框里怎么摆"会有两种实现，而它们迟早会在留白或对齐上分叉。
+    /// </para>
+    /// <para>
+    /// **认不出的公式不画。** 原样画出来的话，用户看到的是一串花括号，
+    /// 而他会以为是自己语法写错了；哪一处不认得由整体校验报出来。
+    /// </para>
+    /// </remarks>
+    private static void AppendLabel(
+        List<DrawCommand> commands,
+        string elementId,
+        NodeDef node,
+        TextAppearance text,
+        Theme theme,
+        ITextMeasurer measurer,
+        SpatialRect container)
+    {
+        if (!MathTypesetter.HasMath(node))
+        {
+            AppendBlock(commands, elementId, Block(node, text, theme, measurer), container, text);
+            return;
+        }
+
+        if (!MathTypesetter.TryLayout(node.Label, text, measurer, out var math, out _))
+        {
+            return;
+        }
+
+        var origin = MathTypesetter.Place(math, node.MathMode, text, container);
+
+        // 公式拆成普通的文本段与折线出指令，不另立一种指令。这样画布、剔除、
+        // 高亮、命中与将来的导出都照原样认识它，一处都不用改。
+        foreach (var segment in math.Segments)
+        {
+            commands.Add(new DrawText(
+                elementId,
+                segment.Text,
+                new SpatialRect(
+                    origin.X + segment.X,
+                    origin.Y + segment.Y,
+                    segment.Width,
+                    segment.Height),
+                segment.Appearance.Color,
+                segment.Appearance.FontFamily,
+                segment.Appearance.FontSize,
+                segment.Appearance.Weight,
+                segment.Appearance.Italic,
+                segment.Appearance.Underline,
+                segment.Appearance.Strikethrough));
+        }
+
+        foreach (var rule in math.Rules)
+        {
+            commands.Add(new DrawPolyline(
+                elementId,
+                [
+                    new DrawPoint(origin.X + rule.X1, origin.Y + rule.Y1),
+                    new DrawPoint(origin.X + rule.X2, origin.Y + rule.Y2),
+                ],
+                text.Color,
+                rule.Weight,
+                LineStyle.Solid,
+                ArrowStyle.None));
+        }
+    }
 
     /// <summary>
     /// 排一个节点的标签块。

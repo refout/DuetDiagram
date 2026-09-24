@@ -5,6 +5,7 @@ using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Sidecar;
+using DuetDiagram.Core.Templates;
 using DuetDiagram.Core.Workspace;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
@@ -1544,6 +1545,46 @@ public sealed class DiagramSession : IDisposable
                 return candidate;
             }
         }
+    }
+
+    #endregion
+
+    #region 模板
+
+    /// <summary>
+    /// 把一份模板拼进当前文档。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **一条命令，因此撤销一次整份退回。** 模板里有十条元素也只有一条历史——
+    /// 用户在界面上做的是同一次「放了一个模板」，按十次撤销与那件事对不上。
+    /// </para>
+    /// <para>
+    /// **拼完必须重排。** 拼进去的是节点与边，它们要占位置；只重绘不重排的话，
+    /// 新放进去的元素没有坐标，画面上的表现是"点了没反应"。
+    /// </para>
+    /// <para>
+    /// **选中不动。** 拼进去的标识是命令层改过名的，会话这一层看不到那份计划；
+    /// 而按"看起来像"去猜会选错。要改里面的文字，用户自己点一下。
+    /// </para>
+    /// </remarks>
+    public CommandResult InsertTemplate(TemplateDocument template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new InsertTemplateCommand(template));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
     }
 
     #endregion

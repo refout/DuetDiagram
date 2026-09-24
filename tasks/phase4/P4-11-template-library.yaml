@@ -1,7 +1,7 @@
 id: P4-11
 title: 模板库与模板应用
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01, P4-09]
 estimated_loc: 470
 files:
@@ -58,3 +58,81 @@ scope_note: |
   **模板与形状库的区别要守住：形状是一个节点的外观，模板是一批元素。**
   把模板做成「复杂形状」的话，模板里的东西就不能单独选中与修改了，
   而用户放一个模板进去之后第一件事就是改里面的文字。
+result: |
+  **模板是一条可复用的文档片段，不是第二套 IR。** 文件就是一份少了几个集合的文档，
+  读写都走 `DiagramSerializer`；另造一套格式的话，IR 每加一个字段就有两个地方要改，
+  而漏改的那一处只在读到新文件时才暴露。核心层做解析与装配，宿主做目录发现与面板。
+
+  **落地了什么**
+
+  - `DuetDiagram.Core/Templates/TemplateDocument.cs`：一份模板（节点、边、组合）的读写，
+    以及「从文档里截一段做成模板」（`FromDocument`，组合连着成员与父级一起带上、
+    两端都在片段里的边一并带上、页面归属去掉）。
+  - `DuetDiagram.Core/Templates/TemplateInstantiator.cs`：把片段装配到目标文档上——
+    先核片段自己立不立得住，再消解标识冲突、改写全部引用，产出一份计划。
+  - `DuetDiagram.Core/Commands/Builtin/InsertTemplateCommand.cs`：`insert-template`，
+    校验、算逆变更、落地读同一份计划。
+  - `DuetDiagram.App/Services/TemplateCatalog.cs`：目录发现（可注入路径、缺省在程序旁
+    `Templates/`）、逐文件容错、保存（临时文件再改名、不覆盖同名）、失败清单。
+  - `DuetDiagram.App/Controls/TemplatePanel.axaml(.cs)` +
+    `ViewModels/TemplatePanelViewModel.cs`：面板列出模板、点一个放进画布、把选中内容存成模板，
+    只读时挡住并存一句话。
+  - `DuetDiagram.App/Templates/Basic.template.json`：随程序集走的一个示例模板。
+
+  **刻意的取舍与判断**
+
+  - **模板是文档片段，不是第二套 IR。** 复用 `DiagramSerializer`，只带节点、边与组合。
+    带了模板表达不了的东西（页面、图层、标签、动作、字体、文本预设、调色板、布局提示）
+    的文件**拒绝**而不是静默丢掉：静默丢掉的表现是"模板里的颜色不见了"，
+    而用户无从知道是模板没写对还是程序没做。
+  - **拼进去是一条命令。** 十条元素发十条命令的话撤销要按十次，而用户眼里是一次
+    「放了一个模板」；装配先算一份计划，校验、算逆变更、落地三处读同一份计划，
+    避免"校验说可以、落地时撞标识"这类错位。失败与所有命令同一条口径：整体不落。
+  - **组合的成员表是权威，元素的父级只是它的冗余索引。** 于是拼进去时父级由成员表反推，
+    而不是照抄片段里写的那一份；片段里两份对不上时拒绝——一个元素只能有一个父级，
+    那两份里必然有一份落不了地。手写模板的人很自然会只写成员表，不去每个节点上再抄一遍父级。
+  - **标识冲突消解时引用一起改，序号从 2 起，并把计划里已分配出去的也算上。**
+    只改节点名不改边上的引用，拼进去的是一条指向旧名字的边；只查目标文档的话，
+    片段里同时有 `a` 与 `a-2` 而文档里已有 `a` 时，两个都会变成 `a-2`。
+  - **嵌套深度合起来看**（片段深度 + 目标文档深度）：片段自己没超，拼到一份已经很深的
+    文档上照样会超，而那一步不做的话插入成功、文档立刻变成一份校验不过的东西。
+  - **模板文件随程序集走要显式声明**（`Content ... CopyToOutputDirectory`）。不声明的话
+    开发机上一切正常，发布之后模板列表是空的，而那种空看起来像"这一轮没做"。
+  - **目录路径可注入**，缺省在程序旁 `Templates/`：写死一个相对路径的话，装好之后
+    运行目录一变就找不到，而症状是"模板列表是空的"、没有任何报错。
+
+  **与任务清单不一样的地方**
+
+  - **`DuetDiagram.App/Services/MenuRegistry.cs` 未改。** 清单把它列在 modify 里，
+    但条目是按档分文件注册的（P4-01 的约定），`file.save-template` 加在文件档那一份
+    `MenuEntries.cs` 里。
+  - 清单没列而新增/改动：`DuetDiagram.Core/Commands/ErrorCodes.cs`（`TEMPLATE_EMPTY`）、
+    `DuetDiagram.Core/Serialization/DiagramJsonContext.cs`、`DuetDiagram.App/Services/ErrorPresenterTable.cs`、
+    `DuetDiagram.Llm/Loop/RepairHints.cs`、`docs/Error-Codes.md`、`docs/Command-List.md`、
+    `README.md`、`tasks/README.md`、`Core.Tests/ValidatorTests.cs`、`Core.Tests/RoundTripTests.cs`、
+    `E2E.Tests/HeadlessFixture.cs`。
+
+  **侦察时挖出的一个底层缺陷**
+
+  - **源生成的序列化器走全参构造器，手写稀疏 JSON 里省掉的键会读成 `default`**
+    （引用类型是 `null`）**而不是声明处的初值**。此前一直没人碰到，因为写出来的文件
+    永远是全字段的；手写的模板文件是第一次真的稀疏。修在 `DiagramDocument` 的构造入口：
+    逐集合、逐元素补齐缺字段（`Complete(...)`，缺什么补什么、不缺就返回原实例），
+    并加了两条 `Category=RoundTrip` 回归用例。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=Template` Core 32/32、`Category=Template` E2E 7/7、
+    `Category=IrValidator` 29/29（实例化之后文档整体校验零问题）。
+  - 全量测试：Core 608 / Layout 78 / Render 181 / Mermaid 180 / Dsl 158 / Llm 192 /
+    Mcp 109 / E2E 176 全绿；`Category=RoundTrip` 11/11。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：453 个文件 / 98731 行 / 61612 行代码）。
+
+  **后续**
+
+  - 模板面板目前只列、只用、只存，没有改名与删除的入口。
+  - 模板不带页面、图层、标签、调色板等文档级集合；要带的话得先定合并规则。
+  - 模板的坐标与尺寸：节点不带坐标字段（布局求解），所以模板不需要处理这一层。

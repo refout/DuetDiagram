@@ -75,6 +75,8 @@ namespace DuetDiagram.Core.Serialization;
 [JsonSerializable(typeof(VersionEntry[]))]
 [JsonSerializable(typeof(EdgePlacement[]))]
 [JsonSerializable(typeof(MemberPlacement[]))]
+[JsonSerializable(typeof(NodeDef[]))]
+[JsonSerializable(typeof(EdgeDef[]))]
 [JsonSerializable(typeof(CompositeDef[]))]
 [JsonSerializable(typeof(LayerDef[]))]
 [JsonSerializable(typeof(PageDef[]))]

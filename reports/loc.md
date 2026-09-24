@@ -6,16 +6,16 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 60 | 15061 | 8657 | 3880 | 2524 |
+| DuetDiagram.App | 63 | 15714 | 9023 | 4062 | 2629 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 111 | 15667 | 8892 | 4478 | 2297 |
-| DuetDiagram.Core.Tests | 42 | 11323 | 7967 | 1178 | 2178 |
+| DuetDiagram.Core | 114 | 16699 | 9500 | 4760 | 2439 |
+| DuetDiagram.Core.Tests | 43 | 12052 | 8467 | 1290 | 2295 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 24 | 6769 | 4403 | 935 | 1431 |
+| DuetDiagram.E2E.Tests | 25 | 7086 | 4603 | 984 | 1499 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4548 | 2521 | 1379 | 648 |
+| DuetDiagram.Llm | 25 | 4553 | 2525 | 1379 | 649 |
 | DuetDiagram.Llm.Tests | 16 | 4182 | 3013 | 323 | 846 |
 | DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 22 | 3905 | 2035 | 1307 | 563 |
 | DuetDiagram.Render.Tests | 17 | 3681 | 2567 | 419 | 695 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **445** | **95995** | **59934** | **19852** | **16209** |
+| **合计** | **453** | **98731** | **61612** | **20477** | **16642** |
 
 ## 明细
 
@@ -55,6 +55,7 @@
 | ShapePreview.cs | 44 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
 | StatusBar.axaml.cs | 72 |
+| TemplatePanel.axaml.cs | 123 |
 | TextPresetPanel.axaml.cs | 233 |
 | FrameBenchmark.cs | 375 |
 | ConnectSession.cs | 19 |
@@ -66,21 +67,22 @@
 | HighlightTracker.cs | 167 |
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 310 |
+| MainWindow.axaml.cs | 315 |
 | Program.cs | 78 |
 | ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 103 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
-| DiagramSession.cs | 1238 |
+| DiagramSession.cs | 1255 |
 | DocumentFile.cs | 43 |
-| DocumentLaunch.cs | 67 |
+| DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 77 |
+| ErrorPresenterTable.cs | 78 |
 | FieldEditBinder.cs | 271 |
-| MenuEntries.cs | 177 |
+| MenuEntries.cs | 185 |
 | MenuRegistry.cs | 101 |
+| TemplateCatalog.cs | 73 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 285 |
 | ConstraintEditorViewModel.cs | 165 |
@@ -97,6 +99,7 @@
 | RenderModeViewModel.cs | 33 |
 | ShapeLibraryPanelViewModel.cs | 123 |
 | StatusBarViewModel.cs | 81 |
+| TemplatePanelViewModel.cs | 130 |
 | TextPresetPanelViewModel.cs | 210 |
 
 ### DuetDiagram.Benchmarks
@@ -136,6 +139,7 @@
 | DeletePageCommand.cs | 77 |
 | DisconnectEdgeCommand.cs | 81 |
 | DissolveCompositeCommand.cs | 106 |
+| InsertTemplateCommand.cs | 130 |
 | MoveIntoCompositeCommand.cs | 93 |
 | ReconnectEdgeCommand.cs | 130 |
 | RemoveActionCommand.cs | 69 |
@@ -160,12 +164,12 @@
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 119 |
+| CommandMemento.cs | 126 |
 | CommandResult.cs | 58 |
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 97 |
-| ErrorCodes.cs | 51 |
+| ErrorCodes.cs | 52 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
@@ -191,7 +195,7 @@
 | CollectionEquality.cs | 104 |
 | Composites.cs | 49 |
 | DefinitionCollection.cs | 36 |
-| DiagramDocument.cs | 275 |
+| DiagramDocument.cs | 332 |
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 384 |
 | EdgeDef.cs | 15 |
@@ -207,7 +211,7 @@
 | SupportingDefs.cs | 62 |
 | ValidationIssue.cs | 10 |
 | DiagramHashing.cs | 175 |
-| DiagramJsonContext.cs | 67 |
+| DiagramJsonContext.cs | 69 |
 | DiagramSerializer.cs | 54 |
 | BuiltinShapeProvider.cs | 46 |
 | IShapeProvider.cs | 5 |
@@ -221,6 +225,8 @@
 | SidecarPaths.cs | 55 |
 | SidecarStore.cs | 123 |
 | UserSidecar.cs | 48 |
+| TemplateDocument.cs | 159 |
+| TemplateInstantiator.cs | 252 |
 | ITimeProvider.cs | 22 |
 | DiagramWorkspace.cs | 50 |
 | DocumentLock.cs | 136 |
@@ -259,17 +265,18 @@
 | PaletteCommandTests.cs | 256 |
 | PathShapeTests.cs | 257 |
 | PermissionTests.cs | 105 |
-| RoundTripTests.cs | 139 |
+| RoundTripTests.cs | 186 |
 | SessionIdResolutionTests.cs | 57 |
 | ShapeRegistryTests.cs | 122 |
 | SidecarBackupTests.cs | 245 |
 | SidecarTests.cs | 301 |
 | SoftLockTests.cs | 174 |
 | TempDirectory.cs | 22 |
+| TemplateTests.cs | 432 |
 | TestCommands.cs | 109 |
 | TextPresetCommandTests.cs | 368 |
 | UndoStressTests.cs | 77 |
-| ValidatorTests.cs | 356 |
+| ValidatorTests.cs | 377 |
 | VersionLogTests.cs | 177 |
 | WorkspaceTests.cs | 94 |
 
@@ -312,7 +319,7 @@
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 177 |
+| HeadlessFixture.cs | 180 |
 | HighlightTests.cs | 70 |
 | LayerPanelTests.cs | 357 |
 | LayerVisibilityTests.cs | 154 |
@@ -325,6 +332,7 @@
 | PalettePanelTests.cs | 171 |
 | PropertyPanelTests.cs | 167 |
 | ShapeLibraryTests.cs | 112 |
+| TemplateTests.cs | 197 |
 | TextPresetTests.cs | 189 |
 | ToolBarTests.cs | 118 |
 
@@ -375,7 +383,7 @@
 | SummaryFormatter.cs | 118 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 228 |
+| RepairHints.cs | 232 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 24 |

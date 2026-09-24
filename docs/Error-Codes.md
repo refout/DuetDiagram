@@ -18,6 +18,7 @@
 | `MCP_UNAUTHORIZED` | 认证失败 | — （Phase 3） | 提示「认证失败」 |
 | `MCP_RATE_LIMITED` | 速率超限 | — （Phase 3） | 状态栏提示「请求过于频繁」 |
 | `INTERNAL_ERROR` | 内部错误 | `Apply` 抛异常 | 状态栏提示 + 日志 |
+| `TEMPLATE_EMPTY` | 校验失败 | 要放进去的模板里一条元素都没有 | 状态栏灰显一句话 |
 
 `INTERNAL_ERROR` 可重试，`VERSION_CONFLICT` 可重试 —— 两者由 `CommandResult.IsRetryable` 判定。
 
@@ -178,6 +179,7 @@
 | `ACTION_MISSING` | `StatusBar` |
 | `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
 | `LAYER_FORBIDDEN` | `StatusBarMuted` |
+| `TEMPLATE_EMPTY` | `StatusBarMuted` |
 
 呈现方式只有这几种，因为用户能做的事只有这几种：
 
@@ -258,6 +260,7 @@
 | `TEXT_PRESET_MISSING` | `id` | 这个文本预设不在文档里。先读一次图看现有预设，或者先建一个。 |
 | `DOCUMENT_READ_ONLY` | — | 这份文档正被另一个进程编辑着，这一份只读。去改那一份，或者等对方放开再来。 |
 | `LAYER_FORBIDDEN` | — | 这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。 |
+| `TEMPLATE_EMPTY` | — | 这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。 |
 | `TOOL_UNKNOWN` | — | 工具名不在表里。换成已登记的那几个工具名，别自己拼一个。 |
 | `TOOL_ARGUMENT_MISSING` | — | 必填参数没给。按报出来的那个参数名把它补上再发，其余参数不用动。 |
 | `TOOL_ARGUMENT_INVALID` | — | 参数值不满足它的约束。按期望那一栏给的形式重写这个参数；形式对不上时这一次调用什么都没改。 |

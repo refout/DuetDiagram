@@ -180,4 +180,75 @@ public sealed class RoundTripTests
         DiagramSerializer.SerializeNotification(restored).Should().Be(json);
         restored.AffectedIds.Should().Equal("n1", "e1");
     }
+
+    /// <summary>
+    /// 文件里没写的引用类型字段读成声明的初值，不是空引用。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 手写的文件（模板就是最典型的一种）不会把每个字段都写全。源生成模式下 init-only 属性
+    /// 只能经合成的全参构造赋值，于是"没写这个键"会留下空引用，而哈希、整体校验与布局
+    /// 都直接读它们——一份本来完全合法的文档会在打开或存回时崩掉。
+    /// </para>
+    /// <para>
+    /// 这里逐个断言那几个被直接解引用的字段。只断言"整份文档读得出来"是不够的：
+    /// 崩的那一步发生在后续的哈希、校验与序列化里，而不是读的这一步。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "RoundTrip")]
+    public void A_document_that_omits_a_field_reads_the_declared_default()
+    {
+        var restored = DiagramSerializer.DeserializeFull("""
+            {
+              "id": "sparse",
+              "nodes": [ { "id": "a", "parent": "g1" } ],
+              "edges": [ { "id": "e1", "from": "a", "to": "g1" } ],
+              "composites": [ { "$composite": "group", "id": "g1" } ],
+              "tags": [ { "id": "t1" } ],
+              "actions": [ { "id": "act1" } ],
+              "palette": { },
+              "layout": { "nodeSpacing": 44 }
+            }
+            """);
+
+        restored.Nodes[0].Label.Should().BeEmpty();
+        restored.Nodes[0].Ports.Should().BeEmpty();
+        restored.Nodes[0].Meta.Should().BeEmpty();
+        restored.Edges[0].Label.Should().BeEmpty();
+        restored.Edges[0].Style.Should().NotBeNull();
+        restored.Edges[0].Line.Should().Be(LineStyle.Solid, "边少了样式字段也画得出线");
+        restored.Composites[0].Label.Should().BeEmpty();
+        restored.Composites[0].Members.Should().BeEmpty();
+        restored.Tags[0].Members.Should().BeEmpty();
+        restored.Actions[0].Event.Should().BeEmpty();
+        restored.Actions[0].Parameters.Should().BeEmpty();
+        restored.Palette.Entries.Should().BeEmpty();
+        restored.Layout.SameRank.Should().BeEmpty();
+        restored.Layout.Order.Should().BeEmpty();
+        restored.Layout.Align.Should().BeEmpty();
+        restored.Layout.Place.Should().BeEmpty();
+    }
+
+    /// <summary>补过字段的文档能原样写回去，再读一遍还是同一份。</summary>
+    /// <remarks>
+    /// 只断言"读得出来"会漏掉写的那一侧：边少了 <c>style</c> 字段时，
+    /// 崩的正是写回那一刻——序列化要读那几个便捷属性。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "RoundTrip")]
+    public void A_document_that_omits_a_field_can_be_written_back()
+    {
+        var restored = DiagramSerializer.DeserializeFull("""
+            {
+              "id": "sparse",
+              "nodes": [ { "id": "a" }, { "id": "b" } ],
+              "edges": [ { "id": "e1", "from": "a", "to": "b" } ]
+            }
+            """);
+
+        var json = DiagramSerializer.SerializeFull(restored);
+
+        DiagramSerializer.SerializeFull(DiagramSerializer.DeserializeFull(json)).Should().Be(json);
+    }
 }

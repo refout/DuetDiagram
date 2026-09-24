@@ -243,5 +243,15 @@ public static class ErrorCodes
     /// </remarks>
     public const string ShapePathInvalid = "SHAPE_PATH_INVALID";
 
+    /// <summary>
+    /// 要放入的模板里一条元素都没有。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是并进"值不合法"：那一条说的是"这一段文本解析不出该字段要的类型"，
+    /// 而模板是一份文件。这个码的处置是**换一份模板或者去补上内容**，
+    /// 与改一个值的写法不是同一件事。
+    /// </remarks>
+    public const string TemplateEmpty = "TEMPLATE_EMPTY";
+
     #endregion
 }

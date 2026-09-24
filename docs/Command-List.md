@@ -43,6 +43,7 @@
 | `update-text-preset` | `UpdateTextPresetCommand` | 预设存在；字段名在已注册的预设字段内（`preset.fontFamily` / `preset.fontSize` / `preset.fontWeight` / `preset.italic` / `preset.underline` / `preset.strikethrough` / `preset.fontColor` / `preset.align`）；值能解析成该字段要的类型 | 一次只改一个成员，与改节点、改调色板条目同一个形状。字段名认不出时把可用字段列在错误载荷里。预设不存在报 `TEXT_PRESET_MISSING` 而**不顺手新建**。只计外观 |
 | `remove-text-preset` | `RemoveTextPresetCommand` | 预设存在 | **不查引用者，这与删调色板条目刻意不同**：应用是按值把样式成员抄到节点上，IR 里没有任何一处回指预设，删除不会造成悬空引用。已经应用过的样式原样长在各节点上。报 `TEXT_PRESET_MISSING`。只计外观 |
 | `apply-text-preset` | `ApplyTextPresetCommand` | 预设存在；点名至少一个节点；节点都在 | **叠加，不是替换**：预设里声明了的成员抄到节点的文本样式上，没声明的保持原样——整份替换会把用户单独调过的字号抹掉。批量是多选之后的一条命令，先整批算出要写什么再写，有一个节点不在就整条被拒；撤销按一次把这一批全部还原。只计外观 |
+| `insert-template` | `InsertTemplateCommand` | 模板里至少有一条元素；片段里的标识互不重复（九个集合共用一个命名空间）；节点与组合的父级、组合的成员、边的两端都能在片段里找到；片段的嵌套深度加上目标文档的深度不超过 `CompositeLimits.MaxDepth` | **一条命令，因此撤销一次整份退回**。标识与目标文档冲突时按 `-2`、`-3` 依次改名，边与组合里的引用一起改掉；同一次计划里已经分配出去的名字也参与查重，否则片段里同时有 `a` 与 `a-2` 时两个都会变成 `a-2`。模板不带页面归属，拼进去的元素一律落在缺省页。**只核片段自己自不自洽**，目标文档里原有的悬空引用不归它管；有一处不合法就一条都不落 |
 
 **结构还是纯外观，取决于被改的值进的是哪个哈希。**
 

@@ -131,6 +131,10 @@ public static class ErrorPresenterTable
             // 图层被用户锁上。同样不是"做错了什么"，而是"这一层现在别动"。
             // 与上一条分开：那一句说的是凭据，这一句说的是这一层自己锁着，处置也不同。
             [ErrorCodes.LayerLocked] = new(ErrorPresentationKind.StatusBarMuted, "这一层锁着，先解锁再改"),
+
+            // 空模板。不是用户做错了什么，而是这份模板本身没有可放的东西，
+            // 所以走灰显那一档：一句话说清，不弹窗。
+            [ErrorCodes.TemplateEmpty] = new(ErrorPresentationKind.StatusBarMuted, "这份模板是空的，没有可放进去的元素"),
         };
 
     /// <summary>全部登记过的呈现方式，供门禁逐个核对。</summary>

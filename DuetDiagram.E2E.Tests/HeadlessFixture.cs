@@ -6,6 +6,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using DuetDiagram.App;
 using DuetDiagram.App.Controls;
+using DuetDiagram.App.Services;
 using DuetDiagram.Render;
 using AppShell = DuetDiagram.App.App;
 
@@ -84,9 +85,20 @@ public static class HeadlessFixture
     /// 那一帧不能省：不起的话画布尺寸还是零，视口也就没被适配过，
     /// 之后量出来的坐标与窗口位置全是错的，而失败会指向视口而不是"还没排布"。
     /// </remarks>
-    public static MainWindow Open()
+    public static MainWindow Open() => Open(DocumentLaunch.Sample());
+
+    /// <summary>
+    /// 起一个窗口，看的是指定的那份文档。
+    /// </summary>
+    /// <remarks>
+    /// 依赖能注入的那几样（布局引擎、模板目录）都挂在说明上，所以要看另一份文档、
+    /// 或者让窗口去找另一个目录里的模板，走的是这一个入口。
+    /// </remarks>
+    public static MainWindow Open(DocumentLaunch launch)
     {
-        var window = new MainWindow();
+        ArgumentNullException.ThrowIfNull(launch);
+
+        var window = new MainWindow(launch);
 
         window.Show();
         window.CaptureRenderedFrame();

@@ -45,10 +45,15 @@ public sealed record WorkspaceSetup(
 /// </remarks>
 public sealed class DocumentLaunch
 {
-    private DocumentLaunch(string key, ILayoutEngine? engine, Func<WorkspaceSetup> create)
+    private DocumentLaunch(
+        string key,
+        ILayoutEngine? engine,
+        TemplateCatalog templates,
+        Func<WorkspaceSetup> create)
     {
         Key = key;
         Engine = engine;
+        Templates = templates;
         Create = create;
     }
 
@@ -57,6 +62,16 @@ public sealed class DocumentLaunch
 
     /// <summary>布局引擎。注入的用途只有一个：让"布局彻底失败"这条路径能被真正走到。</summary>
     public ILayoutEngine? Engine { get; }
+
+    /// <summary>
+    /// 从哪儿找模板。
+    /// </summary>
+    /// <remarks>
+    /// 它挂在这里而不是让面板自己去拼一个路径：装好之后运行目录未必是开发机上那一个，
+    /// 写死相对路径的症状是"模板列表是空的"，且没有任何报错。
+    /// 与布局引擎同一个位置，理由也一样——**这一层是窗口依赖的注入点**。
+    /// </remarks>
+    public TemplateCatalog Templates { get; }
 
     /// <summary>第一次打开这份文档时怎么建工作区。</summary>
     public Func<WorkspaceSetup> Create { get; }
@@ -69,10 +84,11 @@ public sealed class DocumentLaunch
     /// 用一个固定标识的话，同一个进程里开出来的第二个示例窗口会共用第一个的文档，
     /// 而那在用户看来是"我新开了一个窗口，里面却是刚才那张图"。
     /// </remarks>
-    public static DocumentLaunch Sample(ILayoutEngine? engine = null) =>
+    public static DocumentLaunch Sample(ILayoutEngine? engine = null, TemplateCatalog? templates = null) =>
         new(
             $"sample:{Guid.NewGuid():N}",
             engine,
+            templates ?? new TemplateCatalog(),
             () => new WorkspaceSetup(
                 DiagramSession.CreateWorkspace(SampleDiagram.Document()),
                 Lock: null,
@@ -97,11 +113,12 @@ public sealed class DocumentLaunch
     /// 用户会在一份截断的图上继续编辑，然后把它存回去，那时坏掉的就不只是内存里的那一份了。
     /// </para>
     /// </remarks>
-    public static DocumentLaunch File(string path, ILayoutEngine? engine = null)
+    public static DocumentLaunch File(string path, ILayoutEngine? engine = null, TemplateCatalog? templates = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var full = Path.GetFullPath(path);
+        var catalog = templates ?? new TemplateCatalog();
 
         // 文件在不在先看一眼，再动锁。反过来做的话，打开一个写错的路径会在那份文档旁边
         // 留下一个空的锁文件——而它本来就不存在，那个文件是凭空多出来的。
@@ -126,6 +143,7 @@ public sealed class DocumentLaunch
             return new DocumentLaunch(
                 full,
                 engine,
+                catalog,
                 () => new WorkspaceSetup(
                     DiagramSession.CreateWorkspace(document),
                     documentLock,
@@ -150,5 +168,5 @@ public sealed class DocumentLaunch
     /// 而不是新造一个。窗口各开一份工作区的话，两个窗口各有各的撤销栈，
     /// 在一边撤销不会动另一边——而它们显示的是同一份文档。
     /// </remarks>
-    public DocumentLaunch Again() => new(Key, Engine, Create);
+    public DocumentLaunch Again() => new(Key, Engine, Templates, Create);
 }

@@ -28,18 +28,19 @@
       常驻还有一个好处：图层这件事的意义在于「一层里有谁」，随时看得见才谈得上。
     -->
     <!--
-      左栏上下分四截：图层、形状、调色板、文本预设。四者都是常驻分区
+      左栏上下分五截：图层、形状、模板、调色板、文本预设。五者都是常驻分区
       （§9.1 的结构与样式分区），理由相同——「有哪些可选」随时看得见，
-      才挑得出来。形状紧挨着图层，因为两者都是"这个节点是什么"；
-      调色板与文本预设是"它长什么样"。
+      才挑得出来。形状与模板紧挨着图层，因为前两者都是"往里放什么"
+      （形状改的是已有的一个节点，模板放进的是一批元素）；调色板与文本预设是"它长什么样"。
     -->
     <Grid DockPanel.Dock="Left"
           Width="240"
-          RowDefinitions="Auto,Auto,*,Auto">
+          RowDefinitions="Auto,Auto,Auto,*,Auto">
       <controls:LayerPanel x:Name="LayersView" Grid.Row="0" />
       <controls:ShapeLibraryPanel x:Name="ShapesView" Grid.Row="1" />
-      <controls:PalettePanel x:Name="PaletteView" Grid.Row="2" />
-      <controls:TextPresetPanel x:Name="TextPresetsView" Grid.Row="3" />
+      <controls:TemplatePanel x:Name="TemplatesView" Grid.Row="2" />
+      <controls:PalettePanel x:Name="PaletteView" Grid.Row="3" />
+      <controls:TextPresetPanel x:Name="TextPresetsView" Grid.Row="4" />
     </Grid>
 
     <!--

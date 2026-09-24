@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DuetDiagram.App.ViewModels"
+             x:Class="DuetDiagram.App.Controls.TemplatePanel"
+             x:DataType="vm:TemplatePanelViewModel">
+
+  <!--
+    与左栏另外几个面板同一条布局口径：常驻分栏，不做成浮层——浮层的开关会改画布尺寸，
+    而画布一改尺寸视口就跟着跳。
+  -->
+  <Border Background="#fbfcfd"
+          BorderBrush="#d8dee7"
+          BorderThickness="0,0,1,0">
+    <DockPanel Margin="12,10">
+
+      <TextBlock DockPanel.Dock="Top"
+                 FontSize="13"
+                 FontWeight="SemiBold"
+                 Foreground="#2b3440"
+                 Text="模板" />
+
+      <TextBlock DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#8a6d1f"
+                 TextWrapping="Wrap"
+                 Text="{Binding ReadOnlyNote}"
+                 IsVisible="{Binding HasReadOnlyNote}" />
+
+      <!--
+        错误与说明各占一块地方。挤在一行里的话，一次失败会把上一次的说明盖掉，
+        而那句话说的正好是"上一个文件存在哪里"。
+      -->
+      <TextBlock x:Name="ErrorText"
+                 DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#a13c3c"
+                 TextWrapping="Wrap" />
+
+      <TextBlock x:Name="NoteText"
+                 DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#5b6675"
+                 TextWrapping="Wrap" />
+
+      <TextBlock x:Name="EmptyText"
+                 DockPanel.Dock="Top"
+                 Margin="0,6,0,0"
+                 FontSize="11"
+                 Foreground="#7a8492"
+                 TextWrapping="Wrap"
+                 Text="模板目录里没有可用的模板。"
+                 IsVisible="False" />
+
+      <ScrollViewer Margin="0,8,0,0"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="2">
+          <StackPanel x:Name="Rows" Spacing="2" />
+
+          <!--
+            读不出来的文件单独一节。与清单分开而不是并进去：那几个不是"可用的模板"，
+            混在一起的话，用户会以为点它们能放东西。
+          -->
+          <TextBlock x:Name="FailureHead"
+                     Margin="0,10,0,0"
+                     FontSize="11"
+                     FontWeight="SemiBold"
+                     Foreground="#8a6d1f"
+                     TextWrapping="Wrap"
+                     Text="这几个文件读不出来："
+                     IsVisible="False" />
+
+          <StackPanel x:Name="Failures" Spacing="2" />
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

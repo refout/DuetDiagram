@@ -31,7 +31,7 @@ internal static class MenuRefusals
         ReadOnly(context) ?? (context.Selected.Count < 2 ? $"先选中两个以上{what}" : null);
 }
 
-/// <summary>文件那一档。这一轮只有"再开一个窗口"与"存盘"两件。</summary>
+/// <summary>文件那一档。这一轮有"再开一个窗口"、"存盘"与"存为模板"三件。</summary>
 internal static class FileEntries
 {
     public static void Register(MenuRegistry registry)
@@ -55,6 +55,18 @@ internal static class FileEntries
                 ? ErrorPresenterTable.For(ErrorCodes.DocumentReadOnly).Message
                 : context.Window.DocumentPath is null ? "这份文档没有文件，存不了" : null,
             context => context.Window.Save()));
+
+        // 「存为模板」与「保存」都写文件，但写的是两样东西：一个是这份文档，一个是可复用的一段。
+        // 名字由会话那一层取（文档标识），界面上没有问名字的地方——多一个输入框就多一处
+        // 要处理"用户没填"的地方，而这一轮要验的是模板进得去、出得来。
+        registry.Add(new MenuEntry(
+            "file.save-template",
+            MenuGroups.File,
+            "存为模板",
+            null,
+            MenuSurface.Menu,
+            context => MenuRefusals.WriteToSelection(context, "要存成模板的元素"),
+            context => context.Window.Templates.SaveSelection()));
     }
 }
 

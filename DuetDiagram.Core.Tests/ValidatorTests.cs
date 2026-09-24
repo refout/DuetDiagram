@@ -1,6 +1,7 @@
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Templates;
 using FluentAssertions;
 using Xunit;
 
@@ -362,6 +363,41 @@ public sealed class ValidatorTests
 
         codes.Should().NotContain(ErrorCodes.ShapePathInvalid);
         codes.Should().NotContain(ErrorCodes.ShapeUnknown);
+    }
+
+    /// <summary>
+    /// 拼进一份模板之后，整份文档仍然零问题。
+    /// </summary>
+    /// <remarks>
+    /// 模板本身合法不代表拼进去之后合法：它的标识可能与文档里已有的撞上，
+    /// 而两份各自都合法的东西拼在一起会产生一份有重名标识的文档。
+    /// 这一条验的正是"改名与引用改写做全了没有"——只改一半的话，
+    /// 重名或者悬空引用会在这里露出来。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void A_document_with_an_inserted_template_has_no_issues()
+    {
+        using var harness = new Harness();
+
+        // 目标文档里已经有一个叫 a 的节点，而模板里也有一个，还有一个引用它的组合。
+        harness.AddNode("a", "原来就有的");
+
+        var template = TemplateDocument.Load("""
+            {
+              "id": "flow",
+              "nodes": [ { "id": "a", "label": "模板里的" }, { "id": "b" } ],
+              "edges": [ { "id": "e1", "from": "a", "to": "b" } ],
+              "composites": [ { "$composite": "group", "id": "g1", "members": ["a", "b"] } ]
+            }
+            """);
+
+        var result = harness.Bus.Execute(new InsertTemplateCommand(template)
+            .WithContext(ChangeContext.For(ChangeSource.Human, "tester")));
+
+        result.IsEffectiveSuccess.Should().BeTrue();
+        harness.Document.Nodes.Should().Contain(node => node.Id == "a-2");
+        DiagramValidator.Validate(harness.Document).Should().BeEmpty();
     }
 
     [Fact]

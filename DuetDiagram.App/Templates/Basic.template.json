@@ -1,0 +1,15 @@
+{
+  "id": "basic-flow",
+  "kind": "Flowchart",
+  "direction": "TB",
+  "version": 0,
+  "nodes": [
+    { "id": "start", "label": "开始", "shape": "Stadium" },
+    { "id": "check", "label": "条件？", "shape": "Diamond" },
+    { "id": "finish", "label": "结束", "shape": "Stadium" }
+  ],
+  "edges": [
+    { "id": "start-check", "from": "start", "to": "check" },
+    { "id": "check-finish", "from": "check", "to": "finish", "label": "是" }
+  ]
+}

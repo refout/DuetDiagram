@@ -154,6 +154,12 @@ public sealed class DiagramDocument
     /// 按空集合处理即可——这样旧文件仍然打得开，而不是因为缺了新字段就整个读不出来。
     /// 这正是"首行版本声明可选、解析器记提示但不报错"那条约定在数据层的对应做法。
     /// </para>
+    /// <para>
+    /// **元素里缺的引用类型字段同样要补。** 反序列化器对"JSON 里没写这个键"的处理是留下空引用，
+    /// 而哈希、整体校验与布局都直接读它们（节点的端口、边的样式、组合的成员、布局提示的四个约束表）。
+    /// 补在这一处，读的那一侧就不必各自兜底；不补的话，一份少写一个 <c>ports</c> 键的文件
+    /// 会在打开时崩掉，而不是按"这个节点没有自定义端口"处理。补法与不补的范围见下面的补齐一节。
+    /// </para>
     /// </remarks>
     [JsonConstructor]
     public DiagramDocument(
@@ -181,20 +187,106 @@ public sealed class DiagramDocument
         StructuralHash = structuralHash;
         VisualHash = visualHash;
 
-        _pages.Replace(pages);
-        _layers.Replace(layers);
-        _nodes.Replace(nodes);
-        _edges.Replace(edges);
-        _composites.Replace(composites);
-        _tags.Replace(tags);
-        _actions.Replace(actions);
-        _fonts.Replace(fonts);
-        _textPresets.Replace(textPresets);
+        _pages.Replace([.. (pages ?? []).Select(Complete)]);
+        _layers.Replace([.. (layers ?? []).Select(Complete)]);
+        _nodes.Replace([.. (nodes ?? []).Select(Complete)]);
+        _edges.Replace([.. (edges ?? []).Select(Complete)]);
+        _composites.Replace([.. (composites ?? []).Select(Complete)]);
+        _tags.Replace([.. (tags ?? []).Select(Complete)]);
+        _actions.Replace([.. (actions ?? []).Select(Complete)]);
+        _fonts.Replace([.. (fonts ?? []).Select(Complete)]);
+        _textPresets.Replace([.. (textPresets ?? []).Select(Complete)]);
 
-        Palette = palette ?? new Palette();
-        Layout = layout ?? LayoutHintsDefaults.Create();
+        Palette = Complete(palette ?? new Palette());
+        Layout = Complete(layout ?? LayoutHintsDefaults.Create());
         Canvas = canvas ?? new CanvasSettings();
     }
+
+    #region 补齐缺字段的外部内容
+    //
+    // 源生成模式下，init-only 属性只能经"合成的全参构造"赋值（生成代码里那句
+    // "Setting init-only properties is not supported in source generation mode" 就是它），
+    // 于是 JSON 里**没写的键会变成 default 而不是声明的初值**：集合变空引用、字符串变空引用。
+    // 补在这一处，读的那一侧就不必各自兜底——哈希、整体校验与布局都直接读它们，
+    // 不补的话，一份少写一个 ports 键的文件会在打开时崩掉，而不是按"这个节点没有自定义端口"处理。
+    //
+    // 只补引用类型。值类型的初值（图层默认可见、纸张尺寸、端口偏移）在这里分不出
+    // "没写"与"写成了默认值"，补了会把用户明确设成的默认值改掉，所以不动它们。
+
+    /// <summary>缺了集合或字符串的节点补成空集合、空串。</summary>
+    /// <remarks>
+    /// 每一项都先判"要不要动"再复制：都没缺时原样返回同一个实例。
+    /// 无条件复制的话，每建一份文档都会把全部元素重建一遍，而它们本来就没问题。
+    /// </remarks>
+    private static NodeDef Complete(NodeDef node) =>
+        node.Ports is null || node.Meta is null || node.Label is null
+            ? node with
+            {
+                Ports = node.Ports ?? [],
+                Meta = node.Meta ?? EmptyMap(),
+                Label = node.Label ?? string.Empty,
+            }
+            : node;
+
+    private static EdgeDef Complete(EdgeDef edge) =>
+        edge.Style is null || edge.Label is null
+            ? edge with { Style = edge.Style ?? new EdgeStyle(), Label = edge.Label ?? string.Empty }
+            : edge;
+
+    private static CompositeDef Complete(CompositeDef composite) =>
+        composite.Members is null || composite.Label is null
+            ? composite with { Members = composite.Members ?? [], Label = composite.Label ?? string.Empty }
+            : composite;
+
+    private static PageDef Complete(PageDef page) =>
+        page.Name is null ? page with { Name = string.Empty } : page;
+
+    private static LayerDef Complete(LayerDef layer) =>
+        layer.Name is null ? layer with { Name = string.Empty } : layer;
+
+    private static TagDef Complete(TagDef tag) =>
+        tag.Members is null || tag.Label is null
+            ? tag with { Members = tag.Members ?? [], Label = tag.Label ?? string.Empty }
+            : tag;
+
+    private static ActionDef Complete(ActionDef action) =>
+        action.Parameters is null || action.Event is null || action.Kind is null
+            ? action with
+            {
+                Parameters = action.Parameters ?? EmptyMap(),
+                Event = action.Event ?? string.Empty,
+                Kind = action.Kind ?? string.Empty,
+            }
+            : action;
+
+    private static FontDef Complete(FontDef font) =>
+        font.Name is null ? font with { Name = string.Empty } : font;
+
+    private static TextStylePreset Complete(TextStylePreset preset) =>
+        preset.Style is null || preset.Name is null
+            ? preset with { Style = preset.Style ?? new TextStyle(), Name = preset.Name ?? string.Empty }
+            : preset;
+
+    private static LayoutHints Complete(LayoutHints layout) =>
+        layout.SameRank is null || layout.Order is null || layout.Align is null || layout.Place is null
+            ? layout with
+            {
+                SameRank = layout.SameRank ?? [],
+                Order = layout.Order ?? [],
+                Align = layout.Align ?? [],
+                Place = layout.Place ?? [],
+            }
+            : layout;
+
+    private static Palette Complete(Palette palette) =>
+        palette.Entries is null
+            ? palette with { Entries = new Dictionary<string, PaletteEntry>(StringComparer.Ordinal) }
+            : palette;
+
+    /// <summary>一张空的附加数据表。键的比较口径与各字段自己的缺省值一致。</summary>
+    private static Dictionary<string, string> EmptyMap() => new(StringComparer.Ordinal);
+
+    #endregion
 
     /// <summary>
     /// 按内容新建文档，并把两个哈希一并算好。

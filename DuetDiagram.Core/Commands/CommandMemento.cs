@@ -38,6 +38,7 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(PaletteMemento), "palette")]
 [JsonDerivedType(typeof(TextPresetMemento), "text-preset")]
 [JsonDerivedType(typeof(TextPresetApplyMemento), "text-preset-apply")]
+[JsonDerivedType(typeof(InsertTemplateMemento), "insert-template")]
 [JsonDerivedType(typeof(CanvasMemento), "canvas")]
 [JsonDerivedType(typeof(CompositeMemento), "composite")]
 [JsonDerivedType(typeof(LayerMemento), "layer")]
@@ -368,6 +369,33 @@ public sealed record ActionMemento : CommandMemento
 {
     /// <summary>改之前的动作集合，顺序原样保留。</summary>
     public required ActionDef[] PreviousActions { get; init; }
+}
+
+/// <summary>
+/// 放入一份模板的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 记的是**这次拼进去的那几条元素本身**，而不是整份集合。它们全都是这次新加的、
+/// 一律追加在末尾，所以撤销时按标识删掉就还原了，没有位置要记——
+/// 与"删除"那类命令不同，那种命令的逆操作必须把元素插回原来那一格。
+/// </para>
+/// <para>
+/// 三样分开存而不是合成一个"元素"列表：撤销要按各自的集合去删，
+/// 合成一个列表就得给每条元素加一个"它是哪一种"的判别字段，而那个字段写错的表现是
+/// 撤销时去错误的集合里找它、找不到、于是静默不删。
+/// </para>
+/// </remarks>
+public sealed record InsertTemplateMemento : CommandMemento
+{
+    /// <summary>这次拼进去的节点。</summary>
+    public NodeDef[] Nodes { get; init; } = [];
+
+    /// <summary>这次拼进去的边。</summary>
+    public EdgeDef[] Edges { get; init; } = [];
+
+    /// <summary>这次拼进去的组合。</summary>
+    public CompositeDef[] Composites { get; init; } = [];
 }
 
 /// <summary>

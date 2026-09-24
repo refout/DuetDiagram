@@ -38,4 +38,14 @@
     <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
   </ItemGroup>
 
+  <!--
+    模板文件要显式声明跟着构建输出走。不声明的话开发机上一切正常（跑的是源码目录），
+    发布之后模板列表是空的，而那种空看起来像"这一轮没做"。
+    写成 Content 而不是嵌入资源：模板是给人看的、可手改的文件，嵌入之后改一个要重新编译，
+    而 AOT 下按名字取嵌入资源还要多一层约定。
+  -->
+  <ItemGroup>
+    <Content Include="Templates\*.template.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

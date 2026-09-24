@@ -280,6 +280,11 @@ public static class RepairHints
                 null,
                 "这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。"),
 
+            [ErrorCodes.TemplateEmpty] = new(
+                ErrorCodes.TemplateEmpty,
+                null,
+                "这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。"),
+
             #endregion
 
             #region 工具层的参数校验

@@ -903,6 +903,18 @@ public sealed partial class DiagramCanvas : UserControl
             {
                 var ids = marquee.Ids(model.DrawList, box);
 
+                // 框选只收节点。组合的框与它的成员共用一片区域，框到成员必然同时
+                // 碰到组合的框，而把组合收进来等于把它全部成员都拖走——比用户框的多。
+                // 组合用点框的方式选中（点在框的空白处）。
+                var compositeIds = Session.Document.Composites
+                    .Select(composite => composite.Id)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                if (compositeIds.Count > 0)
+                {
+                    ids = [.. ids.Where(id => !compositeIds.Contains(id))];
+                }
+
                 // 增选模式下并进已有选中，否则换掉它。并的时候保持原来的前后次序，
                 // 新的追加在后面——选中次序有语义（属性面板按它取第一个元素）。
                 Session.SetSelection(marquee.Additive

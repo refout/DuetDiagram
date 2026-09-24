@@ -1,5 +1,6 @@
 canvas 140×356.7 background=#ffffff
-shape lane Rounded (22, 78, 96×256.7) fill=#e9eef5 stroke=#93a0b0 weight=1.5 border=Solid radius=8 opacity=1
+shape lane Rect (22, 78, 96×256.7) fill=#e9eef5 stroke=#93a0b0 weight=1.5 border=Solid radius=0 opacity=1
+polyline lane color=#93a0b0 weight=1.5 line=Solid arrow=None points=[(58, 84) (70, 96) (82, 84)]
 text lane (57.4, 80.55, 25.2×18.9) "责任方" color=#161d26 font=Inter/14/Normal
 shape n1 Rect (40, 120, 60×38.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
 text n1 (61.6, 130, 16.8×18.9) "提交" color=#161d26 font=Inter/14/Normal

@@ -15,15 +15,15 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐、按页过滤的布局请求 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地；P4-04 让请求只带当前页的元素 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素 |
+| `DuetDiagram.Render` | 绘制列表、文本度量、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖 |
 | `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、剔除判据、换档编排与帧时采样 | 已落地 |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 已落地 |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 已落地 |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 已落地 |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 已落地 |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -46,7 +46,8 @@ Phase 3 的 16 个任务（命令层、工具定义、上下文摘要、八个�
 结论记在 `reports/phase3-mcp.md`——装置齐了不等于测过了，那一步没跑成就不写成通过。
 Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`（工具栏与菜单栏骨架）、
 `P4-02`（图层的可见性、锁定与渲染消费）、`P4-03`（图层面板与归属入口）与
-`P4-04`（页面的元素归属与翻页）与 `P4-05`（框选与右键上下文菜单）已落地**（`done`），
+`P4-04`（页面的元素归属与翻页）、`P4-05`（框选与右键上下文菜单）与
+`P4-06`（组合的渲染、命中与拖动）已落地**（`done`），
 其余 `pending`，
 其中 **`P4-20`（DSL 导出）标 `blocked`**，
 卡在决策门 1 上——留则照做，不留则整条删掉。
@@ -418,6 +419,11 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 # 框选与右键菜单：框进去的与点得中的同一条判据、右键两套条目、建分组一条命令
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Marquee"
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=ContextMenu"
+
+# 组合：四种形态的框、点框选中组合、拖框带动全部成员且一步撤销
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=CompositeFrame"
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Composite"
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=HitTest"
 
 # 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"

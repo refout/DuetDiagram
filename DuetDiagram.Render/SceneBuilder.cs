@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using System.IO;
 using DuetDiagram.Layout;
 
 namespace DuetDiagram.Render;
@@ -192,25 +193,16 @@ public static class SceneBuilder
                 continue;
             }
 
-            var appearance = theme.Composite(composite);
-
-            commands.Add(new DrawShape(
-                composite.Id,
-                NodeShape.Rounded,
+            // 框的画法按形态分（分组／泳道／子流程／组合框各有各的记号），
+            // 而记号一律是几何上的，不靠颜色——见 CompositeFrame 的说明。
+            commands.AddRange(CompositeFrame.Commands(
+                composite,
                 box,
-                appearance.Fill,
-                appearance.Stroke,
-                appearance.Weight,
-                appearance.Border,
-                appearance.Radius,
-                appearance.Opacity));
+                theme,
+                document.Direction,
+                out var band));
 
-            var text = theme.Text(null, appearance.Text);
-            var band = new SpatialRect(
-                box.X + theme.CompositePadding,
-                box.Y,
-                Math.Max(box.Width - (theme.CompositePadding * 2), 0),
-                theme.CompositeHeader);
+            var text = theme.Text(null, theme.Composite(composite).Text);
 
             AppendBlock(commands, composite.Id, composite.Label, band, text, measurer);
         }

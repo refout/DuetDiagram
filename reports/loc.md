@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 52 | 12754 | 7216 | 3442 | 2096 |
+| DuetDiagram.App | 52 | 12912 | 7314 | 3478 | 2120 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 98 | 13636 | 7751 | 3874 | 2011 |
 | DuetDiagram.Core.Tests | 39 | 10140 | 7157 | 1028 | 1955 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 20 | 5788 | 3773 | 804 | 1211 |
+| DuetDiagram.E2E.Tests | 21 | 6040 | 3931 | 840 | 1269 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4533 | 2509 | 1379 | 645 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 21 | 3540 | 1817 | 1209 | 514 |
-| DuetDiagram.Render.Tests | 14 | 3202 | 2277 | 314 | 611 |
+| DuetDiagram.Render | 22 | 4546 | 2025 | 1285 | 1236 |
+| DuetDiagram.Render.Tests | 15 | 3361 | 2383 | 342 | 636 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **413** | **88589** | **55366** | **18315** | **14908** |
+| **合计** | **416** | **90164** | **55936** | **18491** | **15737** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 18 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 904 |
+| DiagramCanvas.cs | 911 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -68,7 +68,7 @@
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
-| DiagramSession.cs | 1027 |
+| DiagramSession.cs | 1115 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
@@ -86,7 +86,7 @@
 | PageTabsViewModel.cs | 99 |
 | PropertyFieldCatalog.cs | 125 |
 | PropertyFieldViewModel.cs | 93 |
-| PropertyPanelViewModel.cs | 222 |
+| PropertyPanelViewModel.cs | 225 |
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
 | StatusBarViewModel.cs | 81 |
@@ -280,6 +280,7 @@
 | 文件 | 代码 |
 |---|---:|
 | CanvasSmokeTests.cs | 202 |
+| CompositeDragTests.cs | 158 |
 | ConnectTests.cs | 86 |
 | ConstraintEditorTests.cs | 299 |
 | ContextMenuTests.cs | 249 |
@@ -456,6 +457,7 @@
 
 | 文件 | 代码 |
 |---|---:|
+| CompositeFrame.cs | 217 |
 | CullingIndex.cs | 72 |
 | CullingPolicy.cs | 19 |
 | DiagnosticsFrame.cs | 14 |
@@ -469,7 +471,7 @@
 | ModeSwitch.cs | 44 |
 | QuadTree.cs | 260 |
 | RenderMode.cs | 6 |
-| SceneBuilder.cs | 443 |
+| SceneBuilder.cs | 434 |
 | SkiaTextMeasurer.cs | 70 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 22 |
@@ -482,6 +484,7 @@
 
 | 文件 | 代码 |
 |---|---:|
+| CompositeFrameTests.cs | 106 |
 | CullingPolicyTests.cs | 216 |
 | DiagnosticsSamplerTests.cs | 199 |
 | DrawListTests.cs | 237 |

@@ -156,13 +156,18 @@ public sealed class PropertyPanelViewModel : INotifyPropertyChanged
     public void Refresh()
     {
         var nodes = _session.SelectedNodes;
+        var composites = _session.SelectedComposites;
 
         HasSelection = nodes.Count > 0;
-        Title = nodes.Count switch
+        Title = (nodes.Count, composites.Count) switch
         {
-            0 => "没有选中任何元素",
-            1 => $"节点 {nodes[0].Id}",
-            _ => $"选中 {nodes.Count} 个元素",
+            // 组合没有字段表（它没有要编辑的属性），字段一节照旧收起来；
+            // 但标题要照实说——"没有选中任何元素"是在撒谎，明明点中的是组合。
+            (0, 1) => $"组合 {composites[0].Id}",
+            (0, _) => $"选中 {composites.Count} 个组合",
+            (1, 0) => $"节点 {nodes[0].Id}",
+            (_, 0) => $"选中 {nodes.Count} 个元素",
+            (_, _) => $"选中 {nodes.Count + composites.Count} 个元素",
         };
 
         SelectionNote = nodes.Count > 1

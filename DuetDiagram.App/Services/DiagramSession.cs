@@ -268,14 +268,23 @@ public sealed class DiagramSession : IDisposable
 
     /// <summary>当前选中的元素标识，按选中的先后次序。</summary>
     /// <remarks>
-    /// 只会有节点。边与组合的属性编辑各自有别的依赖（端口、成员列表），
-    /// 现在把它们收下来，面板只会显示一片空白，看起来像坏了。
+    /// 只会有节点与组合。边还选不中：它的属性编辑要等端口那一套接线，
+    /// 现在把它收下来，面板只会显示一片空白，看起来像坏了。
     /// </remarks>
     public IReadOnlyList<string> SelectedIds => _selectedIds;
 
-    /// <summary>选中的那些节点。标识在文档里找不到时会被跳过。</summary>
+    /// <summary>选中的那些节点。标识不是节点、或者找不到时会被跳过。</summary>
     public IReadOnlyList<NodeDef> SelectedNodes =>
         [.. _selectedIds.Select(Find).OfType<NodeDef>()];
+
+    /// <summary>选中的那些组合。标识不是组合时会被跳过。</summary>
+    /// <remarks>
+    /// 与 <see cref="SelectedNodes"/> 分开而不是合成一个"选中的元素"：
+    /// 两边的编辑完全不同（组合没有字段表，它有成员与命名），
+    /// 合成之后每个调用点都要再按类型分一次。
+    /// </remarks>
+    public IReadOnlyList<CompositeDef> SelectedComposites =>
+        [.. _selectedIds.Select(FindComposite).OfType<CompositeDef>()];
 
     /// <summary>选中的那个节点。选中的不是节点、或者选了好几个时为空。</summary>
     public NodeDef? SelectedNode
@@ -292,9 +301,9 @@ public sealed class DiagramSession : IDisposable
     /// 文档里全部节点的标识。全选那一档用它。
     /// </summary>
     /// <remarks>
-    /// 只有节点：边与组合现在还选不中（见 <see cref="SelectedIds"/> 的说明），
-    /// 把它们也算进来的话，全选之后选中集合里会攒下一批画不出选中框的标识，
-    /// 而面板那边会按一份读不出来的选中去查字段。
+    /// **只有节点。** 组合现在也选得中，但全选里不收它：它的成员本来就在选中里，
+    /// 再收一遍的话，一次「拖整批」会把同一批节点挪两遍——而计数与撤销步数都说不清。
+    /// 边也还选不中（见 <see cref="SelectedIds"/> 的说明）。
     /// </remarks>
     public IReadOnlyList<string> AllNodeIds => [.. Document.Nodes.Select(node => node.Id)];
 
@@ -345,6 +354,11 @@ public sealed class DiagramSession : IDisposable
 
         foreach (var id in ids)
         {
+            if (accepted.Contains(id, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
             // 锁定的元素选不中。命中测试那边已经把它们挡住了，这里再筛一遍：
             // 选中集合不止由点选驱动（全选、撤销之后的重整都走这条路），
             // 漏掉这一处的话，全选会把锁着的元素也选上，接着一次删除就把它们删了。
@@ -352,10 +366,20 @@ public sealed class DiagramSession : IDisposable
             // 不在当前页上的元素同样选不中，理由一样：命中测试管的是画布上的点选，
             // 管不到全选与撤销之后的重整。留着它们的话，属性面板会显示一个
             // 画布上根本看不见的东西的字段。
-            if (Find(id) is { } node
-                && !IsLocked(node)
-                && PageMembership.Shows(Document, node, _currentPageId)
-                && !accepted.Contains(id, StringComparer.Ordinal))
+            if (Find(id) is { } node)
+            {
+                if (!IsLocked(node) && PageMembership.Shows(Document, node, _currentPageId))
+                {
+                    accepted.Add(id);
+                }
+
+                continue;
+            }
+
+            // 组合也选得中：它在画面上是一个框，点框的空白处选中的就是它。
+            // 它没有自己的图层与页面（框的位置由成员算出来），所以没有别的门槛——
+            // 成员全在别处时框根本画不出来，那样也点不中。
+            if (FindComposite(id) is not null)
             {
                 accepted.Add(id);
             }
@@ -375,6 +399,56 @@ public sealed class DiagramSession : IDisposable
 
     private NodeDef? Find(string? id) =>
         id is null ? null : Document.Nodes.FirstOrDefault(n => string.Equals(n.Id, id, StringComparison.Ordinal));
+
+    private CompositeDef? FindComposite(string? id) =>
+        id is null
+            ? null
+            : Document.Composites.FirstOrDefault(c => string.Equals(c.Id, id, StringComparison.Ordinal));
+
+    /// <summary>
+    /// 一个组合（连同它套着的组合）里的全部节点。
+    /// </summary>
+    /// <remarks>
+    /// 拖一个组合等于拖它的全部成员，所以要把嵌套的那几层展开成节点。
+    /// 递归带一个 `visiting` 集合：成环的文档虽然过不了校验，而这里只需要别转不出来。
+    /// </remarks>
+    private IReadOnlyList<NodeDef> MembersOf(string compositeId)
+    {
+        var nodes = new List<NodeDef>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+
+        Collect(compositeId);
+
+        return nodes;
+
+        void Collect(string id)
+        {
+            if (!visiting.Add(id) || !seen.Add(id))
+            {
+                return;
+            }
+
+            if (FindComposite(id) is not { } composite)
+            {
+                return;
+            }
+
+            foreach (var member in composite.Members)
+            {
+                if (Find(member) is { } node)
+                {
+                    nodes.Add(node);
+                }
+                else
+                {
+                    Collect(member);
+                }
+            }
+
+            visiting.Remove(id);
+        }
+    }
 
     #endregion
 
@@ -464,7 +538,14 @@ public sealed class DiagramSession : IDisposable
 
         if (nodes.Count == 0)
         {
-            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, "没有选中的节点")));
+            // 选中的可能是一个组合。删它有两种读法（把成员也删掉，还是只拆掉这一层），
+            // 而两种都不会带来好结果：前者删掉的东西里有一半用户没打算删，
+            // 后者与「解散这一组」重复。所以如实说一句，让人自己选。
+            var message = SelectedComposites.Count > 0
+                ? "选中的是组合：要拆掉这一层用右键菜单里的「解散这一组」，要删成员先选中成员"
+                : "没有选中的节点";
+
+            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, message)));
         }
 
         if (LockedLayer(nodes) is { } locked)
@@ -1293,7 +1374,10 @@ public sealed class DiagramSession : IDisposable
     /// </remarks>
     public DragPreview? BeginDrag(string? elementId, bool additive, DrawPoint startDoc)
     {
-        if (elementId is null || Find(elementId) is not { } node)
+        var node = Find(elementId);
+        var composite = FindComposite(elementId);
+
+        if (node is null && composite is null)
         {
             Select(elementId, additive);
             return null;
@@ -1303,12 +1387,12 @@ public sealed class DiagramSession : IDisposable
         // 连点都点不动的话，用户会以为这份文档根本没打开。
         if (IsReadOnly)
         {
-            Select(node.Id, additive);
+            Select(elementId, additive);
             return null;
         }
 
         // 锁定的图层上拖不动。锁着的那一层照常画出来，但拖它等于改它。
-        if (IsLocked(node))
+        if (node is not null && IsLocked(node))
         {
             RefuseLocked(node.Layer!);
             return null;
@@ -1319,19 +1403,76 @@ public sealed class DiagramSession : IDisposable
         // 整批跟着拖就断了。增选且不在选中里才把它加进来。
         if (!additive)
         {
-            Select(node.Id, additive: false);
+            Select(elementId, additive: false);
         }
-        else if (!_selectedIds.Contains(node.Id, StringComparer.Ordinal))
+        else if (!_selectedIds.Contains(elementId!, StringComparer.Ordinal))
         {
-            Select(node.Id, additive: true);
+            Select(elementId, additive: true);
         }
 
-        var dragIds = SelectionSet.ResolveDragSet(_selectedIds, node.Id, additive);
-        var edgeIds = SelectionSet.ConnectedEdges(Document, dragIds);
+        // 按下的可能是一个组合，而拖它等于拖它的全部成员——把嵌套的那几层展开成节点。
+        // 选中的整批里也可能混着组合（按住修饰键攒起来的），所以一律展开一遍。
+        var dragIds = Expand(SelectionSet.ResolveDragSet(_selectedIds, elementId!, additive));
 
+        if (dragIds.Count == 0)
+        {
+            // 一个空组合：没有成员，也就没有跟着动的东西。
+            return null;
+        }
+
+        // 成员里有一个在锁定层上就整批不拖。拖到一半才发现有一个动不了的话，
+        // 那一批会被拖变形，而撤销之后回不到原样。
+        if (LockedLayer(dragIds.Select(Find).OfType<NodeDef>()) is { } locked)
+        {
+            RefuseLocked(locked);
+            return null;
+        }
+
+        var edgeIds = SelectionSet.ConnectedEdges(Document, dragIds);
         _drag = new DragSession(startDoc, dragIds, edgeIds);
 
         return new DragPreview(dragIds, edgeIds);
+    }
+
+    /// <summary>
+    /// 把一批标识里的组合展开成它们的成员节点，并去掉认不出的那些。
+    /// </summary>
+    /// <remarks>
+    /// 顺序保持不变，重复的去掉：拖动集合里同一个节点出现两次的话，
+    /// 落定时会把它算两遍，而撤销步数报的数目就对不上了。
+    /// </remarks>
+    private IReadOnlyList<string> Expand(IEnumerable<string> ids)
+    {
+        var expanded = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var id in ids)
+        {
+            if (Find(id) is { } found)
+            {
+                if (seen.Add(found.Id))
+                {
+                    expanded.Add(found.Id);
+                }
+
+                continue;
+            }
+
+            if (FindComposite(id) is null)
+            {
+                continue;
+            }
+
+            foreach (var member in MembersOf(id))
+            {
+                if (seen.Add(member.Id))
+                {
+                    expanded.Add(member.Id);
+                }
+            }
+        }
+
+        return expanded;
     }
 
     /// <summary>移动：把指针位置变成相对起点的偏移交还给画布。</summary>

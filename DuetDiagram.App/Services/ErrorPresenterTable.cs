@@ -135,6 +135,10 @@ public static class ErrorPresenterTable
             // 空模板。不是用户做错了什么，而是这份模板本身没有可放的东西，
             // 所以走灰显那一档：一句话说清，不弹窗。
             [ErrorCodes.TemplateEmpty] = new(ErrorPresentationKind.StatusBarMuted, "这份模板是空的，没有可放进去的元素"),
+
+            // 两份文字对不上：处置是改其中一边，所以要把那个节点指出来——
+            // 只给一句话的话，用户还得自己在图上找是哪个节点。
+            [ErrorCodes.RichTextMismatch] = new(ErrorPresentationKind.HighlightTargets, "富文本内容与标签对不上"),
         };
 
     /// <summary>全部登记过的呈现方式，供门禁逐个核对。</summary>

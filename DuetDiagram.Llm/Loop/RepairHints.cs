@@ -285,6 +285,11 @@ public static class RepairHints
                 null,
                 "这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。"),
 
+            [ErrorCodes.RichTextMismatch] = new(
+                ErrorCodes.RichTextMismatch,
+                null,
+                "富文本内容与标签对不上。把标签改成内容投影出的那段文字，或者重写一次内容：两者只能有一份说了算。"),
+
             #endregion
 
             #region 工具层的参数校验

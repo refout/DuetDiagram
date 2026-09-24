@@ -542,6 +542,7 @@ public static class MermaidExporter
             DropIds("节点自定义形状", Ids(n => PathShape.IsCustom(n) ? n.Id : null, _document.Nodes), "Mermaid 没有自定义形状的语法，导出成该节点的内置形状。");
             DropIds("节点所属图层", Ids(n => n.Layer, _document.Nodes), "Mermaid 没有图层。");
             DropIds("节点富文本标记", Ids(n => n.RichText ? n.Id : null, _document.Nodes), "Mermaid 的方括号标签是纯文本，标记符会原样显示。");
+            DropIds("节点富文本内容", Ids(n => n.RichLabel is null ? null : n.Id, _document.Nodes), "Mermaid 的方括号标签只收纯文本，段落与行内样式一律拉平，导出的是投影后的纯文本。");
             DropIds("节点数学排版", Ids(n => n.MathMode == MathMode.None ? null : n.Id, _document.Nodes), "Mermaid 的标签不做数学排版。");
             DropIds("节点文本样式", Ids(n => n.Text is null ? null : n.Id, _document.Nodes), "Mermaid 的字号与对齐由主题统一决定。");
             DropIds("节点说明", Ids(n => n.Desc, _document.Nodes), "Mermaid 没有不渲染的说明字段。");

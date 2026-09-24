@@ -120,6 +120,7 @@ public sealed class NodeFieldTests
     [InlineData(FieldNames.ShapePath, "M 0.5 2 L 1 1")]
     [InlineData(FieldNames.MathMode, "Sometimes")]
     [InlineData(FieldNames.RichText, "yes")]
+    [InlineData(FieldNames.RichLabel, "not-json")]
     [InlineData(FieldNames.Style, "{ not json")]
     [InlineData(FieldNames.Text, "[1,2,3]")]
     [InlineData(FieldNames.Ports, "{\"name\":\"p\"}")]
@@ -402,6 +403,19 @@ public sealed class NodeFieldTests
         },
         Ports = [new PortDef { Name = "in", Side = PortSide.Left }, new PortDef { Name = "out" }],
         RichText = true,
+
+        // 内容的纯文本投影必须与 label 逐字相同：两者对不上会被整体校验器报出来，
+        // 而这里那份样例要能通过校验，否则它就不再是"一份填满所有字段的合法节点"。
+        RichLabel = new RichTextContent
+        {
+            Paragraphs =
+            [
+                new RichParagraph
+                {
+                    Runs = [new RichRun { Text = "A", Style = new RichRunStyle { Bold = true } }],
+                },
+            ],
+        },
         MathMode = MathMode.Inline,
         Desc = "说明",
         Meta = new Dictionary<string, string>(StringComparer.Ordinal) { ["k"] = "v" },

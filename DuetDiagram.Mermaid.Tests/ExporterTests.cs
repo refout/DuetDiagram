@@ -313,6 +313,31 @@ public sealed class ExporterTests
 
     [Fact]
     [Trait("Category", "MermaidExport")]
+    public void Rich_content_is_flattened_to_plain_text_and_reported()
+    {
+        // 富文本导出后只剩投影出来的纯文本，样式全丢；丢了要报，不然用户以为样式也导出去了。
+        var document = Document(nodes:
+        [
+            new NodeDef
+            {
+                Id = "A",
+                Label = "甲",
+                RichText = true,
+                RichLabel = new RichTextContent
+                {
+                    Paragraphs = [new RichParagraph { Runs = [new RichRun { Text = "甲", Style = new RichRunStyle { Bold = true } }] }],
+                },
+            },
+        ]);
+
+        var result = MermaidExporter.Export(document, new ExportOptions());
+
+        result.Text.Should().Contain("A[\"甲\"]", "导出的是投影后的纯文本");
+        result.Report.Dropped.Should().Contain(d => d.Feature == "节点富文本内容");
+    }
+
+    [Fact]
+    [Trait("Category", "MermaidExport")]
     public void Document_level_constructs_are_reported()
     {
         // 静默丢失会让用户以为导出的文件就是全部内容，而实际不是。

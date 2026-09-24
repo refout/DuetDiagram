@@ -77,7 +77,15 @@ public static class SummaryBuilder
             document.Version,
             [.. document.Nodes
                 .OrderBy(node => node.Id, StringComparer.Ordinal)
-                .Select(node => new SummaryNode(node.Id, node.Label, node.Shape, node.StyleToken))],
+                .Select(node => new SummaryNode(
+                    node.Id,
+                    node.Label,
+                    node.Shape,
+                    node.StyleToken,
+
+                    // 投影取自内容自己的那一个属性，而不是在这里再拼一遍段落：
+                    // 拼法只有一份，摘要、导出与搜索读到的才是同一段文字。
+                    node.RichLabel?.PlainText))],
             [.. document.Edges
                 .OrderBy(edge => edge.Id, StringComparer.Ordinal)
                 .Select(edge => new SummaryEdge(edge.Id, edge.From, edge.To, edge.Label, edge.Line))],

@@ -63,16 +63,23 @@ public static class SummaryFormatter
     /// 一个节点的写法：标识后面跟括号，括号里是显示文本与形状。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 缺省值不写：矩形是绝大多数节点的形状，每个都写上「,rect」会把这一行撑满，
     /// 而真正需要看出来的那些非矩形反倒被淹掉。标签为空时同理。
+    /// </para>
+    /// <para>
+    /// 显示文本优先取富文本内容投影出的那一段：内容在的时候它是权威，
+    /// 而标签可能还是上一次同步之前的旧投影。没有内容时才用标签本身。
+    /// </para>
     /// </remarks>
     private static string Node(SummaryNode node)
     {
         var traits = new List<string>(2);
+        var text = node.RichText ?? node.Label;
 
-        if (node.Label.Length > 0)
+        if (text.Length > 0)
         {
-            traits.Add(node.Label);
+            traits.Add(text);
         }
 
         if (node.Shape != NodeShape.Rect)

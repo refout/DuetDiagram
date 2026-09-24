@@ -94,8 +94,35 @@ public sealed record NodeDef : IDefinition
     /// </remarks>
     public IReadOnlyList<PortDef> Ports { get; init; } = [];
 
-    /// <summary>标签是否按富文本解析。为假时标签里的标记符号原样显示。</summary>
+    /// <summary>
+    /// 标签是否按富文本渲染。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **它与 <see cref="RichLabel"/> 是两件事。** 这个开关说的是"画的时候走哪条排版路径"，
+    /// 内容说的是"文字切成哪几段、每段什么样式"。四种组合各有明确含义：
+    /// 关着且没有内容＝纯文本；开着且没有内容＝按富文本路径画一段纯文字，看起来与纯文本一样；
+    /// 开着且有内容＝富文本；关着却有内容是自相矛盾的，由整体校验器报出来。
+    /// </para>
+    /// <para>
+    /// 它进视觉哈希：换一条排版路径，画出来的像素可能不一样。
+    /// </para>
+    /// </remarks>
     public bool RichText { get; init; }
+
+    /// <summary>
+    /// 富文本内容。为空表示这个节点的文字就是 <see cref="Label"/> 本身。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 它与 <see cref="Label"/> 的关系见 <see cref="RichLabelRules"/>：内容在的时候内容权威，
+    /// 标签是它的纯文本投影，两者必须逐字相同。写入时由命令层同步，读文件时由整体校验器查。
+    /// </para>
+    /// <para>
+    /// **属于视觉信息**：改分段与行内样式只改变画出来的样子，不改节点坐标。
+    /// </para>
+    /// </remarks>
+    public RichTextContent? RichLabel { get; init; }
 
     /// <summary>数学排版模式。</summary>
     public MathMode MathMode { get; init; } = MathMode.None;
@@ -132,6 +159,7 @@ public sealed record NodeDef : IDefinition
         && Equals(Text, other.Text)
         && CollectionEquality.List(Ports, other.Ports)
         && RichText == other.RichText
+        && Equals(RichLabel, other.RichLabel)
         && MathMode == other.MathMode
         && string.Equals(Desc, other.Desc, StringComparison.Ordinal)
         && CollectionEquality.Map(Meta, other.Meta);
@@ -152,6 +180,7 @@ public sealed record NodeDef : IDefinition
         hash.Add(Text);
         hash.Add(CollectionEquality.ListHash(Ports));
         hash.Add(RichText);
+        hash.Add(RichLabel);
         hash.Add(MathMode);
         hash.Add(Desc, StringComparer.Ordinal);
         hash.Add(CollectionEquality.MapHash(Meta));

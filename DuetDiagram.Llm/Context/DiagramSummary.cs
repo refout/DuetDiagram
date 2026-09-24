@@ -28,7 +28,20 @@ public sealed record NodeRank(string Id, int Layer);
 /// <param name="Label">显示文本。</param>
 /// <param name="Shape">形状。</param>
 /// <param name="StyleToken">样式令牌名。未设时为空。</param>
-public sealed record SummaryNode(string Id, string Label, NodeShape Shape, string? StyleToken);
+/// <param name="RichText">
+/// 富文本内容投影出的纯文本。没有富文本内容时为空。
+/// </param>
+/// <remarks>
+/// <see cref="RichText"/> 是**从内容算出来的**，不是把标签抄一份。内容在的时候它是权威，
+/// 而标签可能还是上一次同步之前的旧投影——摘要读内容，读到的才是画布上真有的那段文字。
+/// 投影是纯文本而不是带标记的一段：标记语法得另外教给模型，而模型要的是文字本身。
+/// </remarks>
+public sealed record SummaryNode(
+    string Id,
+    string Label,
+    NodeShape Shape,
+    string? StyleToken,
+    string? RichText = null);
 
 /// <summary>摘要里的一条边。</summary>
 /// <param name="Id">边标识，改这条边时要用它。</param>

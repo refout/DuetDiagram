@@ -157,6 +157,10 @@ public static class DiagramHashing
             builder.Append("nl|")
                 .Append(node.Id).Append('|')
                 .Append(node.Label).Append('|')
+
+                // 富文本内容与标签并排入哈希：改一个字、换一段样式都要让视觉哈希动。
+                // 只算标签是不够的——内容权威的那一半改了，标签可能还是旧的投影。
+                .Append(Canonical(node.RichLabel, DiagramJsonContext.Default.RichTextContent)).Append('|')
                 .Append(node.Shape).Append('|')
                 .Append(node.ShapePath ?? string.Empty).Append('|')
                 .Append(node.Layer ?? string.Empty).Append('|')

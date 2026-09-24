@@ -117,6 +117,7 @@ setter 又是 `internal`——外部算得出、赋不进去。Mermaid 导入（
 | `text` | `TextStyle?` | `null` | 视觉 |
 | `ports` | `IReadOnlyList<PortDef>` | 空 | **结构** |
 | `richText` | `bool` | `false` | 视觉 |
+| `richLabel` | `RichTextContent?` | `null` | 视觉 |
 | `mathMode` | `MathMode` | `None` | 视觉 |
 | `desc` | `string?` | `null` | 视觉 |
 | `meta` | `IReadOnlyDictionary<string,string>` | 空 | **都不计** |
@@ -266,7 +267,7 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 | 哈希 | 覆盖 |
 |---|---|
 | 结构 | `kind`、`direction`；节点 `id` / `parent` / `page` / `ports`；边 `id` / `from` / `to` / `fromPort` / `toPort` / `page`；组合 `id` / `parent` / `direction` / `collapsed` / `members`；字体全部字段；布局提示的间距与四类约束 |
-| 视觉 | 结构部分的全部内容，加上节点 `label` / `shape` / `shapePath` / `layer` / `styleToken` / `desc` / `richText` / `mathMode` / `style` / `text`；边 `label` / `style`；组合 `label` / `style` / `localLayout`；标签、文本预设、图层、页面、调色板、画布设置 |
+| 视觉 | 结构部分的全部内容，加上节点 `label` / `richLabel` / `shape` / `shapePath` / `layer` / `styleToken` / `desc` / `richText` / `mathMode` / `style` / `text`；边 `label` / `style`；组合 `label` / `style` / `localLayout`；标签、文本预设、图层、页面、调色板、画布设置 |
 
 ### 三样刻意不覆盖的东西
 
@@ -483,6 +484,73 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 `Content ... CopyToOutputDirectory` 随程序集走）。拼进去是**一条命令**（`insert-template`）：
 一条历史、一次撤销整份退回，与所有命令同一条失败口径（片段里有一处非法就整体不落）。
 
+## 富文本内容
+
+富文本内容挂在节点的 `richLabel` 上，形状是**两级**：段落（`paragraphs`）与行内片段（`runs`）。
+
+```json
+{
+  "richLabel": {
+    "paragraphs": [
+      {
+        "runs": [
+          { "text": "重要", "style": { "bold": true, "color": "danger" } },
+          { "text": "的说明" }
+        ],
+        "align": "Center"
+      },
+      { "runs": [{ "text": "第二段" }] }
+    ]
+  }
+}
+```
+
+**只有两级。** 列表、表格、嵌套这些一旦进来，排版与导出都要跟着长，而这一轮要的是
+"富文本正确"。段落之上不再有容器，段落之内不再有分组。
+
+- **段落的边界就是换行**：段间在画面上各占一行，段内按宽度折行。段落可以带自己的
+  `align`，缺省时沿用节点的文本样式。
+- **行内样式只有六项**：`bold` / `italic` / `underline` / `strikethrough` / `fontSize` / `color`。
+  这六项是界面上"按选区套样式"真有的那六个动作，段落级的对齐不在其中。
+- **认不出的行内样式名会被拒绝**，不是静默忽略：写进文件的那个键读的时候没有成员接得住，
+  而放行的话渲染层只会按默认画，写的人却以为设上了。字段读写那条路报出是哪一个名字，
+  直接读文件那条路由序列化层拒绝整个文件。
+- **算出来的成员不进文件**：`plainText`（投影）与 `isEmpty`（空判断）都不序列化，
+  否则一份自己写出去的内容自己读不回来。
+
+### 内容与标签谁说了算
+
+**同一段文字有两份表达：`label` 是纯文本投影，`richLabel` 是分段与行内样式。**
+口径是：
+
+1. **内容在的时候内容权威**，`label` 必须等于内容的纯文本投影（段落之间用换行连接）。
+   两份对不上时由整体校验器报 `RICH_TEXT_MISMATCH`。反过来（标签权威）不行的理由是
+   渲染读的是内容——按标签算的话，一份对不上的文档会"画布上是新的、导出去是旧的"。
+2. **内容不在的时候标签自己就是全部。** 一份没有分段样式的节点与纯文本节点画出来一样。
+3. **`richText` 这个开关说的是"按哪条排版路径画"**，与"有没有分段样式"是两件事。
+   四种组合里三种有明确含义，第四种是矛盾：
+
+   | `richText` | `richLabel` | 含义 |
+   |---|---|---|
+   | `false` | 无 | 纯文本 |
+   | `true` | 无 | 按富文本路径画一段纯文字，看起来与纯文本一样 |
+   | `true` | 有 | 富文本 |
+   | `false` | 有 | **矛盾**，报 `RICH_TEXT_MISMATCH` |
+
+4. **写入时的同步由命令层做，只有一份口径**（`RichLabelRules`）：
+   - 写内容（`set-rich-label`，或 `set-node-field` 的 `richLabel`）：内容非空时把 `label`
+     改成它的投影并把 `richText` 打开；内容为空时只清分段样式，`label` 与 `richText` 都不动。
+   - 写 `label`：标签变了而内容还在的话，内容的投影就对不上了（分段是按位置切出来的），
+     这时把内容清掉。标签没变时内容原样留着，所以"读出来再写回去"是真正的空操作。
+   - 写 `richText=false`：等于退回纯文本，分段样式一并清掉，免得留下一份自相矛盾的文档。
+5. **内容写入前先折形态**：丢掉空片段、合并相邻的同样式片段、把成员全空的样式折掉。
+   不折的话，同一段文字写成"一段"与"三段"会序列化成两份不同的内容，而两者画出来一样——
+   视觉哈希会把一次没有视觉效果的改动报成"要重绘"。
+
+内容进**视觉哈希**，不进结构哈希：改分段与行内样式不改变节点坐标。但文字的实际宽度会变，
+那一点由布局层对文本变化的既有处置负责。`label` 与 `richLabel` 都留在视觉段里，
+所以改文字、换样式都会让视觉哈希动。
+
 ## 相关文件
 
 Sidecar（`.dsl` / `.layout.json` / `.user.json`）的文件格式、完整性校验与失败处置见
@@ -496,6 +564,6 @@ Sidecar（`.dsl` / `.layout.json` / `.user.json`）的文件格式、完整性�
 
 ## 尚未实现（Phase 2 ~ Phase 4）
 
-- `NodeDef` 之外的富文本内容模型
 - 端口的自动分配算法
 - 布局提示到布局引擎的接线（约束补齐逻辑已在验证程序中跑通，尚未接进 Core）
+- 富文本的排版与编辑界面（模型已落地，见「富文本内容」）

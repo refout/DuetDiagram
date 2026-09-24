@@ -11,7 +11,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 
 | 路径 | 作用 | 状态 |
 |---|---|---|
-| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限、形状库与自定义形状的路径解析、模板的解析与装配 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED`；P4-03 加了批量归属的 `assign-layer`；P4-04 加了页面归属（节点与边上的 `page` 字段）与 `PageMembership` 那一份判据；P4-09 加了形状库；P4-10 加了自定义形状的路径字段与解析器；P4-11 加了模板（文档片段）的读写、标识冲突消解与 `insert-template` 命令 |
+| `DuetDiagram.Core` | IR、命令总线、日志、历史、广播、序列化、工作区与文档锁、软锁与图层级权限、形状库与自定义形状的路径解析、模板的解析与装配、富文本内容模型 | 垂直切片已落地；P2-12 加了文档锁与心跳；Phase 3 P3-01 / P3-02 / P3-03 / P3-04 补齐了命令层（断边、布局、调色板、组合与图层、页面与标签与动作与文档设置）；P3-14 加了文档级软锁与权限模型；P4-02 加了 `set-layer-visible` / `set-layer-locked` 与 `LAYER_LOCKED`；P4-03 加了批量归属的 `assign-layer`；P4-04 加了页面归属（节点与边上的 `page` 字段）与 `PageMembership` 那一份判据；P4-09 加了形状库；P4-10 加了自定义形状的路径字段与解析器；P4-11 加了模板（文档片段）的读写、标识冲突消解与 `insert-template` 命令；P4-12 加了富文本内容（段落 + 行内片段）、`richLabel` 字段、`set-rich-label` 命令与 `RICH_TEXT_MISMATCH` |
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐、按页过滤的布局请求 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地；P4-04 让请求只带当前页的元素 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
@@ -22,8 +22,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器） |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖） |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明，富文本内容还没有编辑器） |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层） |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -33,7 +33,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
 | `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地 |
@@ -49,7 +49,8 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-04`（页面的元素归属与翻页）、`P4-05`（框选与右键上下文菜单）与
 `P4-06`（组合的渲染、命中与拖动）与 `P4-07`（调色板面板）与
 `P4-08`（文本样式预设的命令与界面）与 `P4-09`（形状库与形状提供者接口）与
-`P4-10`（自定义形状的路径数据）与 `P4-11`（模板库与模板应用）已落地**（`done`），
+`P4-10`（自定义形状的路径数据）与 `P4-11`（模板库与模板应用）与
+`P4-12`（富文本内容模型）已落地**（`done`），
 其余 `pending`，
 其中 **`P4-20`（DSL 导出）标 `blocked`**，
 卡在决策门 1 上——留则照做，不留则整条删掉。
@@ -452,6 +453,14 @@ dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -
 # 实例化之后文档整体校验零问题那一条挂在 Category=IrValidator 上
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Template"
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Template"
+
+# 富文本：段落与行内样式往返序列化、标签是纯文本投影且内容与标签只有一份权威、
+# 内容进视觉哈希（同样改动仍改变视觉哈希）、认不出的样式字段在字段写入与文件加载两条路都拒绝、
+# 摘要里的纯文本投影逐字确定、改标签那条路对富文本与纯文本给同样形状的结果
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=RichText"
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=MementoRegistration"
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ContextSummary"
+dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ToolDispatch"
 
 # 跨进程所有权：独占、拿不到就退只读、心跳过期判定、抢占前先试删锁文件
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=DocumentLock"

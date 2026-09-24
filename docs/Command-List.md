@@ -9,7 +9,7 @@
 |---|---|---|---|
 | `add-node` | `AddNodeCommand` | `id` 非空；`id` 不重复 | `index` 越界一律**夹紧**而非抛异常；`CaptureMemento` 与 `Apply` 用同一个 `ResolveIndex`，保证撤销索引一致 |
 | `remove-node` | `RemoveNodeCommand` | 节点存在 | 连带删除全部关联边；memento 记录每条边的**原索引**，撤销时按索引升序插回，边顺序逐字节还原 |
-| `set-node-field` | `SetNodeFieldCommand` | 节点存在；字段名在已注册节点字段内；值能解析成该字段要的类型 | 节点上除「存在与否」之外的属性全走这里：`label`、`shape`、`parent`、`layer`、`styleToken`、`style`（含七个子字段）、`text`（含八个）、`ports`、`richText`、`mathMode`、`desc`、`meta`。memento 存**改之前的整份节点定义**，撤销时整份换回，不按字段名再拼一次——两处拼接一旦分叉，差异只体现在哈希上。写入值与旧值相同时是 NoOp，不进历史 |
+| `set-node-field` | `SetNodeFieldCommand` | 节点存在；字段名在已注册节点字段内；值能解析成该字段要的类型 | 节点上除「存在与否」之外的属性全走这里：`label`、`shape`、`parent`、`layer`、`styleToken`、`style`（含七个子字段）、`text`（含八个）、`ports`、`richText`、`richLabel`、`mathMode`、`desc`、`meta`。memento 存**改之前的整份节点定义**，撤销时整份换回，不按字段名再拼一次——两处拼接一旦分叉，差异只体现在哈希上。写入值与旧值相同时是 NoOp，不进历史 |
 | `connect-edge` | `ConnectEdgeCommand` | `id` 非空且不重复；`from` / `to` 均存在（**节点或组合都可以**） | 校验一次返回全部错误（`EDGE_SOURCE_MISSING` + `EDGE_TARGET_MISSING` 可同时出现） |
 | `disconnect-edge` | `DisconnectEdgeCommand` | 边存在 | 波及面只有这一条边：端点节点与别的边都不变。memento 记这条边的**原索引**，撤销按索引插回而不是追加——边的集合顺序有语义（层内次序按出边先后排列），而两个哈希都按标识排序后再遍历，位置错了哈希照样对得上。引用了这条边的布局约束**不在这里清理**，留着让整体校验器报 `LAYOUT_ORDER_EDGE_MISSING` |
 | `reconnect-edge` | `ReconnectEdgeCommand` | 边存在；新端点存在；**端点不能是组合**（组合没有端口，连不进具体端口，报 `EDGE_PORT_ON_COMPOSITE`） | 端点解析沿用"先节点、后组合"；重连到同一对端点视为 NoOp，不进历史 |
@@ -44,6 +44,7 @@
 | `remove-text-preset` | `RemoveTextPresetCommand` | 预设存在 | **不查引用者，这与删调色板条目刻意不同**：应用是按值把样式成员抄到节点上，IR 里没有任何一处回指预设，删除不会造成悬空引用。已经应用过的样式原样长在各节点上。报 `TEXT_PRESET_MISSING`。只计外观 |
 | `apply-text-preset` | `ApplyTextPresetCommand` | 预设存在；点名至少一个节点；节点都在 | **叠加，不是替换**：预设里声明了的成员抄到节点的文本样式上，没声明的保持原样——整份替换会把用户单独调过的字号抹掉。批量是多选之后的一条命令，先整批算出要写什么再写，有一个节点不在就整条被拒；撤销按一次把这一批全部还原。只计外观 |
 | `insert-template` | `InsertTemplateCommand` | 模板里至少有一条元素；片段里的标识互不重复（九个集合共用一个命名空间）；节点与组合的父级、组合的成员、边的两端都能在片段里找到；片段的嵌套深度加上目标文档的深度不超过 `CompositeLimits.MaxDepth` | **一条命令，因此撤销一次整份退回**。标识与目标文档冲突时按 `-2`、`-3` 依次改名，边与组合里的引用一起改掉；同一次计划里已经分配出去的名字也参与查重，否则片段里同时有 `a` 与 `a-2` 时两个都会变成 `a-2`。模板不带页面归属，拼进去的元素一律落在缺省页。**只核片段自己自不自洽**，目标文档里原有的悬空引用不归它管；有一处不合法就一条都不落 |
+| `set-rich-label` | `SetRichLabelCommand` | 节点存在 | **编辑界面提交的就是这一条**：整次编辑算一条命令，退出时才发，撤销按一次退回编辑之前。它与 `set-node-field` 的 `richLabel` 字段**共用同一份写入口径**（都走 `RichLabelRules`）：内容非空时把标签同步成它的纯文本投影并把富文本开关打开，内容为空时只清分段样式、标签与开关都不动。传空表示清掉分段样式。内容折形态之后与原来相同是 NoOp。只计外观 |
 
 **结构还是纯外观，取决于被改的值进的是哪个哈希。**
 
@@ -83,7 +84,7 @@
 > 已知的不准确有五处，都是 2026-09-22 起草 Phase 3 任务时对着代码核出来的：
 >
 > - **节点与样式那两组里的多数条目不需要新命令。** P1-05 的字段注册表落地之后，
->   `set-node-field` 按字段名分发，label、shape、parent、layer、styleToken、style、
+>   `set-node-field` 按字段名分发，label、richLabel、shape、parent、layer、styleToken、style、
 >   text、ports、richText、mathMode、desc、meta 都在它名下；边只有 label 与 style 两个。
 >   所以 `update-node-label`、`move-node-layer`、`set-node-shape`、`apply-style-token`、
 >   `set-node-style`、`set-text-style`、`set-edge-style` 都不必各立一条命令。

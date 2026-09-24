@@ -253,5 +253,21 @@ public static class ErrorCodes
     /// </remarks>
     public const string TemplateEmpty = "TEMPLATE_EMPTY";
 
+    /// <summary>
+    /// 富文本内容与纯文本标签（或富文本开关）互相矛盾。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 单独一个码而不是并进"成员与父级互相矛盾"：那一条说的是容器关系，
+    /// 这一条说的是同一段文字的两份表达。前者的处置是改归属，后者是改文字。
+    /// </para>
+    /// <para>
+    /// 也不能并进"值不合法"：那一条说的是"这一段文本解析不出该字段要的类型"，
+    /// 而这一条说的是**内容已经进来了，只是两份表达对不上**——
+    /// 处置是让标签与内容里那一段文字一致，或者干脆清掉其中一份。
+    /// </para>
+    /// </remarks>
+    public const string RichTextMismatch = "RICH_TEXT_MISMATCH";
+
     #endregion
 }

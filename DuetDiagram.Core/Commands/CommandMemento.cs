@@ -30,6 +30,7 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(ConnectEdgeMemento), "connect-edge")]
 [JsonDerivedType(typeof(DisconnectEdgeMemento), "disconnect-edge")]
 [JsonDerivedType(typeof(SetNodeFieldMemento), "set-node-field")]
+[JsonDerivedType(typeof(SetRichLabelMemento), "set-rich-label")]
 [JsonDerivedType(typeof(ReconnectEdgeMemento), "reconnect-edge")]
 [JsonDerivedType(typeof(SetEdgeFieldMemento), "set-edge-field")]
 [JsonDerivedType(typeof(LayoutConstraintMemento), "layout-constraint")]
@@ -162,6 +163,28 @@ public sealed record SetNodeFieldMemento : CommandMemento
 
     /// <summary>请求写入的字段值原样。只用于审计，还原不靠它。</summary>
     public string? NewValue { get; init; }
+}
+
+/// <summary>
+/// 改富文本内容的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 与改节点字段那一个同一个形状：记的是**改之前的整份节点定义**。只记内容那一份的话，
+/// 还原时要把标签与富文本开关一起拼回去，而那一次拼接必须与写入时的口径逐字一致——
+/// 两处一旦分叉，撤销出来的节点与原来那份会有细微差别，而差异只体现在哈希上。
+/// </para>
+/// <para>
+/// 不并进改字段那一个记录：那个记录多带一个字段名，而这一条动的是
+/// 内容、标签与开关三样，写成"改了某个字段"会让读日志的人以为只动了一处。
+/// </para>
+/// </remarks>
+public sealed record SetRichLabelMemento : CommandMemento
+{
+    public required string NodeId { get; init; }
+
+    /// <summary>改之前的节点定义。</summary>
+    public required NodeDef Previous { get; init; }
 }
 
 /// <summary>重连边端点的逆变更：记下改之前的整条边定义。</summary>

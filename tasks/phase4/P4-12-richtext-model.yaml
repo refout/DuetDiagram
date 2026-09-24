@@ -1,7 +1,7 @@
 id: P4-12
 title: 富文本内容模型
 phase: 4
-status: pending
+status: done
 depends_on: [P4-08, P3-01]
 estimated_loc: 470
 files:
@@ -53,3 +53,84 @@ scope_note: |
 
   **样式预设（P4-08）是这一条的前置。** 行内样式要不要能引用一个有名字的预设，
   这个问题的答案在预设落地之后才清楚。先有预设，再定 run 的样式从哪来。
+result: |
+  **只做模型，不做排版与界面。** 内容模型、序列化口径、哈希口径先钉死，
+  排版（P4-13）与编辑界面（P4-14）才有一个稳定的东西可依赖；三条一起做的话，
+  模型会在排版的需求下反复改，而每次改都要动哈希与序列化。
+
+  **落地了什么**
+
+  - `DuetDiagram.Core/Model/RichTextContent.cs`：两级内容模型（段落 `RichParagraph` +
+    行内片段 `RichRun`），行内样式 `RichRunStyle` 只有六项（粗体、斜体、下划线、删除线、
+    字号、颜色）；`RichTextContent.Normalize()` 折形态、`TryParse` 在反序列化前先扫
+    认不出的样式名；`RichLabelRules` 是内容与标签的唯一写入口径。
+  - `DuetDiagram.Core/Commands/Builtin/SetRichLabelCommand.cs`：`set-rich-label`，
+    整次编辑算一条命令、退出时才发、撤销按一次退回编辑之前。
+  - `DuetDiagram.Core/Model/NodeDef.cs`：新增 `RichLabel`（视觉段），进 `Equals` 与哈希。
+  - `DuetDiagram.Core/Model/FieldRegistry.cs`：`richLabel` 字段登记为视觉。
+  - `DuetDiagram.Core/Commands/NodeFieldValue.cs`：`richLabel` 的读写分支；
+    `label` 与 `richText` 两条分支改走 `RichLabelRules`，三处共用一份口径。
+  - `DuetDiagram.Core/Serialization/DiagramHashing.cs`：内容进视觉哈希。
+  - `DuetDiagram.Core/Model/DiagramValidator.cs` + `ErrorCodes.cs`：`RICH_TEXT_MISMATCH`。
+  - `DuetDiagram.Llm/Context/*`：摘要带纯文本投影（`SummaryNode.RichText`）。
+  - `DuetDiagram.Mermaid/Export/MermaidExporter.cs`：富文本内容拉平为纯文本后进丢失清单。
+
+  **刻意的取舍与判断**
+
+  - **`Label` 留着当纯文本投影，不许被富文本取代。** Mermaid 导出、归一化摘要、搜索都读它；
+    删掉的话那三处各自去解析富文本，而三处的降级写法必然不一样。内容在的时候
+    内容权威、`Label` 必须等于投影，由整体校验器查（`RICH_TEXT_MISMATCH`）。
+  - **内容与标签只有一份权威，收口在 `RichLabelRules` 一处。** 写内容时顺手把 `Label`
+    同步成投影、并把 `richText` 打开；改纯文本标签时若与投影对不上就丢掉内容
+    （分段是按位置切出来的，标签变了内容必然对不上）；关掉 `richText` 时内容一并清掉。
+    这样"读出来再写回去"是真正的空操作。
+  - **四种开关/内容组合里"布尔为真但没有内容"有明确含义**：按富文本路径画一段纯文字，
+    看起来与纯文本一样；"布尔为假却有内容"才是矛盾，报 `RICH_TEXT_MISMATCH`。
+  - **只许两级。** 列表、表格、嵌套一旦进来，排版与导出都要跟着长，而这一轮的判据
+    只说"富文本与数学正确"。
+  - **认不出的样式名两条路都拒绝**：字段写入那条路点名是哪一个名字，直接读文件那条路
+    由序列化层拒绝整个文件。放行的话渲染层只会按默认画，写的人却以为设上了。
+  - **写入前先折形态**：丢掉空片段、合并相邻同样式片段、折掉成员全空的样式。
+    不折的话，同一段文字写成"一段"与"三段"会序列化成两份不同内容而画出来一样，
+    视觉哈希会把一次没有视觉效果的改动报成"要重绘"。
+  - **内容进视觉哈希、不进结构哈希**：改分段与行内样式不改节点坐标；文字宽度变化
+    由布局层对文本变化的既有处置负责。
+
+  **与任务清单不一样的地方**
+
+  - **`DuetDiagram.Llm/Tools/ContextSummary.cs` 与 `EditTool.cs` 未改。** 摘要那处实际落在
+    `Context/DiagramSummary.cs` / `SummaryBuilder.cs` / `SummaryFormatter.cs`（清单写的路径
+    是旧名）；`EditTool` 不必改——`set-node-field` 把 `value` 原样透传给 `NodeFieldValue`，
+    字段表带上 `richLabel` 之后两条路（改标签、写内容）都自动通了。
+  - **清单没列而改动**：`DuetDiagram.App/Services/ErrorPresenterTable.cs`（`RICH_TEXT_MISMATCH`
+    的呈现档）、`DuetDiagram.App/ViewModels/PropertyFieldCatalog.cs`（`richLabel` 进隐藏区，
+    属性面板这一轮不给编辑器）、`DuetDiagram.Llm/Loop/RepairHints.cs`（修复建议）、
+    `docs/Error-Codes.md`、`docs/Command-List.md`、`README.md`、`tasks/README.md`、
+    `DuetDiagram.Mermaid.Tests/ExporterTests.cs`、`DuetDiagram.Core.Tests/Harness.cs`、
+    `DuetDiagram.Core.Tests/NodeFieldTests.cs`。
+
+  **侦察时挖出的一个源生成缺陷**
+
+  - **表达式体的计算属性会被源生成序列化器写进 JSON。** `PlainText` 与 `IsEmpty` 是
+    算出来的（`=>`），但源生成器只看到公开 getter 就把它们当成员写了出去，读回来时
+    又被"认不出的样式字段"那一层拒掉——一份自己写出去的内容自己读不回来。
+    给这几个计算成员补上 `[JsonIgnore]` 才修掉；`RichTextTests` 里有一条
+    `The_serialized_shape_carries_no_computed_members` 钉住这一点。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 四条验收：`Category=RichText` Core 29/29、`Category=MementoRegistration` 12/12、
+    `Category=ContextSummary` Llm 27/27、`Category=ToolDispatch` Llm 21/21。
+  - 全量测试：Core 639 / Layout 78 / Render 181 / Mermaid 181 / Dsl 158 / Llm 200 /
+    Mcp 109 / E2E 176 全绿。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：457 个文件 / 100324 行 / 62560 行代码）。
+
+  **后续**
+
+  - 排版（P4-13）与编辑界面（P4-14）还没做：现在内容能存能读能改，但画布按纯文本画，
+    属性面板上 `richLabel` 落在隐藏区、没有编辑器。
+  - 段落级的对齐只落在模型里，渲染层还没消费。
+  - 数学排版（P4-15）在内容模型之上做，与富文本是两条排版路径。

@@ -82,6 +82,7 @@ public static class FieldNames
     public const string Text = "text";
     public const string Ports = "ports";
     public const string RichText = "richText";
+    public const string RichLabel = "richLabel";
     public const string MathMode = "mathMode";
     public const string Desc = "desc";
     public const string Meta = "meta";
@@ -218,6 +219,10 @@ public static class FieldRegistry
         new(FieldNames.Text, "节点", FieldScope.Visual),
         new(FieldNames.Ports, "节点", FieldScope.Structural, Atomic: true),
         new(FieldNames.RichText, "节点", FieldScope.Visual),
+
+        // 富文本内容与开关同一口径：只影响画出来的样子，不改坐标。
+        // 它与 label 是同一段文字的两份表达，主次由 RichLabelRules 定。
+        new(FieldNames.RichLabel, "节点", FieldScope.Visual),
         new(FieldNames.MathMode, "节点", FieldScope.Visual),
         new(FieldNames.Desc, "节点", FieldScope.Visual),
         new(FieldNames.Meta, "节点", FieldScope.Neither),

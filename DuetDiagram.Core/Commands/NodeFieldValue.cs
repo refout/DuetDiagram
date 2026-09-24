@@ -65,6 +65,13 @@ public static class NodeFieldValue
                 : JsonSerializer.Serialize(node.Text, DiagramJsonContext.Default.TextStyle),
             FieldNames.Ports => JsonSerializer.Serialize(node.Ports.ToArray(), DiagramJsonContext.Default.PortDefArray),
             FieldNames.RichText => node.RichText ? "true" : "false",
+
+            // 没有内容时读出一份空内容而不是空串：这个字段的载体是 JSON，
+            // 空串表达的是"清空"，与"读出来是空的"在往返测试里分不开。
+            FieldNames.RichLabel => JsonSerializer.Serialize(
+                node.RichLabel ?? new RichTextContent(),
+                DiagramJsonContext.Default.RichTextContent),
+
             FieldNames.MathMode => node.MathMode.ToString(),
             FieldNames.Desc => node.Desc,
             FieldNames.Meta => JsonSerializer.Serialize(
@@ -135,7 +142,8 @@ public static class NodeFieldValue
         switch (field)
         {
             case FieldNames.Label:
-                updated = node with { Label = text ?? string.Empty };
+                // 标签与富文本内容之间谁说了算、内容什么时候失效，口径在 RichLabelRules 里只有一份。
+                updated = RichLabelRules.WithPlainLabel(node, text ?? string.Empty);
                 return true;
 
             case FieldNames.Parent:
@@ -200,7 +208,18 @@ public static class NodeFieldValue
                     return false;
                 }
 
-                updated = node with { RichText = richText };
+                updated = RichLabelRules.WithRichText(node, richText);
+                return true;
+
+            case FieldNames.RichLabel:
+                // 内容的解析与校验在 RichTextContent 里：行内样式里认不出的名字要在
+                // 反序列化之前挡住，才能报出是哪一个名字写错了。
+                if (!RichTextContent.TryParse(text, out var richContent, out error))
+                {
+                    return false;
+                }
+
+                updated = RichLabelRules.WithContent(node, richContent);
                 return true;
 
             case FieldNames.Style:

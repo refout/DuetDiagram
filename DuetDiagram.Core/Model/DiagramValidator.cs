@@ -38,6 +38,7 @@ public static class DiagramValidator
         CheckReferences(document, issues);
         CheckLayoutHints(document, issues);
         CheckShapes(document, issues);
+        CheckRichText(document, issues);
 
         return issues;
     }
@@ -530,6 +531,58 @@ public static class DiagramValidator
                 Suggestion = $"按行号改节点 {node.Id} 的路径：认得的指令只有 M / L / A / Z，"
                              + "坐标要用 0 到 1 的单位框。",
             });
+        }
+    }
+
+    /// <summary>
+    /// 富文本内容与纯文本标签必须对得上，开关关着时不该还留着内容。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 内容在的时候它是权威，标签是它的纯文本投影，两者必须逐字相同。
+    /// 命令层写入时已经同步好了，这里再查一次是因为**文件是从外面进来的**：
+    /// 别人手写或另一个工具生成的文档不经过命令层。
+    /// </para>
+    /// <para>
+    /// 放任不管的症状是"画布上是新的、导出去是旧的"：渲染读内容，导出与摘要读标签，
+    /// 两边各按一份走，而两边都不会报错。两种矛盾分开报，因为处置不同——
+    /// 一种是去改文字，一种是去清内容或打开开关。
+    /// </para>
+    /// </remarks>
+    private static void CheckRichText(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        foreach (var node in document.Nodes)
+        {
+            if (node.RichLabel is null)
+            {
+                continue;
+            }
+
+            if (!node.RichText)
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.RichTextMismatch,
+                    Message = $"节点 {node.Id} 带着富文本内容，但富文本开关是关的。",
+                    RelatedId = node.Id,
+                    Suggestion = $"把节点 {node.Id} 的富文本开关打开，或者清掉它的富文本内容。",
+                });
+            }
+
+            if (!string.Equals(node.RichLabel.PlainText, node.Label, StringComparison.Ordinal))
+            {
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.RichTextMismatch,
+
+                    // 两份文字都写出来，看的人才知道该改哪一边。
+                    Message = $"节点 {node.Id} 的富文本内容投影出的是「{node.RichLabel.PlainText}」，"
+                              + $"与标签「{node.Label}」对不上。约定以内容为准。",
+                    RelatedId = node.Id,
+                    Suggestion = $"把节点 {node.Id} 的标签改成内容投影出的那段文字，"
+                                 + "或者改内容让它投影成标签。",
+                });
+            }
         }
     }
 

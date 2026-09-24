@@ -106,6 +106,14 @@ internal sealed class Harness : IDisposable
         => Bus.Execute(new SetNodeFieldCommand(nodeId, field, value)
             .WithContext(ChangeContext.For(source, "tester")));
 
+    /// <summary>改一个节点的富文本内容。传空表示把分段样式清掉。</summary>
+    public CommandResult SetRichLabel(
+        string nodeId,
+        RichTextContent? content,
+        ChangeSource source = ChangeSource.Human)
+        => Bus.Execute(new SetRichLabelCommand(nodeId, content)
+            .WithContext(ChangeContext.For(source, "tester")));
+
     /// <summary>加一条布局约束。归属默认人工，与界面走的那条路一致。</summary>
     public CommandResult AddConstraint(
         LayoutConstraintSpec spec,

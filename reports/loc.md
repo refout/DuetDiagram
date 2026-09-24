@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 63 | 15714 | 9023 | 4062 | 2629 |
+| DuetDiagram.App | 63 | 15719 | 9025 | 4064 | 2630 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 114 | 16699 | 9500 | 4760 | 2439 |
-| DuetDiagram.Core.Tests | 43 | 12052 | 8467 | 1290 | 2295 |
+| DuetDiagram.Core | 116 | 17445 | 9849 | 5063 | 2533 |
+| DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 25 | 7086 | 4603 | 984 | 1499 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4553 | 2525 | 1379 | 649 |
-| DuetDiagram.Llm.Tests | 16 | 4182 | 3013 | 323 | 846 |
+| DuetDiagram.Llm | 25 | 4586 | 2540 | 1395 | 651 |
+| DuetDiagram.Llm.Tests | 17 | 4403 | 3160 | 354 | 889 |
 | DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
-| DuetDiagram.Mermaid | 12 | 2684 | 1563 | 704 | 417 |
-| DuetDiagram.Mermaid.Tests | 9 | 2755 | 2000 | 292 | 463 |
+| DuetDiagram.Mermaid | 12 | 2685 | 1564 | 704 | 417 |
+| DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 22 | 3905 | 2035 | 1307 | 563 |
 | DuetDiagram.Render.Tests | 17 | 3681 | 2567 | 419 | 695 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **453** | **98731** | **61612** | **20477** | **16642** |
+| **合计** | **457** | **100324** | **62560** | **20861** | **16903** |
 
 ## 明细
 
@@ -78,7 +78,7 @@
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
-| ErrorPresenterTable.cs | 78 |
+| ErrorPresenterTable.cs | 79 |
 | FieldEditBinder.cs | 271 |
 | MenuEntries.cs | 185 |
 | MenuRegistry.cs | 101 |
@@ -92,7 +92,7 @@
 | PageTabViewModel.cs | 41 |
 | PageTabsViewModel.cs | 99 |
 | PalettePanelViewModel.cs | 210 |
-| PropertyFieldCatalog.cs | 131 |
+| PropertyFieldCatalog.cs | 132 |
 | PropertyFieldViewModel.cs | 104 |
 | PropertyPanelViewModel.cs | 232 |
 | PropertySectionViewModel.cs | 35 |
@@ -158,23 +158,24 @@
 | SetLayerVisibleCommand.cs | 39 |
 | SetNodeFieldCommand.cs | 108 |
 | SetPlaceCommand.cs | 113 |
+| SetRichLabelCommand.cs | 95 |
 | SetSpacingCommand.cs | 89 |
 | UpdatePaletteEntryCommand.cs | 74 |
 | UpdateTextPresetCommand.cs | 105 |
 | ChangeContext.cs | 20 |
 | ChangeSource.cs | 11 |
 | CommandError.cs | 7 |
-| CommandMemento.cs | 126 |
+| CommandMemento.cs | 132 |
 | CommandResult.cs | 58 |
 | CompositeMembership.cs | 159 |
 | DiagramCommandBase.cs | 35 |
 | EdgeFieldValue.cs | 97 |
-| ErrorCodes.cs | 52 |
+| ErrorCodes.cs | 53 |
 | FieldChange.cs | 17 |
 | IDiagramCommand.cs | 12 |
 | ISessionProvider.cs | 16 |
 | LayerAccess.cs | 92 |
-| NodeFieldValue.cs | 375 |
+| NodeFieldValue.cs | 385 |
 | PageAccess.cs | 36 |
 | PaletteFieldValue.cs | 73 |
 | SessionIds.cs | 8 |
@@ -197,21 +198,22 @@
 | DefinitionCollection.cs | 36 |
 | DiagramDocument.cs | 332 |
 | DiagramEnums.cs | 99 |
-| DiagramValidator.cs | 384 |
+| DiagramValidator.cs | 417 |
 | EdgeDef.cs | 15 |
-| FieldRegistry.cs | 213 |
+| FieldRegistry.cs | 215 |
 | IDefinition.cs | 5 |
 | LayoutConstraintSpec.cs | 44 |
 | LayoutHints.cs | 91 |
-| NodeDef.cs | 65 |
+| NodeDef.cs | 68 |
 | PageAndLayer.cs | 15 |
 | PageMembership.cs | 91 |
 | Palette.cs | 48 |
+| RichTextContent.cs | 193 |
 | Styles.cs | 53 |
 | SupportingDefs.cs | 62 |
 | ValidationIssue.cs | 10 |
-| DiagramHashing.cs | 175 |
-| DiagramJsonContext.cs | 69 |
+| DiagramHashing.cs | 176 |
+| DiagramJsonContext.cs | 74 |
 | DiagramSerializer.cs | 54 |
 | BuiltinShapeProvider.cs | 46 |
 | IShapeProvider.cs | 5 |
@@ -249,7 +251,7 @@
 | DocumentLockTests.cs | 177 |
 | DocumentSettingCommandTests.cs | 219 |
 | EdgeCommandTests.cs | 276 |
-| Harness.cs | 272 |
+| Harness.cs | 278 |
 | IrExtensionTests.cs | 202 |
 | IrFixtures.cs | 176 |
 | LayerAssignmentTests.cs | 162 |
@@ -259,12 +261,13 @@
 | LayoutConstraintTests.cs | 307 |
 | MementoRegistrationTests.cs | 66 |
 | NestedExecuteTests.cs | 81 |
-| NodeFieldTests.cs | 307 |
+| NodeFieldTests.cs | 318 |
 | PageMembershipTests.cs | 228 |
 | PageTagActionCommandTests.cs | 298 |
 | PaletteCommandTests.cs | 256 |
 | PathShapeTests.cs | 257 |
 | PermissionTests.cs | 105 |
+| RichTextTests.cs | 396 |
 | RoundTripTests.cs | 186 |
 | SessionIdResolutionTests.cs | 57 |
 | ShapeRegistryTests.cs | 122 |
@@ -378,12 +381,12 @@
 | ChatOptionsFactory.cs | 27 |
 | DiagramChatClient.cs | 86 |
 | ScriptedChatClient.cs | 52 |
-| DiagramSummary.cs | 46 |
-| SummaryBuilder.cs | 86 |
-| SummaryFormatter.cs | 118 |
+| DiagramSummary.cs | 51 |
+| SummaryBuilder.cs | 91 |
+| SummaryFormatter.cs | 119 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 232 |
+| RepairHints.cs | 236 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 24 |
@@ -415,6 +418,7 @@
 | LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
 | RepairHintTests.cs | 147 |
+| RichTextSummaryTests.cs | 147 |
 | SchemaTests.cs | 181 |
 | StyleToolTests.cs | 236 |
 | SummaryTests.cs | 472 |
@@ -463,7 +467,7 @@
 |---|---:|
 | ExportOptions.cs | 5 |
 | ExportReport.cs | 7 |
-| MermaidExporter.cs | 370 |
+| MermaidExporter.cs | 371 |
 | ImportOptions.cs | 7 |
 | ImportReport.cs | 10 |
 | MermaidImporter.cs | 234 |
@@ -482,7 +486,7 @@
 | CorpusImportTests.cs | 118 |
 | CorpusLexingTests.cs | 118 |
 | CorpusParsingTests.cs | 191 |
-| ExporterTests.cs | 296 |
+| ExporterTests.cs | 317 |
 | ImporterTests.cs | 329 |
 | LexerTests.cs | 294 |
 | ParserTests.cs | 407 |

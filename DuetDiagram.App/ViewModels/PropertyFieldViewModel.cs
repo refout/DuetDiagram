@@ -28,6 +28,7 @@ public sealed class PropertyFieldViewModel : INotifyPropertyChanged
         ArgumentNullException.ThrowIfNull(spec);
 
         Spec = spec;
+        Choices = spec.Choices ?? [];
     }
 
     /// <inheritdoc/>
@@ -51,7 +52,26 @@ public sealed class PropertyFieldViewModel : INotifyPropertyChanged
     public PropertyEditor Editor => Spec.Editor;
 
     /// <summary>可选取值。选择控件之外的字段为空。</summary>
-    public IReadOnlyList<string> Choices => Spec.Choices ?? [];
+    /// <remarks>
+    /// 大多数字段的取值是封闭的（形状有几种就是几种），随字段表在构造时定下来；
+    /// 样式令牌那一格的取值长在文档的调色板里，由宿主在每次重读时用
+    /// <see cref="SetChoices"/> 推进来。
+    /// </remarks>
+    public IReadOnlyList<string> Choices { get; private set; }
+
+    /// <summary>换一份可选取值。选项长在文档里（调色板条目）的字段在重读时调。</summary>
+    public void SetChoices(IReadOnlyList<string> choices)
+    {
+        ArgumentNullException.ThrowIfNull(choices);
+
+        if (Choices.SequenceEqual(choices, StringComparer.Ordinal))
+        {
+            return;
+        }
+
+        Choices = choices;
+        Raise(nameof(Choices));
+    }
 
     /// <summary>选择控件给不给"没有设置"这一档。</summary>
     public bool AllowEmpty => Spec.AllowEmpty;

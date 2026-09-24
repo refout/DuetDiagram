@@ -91,6 +91,7 @@ public sealed partial class MainWindow : Window
         Model = new CanvasViewModel();
         Properties = new PropertyPanelViewModel(Session);
         Layers = new LayerPanelViewModel(Session);
+        Palette = new PalettePanelViewModel(Session);
         Pages = new PageTabsViewModel(Session);
         Status = new StatusBarViewModel(Model);
         Status.SetReadOnly(Session.ReadOnlyReason);
@@ -129,6 +130,7 @@ public sealed partial class MainWindow : Window
 
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
+        PaletteView.DataContext = Palette;
         PageTabsView.DataContext = Pages;
         DataContext = Model;
 
@@ -154,7 +156,8 @@ public sealed partial class MainWindow : Window
     public PropertyPanelViewModel Properties { get; }
 
     /// <summary>图层面板的状态。</summary>
-    public LayerPanelViewModel Layers { get; }
+    public LayerPanelViewModel Layers { get; }    /// <summary>调色板面板的状态。</summary>
+    public PalettePanelViewModel Palette { get; }
 
     /// <summary>标签栏的状态。</summary>
     public PageTabsViewModel Pages { get; }
@@ -551,6 +554,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PropertiesView 的容器");
         LayersView = this.FindControl<LayerPanel>(nameof(LayersView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayersView 的面板");
+        PaletteView = this.FindControl<PalettePanel>(nameof(PaletteView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PaletteView 的面板");
         PageTabsView = this.FindControl<PageTabs>(nameof(PageTabsView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PageTabsView 的标签栏");
         DiffView = this.FindControl<DiffSidebar>(nameof(DiffView))

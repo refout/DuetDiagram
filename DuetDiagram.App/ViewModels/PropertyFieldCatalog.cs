@@ -42,7 +42,8 @@ public sealed record PropertyFieldSpec(
     string Section,
     PropertyEditor Editor,
     IReadOnlyList<string>? Choices = null,
-    bool AllowEmpty = true);
+    bool AllowEmpty = true,
+    bool AllowCustom = false);
 
 /// <summary>
 /// 面板上每个字段的界面描述，以及它与字段表的对应关系。
@@ -113,7 +114,10 @@ internal static class PropertyFieldCatalog
         // 形状是必填的：节点总得有个形状，所以这一档不给"没有设置"。
         new(FieldNames.Shape, "形状", "形状", PropertyEditor.Choice, Names<NodeShape>(), AllowEmpty: false),
 
-        new(FieldNames.StyleToken, "样式令牌", "样式与调色板", PropertyEditor.Text),
+        // 样式令牌的取值长在文档的调色板里，选项由属性面板在每次重读时推进来；
+        // 允许自定义取值——认不出的令牌不报错，渲染按元素自己的样式兜底，
+        // 所以下拉里当前值不在选项里时补一项显示，而不是显示成"没有设置"。
+        new(FieldNames.StyleToken, "样式令牌", "样式与调色板", PropertyEditor.Choice, AllowCustom: true),
         new(FieldNames.StyleFill, "填充", "样式与调色板", PropertyEditor.Text),
         new(FieldNames.StyleStroke, "描边", "样式与调色板", PropertyEditor.Text),
         new(FieldNames.StyleBorder, "边框线型", "样式与调色板", PropertyEditor.Choice, Names<LineStyle>()),
@@ -181,7 +185,10 @@ internal static class PropertyFieldCatalog
                 throw new InvalidOperationException($"字段 {spec.Field} 标了不显示，却又出现在描述表里");
             }
 
-            if (spec.Editor == PropertyEditor.Choice && spec.Choices is not { Count: > 0 })
+            // 允许自定义取值的字段例外：它的选项长在文档里（样式令牌 → 调色板条目），
+            // 由属性面板在每次重读时推进来，构造时给不出、也用不着给。
+            if (spec.Editor == PropertyEditor.Choice && !spec.AllowCustom
+                && spec.Choices is not { Count: > 0 })
             {
                 throw new InvalidOperationException($"字段 {spec.Field} 是选择控件，却没有给可选取值");
             }

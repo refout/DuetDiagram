@@ -183,6 +183,16 @@ public sealed class PropertyPanelViewModel : INotifyPropertyChanged
 
         SetReadOnlyText(nodes);
 
+        // 样式令牌的下拉选项跟着调色板走：面板上建的、删的条目，这里就是可选的名字。
+        // 文档变了要重推一遍——命令可能建了新条目，也可能删掉了正在用的那个。
+        if (_byField.TryGetValue(FieldNames.StyleToken, out var tokenField))
+        {
+            tokenField.SetChoices(
+            [
+                .. _session.Document.Palette.Entries.Keys.OrderBy(name => name, StringComparer.Ordinal),
+            ]);
+        }
+
         // 约束编辑器读的是整份文档，与选中无关；但"能不能加"由选中决定，
         // 所以换选中也要跟着重读一遍按钮的可用状态。
         Constraints.Refresh();

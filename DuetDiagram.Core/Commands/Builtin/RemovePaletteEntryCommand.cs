@@ -123,13 +123,26 @@ public sealed class RemovePaletteEntryCommand : DiagramCommandBase
     /// 节点上是一个直接的字段，边上藏在样式记录里，标签上是颜色字段——硬凑成一个接口
     /// 反而要多加一层抽象。
     /// </remarks>
-    private List<string> Referrers(DiagramDocument document)
+    private IReadOnlyList<string> Referrers(DiagramDocument document) => Referrers(document, _name);
+
+    /// <summary>
+    /// 还在用某个令牌的元素，按文档次序。
+    /// </summary>
+    /// <remarks>
+    /// 面板在按下删除**之前**也要这一份名单：等命令挡下来再展示的话，
+    /// 错误消息里那串名字挤在一句话里，而「谁在用」值得单独一块地方摆出来。
+    /// 与命令校验读的是同一个方法，两处各写一遍迟早会对出两份不一样的名单。
+    /// </remarks>
+    public static IReadOnlyList<string> Referrers(DiagramDocument document, string name)
     {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
         var users = new List<string>();
 
         foreach (var node in document.Nodes)
         {
-            if (string.Equals(node.StyleToken, _name, StringComparison.Ordinal))
+            if (string.Equals(node.StyleToken, name, StringComparison.Ordinal))
             {
                 users.Add(node.Id);
             }
@@ -137,7 +150,7 @@ public sealed class RemovePaletteEntryCommand : DiagramCommandBase
 
         foreach (var edge in document.Edges)
         {
-            if (string.Equals(edge.StyleToken, _name, StringComparison.Ordinal))
+            if (string.Equals(edge.StyleToken, name, StringComparison.Ordinal))
             {
                 users.Add(edge.Id);
             }
@@ -145,7 +158,7 @@ public sealed class RemovePaletteEntryCommand : DiagramCommandBase
 
         foreach (var tag in document.Tags)
         {
-            if (string.Equals(tag.Color, _name, StringComparison.Ordinal))
+            if (string.Equals(tag.Color, name, StringComparison.Ordinal))
             {
                 users.Add(tag.Id);
             }

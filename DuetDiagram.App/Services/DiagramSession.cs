@@ -172,7 +172,7 @@ public sealed class DiagramSession : IDisposable
         // 第一份布局不走 Reload：那时还没有"上一次成功的结果"可以退守，
         // 算不出来就是算不出来，如实抛出比留一份空画面让人以为文档是空的要好。
         _currentPageId = PageMembership.DefaultPageId(Document);
-        Scene = SampleDiagram.Build(Document, Theme, _measurer, null, _engine, budget: null, pageId: _currentPageId);
+        Scene = SampleDiagram.Build(Document, RenderTheme, _measurer, null, _engine, budget: null, pageId: _currentPageId);
         _sceneVersion = Document.Version;
 
         // 别的窗口改的是同一份文档、同一条总线，所以通知能到这一份上来。
@@ -241,6 +241,16 @@ public sealed class DiagramSession : IDisposable
 
     /// <summary>外观查表。</summary>
     public Theme Theme { get; }
+
+    /// <summary>
+    /// 出笔用的主题：会话主题带上文档自己的调色板。
+    /// </summary>
+    /// <remarks>
+    /// 令牌名到具体外观的映射长在文档里，而主题只带一份缺省外观——
+    /// 两边不拼起来的话，调色板条目改了、删了，画布上的元素都毫无反应，
+    /// 面板上那块「真的渲染结果」的预览也就无从谈起。
+    /// </remarks>
+    public Theme RenderTheme => Theme.WithPalette(Document.Palette);
 
     /// <summary>最近一次算出来的绘制列表与两段重活的耗时。</summary>
     public SampleScene Scene { get; private set; }
@@ -621,7 +631,7 @@ public sealed class DiagramSession : IDisposable
         if (_manualLayout)
         {
             // 手动布局模式：不再问引擎，位置冻在最近一次成功的布局上。
-            Scene = SampleDiagram.Rebuild(Document, Theme, _measurer, Scene, _currentPageId);
+            Scene = SampleDiagram.Rebuild(Document, RenderTheme, _measurer, Scene, _currentPageId);
             _sceneVersion = Document.Version;
             SceneChanged?.Invoke();
             return;
@@ -629,7 +639,7 @@ public sealed class DiagramSession : IDisposable
 
         try
         {
-            Scene = SampleDiagram.Build(Document, Theme, _measurer, _pinned, _engine, budget, _currentPageId);
+            Scene = SampleDiagram.Build(Document, RenderTheme, _measurer, _pinned, _engine, budget, _currentPageId);
             _layoutFailure = null;
             _sceneVersion = Document.Version;
             SceneChanged?.Invoke();
@@ -1306,6 +1316,93 @@ public sealed class DiagramSession : IDisposable
             }
         }
     }
+
+    #endregion
+
+    #region 调色板
+
+    /// <summary>
+    /// 定义一个新的调色板条目。
+    /// </summary>
+    /// <remarks>
+    /// 校验全在命令层（名为空、重名都在那边挡），会话只负责接命令、重算画面、报结果——
+    /// 面板与工具两条路径共用这一层，判据只有一份。
+    /// </remarks>
+    public CommandResult DefinePaletteEntry(PaletteEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new DefinePaletteEntryCommand(entry));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 改一个调色板条目的一个成员。
+    /// </summary>
+    /// <remarks>
+    /// 一次一个字段，与改节点字段那一条同形状：一边改填充、一边改描边可以共存，
+    /// 整份条目一起写的话，两次互不相干的修改会被判成冲突。
+    /// </remarks>
+    public CommandResult UpdatePaletteEntry(string name, string field, string? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(field);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new UpdatePaletteEntryCommand(name, field, value));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 删掉一个调色板条目。
+    /// </summary>
+    /// <remarks>
+    /// 还被引用时命令会挡下来，错误消息里带着引用者——面板在按下删除之前
+    /// 也可以先查一遍把名单摆出来，两条路读的是同一个方法。
+    /// </remarks>
+    public CommandResult RemovePaletteEntry(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new RemovePaletteEntryCommand(name));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>还在用某个令牌的元素，按文档次序。删除之前给「谁在用」用。</summary>
+    public IReadOnlyList<string> PaletteReferrers(string name) =>
+        RemovePaletteEntryCommand.Referrers(Document, name);
 
     #endregion
 

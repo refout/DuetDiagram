@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 52 | 12912 | 7314 | 3478 | 2120 |
+| DuetDiagram.App | 54 | 13762 | 7857 | 3624 | 2281 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 98 | 13636 | 7751 | 3874 | 2011 |
+| DuetDiagram.Core | 98 | 13649 | 7754 | 3882 | 2013 |
 | DuetDiagram.Core.Tests | 39 | 10140 | 7157 | 1028 | 1955 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 21 | 6040 | 3931 | 840 | 1269 |
+| DuetDiagram.E2E.Tests | 22 | 6314 | 4102 | 882 | 1330 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4533 | 2509 | 1379 | 645 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 22 | 4546 | 2025 | 1285 | 1236 |
 | DuetDiagram.Render.Tests | 15 | 3361 | 2383 | 342 | 636 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **416** | **90164** | **55936** | **18491** | **15737** |
+| **合计** | **419** | **91301** | **56653** | **18687** | **15961** |
 
 ## 明细
 
@@ -49,6 +49,7 @@
 | LayerPanel.axaml.cs | 271 |
 | LayoutFailureDialog.axaml.cs | 29 |
 | PageTabs.axaml.cs | 133 |
+| PalettePanel.axaml.cs | 246 |
 | PropertyPanel.axaml.cs | 80 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
 | StatusBar.axaml.cs | 72 |
@@ -62,18 +63,18 @@
 | HighlightTracker.cs | 167 |
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 295 |
+| MainWindow.axaml.cs | 300 |
 | Program.cs | 78 |
 | SampleDiagram.cs | 103 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
-| DiagramSession.cs | 1115 |
+| DiagramSession.cs | 1163 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 67 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 74 |
-| FieldEditBinder.cs | 257 |
+| FieldEditBinder.cs | 271 |
 | MenuEntries.cs | 177 |
 | MenuRegistry.cs | 101 |
 | WorkspaceRegistry.cs | 94 |
@@ -84,9 +85,10 @@
 | LayerRowViewModel.cs | 86 |
 | PageTabViewModel.cs | 41 |
 | PageTabsViewModel.cs | 99 |
-| PropertyFieldCatalog.cs | 125 |
-| PropertyFieldViewModel.cs | 93 |
-| PropertyPanelViewModel.cs | 225 |
+| PalettePanelViewModel.cs | 210 |
+| PropertyFieldCatalog.cs | 127 |
+| PropertyFieldViewModel.cs | 104 |
+| PropertyPanelViewModel.cs | 232 |
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
 | StatusBarViewModel.cs | 81 |
@@ -131,7 +133,7 @@
 | RemoveActionCommand.cs | 69 |
 | RemoveLayoutConstraintCommand.cs | 107 |
 | RemoveNodeCommand.cs | 126 |
-| RemovePaletteEntryCommand.cs | 105 |
+| RemovePaletteEntryCommand.cs | 108 |
 | RemoveTagCommand.cs | 69 |
 | RenameLayerCommand.cs | 73 |
 | ReorderLayerCommand.cs | 77 |
@@ -298,6 +300,7 @@
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
 | PageTabsTests.cs | 233 |
+| PalettePanelTests.cs | 171 |
 | PropertyPanelTests.cs | 167 |
 | ToolBarTests.cs | 118 |
 

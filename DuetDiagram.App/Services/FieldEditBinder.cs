@@ -336,23 +336,41 @@ internal static class FieldEditBinder
 
     private static Control Choice(PropertyFieldViewModel field)
     {
-        var items = new List<string>();
-
-        if (field.AllowEmpty)
-        {
-            items.Add(NoValue);
-        }
-
-        items.AddRange(field.Choices);
-
         var combo = new ComboBox
         {
-            ItemsSource = items,
             FontSize = 12,
             HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
-        Sync(field, combo);
+        void Repopulate()
+        {
+            var items = new List<string>();
+
+            if (field.AllowEmpty)
+            {
+                items.Add(NoValue);
+            }
+
+            items.AddRange(field.Choices);
+
+            // 自定义取值：当前值不在可选取值里时补一项，而不是显示成空。
+            // 样式令牌那一格的值可以指向任何串（认不出的令牌按元素自己的样式兜底），
+            // 显示成空的话，用户会以为这个字段本来就没设过。
+            if (field.Spec.AllowCustom
+                && field.Value is { } custom
+                && !items.Contains(custom, StringComparer.Ordinal))
+            {
+                items.Add(custom);
+            }
+
+            combo.ItemsSource = items;
+            Sync(field, combo);
+        }
+
+        Repopulate();
+
+        // 选项长在文档里的字段（样式令牌）在重读时会换一批取值，控件要跟着换。
+        Watch(field, nameof(PropertyFieldViewModel.Choices), Repopulate);
 
         combo.SelectionChanged += (_, _) =>
         {
@@ -411,7 +429,11 @@ internal static class FieldEditBinder
             return field.AllowEmpty ? NoValue : null;
         }
 
-        return field.Choices.Contains(field.Value, StringComparer.Ordinal) ? field.Value : null;
+        // 允许自定义取值的字段，值不在选项里也照常显示——下拉里会补上当前值那一项。
+        return field.Spec.AllowCustom
+            || field.Choices.Contains(field.Value, StringComparer.Ordinal)
+            ? field.Value
+            : null;
     }
 
     #endregion

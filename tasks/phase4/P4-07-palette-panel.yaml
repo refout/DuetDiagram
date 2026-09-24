@@ -1,7 +1,7 @@
 id: P4-07
 title: 调色板面板
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01, P3-02]
 estimated_loc: 440
 files:
@@ -44,3 +44,70 @@ scope_note: |
   **不做「从选中元素提取一条调色板条目」。** 那是常见的便利功能，但它要决定
   「提取哪几个属性、冲突时用谁的值」，而方案没说。这一轮先把列、增、改、删做全，
   提取记进 followups。
+
+result: |
+  **调色板从「一个能填的名字」变成「一份能编的清单」。** 在此之前，界面上只能在一个
+  文本框里填令牌名——填错了被命令层挡下，能做的仍然只是再猜一个名字。
+  面板补上的正是「有哪些名字可用」。
+
+  **落地了什么**
+
+  - `PalettePanel`（axaml + cs）+ `PalettePanelViewModel`：条目清单（预览 + 令牌名 +
+    几个在用）、成员编辑器（填充、描边、文字、描边粗细，一次提交发一条
+    `update-palette-entry`）、新建（`define-palette-entry`）与删除（`remove-palette-entry`）。
+    行为与图层面板同一套接线：SceneChanged 上刷新、行在增删时重建、
+    编辑器只在换选中时重建（文档一变就重建会让正在输入的框失焦）。
+  - **预览用真的渲染结果。** 每行的色块由 `RenderTheme` 按一个只带令牌名的样例节点解析，
+    与画布同一条代码路径；预览的边框用条目自己的描边色与粗细画——
+    粗细与缺省兜底只有走真渲染才看得出来。
+  - **修了一个更早的缺口：文档的调色板此前根本没进解析路径。** 会话的 Theme 是
+    构造时定死的 Theme.Default，`WithPalette` 无人调用——面板上把条目改了、删了，
+    画布毫无反应。现在三处出笔（初次构建、重算、手动布局重绘）都走
+    `RenderTheme` = 会话主题 + 文档调色板。验收里「改条目颜色元素跟着变色」这一条
+    正是靠它成立的。
+  - **样式令牌那一格从文本框换成下拉。** 选项长在文档的调色板里（属性面板每次重读时
+    推进来，`PropertyFieldViewModel.SetChoices` + `FieldEditBinder` 盯 Choices 重建）；
+    值允许是选项之外的自定义串（认不出的令牌按元素自己的样式兜底），
+    所以下拉在当前值不在选项里时补一项显示，而不是显示成「没有设置」。
+    字段表那条「选择控件必须给取值」的自检给 AllowCustom 留了门。
+  - **删条目先查引用。** 按下删除时面板先数一遍「谁在用」（与命令校验同一个方法——
+    `RemovePaletteEntryCommand.Referrers` 开放成静态查询）：还有人在用就**不发命令**，
+    把名单整块摆到错误那一块。名为空与重名的校验在命令层，面板把错误原样摆出来，
+    不静默覆盖。
+  - 会话加了三个入口（`DefinePaletteEntry` / `UpdatePaletteEntry` / `RemovePaletteEntry`）
+    与 `PaletteReferrers` 查询——校验全在命令层，会话只接命令、重算画面、报结果，
+    面板与工具两条路径共用，判据只有一份。
+  - 用例：E2E `PalettePanelTests` 4 条（Category=PalettePanel）+ 1 条谁在用
+    （Category=ErrorPresentation）+ 1 条改条目元素变色（Category=PropertyPanel），
+    全部经由界面控件触发（填字、回车提交、点按钮）。
+
+  **与任务清单不一样的地方**
+
+  - **Theme/会话的接线是这一条真正的地基**，任务清单没点出它（files 列表里没有
+    Theme 相关条目）——不改它，验收第二条「改条目颜色元素跟着变色」不可能成立。
+  - `PropertyFieldViewModel` / `PropertyFieldSpec` 也在改动之列（任务清单只列了
+    Catalog 与 Binder）：动态选项要穿过字段视图模型才能到下拉控件。
+
+  **刻意的取舍**
+
+  - **不做「从选中元素提取一条调色板条目」**（任务已写明）：要决定提取哪几个属性、
+    冲突时用谁的值，方案没说。记进 followups。
+  - **条目按令牌名的字典序排**，不按声明次序——条目表是字典，声明次序没有语义。
+  - 预览色块解析不了的串按透明画：画一块红出来比一块看不见的颜色更吓人。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=PalettePanel` 4/4、`Category=PropertyPanel` 8/8、
+    `Category=ErrorPresentation` 11/11。
+  - 全量测试：Core 496 / Layout 78 / Render 171 / Mermaid 179 / Dsl 158 / Llm 192 /
+    Mcp 109 / **E2E 157**（改动前 151）全绿。
+  - `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：419 个文件 / 91301 行 / 56653 行代码）。
+
+  **后续**
+
+  - 从选中元素提取条目（要定提取哪些属性、冲突用谁的值）。
+  - 条目的拖动排序与分组——条目多了以后清单会平。
+  - 主题（深浅色）那一档仍只有缺省一份。

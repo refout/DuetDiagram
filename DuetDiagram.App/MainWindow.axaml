@@ -27,9 +27,16 @@
       是分栏而不是浮层——浮层的开关会改画布尺寸，而画布一改尺寸视口跟着跳。
       常驻还有一个好处：图层这件事的意义在于「一层里有谁」，随时看得见才谈得上。
     -->
-    <controls:LayerPanel x:Name="LayersView"
-                         DockPanel.Dock="Left"
-                         Width="240" />
+    <!--
+      左栏上下分两截：图层在上面，调色板在下面。调色板也是常驻分区（§9.1 的样式/调色板），
+      理由与图层那条相同——「有哪些名字可用」随时看得见，令牌才填得出来。
+    -->
+    <Grid DockPanel.Dock="Left"
+          Width="240"
+          RowDefinitions="Auto,*">
+      <controls:LayerPanel x:Name="LayersView" Grid.Row="0" />
+      <controls:PalettePanel x:Name="PaletteView" Grid.Row="1" />
+    </Grid>
 
     <!--
       属性面板占右侧一栏。它的数据上下文由主窗口在代码里设成属性面板的状态，

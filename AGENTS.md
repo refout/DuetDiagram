@@ -15,14 +15,14 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Core.Tests` | Core 的单元与约束测试 | 已落地 |
 | `DuetDiagram.Layout` | 布局引擎封装与约束补齐、按页过滤的布局请求 | Phase 1 P1-11 / P1-12、Phase 2 P2-09 已落地；P4-04 让请求只带当前页的元素 |
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
-| `DuetDiagram.Render` | 绘制列表、文本度量、富文本排版（分段、折行、行内样式混排）、数学排版（分数、根号、上下标）、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖；P4-10 让自定义形状的几何在构建列表时算好带进 `DrawShape`；P4-13 加了富文本排版（`RichTextLayout`）并让 `DrawText` 带上斜体、下划线与删除线；P4-15 加了数学排版（`MathTypesetter`），公式拆成普通的文本段与折线出指令 |
-| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、数学排版与度量、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照；P4-15 加了 `Category=MathTypesetting` / `MathSnapshot` 与两档模式的场景快照 |
+| `DuetDiagram.Render` | 绘制列表、文本度量、富文本排版（分段、折行、行内样式混排）、数学排版（分数、根号、上下标）、从文档到绘制列表的整条链路（`SceneComposer`）、SVG 导出（`SvgExporter`）、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖；P4-10 让自定义形状的几何在构建列表时算好带进 `DrawShape`；P4-13 加了富文本排版（`RichTextLayout`）并让 `DrawText` 带上斜体、下划线与删除线；P4-15 加了数学排版（`MathTypesetter`），公式拆成普通的文本段与折线出指令；P4-16 加了 SVG 导出，并把"文档到绘制列表"那条链路从入口层搬进来（界面、导出与帧率测量从此只有这一份） |
+| `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、数学排版与度量、SVG 导出、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照；P4-15 加了 `Category=MathTypesetting` / `MathSnapshot` 与两档模式的场景快照；P4-16 加了 `Category=SvgExport` |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地；P4-10 把自定义形状加进导出的丢失清单 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返） | 已落地（本机缺 C++ 工作负载，未完成发布） |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口） |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数，界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里） |
 | `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层） |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
@@ -33,10 +33,10 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CompareHarness` | 对比测试的语料生成、盲评装置、谓词评分与人工评分汇总（不进 sln） | 已落地 |
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid 直接调、SVG 走宿主喂进来的渲染器）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；P4-16 让 `diagram_export` 的 `svg` 真的出图；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
-| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误 | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；跨机器传输（TLS、多实例共享变化源）未开工 |
-| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地 |
+| `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误；导出 SVG 那一侧的渲染接线（把文档排出来再写成 SVG，排不出结果时如实说） | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；P4-16 引了渲染层与布局引擎，只为导出 SVG 那一档；跨机器传输（TLS、多实例共享变化源）未开工 |
+| `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地；P4-16 加了"真子进程里导出 SVG 拿得回文本"一条，顺带验了原生绘图库在这个部署形态下能加载 |
 
 **阶段状态**：Phase 0a / 0b、Phase 1、Phase 2、Phase 3 的代码都落地了
 （P0-02、P1-14、P2-13 三处分别卡在缺 C++ 工作负载与缺真人）。
@@ -51,7 +51,7 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-08`（文本样式预设的命令与界面）与 `P4-09`（形状库与形状提供者接口）与
 `P4-10`（自定义形状的路径数据）与 `P4-11`（模板库与模板应用）与
 `P4-12`（富文本内容模型）与 `P4-13`（富文本的排版与渲染）与
-`P4-14`（富文本编辑界面）与 `P4-15`（数学排版）已落地**（`done`），
+`P4-14`（富文本编辑界面）与 `P4-15`（数学排版）与 `P4-16`（SVG 导出）已落地**（`done`），
 其余 `pending`，
 其中 **`P4-20`（DSL 导出）标 `blocked`**，
 卡在决策门 1 上——留则照做，不留则整条删掉。
@@ -218,6 +218,7 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=CompositeTool"
 
 # 导出：Mermaid 文本逐字节可复现、丢失清单原样带出、导出不动版本号也不进撤销栈；
+# SVG 走宿主喂进来的渲染器（宿主没接上或排不出结果时如实说），页面标识原样交下去；
 # 自有 DSL 的导出方向与位图 / PDF 返回结构化「尚未支持」
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
 
@@ -356,7 +357,7 @@ dotnet run --project tools/CompareHarness -c Release -- agreement
 # 绘制列表：指令构造、主题解析、标签排版、层叠顺序
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=DrawList"
 
-# 十个场景的绘制列表快照。红了先判断变化是不是有意的，别顺手把 .received.txt 盖上去。
+# 十三个场景的绘制列表快照。红了先判断变化是不是有意的，别顺手把 .received.txt 盖上去。
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SceneSnapshot"
 
 # 换档在真实窗口里的样子：那一帧的耗时，以及换档前后画布区域逐像素一致
@@ -393,6 +394,11 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --fi
 # 同一个输入每次排出同样的结果；两档各有一份场景快照
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathTypesetting"
 dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=MathSnapshot"
+
+# SVG 导出：每一类绘制指令都有一条对应的 SVG 元素（形状按几何种类、折线再加箭头标记、
+# 文字留 <text>）、认不出的指令抛异常而不静默跳过、同一份绘制列表导出两次逐字节相同、
+# 坐标系显式写出来、背景可选、留白同时挪 viewBox 与内容、丢失清单原样带出来
+dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -- --filter-trait "Category=SvgExport"
 
 # 布局失败之后：画面停在上一次成功的结果上、状态栏变红、重试 / 手动布局 / 简化图三个选项都在
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=LayoutFailure"
@@ -607,6 +613,8 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `diagram_layout` 的 `owner` | 缺省写 `llm`；`auto` 放行，**`human` 被拒绝** | 命令层要求显式给出归属，理由是默认值会让模型那条路径悄悄写出人工归属的约束、而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以缺省写 `llm` 是事实；而 `human` 放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。用户从面板上设的约束由面板自己写，不经过这一层 |
 | 增删布局约束的动作名 | 动作叫 `add-constraint` / `remove-constraint`，命令标识是 `add-layout-constraint` / `remove-layout-constraint`，两者不同名 | 动作名短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。冻结的参数表说明里举的例子就是 `add-constraint`，照它写才不至于让说明与实际动作名对不上 |
 | `DuetDiagram.Llm` 多一条到 `DuetDiagram.Mermaid` 的工程引用 | 导出那一路直接调 `MermaidExporter`，不把导出器当委托注入上下文 | 它与「工具层不引布局引擎」那条口径不冲突：布局引擎是第三方组件，而 Mermaid 是本仓的、只依赖 Core 的纯函数库。反过来注入的话，每个宿主与每条用例都要接一次线，而导出文本本来就是文档的纯函数。对照 P3-06 注入的那两样（层投影、固定标识）：它们**不是**文档的函数，一个在布局结果里、一个在 sidecar 里，所以必须由宿主喂进来 |
+| SVG 导出不直接引渲染层，而是由宿主注入（`DiagramToolContext.SvgExporter`） | 工具层的 `svg` 分支只转发，渲染那一步由宿主接；产物类型 `SvgExport` 落在 Core，于是工具层不必引渲染层 | 与上一条同一口径的另一半：Mermaid 是文档的纯函数，所以直接调；SVG **不是**——它要布局结果与字体度量，而两者都是需要平台适配的第三方组件。直接引的话，工具层连同它的每个宿主都要带上原生绘图库；注入的话只有真正要出图的宿主带。代价是每个这样的宿主接一次线，而这一层看不见布局引擎的异常类型，所以"排不出来"这件事只能由宿主翻成空结果、再由工具层说一句"渲染层排不出结果" |
+| `DuetDiagram.Mcp` 多两条到 `DuetDiagram.Render` 与 `DuetDiagram.Layout` 的工程引用 | 导出 SVG 那一档要服务端自己把文档排出来再写文件，而工具层不引渲染层 | 它就是上一条里"真正要出图的宿主"。这一层本来就作为本机子进程跑、不发布成原生可执行文件，所以多带一份原生绘图库是"体积变大"，不是"跑不起来"。反方向（服务端不接、`svg` 一直回"这个宿主没有接上渲染层"）也自洽，但那样唯一对外暴露 `diagram_export` 的宿主就永远导不出 SVG，而验收要的正是它导得出来 |
 | §6.1 的 `diagram_export` 格式 | 只有 Mermaid 接上了；`dsl` / `svg` / `png` / `pdf` 返回结构化「尚未支持」 | 位图与 PDF 要么依赖渲染层、要么依赖排版库，选型表把它们标成 Phase 4 验证。而 **DSL 导出不是「还没排到」，是不该现在做**：`DuetDiagram.Dsl` 只有词法、语法与语义映射三样，没有导出方向，而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉 |
 | `diagram_validate` 的修复建议 | 照抄 `ValidationIssue.Suggestion`，工具层不另写一张按错误码查的表 | 校验器逐条填了那个字段，那就是「映射表放在一处」里的那一处。工具层再写一张的话，同一个码会在两个入口给出两种建议。`docs/Error-Codes.md` 里那张表是**界面**怎么呈现，由 `Category=ErrorPresentation` 逐行核，与工具层无关 |
 | 「撤掉的是哪一条」怎么拿到 | 调撤销之前先窥栈顶（`HistoryStack.PeekUndo` / `PeekRedo`），拿命令标识与会话标识 | `Undo()` / `Redo()` 返回的 `CommandResult` 里没有命令标识，成功路径上也没有消息。不去读版本日志，是因为日志的用途是审计，让它承担「告诉模型刚才撤了什么」是把它当成了另一件事的载体。栈顶那一条的会话与当前会话相同，就说「你自己改的」 |

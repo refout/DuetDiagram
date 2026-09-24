@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 66 | 16939 | 9694 | 4408 | 2837 |
+| DuetDiagram.App | 66 | 16991 | 9715 | 4435 | 2841 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 117 | 18062 | 10218 | 5209 | 2635 |
+| DuetDiagram.Core | 119 | 18102 | 10222 | 5243 | 2637 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 26 | 7632 | 4947 | 1073 | 1612 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4591 | 2544 | 1395 | 652 |
-| DuetDiagram.Llm.Tests | 17 | 4403 | 3160 | 354 | 889 |
-| DuetDiagram.Mcp | 14 | 2356 | 1238 | 766 | 352 |
-| DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
-| DuetDiagram.Mermaid | 12 | 2687 | 1564 | 706 | 417 |
+| DuetDiagram.Llm | 25 | 4666 | 2572 | 1435 | 659 |
+| DuetDiagram.Llm.Tests | 17 | 4541 | 3259 | 365 | 917 |
+| DuetDiagram.Mcp | 15 | 2406 | 1259 | 791 | 356 |
+| DuetDiagram.Mcp.Tests | 11 | 3186 | 2024 | 520 | 642 |
+| DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
-| DuetDiagram.Render | 25 | 4963 | 2599 | 1654 | 710 |
-| DuetDiagram.Render.Tests | 21 | 4776 | 3329 | 556 | 891 |
+| DuetDiagram.Render | 28 | 5514 | 2926 | 1803 | 785 |
+| DuetDiagram.Render.Tests | 22 | 5116 | 3577 | 592 | 947 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **469** | **104867** | **65272** | **21926** | **17669** |
+| **合计** | **476** | **106152** | **66046** | **22252** | **17854** |
 
 ## 明细
 
@@ -72,8 +72,8 @@
 | MainWindow.axaml.cs | 351 |
 | Program.cs | 78 |
 | ShapeGeometryRenderer.cs | 88 |
-| SampleDiagram.cs | 103 |
-| SelfTest.cs | 148 |
+| SampleDiagram.cs | 80 |
+| SelfTest.cs | 192 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
 | DiagramSession.cs | 1330 |
@@ -202,6 +202,7 @@
 | DiagramDocument.cs | 332 |
 | DiagramEnums.cs | 99 |
 | DiagramValidator.cs | 440 |
+| DroppedFeature.cs | 2 |
 | EdgeDef.cs | 15 |
 | FieldRegistry.cs | 215 |
 | IDefinition.cs | 5 |
@@ -215,6 +216,7 @@
 | RichTextContent.cs | 193 |
 | Styles.cs | 53 |
 | SupportingDefs.cs | 62 |
+| SvgExport.cs | 2 |
 | ValidationIssue.cs | 10 |
 | DiagramHashing.cs | 176 |
 | DiagramJsonContext.cs | 74 |
@@ -394,10 +396,10 @@
 | RepairHints.cs | 240 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
-| DiagramToolContext.cs | 24 |
+| DiagramToolContext.cs | 25 |
 | DiagramToolset.cs | 169 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 50 |
+| ExportTool.cs | 77 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -417,8 +419,8 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 130 |
-| Harness.cs | 82 |
+| ExportToolTests.cs | 226 |
+| Harness.cs | 85 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
@@ -439,13 +441,14 @@
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
-| DiagramMcpServer.cs | 91 |
+| DiagramMcpServer.cs | 92 |
 | HttpHost.cs | 280 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 71 |
 | SessionState.cs | 110 |
 | StandardErrorDiagnostics.cs | 11 |
 | StdioLogging.cs | 11 |
+| SvgRendering.cs | 20 |
 | WorkspaceGuard.cs | 60 |
 | SkillCatalog.cs | 252 |
 | SkillResource.cs | 18 |
@@ -464,7 +467,7 @@
 | SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
 | SkillTests.cs | 143 |
-| StdioTests.cs | 150 |
+| StdioTests.cs | 176 |
 
 ### DuetDiagram.Mermaid
 
@@ -508,6 +511,8 @@
 | DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 91 |
 | DrawList.cs | 64 |
+| SvgExporter.cs | 266 |
+| SvgOptions.cs | 6 |
 | Highlight.cs | 181 |
 | HitTester.cs | 113 |
 | ITextMeasurer.cs | 6 |
@@ -519,6 +524,7 @@
 | RenderMode.cs | 6 |
 | RichTextLayout.cs | 190 |
 | SceneBuilder.cs | 490 |
+| SceneComposer.cs | 55 |
 | SkiaTextMeasurer.cs | 77 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 78 |
@@ -551,6 +557,7 @@
 | SceneSnapshotTests.cs | 251 |
 | ShapeProviderTests.cs | 86 |
 | Snapshot.cs | 57 |
+| SvgExportTests.cs | 248 |
 | ViewportTests.cs | 278 |
 
 ### tools

@@ -53,13 +53,18 @@ internal static class Harness
 
     /// <summary>一份工具上下文。不给文档时造一张空图。</summary>
     /// <param name="permissions">这一次调用所属主体能改哪些图层。不给表示不受限。</param>
+    /// <param name="svgExporter">
+    /// 宿主喂进来的 SVG 渲染器。不给表示这个宿主没接上渲染层——
+    /// 工具层不引渲染层，所以这一步只能由宿主提供，测试里也一样。
+    /// </param>
     public static DiagramToolContext Context(
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
         IReadOnlyList<string>? pinned = null,
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
-        PermissionSet? permissions = null)
+        PermissionSet? permissions = null,
+        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
@@ -71,6 +76,7 @@ internal static class Harness
             PinnedNodes = pinned ?? [],
             Clock = time,
             Permissions = () => permissions ?? PermissionSet.Full,
+            SvgExporter = svgExporter,
         };
     }
 
@@ -81,8 +87,9 @@ internal static class Harness
         IReadOnlyList<string>? pinned = null,
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
-        PermissionSet? permissions = null) =>
-        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session, permissions));
+        PermissionSet? permissions = null,
+        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null) =>
+        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session, permissions, svgExporter));
 
     /// <summary>按 JSON 参数调一个工具。</summary>
     public static ToolResult Invoke(

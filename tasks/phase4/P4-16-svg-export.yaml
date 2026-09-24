@@ -1,7 +1,7 @@
 id: P4-16
 title: SVG 导出
 phase: 4
-status: pending
+status: done
 depends_on: [P3-09]
 estimated_loc: 470
 files:
@@ -48,3 +48,96 @@ scope_note: |
 
   **不做「导入 SVG」。** 反方向要把 SVG 的元素反推成 IR，而 SVG 里没有语义
   （哪个是节点、哪个是边、分组框是谁）——那是另一个工程，方案也没要求。
+result: |
+  **这一条要的是「导出与画布是同一条绘制路径」。** 导出器只消费**绘制列表**，
+  不重新遍历文档——重新遍历的话两条路径迟早对不上，而对不上的表现是
+  「导出的图与屏幕上不一样」，且两边各自都自洽。所以判据落在两处：
+  渲染层逐类核「每一类绘制指令都有对应的 SVG 元素」，自检则拿**同一份**绘制列表
+  画布画一遍、导出器写一遍，逐类比元素数。
+
+  **三处口径**
+
+  - **文字留 `<text>`，不转路径。** 转路径视觉更稳（不依赖对方的字体），
+    但文字搜不到、选不中，也就没法在 draw.io 里改——而这条导出存在的理由正是
+    「导给同事用 draw.io 打开再改」。代价是对方要有同一份字体，缺了会按对方的回退字体排、
+    行宽跟着变；这一条如实进丢失清单，随导出结果一起交给调用方。
+  - **坐标系显式写出来。** 根元素上同时给 `width` / `height` 与 `viewBox`：
+    只给元素不给 `viewBox` 的话，不同查看器里的尺寸不一样，而用户会以为是导出错了。
+    留白同时挪 `viewBox` 与内容，所以它是真的留白。
+  - **确定性。** 不带时间戳、不带随机标识、不依赖集合迭代顺序；同一份列表两次导出逐字节相同。
+
+  **落地了什么**
+
+  - `DuetDiagram.Render/Export/SvgExporter.cs`：三类指令各出对应的元素——形状按几何种类出
+    `rect` / `ellipse` / `polygon` / `path`（圆角半径与路径弧的方向跟画布同一口径），
+    折线出 `polyline` 再跟一个箭头标记（`polygon` / `path` / `circle`，尺寸与画布同一组常量），
+    文字出 `<text>`。**认不出的指令抛异常，不静默跳过**——跳过的话加一种绘制指令之后
+    导出会少画一样东西而没有任何报错。
+  - `DuetDiagram.Render/Export/SvgOptions.cs`：背景要不要铺、留白多少。
+  - `DuetDiagram.Render/SceneComposer.cs`：**把「文档到绘制列表」那条链路从入口层搬进了渲染层**。
+    原先它在 `DuetDiagram.App/SampleDiagram.cs` 里，只有界面走；导出要的是同一条链路，
+    各写一份的话两边迟早会在引擎、约束或主题上分叉。搬完之后界面、导出与帧率测量只有这一份。
+  - `DuetDiagram.Core/Model/DroppedFeature.cs`：从 Mermaid 的导出报告里搬过来。
+    两个导出器不在同一个程序集里，各自定义一份的话「丢失清单」就有了两种形状。
+  - `DuetDiagram.Core/Model/SvgExport.cs`：导出的产物（文本 + 丢失清单）。
+    放在 Core 是因为工具层要把它原样交给调用方，而工具层看不见渲染层。
+  - `DuetDiagram.Llm/Tools/DiagramToolContext.cs` 与 `ExportTool.cs`：`svg` 分支不再返回
+    「还没接上」。**渲染那一步由宿主喂进来**，工具层不引渲染层：引了的话，
+    这一层连同它的每个宿主都要带上原生绘图库；而 SVG 也不是文档的函数（它要布局结果与
+    字体度量），所以只能由宿主喂进来，与层投影、固定标识同一口径。宿主没接上、
+    或渲染层排不出结果时各给一句不同的结构化错误——不许悄悄给一份空文件。
+  - `DuetDiagram.Mcp/Server/SvgRendering.cs` 与 `DuetDiagram.Mcp.csproj`：**服务端是那个
+    真正要出图的宿主**，它因此多引了渲染层与布局引擎。每次导出新建一个度量器并当场释放：
+    会话级共用一份的话，多个请求会同时用同一份字体缓存，而那份缓存不是线程安全的。
+  - `DuetDiagram.App/SelfTest.cs`：同一份绘制列表导两遍——**原样的**那一遍写成
+    `reports/ci-selftest.svg`（带背景、带箭头，与画布上看到的同一份），
+    **摘掉箭头**的那一遍用来逐类数元素（带箭头时折线那一类里混着箭头标记，数不准）。
+  - `DuetDiagram.App/Services/MenuEntries.cs`：导出那一档的占位条目**仍是占位**，
+    只把理由改准了——导出本身已经能用，缺的是界面上的选文件、选格式、选范围三样，
+    而格式那一样要等到不止一种格式可选时才值得做。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - `Category=SvgExport` 17/17：每一种 `NodeShape` 都出元素、四种箭头各出各的标记、
+    三种线型各出各的虚线、字体与三项修饰照原样写出去、标记要转义、
+    背景可选、留白同时挪 `viewBox` 与内容、两次导出逐字节相同、一条指令一个元素。
+  - `Category=SceneSnapshot` 20/20（导出不碰绘制列表，快照一份没变）。
+  - `Category=ExportTool` 17/17：svg 拿到文本与丢失清单、页面标识原样交下去、
+    宿主没接上与渲染层排不出结果各有一句、两次导出逐字节相同、不动版本号也不进撤销栈。
+  - `Category=McpStdio` 8/8，其中新加的一条**拉真子进程**调 `diagram_export` 要 SVG：
+    顺带验了原生绘图库在这个部署形态下能加载——它在别的宿主里能跑不代表在这里也能。
+  - `dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/ci-selftest.png`：
+    退出码 0。画布消费 17/17 条指令；导出出来的元素逐类对得上（形状 5、折线 5、文字 7，
+    与绘制列表里那三类指令数相同）。
+  - 全量测试：Core 639 / Layout 78 / Render 270 / Mermaid 181 / Dsl 158 / Llm 206 /
+    Mcp 110 / E2E 187 全绿；`Category=MultiAgent` 通过（Mcp 1/1）；
+    `tools/McpHarness -- protocol` 8/8 通过；`tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：476 个文件 / 106152 行 / 66046 行代码）。
+  - `dotnet publish DuetDiagram.AotSmokeTest -c Release`：**退出码 1，与本条无关**。
+    报的是 `Platform linker not found`——这台机器缺 C++ 工作负载，与 P0-02 卡住的是同一件事。
+    这一轮没有引入任何 NuGet 依赖（`Directory.Packages.props` 一个字没动），
+    但**服务端那条部署形态多带了一份原生绘图库**，而原生发布这条路本机验不了：
+    **没跑成就不写成通过**。
+
+  **与任务清单的出入**
+
+  - `DuetDiagram.Render/DrawList.cs` 与 `DrawCommand.cs` **没有改动**：导出器消费的是
+    现成的那份中间表示，不需要给它加字段或加指令类型。加字段的话，导出就成了
+    「绘制列表为导出而长出来的东西」，而它本该只描述「要画什么」。
+  - 清单里写的 `DuetDiagram.App/Services/MenuRegistry.cs` 实为 `MenuEntries.cs`
+    （条目注册在那里），且只改了占位条目的理由文字，理由见上。
+  - 清单里没有列的几处也改了：`DuetDiagram.Core/Model/DroppedFeature.cs`（新增）、
+    `DuetDiagram.Core/Model/SvgExport.cs`（新增）、`DuetDiagram.Render/SceneComposer.cs`（新增）、
+    `DuetDiagram.Mcp/Server/SvgRendering.cs`（新增）、`DuetDiagram.Mcp/DuetDiagram.Mcp.csproj`
+    （多两条工程引用）、`DuetDiagram.App/SampleDiagram.cs`（改为转发到 `SceneComposer`）、
+    `DuetDiagram.Mermaid/Export/ExportReport.cs`（`DroppedFeature` 搬走）、
+    `DuetDiagram.Mcp.Tests/StdioTests.cs` 与 `DuetDiagram.Llm.Tests/Harness.cs`（用例）。
+    差异表里补了两条：SVG 为什么注入而不直接引、服务端为什么多引两个工程。
+
+  **后续**
+
+  - 界面上的导出入口仍是占位：选文件、选格式、选范围三样都在后面的任务里，
+    其中「选格式」要等到 PNG 与 PDF 落地之后才有意义（P4-17 / P4-18）。
+  - 不做「导入 SVG」：反方向要把元素反推成 IR，而 SVG 里没有语义——那是另一个工程。
+  - 多页导出一次只出一页（`pageId` 那一路），整份文档一次出一个文件。

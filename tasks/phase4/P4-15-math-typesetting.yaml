@@ -82,8 +82,9 @@ result: |
   - `DuetDiagram.Core/Model/DiagramValidator.cs`：新增 `CheckMath`，认不出的公式报
     `MATH_SYNTAX_INVALID`（带位置与建议）。新码配套补了 `docs/Error-Codes.md` 的两张表、
     `RepairHints` 与 `ErrorPresenterTable`。
-  - `DuetDiagram.Mermaid/Export/MermaidExporter.cs`：丢失清单里那一条的理由改成
-    "导出的是公式原文"，让"丢了什么"落到实处。
+  - `DuetDiagram.Mermaid/Export/MermaidExporter.cs`：丢失清单里那一条的**判据**从
+    "数学模式字段非空"改成"真的有公式内容"——模式开着而标签是空的节点没有任何东西可排，
+    列进报告只会把真正的丢失淹掉；理由也跟着改成"导出的是公式原文"。
 
   **三处口径**
 
@@ -99,16 +100,18 @@ result: |
   **门禁**
 
   - `dotnet build -c Release`：0 警告 0 错误。
-  - 两条验收：`Category=MathTypesetting` 24/24、`Category=MathSnapshot` 5/5
-    （含新场景 `12-math-inline` / `13-math-block`）。
+  - 两条验收：`Category=MathTypesetting` 37/37、`Category=MathSnapshot` 5/5
+    （含新场景 `12-math-inline` / `13-math-block`）。用例里那几条"清单由用例守住"的
+    逐个名字排一遍——符号表、函数表、间距表里的每一个名字都过一遍，
+    往表里加一个拼错的名字不会有人发现，而那个名字永远排不出来、也永远不会被报错。
   - `dotnet publish DuetDiagram.AotSmokeTest -c Release`：**退出码 1，与本条无关**。
     报的是 `Platform linker not found`——这台机器缺 C++ 工作负载，
     与 P0-02 卡住的是同一件事。这一轮没有引入任何依赖（`Directory.Packages.props` 一个字没动），
     原生编译这条路与从前逐字节相同；**没跑成就不写成通过**。
-  - 全量测试：Core 639 / Layout 78 / Render 253 / Mermaid 181 / Dsl 158 / Llm 200 /
+  - 全量测试：Core 639 / Layout 78 / Render 270 / Mermaid 181 / Dsl 158 / Llm 200 /
     Mcp 109 / E2E 187 全绿；`Category=MultiAgent` 通过（Mcp 1/1）；
     `tools/McpHarness -- protocol` 8/8 通过；`tools/LocCounter --root . --check` 退出码 0
-    （`reports/loc.md` 已重新生成：469 个文件 / 104867 行 / 65272 行代码）。
+    （`reports/loc.md` 已重新生成：473 个文件 / 105642 行 / 65795 行代码）。
 
   **后续**
 

@@ -199,4 +199,53 @@ public sealed class StdioTests
         parsed.RootElement.TryGetProperty("isSuccess", out var success).Should().BeTrue();
         success.GetBoolean().Should().BeTrue();
     }
+
+    /// <summary>
+    /// 导出 SVG 真的走通了：服务端自己把文档排出来，再把绘制列表写成 SVG。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一条核的是宿主那一侧的接线。工具层只留了一个口子——它不引渲染层，
+    /// 渲染那一步由宿主喂进去。不接的话，这一层会回一句"这个宿主没有接上渲染层"，
+    /// 而服务端其余七条工具一切正常，那种缺法在别处看不出来。
+    /// </para>
+    /// <para>
+    /// 服务端是拉起来的真进程，所以这一条顺带验了原生绘图库在这个部署形态下能加载：
+    /// 加进来的那一步依赖它，而它在别的宿主里能跑不代表在这里也能。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "McpStdio")]
+    public async Task The_agent_gets_svg_text_out_of_the_export_tool()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var session = await AgentSession.ConnectAsync(cancellationToken: cancellationToken);
+
+        await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Edit,
+            """{"action":"add-node","id":"a","label":"甲"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        var payload = await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Export,
+            """{"format":"svg"}""",
+            cancellationToken);
+
+        var data = payload.GetProperty("data");
+
+        data.GetProperty("format").GetString().Should().Be("svg");
+
+        var svg = data.GetProperty("text").GetString()!;
+
+        svg.Should().StartWith("<?xml").And.Contain("<svg").And.EndWith("</svg>\n");
+        svg.Should().Contain("甲", "节点标签要真的写进 SVG 里，而不是给一份空文件");
+        svg.Should().Contain("viewBox", "坐标系要显式写出来，不然不同查看器里的尺寸不一样");
+
+        data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
+            "文字留成 <text> 而不是转成路径这件事要如实带上");
+    }
 }

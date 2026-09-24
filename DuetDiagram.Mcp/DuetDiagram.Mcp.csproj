@@ -13,6 +13,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DuetDiagram.Llm\DuetDiagram.Llm.csproj" />
+
+    <!--
+      导出 SVG 那一路要自己把文档排出来：工具层留了口子，渲染这一步由宿主喂进去。
+      布局引擎与绘图后端都随这两个工程进来，而这一层本来就作为本机子进程跑，
+      不发布成原生可执行文件——所以多带一份原生绘图库是"体积变大"，不是"跑不起来"。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
+    <ProjectReference Include="..\DuetDiagram.Layout\DuetDiagram.Layout.csproj" />
   </ItemGroup>
 
   <ItemGroup>

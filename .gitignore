@@ -46,6 +46,12 @@ packages/
 # 编辑器插件的本地统计产物。与 reports/loc.md 重复，不该进仓库。
 .VSCodeCounter/
 
+# 自检每次都会重写的两份产物：一帧位图与同一份绘制列表导出的 SVG。
+# 它们是"跑一遍就能再看一次"的东西，进版本库只会每改一处渲染就多一次二进制改动；
+# 阶段性的证据图另存成 reports/phase*-selftest.png，那些才进仓库。
+reports/ci-selftest.png
+reports/ci-selftest.svg
+
 # 盲评清单与对照表。由 reports/raw 经 `listings` 命令逐字节可复现，
 # 不是证据而是评分时的工作材料；把 key.json 的副本留在仓库里还会多一份泄露面。
 # 结论留在 reports/compare-blind/parse-report.md，那个进仓库。

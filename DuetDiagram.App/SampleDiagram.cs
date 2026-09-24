@@ -76,20 +76,14 @@ public static class SampleDiagram
     /// </summary>
     /// <remarks>
     /// <para>
+    /// 整条链路本身在渲染层（<see cref="SceneComposer"/>），这里只把它包成界面要用的形状：
+    /// 连文档一起带出来，并保留两段耗时给诊断面板。链路的每一步只有那一份实现——
+    /// 界面、导出与帧率测量各写一份的话，两边迟早会在引擎、约束或主题上分叉，
+    /// 而分叉之后两边仍然像模像样。
+    /// </para>
+    /// <para>
     /// 固定坐标来自人工产物（<see cref="UserSidecar.PinnedNodes"/>），不进 IR——
     /// 同一份语义在不同机器上不该因为某人拖过而变成不同的文档内容。
-    /// 这里把它从 <see cref="Anchor"/> 翻成布局引擎认的 <see cref="LayoutPoint"/>，
-    /// 转完即丢，不放任何字段：调用方每次都显式传，才不会把一份过期的固定位置
-    /// 默默沿用进下一次解算。
-    /// </para>
-    /// <para>
-    /// 引擎可注入，默认用约束布局引擎。注入的用途只有一个：让"布局彻底失败"这条路径
-    /// 能被真正走到——拿一个会失败的引擎，比在真实引擎上构造一份它解不出的图可靠得多。
-    /// </para>
-    /// <para>
-    /// 预算也由调用方给。自动重排与用户主动点的重试该等多久是两回事：
-    /// 前者超过一帧就是卡顿，后者用户已经在等结果了，多等一会儿换更好的布局是划算的。
-    /// 写死一个的话，两个场景里必有一个拿到不合适的值。
     /// </para>
     /// </remarks>
     public static SampleScene Build(
@@ -101,42 +95,14 @@ public static class SampleDiagram
         TimeSpan? budget = null,
         string? pageId = null)
     {
-        ArgumentNullException.ThrowIfNull(document);
-        ArgumentNullException.ThrowIfNull(theme);
-        ArgumentNullException.ThrowIfNull(measurer);
-
-        var layoutPins = pinnedNodes is null
-            ? null
-            : new Dictionary<string, LayoutPoint>(StringComparer.Ordinal);
-
-        if (pinnedNodes is not null)
-        {
-            foreach (var (id, anchor) in pinnedNodes)
-            {
-                layoutPins![id] = new LayoutPoint(anchor.X, anchor.Y);
-            }
-        }
-
-        var job = LayoutRequestFactory.FromDocument(
-            document,
-            node => SceneBuilder.MeasureNode(node, theme, measurer),
-            layoutPins,
-            pageId);
-
-        var layoutWatch = Stopwatch.StartNew();
-        var result = new LayoutCoordinator(engine ?? new ConstraintLayoutEngine()).Compute(job, budget);
-        layoutWatch.Stop();
-
-        var drawListWatch = Stopwatch.StartNew();
-        var drawList = SceneBuilder.Build(document, result.Layout, theme, measurer, pageId);
-        drawListWatch.Stop();
+        var composed = SceneComposer.Compose(document, theme, measurer, pinnedNodes, engine, budget, pageId);
 
         return new SampleScene(
             document,
-            result,
-            drawList,
-            layoutWatch.Elapsed.TotalMilliseconds,
-            drawListWatch.Elapsed.TotalMilliseconds);
+            composed.Result,
+            composed.DrawList,
+            composed.LayoutMilliseconds,
+            composed.DrawListMilliseconds);
     }
 
     /// <summary>

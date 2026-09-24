@@ -81,6 +81,34 @@ public sealed record DiagramToolContext
     /// </remarks>
     public Func<PermissionSet> Permissions { get; init; } = static () => PermissionSet.Full;
 
+    /// <summary>
+    /// 把一份文档导成 SVG。由宿主喂进来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **用委托而不是直接引渲染层。** SVG 不是文档的函数——它要先把文档排成布局、
+    /// 再按字体量出标签尺寸，而那两步一个在布局引擎里、一个在绘图后端的字体度量里，
+    /// 两者都是需要平台适配的第三方组件。这一层只做"把文档翻译成工具调用"，
+    /// 引进来之后它连同它的每个宿主都要带上原生绘图库。
+    /// </para>
+    /// <para>
+    /// 与 <see cref="Placement"/>、<see cref="PinnedNodes"/> 同一口径：那两样也不是文档的
+    /// 函数（一个在布局结果里、一个在人工产物里），所以只能由宿主喂进来。
+    /// 对照 Mermaid 导出——那是文档的纯函数、只依赖 Core，所以它直接调，不绕这一道。
+    /// </para>
+    /// <para>
+    /// 参数是文档与页面标识：页面过滤那一套口径在 Core 里只有一份，
+    /// 而它同时被布局与绘制列表构建用到，所以按页过滤不能在这一层先做一遍。
+    /// </para>
+    /// <para>
+    /// 为空表示这个宿主没接上渲染层；返回空表示渲染层拿到了文档却排不出结果
+    /// （例如布局彻底失败）。两种都不许悄悄给一份空文件——调用方会把一份空图
+    /// 当成"这张图就是空的"。失败的原因归宿主：这一层看不见布局引擎的异常类型，
+    /// 也就无从分辨"排不出来"与"程序坏了"。
+    /// </para>
+    /// </remarks>
+    public Func<DiagramDocument, string?, SvgExport?>? SvgExporter { get; init; }
+
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;
 

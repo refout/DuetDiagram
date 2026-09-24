@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Xml.Linq;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using DuetDiagram.App.Controls;
@@ -6,6 +7,7 @@ using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Render;
 using SkiaSharp;
+using ArrowStyle = DuetDiagram.Core.Model.ArrowStyle;
 using LayoutConstraintSpec = DuetDiagram.Core.Model.LayoutConstraintSpec;
 
 namespace DuetDiagram.App;
@@ -61,10 +63,12 @@ internal static class SelfTest
             Console.WriteLine($"  布局约束          {report.Constraints,8}");
             Console.WriteLine($"  绘制指令          {report.Commands,8}");
             Console.WriteLine($"  画布消费          {report.Drawn,8}");
+            Console.WriteLine($"  SVG 形状/折线/文字 {report.Svg.Shapes,7} / {report.Svg.Polylines} / {report.Svg.Texts}");
             Console.WriteLine($"  视口缩放          {report.Scale,8:0.00}x");
             Console.WriteLine($"  位图尺寸          {pixelSize.Width,8} x {pixelSize.Height}");
             Console.WriteLine($"  原生绘图库        {skia}");
             Console.WriteLine($"  输出文件          {outputPath}");
+            Console.WriteLine($"  SVG 文件          {report.Svg.Path}");
 
             var failure = Check(report);
 
@@ -121,6 +125,27 @@ internal static class SelfTest
         if (report.Drawn != report.Commands)
         {
             return $"画布只执行了 {report.Drawn} 条指令，列表里有 {report.Commands} 条——有指令没被消费";
+        }
+
+        // 逐类核对导出：同一份绘制列表，画布画一遍、导出器写一遍，两边每一类都得对得上。
+        // 只核"导出没报错"是不够的——导出另走一条绘制路径时，它自己仍然自洽，
+        // 只是画出来的东西与屏幕上不一样，而那种不一样要等人去看图才发现。
+        if (report.Svg.Shapes != report.Shapes)
+        {
+            return $"SVG 里有 {report.Svg.Shapes} 个形状元素，绘制列表里有 {report.Shapes} 条形状指令——"
+                + "导出与画布不是同一条绘制路径";
+        }
+
+        if (report.Svg.Polylines != report.Polylines)
+        {
+            return $"SVG 里有 {report.Svg.Polylines} 条折线，绘制列表里有 {report.Polylines} 条——"
+                + "导出与画布不是同一条绘制路径";
+        }
+
+        if (report.Svg.Texts != report.Texts)
+        {
+            return $"SVG 里有 {report.Svg.Texts} 段文字，绘制列表里有 {report.Texts} 段——"
+                + "导出与画布不是同一条绘制路径";
         }
 
         return null;
@@ -182,6 +207,7 @@ internal static class SelfTest
 
         var commands = scene.DrawList.Commands;
         var layout = scene.Document.Layout;
+        var svg = ExportSvg(scene, outputPath);
 
         report = new FrameReport(
             scene.Document.Nodes.Count,
@@ -191,11 +217,55 @@ internal static class SelfTest
             canvas.DrawnCommands,
             model.Viewport.Scale,
             commands.OfType<DrawShape>().Count(),
-            commands.OfType<DrawPolyline>().Count(),
-            commands.OfType<DrawText>().Count());
+            // 折线与文字按"画得出来的"数：不足两点的折线与空文字画不出任何东西，
+            // 导出器也照样跳过它们，两边要数的得是同一件事。
+            commands.OfType<DrawPolyline>().Count(line => line.Points.Count >= 2),
+            commands.OfType<DrawText>().Count(text => text.Text.Length > 0),
+            svg);
 
         return pixelSize;
     }
+
+    /// <summary>
+    /// 把这一帧的绘制列表导成 SVG，并逐类数一遍它写出了什么。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **数的这一份把箭头摘掉了。** 带箭头时折线那一类里混着箭头标记，数不准；
+    /// 摘掉之后三类指令与元素是 1:1，逐类对得上这件事才是可判的。
+    /// 箭头那一档由渲染层的用例逐种核过。
+    /// </para>
+    /// <para>
+    /// **写出去的那一份是原样的**：带背景、带箭头，与画布上看到的同一份。
+    /// 两件事要的输入不同，所以导两次而不是取其一——省掉哪一次都会让另一件事失去意义。
+    /// </para>
+    /// </remarks>
+    private static SvgReadings ExportSvg(SampleScene scene, string outputPath)
+    {
+        var svgPath = Path.ChangeExtension(outputPath, ".svg");
+        File.WriteAllText(svgPath, SvgExporter.Export(scene.DrawList).Svg);
+
+        var bare = scene.DrawList with
+        {
+            Commands =
+            [
+                .. scene.DrawList.Commands.Select(command =>
+                    command is DrawPolyline line ? line with { Arrow = ArrowStyle.None } : command),
+            ],
+        };
+
+        var counted = XElement.Parse(
+            SvgExporter.Export(bare, new SvgOptions { IncludeBackground = false }).Svg);
+
+        return new SvgReadings(
+            counted.Elements().Count(element => IsShape(element.Name.LocalName)),
+            counted.Elements().Count(element => element.Name.LocalName == "polyline"),
+            counted.Elements().Count(element => element.Name.LocalName == "text"),
+            svgPath);
+    }
+
+    /// <summary>画出来是一个轮廓的那几种元素。</summary>
+    private static bool IsShape(string name) => name is "rect" or "ellipse" or "polygon" or "path";
 
     /// <summary>
     /// 往示例文档上加两条约束，两条都走命令层。
@@ -254,6 +324,7 @@ internal static class SelfTest
     /// <param name="Shapes">形状指令数。</param>
     /// <param name="Polylines">折线指令数。</param>
     /// <param name="Texts">文本指令数。</param>
+    /// <param name="Svg">同一份列表导出之后各类元素的读数。</param>
     private sealed record FrameReport(
         int Nodes,
         int Edges,
@@ -263,5 +334,13 @@ internal static class SelfTest
         double Scale,
         int Shapes,
         int Polylines,
-        int Texts);
+        int Texts,
+        SvgReadings Svg);
+
+    /// <summary>导出之后各类元素的读数。</summary>
+    /// <param name="Shapes">形状元素数。</param>
+    /// <param name="Polylines">折线元素数。</param>
+    /// <param name="Texts">文字元素数。</param>
+    /// <param name="Path">写出去的那份 SVG 在哪。</param>
+    private sealed record SvgReadings(int Shapes, int Polylines, int Texts, string Path);
 }

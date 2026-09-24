@@ -56,11 +56,13 @@ internal static class ExportTool
         {
             "mermaid" => Mermaid(context, args.PageId),
 
+            "svg" => Svg(context, args.PageId),
+
             // 这一条不是「还没排到」，是**不该现在做**：DSL 的导出方向还没有实现，
             // 而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。
             "dsl" => NotYet("dsl", "DSL 的导出方向还没实现，而 DSL 去留还没有定论"),
 
-            "svg" or "png" or "pdf" => NotYet(args.Format, "位图与 PDF 要依赖渲染层或排版库，还没有排到"),
+            "png" or "pdf" => NotYet(args.Format, "位图与 PDF 要依赖渲染层或排版库，还没有排到"),
 
             _ => ActionDispatch.Reject(
                 $"{args.Format} 不是它认得的导出格式",
@@ -81,6 +83,51 @@ internal static class ExportTool
         var message = result.Report.Dropped.Count == 0
             ? pageId is null ? "已导出 Mermaid 文本" : $"已导出 {pageId} 这一页的 Mermaid 文本"
             : $"已导出 Mermaid 文本，有 {result.Report.Dropped.Count} 类内容写不进去，见 dropped";
+
+        return ToolResult.Ok(
+            JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
+            message);
+    }
+
+    /// <summary>
+    /// 导出 SVG。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **渲染由宿主做，这一层只转发。** 要出 SVG 得先把文档排成布局、再按字体量出
+    /// 标签尺寸，而那两步都在渲染层里，工具层不引它——引了的话，这一层连同它的每个宿主
+    /// 都要带上原生绘图库。所以渲染器是宿主喂进来的。
+    /// </para>
+    /// <para>
+    /// 按页过滤不在这里先做一遍：它同时被布局与绘制列表构建用到，
+    /// 而那一套口径在 Core 里只有一份。这里只把页面标识原样交给渲染器。
+    /// </para>
+    /// </remarks>
+    private static ToolResult Svg(DiagramToolContext context, string? pageId)
+    {
+        if (context.SvgExporter is null)
+        {
+            return ToolResult.Fail(ToolError.Of(
+                ToolErrorCodes.NotSupported,
+                "这个宿主没有接上渲染层，导出不了 SVG",
+                "format",
+                "这个宿主现在能用的格式：mermaid"));
+        }
+
+        if (context.SvgExporter(context.Document, pageId) is not { } result)
+        {
+            return ToolResult.Fail(ToolError.Of(
+                ToolErrorCodes.NotSupported,
+                "渲染层拿到了这份文档却排不出结果，导不了 SVG",
+                "format",
+                "先让这份文档能排出来——布局问题可以用 diagram_validate 查"));
+        }
+
+        var payload = new ExportPayload("svg", result.Svg, result.Dropped);
+
+        var message = result.Dropped.Count == 0
+            ? pageId is null ? "已导出 SVG" : $"已导出 {pageId} 这一页的 SVG"
+            : $"已导出 SVG，有 {result.Dropped.Count} 类内容没按原样写出，见 dropped";
 
         return ToolResult.Ok(
             JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),

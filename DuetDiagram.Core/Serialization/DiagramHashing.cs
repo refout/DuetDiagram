@@ -144,6 +144,11 @@ public static class DiagramHashing
     /// 这里只放"改了它像素会变、但坐标不用重算"的东西。
     /// 判断一个字段该不该出现在这里，看它是否已经出现在结构部分——
     /// 重复出现不会错，但漏掉会让视觉哈希失去它该有的灵敏度。
+    /// <para>
+    /// **自定义形状的路径在这里，不在结构部分。** 换轮廓不改节点坐标：
+    /// 节点的尺寸由标签量出来，端口位置由所在边与偏移算出来，两者都不看形状。
+    /// 所以换形状只需要重绘——把它算进结构哈希会让每次换形状都白白重排一次。
+    /// </para>
     /// </remarks>
     private static void AppendVisualContent(DiagramDocument document, StringBuilder builder)
     {
@@ -153,6 +158,7 @@ public static class DiagramHashing
                 .Append(node.Id).Append('|')
                 .Append(node.Label).Append('|')
                 .Append(node.Shape).Append('|')
+                .Append(node.ShapePath ?? string.Empty).Append('|')
                 .Append(node.Layer ?? string.Empty).Append('|')
                 .Append(node.StyleToken ?? string.Empty).Append('|')
                 .Append(node.Desc ?? string.Empty).Append('|')

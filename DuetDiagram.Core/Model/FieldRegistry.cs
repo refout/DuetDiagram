@@ -73,6 +73,7 @@ public static class FieldNames
 
     public const string Label = "label";
     public const string Shape = "shape";
+    public const string ShapePath = "shapePath";
     public const string Parent = "parent";
     public const string Layer = "layer";
     public const string Page = "page";
@@ -205,6 +206,10 @@ public static class FieldRegistry
         // 节点
         new(FieldNames.Label, "节点", FieldScope.Visual),
         new(FieldNames.Shape, "节点", FieldScope.Visual),
+
+        // 自定义形状的路径与内置形状同一口径：只影响外观，不改坐标。
+        // 它与 shape 一起进视觉哈希，所以换轮廓会重绘、不会重排。
+        new(FieldNames.ShapePath, "节点", FieldScope.Visual),
         new(FieldNames.Parent, "节点", FieldScope.Structural),
         new(FieldNames.Layer, "节点", FieldScope.Visual),
         new(FieldNames.Page, "节点", FieldScope.Structural),

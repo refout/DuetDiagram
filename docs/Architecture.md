@@ -30,7 +30,7 @@
 | IR | `Model/` | `DiagramDocument` + `NodeDef` + `EdgeDef` + `CompositeDef` + `PageDef` / `LayerDef` + 形状与样式定义 + 调色板 + 布局提示 |
 | 校验器 | `Model/DiagramValidator.cs` | 只报告不修改，返回结构化错误与修复建议。它服务的是**不经过命令层**的输入：加载外部文件、接收同步结果 |
 | 冲突与字段元数据 | `Model/ChangeConflict.cs`、`Model/FieldRegistry.cs` | 冲突只判定不合并，写回必须走命令层；字段名取自登记表 |
-| 形状库 | `Shapes/` | `IShapeProvider` / `ShapeDefinition` / `ShapeRegistry` 与八个内置形状。几何用**单位框坐标**描述，不含任何绘制库类型；渲染、工具取值表、属性面板下拉都读这一份表 |
+| 形状库 | `Shapes/` | `IShapeProvider` / `ShapeDefinition` / `ShapeRegistry` 与八个内置形状；`PathShape` / `PathParser` 把节点自带的路径文本解析成同一份几何。几何用**单位框坐标**描述，不含任何绘制库类型；渲染、工具取值表、属性面板下拉都读这一份表 |
 | 命令契约 | `Commands/` | `IDiagramCommand`、`DiagramCommandBase`、`CommandMemento`、`CommandResult`、`CommandError`、`ValidationResult`、`FieldChange`、`ChangeContext`、`ISessionProvider`、`SessionIds`、`ErrorCodes` |
 | 内置命令 | `Commands/Builtin/` | `AddNodeCommand`、`RemoveNodeCommand`、`ConnectEdgeCommand` |
 | 版本日志 | `Logging/VersionLog.cs`、`DiffResult.cs`、`VersionEntry.cs` | 环形 100 条；`BuildDiff` 的五种结果 |
@@ -93,6 +93,28 @@
 **第三方加载这一步不做。** 接口与内置实现是这一轮的全部；第三方形状要能真的
 装进来，还差"谁来提供程序集、装在哪、版本怎么对"三件事，而这三件都还没定。
 写在后续项里，不先做半个。
+
+### 自定义形状
+
+**形状库的另一半是节点自带的路径。** 没有它，"形状库"就只是"八个内置形状的列表"。
+节点上的 `shape` 仍是那八个固定值之一（身份，写进序列化与哈希），
+`shapePath` 是外观（一段单位框坐标的路径文本）；两者同时存在时以路径为准。
+
+**内置与自定义汇到一个出口。** `PathShape.GeometryOf` 是唯一的合流点：内置形状的几何
+从表里查，自定义形状的几何把路径文本解析出来，返回的都是 `ShapeGeometry`。
+绘制方只认这个返回值，无从知道这份几何是哪条路来的——所以自定义形状没有"另一套画法"，
+边距与标签位置天然与内置形状一致。
+
+**路径只认单位框坐标，且认不出的指令一律拒绝。** 前者是为了同一份定义能画在任意尺寸的
+框里；后者是因为跳过一条认不出的指令，画出来的形状缺一块，而用户以为是自己写错了。
+错误带**行号**与**那一行的原文**——两样缺一不可，只给行号要回去数行，
+只给原文则路径长起来之后同样找不到。
+
+**路径进视觉哈希、不进结构哈希。** 换轮廓不改节点坐标：尺寸由标签量出来，
+端口位置由所在边与偏移算出来，两者都不看形状。把它算进结构哈希会让每次换形状都白白重排一次。
+
+**不做形状导入。** 从 SVG 文件读路径、从 draw.io 形状库导入都要先决定文件放哪、
+坐标怎么归一化、许可证怎么处理，方案没说；这一层只做"路径数据作为字段存在 IR 里"。
 
 ## 工具层
 

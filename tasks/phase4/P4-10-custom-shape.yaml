@@ -1,7 +1,7 @@
 id: P4-10
 title: 自定义形状——路径数据
 phase: 4
-status: pending
+status: done
 depends_on: [P4-09]
 estimated_loc: 420
 files:
@@ -48,3 +48,92 @@ scope_note: |
   **不做形状的导入**（从 SVG 文件读路径、从 draw.io 形状库导入）。
   它要决定文件放哪、坐标怎么归一化、许可证怎么处理，而方案没说。
   这一条只做「路径数据作为字段存在 IR 里」这一层，导入记进 followups。
+
+result: |
+  **形状库的第二条来路通了：节点自带一段路径。** 没有它，「形状库」就只是
+  「八个内置形状的列表」。内置与自定义两条路在 `PathShape.GeometryOf` 汇到一处，
+  绘制方只认那里的返回值，所以自定义形状没有「另一套画法」。
+
+  **落地了什么**
+
+  - `Shapes/PathParser.cs`：一段路径文本 → `PathOutline`。认得的语法是 SVG 的子集：
+    `M x y`（第一条且只有一条）、`L x y`、`A rx ry rot laf sweep x y`（`rot` 与 `laf`
+    只认 0，`sweep` 是 0 或 1）、`Z`（可省；`z` 同义）。逗号与空白都认，几条指令可以
+    挤在一行，也可以一行一条。`PathSyntaxException` 带**行号**与**那一行的原文**。
+  - `Shapes/PathShape.cs`：`IsCustom` / `GeometryOf` / `Parse`。合流点只有这一处。
+  - `NodeDef.ShapePath`（`string?`）：路径字段，进 `Equals` / `GetHashCode`。
+  - `FieldNames.ShapePath` + `FieldRegistry` 登记为**视觉**字段；
+    `NodeFieldValue` 读写它，写入前先解析一次，解析不过就报 `FIELD_VALUE_INVALID`。
+  - `DiagramHashing`：路径进**视觉哈希**（追加在 `node.Shape` 之后），不进结构哈希。
+  - `DiagramValidator.CheckShapes`：`SHAPE_UNKNOWN`（形状名没有几何）与
+    `SHAPE_PATH_INVALID`（路径解析不出来，报文里带行号与原文）两种码。
+  - `DrawShape.Geometry`（`ShapeGeometry?`）：为空表示按形状名查表，非空就是自定义几何。
+    `Describe()` 只在非空时追加 `geometry=…`，所以既有场景快照逐字节不变。
+  - `SceneBuilder` 构建列表时把路径解析好带上（与颜色同一个理由：不留到绘制那一步）。
+  - `DiagramCanvas.DrawShapeGeometry` 改成 `shape.Geometry ?? ShapeRegistry.Default.Find(...)`。
+  - `ErrorCodes.ShapeUnknown` / `ShapePathInvalid` 补进 `ErrorPresenterTable`、
+    `RepairHints` 与 `docs/Error-Codes.md` 的三张表。
+  - `PropertyFieldCatalog` 把 `shapePath` 登记为 `Hidden`：这一轮没有路径编辑器，
+    只有 IR 与导入能带进来。
+  - `MermaidExporter` 把 `节点自定义形状` 加进丢失清单（导出成该节点的内置形状）。
+
+  **刻意的取舍与判断**
+
+  - **路径只认单位框坐标（0 到 1）。** 用绝对像素的话，同一个形状画在不同尺寸的节点上
+    会走形，而看起来像「形状没做对」——排查时不会想到是坐标系的问题。
+  - **认不出的指令一律拒绝，不跳过。** 跳过的话画出来的形状缺一块，而用户以为是自己写错了。
+  - **解析器做成记号流，不是「一行一条」。** 模型写路径时常常把几条指令挤在一行，
+    限成一行一条会把大量合法输入挡在外面；而错误照样能定位，因为每个记号都带着
+    它所在的行号与那一行原文。
+  - **只有认得的指令才终止参数列表。** 一个不认得的字母落在参数位置上（`L x 0.5`），
+    报的是「「x」不是一个数」而不是「L 少给了参数」——后一种说法会让人去看那条指令，
+    而真正写错的是这个字母。这一条是写测试时发现的：原先按「单个字母」截断，
+    `x` 被当成指令，错报成了参数不够。
+  - **路径进视觉哈希、不进结构哈希——先核了端口位置。** 核实结果是端口与形状无关：
+    `PlacedNode.PortAnchor` 只读外接矩形的坐标与尺寸，`LayoutRequestFactory.Ports`
+    把 `PortDef.Side` / `Offset` 原样转给布局层，两者都不看形状。所以换轮廓不改走线，
+    也就不会让已算出的坐标失效。这条核实的几何依据写进了 `CustomShapeTests`。
+  - **路径文本按原样进哈希，不做空白归一化。** 与标签、样式那些字符串同一处置；
+    换写法会让视觉哈希动一下，那只是多一次重绘，动不到布局。归一化要在哈希时解析路径，
+    而哈希不该因为一份带坏路径的文档抛异常。
+  - **不做形状导入**（SVG 文件、draw.io 形状库）：要决定文件放哪、坐标怎么归一化、
+    许可证怎么处理，方案没说，写进 followups。
+
+  **与任务清单不一样的地方**
+
+  - **`Shapes/ShapeRegistry.cs` 未改。** 清单把它列在 modify 里，但注册表的职责是
+    「内置表覆盖枚举」，自定义形状是节点自带的、不经注册表，所以没有它的位置——
+    合流点做在 `PathShape` 里更自然。
+  - **`Model/NodeDef.cs` / `FieldRegistry.cs` / `DiagramValidator.cs` /
+    `Serialization/DiagramHashing.cs` / `Render/SceneBuilder.cs` /
+    `Mermaid/Export/MermaidExporter.cs` / `docs/IR-Schema.md` / `AGENTS.md` 按清单改了。**
+  - 清单没列而新增/改动：`Commands/ErrorCodes.cs`、`Commands/NodeFieldValue.cs`、
+    `Render/DrawCommand.cs`、`App/Controls/DiagramCanvas.cs`、
+    `App/Services/ErrorPresenterTable.cs`、`App/ViewModels/PropertyFieldCatalog.cs`、
+    `Llm/Loop/RepairHints.cs`、`docs/Error-Codes.md`、`docs/Architecture.md`、
+    `README.md`、`tasks/README.md`、`Core.Tests/NodeFieldTests.cs`、
+    `Core.Tests/ValidatorTests.cs`、`Mermaid.Tests/ExporterTests.cs`。
+  - **`RepairHints` 的参数名用 `value` 而不是 `shapePath`。** 门禁要求
+    `RepairHints.Parameter` 必须是一个真实存在的工具参数名，而工具层是按字段名分发的，
+    没有 `shapePath` 这个参数。
+  - **测试清单外补了三处**：`ValidatorTests` 里两条 `Category=IrValidator` 用例、
+    `ExporterTests` 里一条 Mermaid 丢失清单用例。验收要求的两条 IrValidator 用例
+    落在既有的 `ValidatorTests` 里，没有另建文件。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=PathShape` 35/35、`Category=CustomShape` 6/6、
+    `Category=IrValidator` 28/28。
+  - 全量测试：Core 573 / Layout 78 / Render 181 / Mermaid 180 / Dsl 158 / Llm 192 /
+    Mcp 109 / E2E 169 全绿（改动前 Core 535 / Render 175 / Mermaid 179）。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：445 个文件 / 95995 行 / 59934 行代码）。
+
+  **后续**
+
+  - 路径编辑器：现在 `shapePath` 在属性面板里是 `Hidden`，只有 IR 与导入能带进来。
+  - 形状导入：从 SVG 文件读路径、从 draw.io 形状库导入（文件放哪、坐标怎么归一化、
+    许可证怎么处理都还没定）。
+  - 路径的几何种类目前只有直线与椭圆弧；贝塞尔曲线（`C` / `Q`）等需要先加线段类型。

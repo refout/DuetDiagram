@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Shapes;
 
 namespace DuetDiagram.Core.Model;
 
@@ -36,6 +37,7 @@ public static class DiagramValidator
         CheckCompositeDepth(document, issues);
         CheckReferences(document, issues);
         CheckLayoutHints(document, issues);
+        CheckShapes(document, issues);
 
         return issues;
     }
@@ -471,6 +473,63 @@ public static class DiagramValidator
                     });
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// 节点的形状要么在形状表里，要么自带一段能解析的路径。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 命令层写入时已经把这两件事挡过一遍，这里再查一次是因为**文件是从外面进来的**：
+    /// 别人手写或另一个工具生成的文档不经过命令层。形状名认不出时渲染层无从下手，
+    /// 而命令层那道防线管不到这种输入。
+    /// </para>
+    /// <para>
+    /// **路径认不出时给行号与原文**，不只说"路径不合法"。路径可以有十几行，
+    /// 只说"不合法"等于让用户自己逐行找；行号加那一行的原文，看的人一眼就能定位。
+    /// </para>
+    /// <para>
+    /// 两种问题分开报：一个是名字指向的形状不存在，一个是这段路径本身写错了。
+    /// 合成一条的话，用户会去改值的写法，而值本来就是合法的形状名。
+    /// </para>
+    /// </remarks>
+    private static void CheckShapes(DiagramDocument document, List<ValidationIssue> issues)
+    {
+        foreach (var node in document.Nodes)
+        {
+            if (!PathShape.IsCustom(node))
+            {
+                if (ShapeRegistry.Default.TryFind(node.Shape, out _))
+                {
+                    continue;
+                }
+
+                issues.Add(new ValidationIssue
+                {
+                    Code = ErrorCodes.ShapeUnknown,
+                    Message = $"节点 {node.Id} 引用了不存在的形状名 {node.Shape}。",
+                    RelatedId = node.Id,
+                    Suggestion = $"把节点 {node.Id} 的形状改成形状表里已有的那些，"
+                                 + "或者给它写一段自定义路径。",
+                });
+
+                continue;
+            }
+
+            if (PathParser.TryParse(node.ShapePath, out _, out var error))
+            {
+                continue;
+            }
+
+            issues.Add(new ValidationIssue
+            {
+                Code = ErrorCodes.ShapePathInvalid,
+                Message = $"节点 {node.Id} 的自定义形状路径不合法：第 {error!.Line} 行「{error.LineText}」——{error.Detail}",
+                RelatedId = node.Id,
+                Suggestion = $"按行号改节点 {node.Id} 的路径：认得的指令只有 M / L / A / Z，"
+                             + "坐标要用 0 到 1 的单位框。",
+            });
         }
     }
 

@@ -278,8 +278,9 @@ public sealed partial class DiagramCanvas : UserControl
         Rect rect)
     {
         // 几何由形状库给，画法在渲染器里按几何种类分发：加一个形状只要在形状库里
-        // 加一条定义，这里不必跟着改。
-        var geometry = ShapeRegistry.Default.Find(shape.Shape).Geometry;
+        // 加一条定义，这里不必跟着改。自定义形状的几何在构建绘制列表时就算好了，
+        // 带上来的那份直接用——它与内置几何是同一个类型，走的是同一段画法。
+        var geometry = shape.Geometry ?? ShapeRegistry.Default.Find(shape.Shape).Geometry;
 
         ShapeGeometryRenderer.Draw(context, geometry, rect, fill, pen, shape.Radius);
     }

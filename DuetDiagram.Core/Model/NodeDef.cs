@@ -31,6 +31,23 @@ public sealed record NodeDef : IDefinition
     public NodeShape Shape { get; init; } = NodeShape.Rect;
 
     /// <summary>
+    /// 自定义形状的路径数据。为空表示用 <see cref="Shape"/> 那个内置形状。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **属于视觉信息**：形状不改节点坐标，换一个轮廓只需要重绘。它与 <see cref="Shape"/>
+    /// 同进视觉哈希；两者同时存在时以本字段为准。
+    /// </para>
+    /// <para>
+    /// **它是"形状库"开放的那一半。** 内置形状只有八个固定值，而这里能让节点带上任意轮廓。
+    /// 路径只认单位框坐标（0 到 1），语法与出错口径见 <c>PathParser</c>。
+    /// 认不出的路径由整体校验器报 <c>SHAPE_PATH_INVALID</c>，**不退回矩形**——
+    /// 退回的话，用户看到的是"形状变了"而不是"我写错了"。
+    /// </para>
+    /// </remarks>
+    public string? ShapePath { get; init; }
+
+    /// <summary>
     /// 所属组合（分组、泳道、子流程）的标识。
     /// 它参与结构哈希：换父级会改变布局的嵌套关系，必须触发重布局。
     /// </summary>
@@ -106,6 +123,7 @@ public sealed record NodeDef : IDefinition
         && string.Equals(Id, other.Id, StringComparison.Ordinal)
         && string.Equals(Label, other.Label, StringComparison.Ordinal)
         && Shape == other.Shape
+        && string.Equals(ShapePath, other.ShapePath, StringComparison.Ordinal)
         && string.Equals(Parent, other.Parent, StringComparison.Ordinal)
         && string.Equals(Layer, other.Layer, StringComparison.Ordinal)
         && string.Equals(Page, other.Page, StringComparison.Ordinal)
@@ -125,6 +143,7 @@ public sealed record NodeDef : IDefinition
         hash.Add(Id, StringComparer.Ordinal);
         hash.Add(Label, StringComparer.Ordinal);
         hash.Add(Shape);
+        hash.Add(ShapePath, StringComparer.Ordinal);
         hash.Add(Parent, StringComparer.Ordinal);
         hash.Add(Layer, StringComparer.Ordinal);
         hash.Add(Page, StringComparer.Ordinal);

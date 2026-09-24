@@ -97,6 +97,11 @@ public static class ErrorPresenterTable
             [ErrorCodes.ParentMissing] = new(ErrorPresentationKind.PromptCreate, "父级不存在，是否创建？"),
             [ErrorCodes.TagMemberMissing] = new(ErrorPresentationKind.HighlightTargets, "标签成员不存在"),
             [ErrorCodes.ActionTargetMissing] = new(ErrorPresentationKind.HighlightTargets, "动作目标不存在"),
+
+            // 形状的两条：处置都是"把那个节点指出来"。路径那条光指节点还不够，
+            // 细节（第几行、哪一段原文）在错误消息里，状态栏放不下就进提示。
+            [ErrorCodes.ShapeUnknown] = new(ErrorPresentationKind.HighlightTargets, "节点引用了不存在的形状名"),
+            [ErrorCodes.ShapePathInvalid] = new(ErrorPresentationKind.HighlightTargets, "自定义形状的路径写错了"),
             [ErrorCodes.LayoutConstraintInvalid] = new(ErrorPresentationKind.StatusBar, "这条布局约束不成立"),
             [ErrorCodes.LayoutConstraintMissing] = new(ErrorPresentationKind.StatusBar, "要删的布局约束已经不在了"),
             [ErrorCodes.PaletteEntryMissing] = new(ErrorPresentationKind.StatusBar, "调色板条目不存在"),

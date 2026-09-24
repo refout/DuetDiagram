@@ -108,6 +108,7 @@ setter 又是 `internal`——外部算得出、赋不进去。Mermaid 导入（
 | `id` | `string`（required） | — | 结构 |
 | `label` | `string` | `""` | 视觉 |
 | `shape` | `NodeShape` | `Rect` | 视觉 |
+| `shapePath` | `string?` | `null` | 视觉 |
 | `parent` | `string?` | `null` | 结构 |
 | `layer` | `string?` | `null` | 视觉 |
 | `page` | `string?` | `null` | **结构** |
@@ -265,7 +266,7 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 | 哈希 | 覆盖 |
 |---|---|
 | 结构 | `kind`、`direction`；节点 `id` / `parent` / `page` / `ports`；边 `id` / `from` / `to` / `fromPort` / `toPort` / `page`；组合 `id` / `parent` / `direction` / `collapsed` / `members`；字体全部字段；布局提示的间距与四类约束 |
-| 视觉 | 结构部分的全部内容，加上节点 `label` / `shape` / `layer` / `styleToken` / `desc` / `richText` / `mathMode` / `style` / `text`；边 `label` / `style`；组合 `label` / `style` / `localLayout`；标签、文本预设、图层、页面、调色板、画布设置 |
+| 视觉 | 结构部分的全部内容，加上节点 `label` / `shape` / `shapePath` / `layer` / `styleToken` / `desc` / `richText` / `mathMode` / `style` / `text`；边 `label` / `style`；组合 `label` / `style` / `localLayout`；标签、文本预设、图层、页面、调色板、画布设置 |
 
 ### 三样刻意不覆盖的东西
 
@@ -300,6 +301,8 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
 | `GROUP_CYCLE` | 组合的归属关系成环 |
 | `COMPOSITE_TOO_DEEP` | 组合的嵌套深度超过上限 |
 | `TAG_MEMBER_MISSING` / `ACTION_TARGET_MISSING` | 标签成员或动作目标不存在 |
+| `SHAPE_UNKNOWN` | 节点引用的形状名没有对应的几何 |
+| `SHAPE_PATH_INVALID` | 节点自带的自定义形状路径解析不出来 |
 
 这张表原先写的码名有六个是错的（`ID_DUPLICATE`、`EDGE_FROM_MISSING`、`EDGE_TO_MISSING`、
 `COMPOSITE_PARENT_MISSING`、`NODE_PARENT_MISSING`、`MEMBER_MISSING`），
@@ -415,11 +418,36 @@ DSL 那边写的是节点名，转换在映射层做，见 `docs/DSL-Syntax.md` 
   `EllipseOutline`、`PolygonOutline`（顶点表）、`PathOutline`（直线与椭圆弧）。
   加一个多边形形状是纯数据；加一种从没见过的轮廓种类才要改绘制方。
 - **未知形状名要拒绝，不许退回矩形。** 写 `shape` 走的是字段解析，认不出的名字报
-  `FIELD_UNKNOWN` 并把可选值列在载荷里。退回矩形的表现是"形状变了"，
+  `FIELD_VALUE_INVALID` 并把可选值列在载荷里；外部文件里出现一个没有几何的枚举值
+  （另一个工具写错了名字）则由整体校验报 `SHAPE_UNKNOWN`。退回矩形的表现是"形状变了"，
   而用户看到的应当是"认不出来"。
 - **注册走编译期能看见的那条路。** 提供者是构造时传进来的实例，不扫描程序集、
   不按名字反射建类型——发布走原生编译，反射加载在原生下不可用。第三方加载不做，
   理由见 `docs/Architecture.md`。
+
+### 自定义形状
+
+`shape` 是节点的**身份**，`shapePath` 是节点的**外观**。两者同时存在时以路径为准——
+路径是节点自己声明"我要长这样"，比枚举更具体。这条规则落在 `PathShape.GeometryOf`，
+它是内置与自定义两条路**唯一的合流点**：绘制方只认它返回的那份几何，
+无从知道这份几何是表里查的还是节点自己写的，所以自定义形状没有"另一套画法"。
+
+- **路径只认单位框坐标（0 到 1）**，与形状库里的几何同一套坐标系。用绝对像素的话，
+  同一个形状画在不同尺寸的节点上会走形，而看起来像"形状没做对"。
+- **认得的指令是 SVG 路径的一个子集**：`M x y`（起点，必须是第一条且只有一条）、
+  `L x y`、`A rx ry rot laf sweep x y`（`rot` 与 `laf` 只认 0，`sweep` 是 0 或 1）、
+  `Z`（可省；给了就必须在最后）。分隔符逗号与空白都认，几条指令可以挤在一行。
+  相对坐标的小写（`m` / `l` / `a`）一律拒绝：本仓只有单位框一套坐标，"相对谁"没有答案。
+- **认不出的指令要拒绝，不许跳过。** 跳过的话画出来的形状缺一块，
+  而用户以为是自己写错了。错误带**行号**与**那一行的原文**——
+  只给行号要回去数行，只给原文则路径长起来之后同样找不到。
+- **路径进视觉哈希、不进结构哈希。** 换轮廓不改节点坐标：尺寸由标签量出来，
+  端口位置由所在边与偏移算出来，两者都不看形状。算进结构哈希会让每次换形状都白白重排一次。
+- **不做形状导入**（从 SVG 文件读路径、从 draw.io 形状库导入）。它要决定文件放哪、
+  坐标怎么归一化、许可证怎么处理，方案没说；这一层只做"路径数据作为字段存在 IR 里"。
+- **Mermaid 导出把它列进丢失清单。** Mermaid 没有自定义形状的语法，
+  导出时退回该节点的内置形状，同时报 `节点自定义形状`——静默丢失会让模型以为
+  导出的文本就是全部内容。
 
 ## 相关文件
 

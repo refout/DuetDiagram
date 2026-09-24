@@ -1,5 +1,6 @@
 using DuetDiagram.Core.Model;
 using System.IO;
+using DuetDiagram.Core.Shapes;
 using DuetDiagram.Layout;
 
 namespace DuetDiagram.Render;
@@ -534,6 +535,10 @@ public static class SceneBuilder
             var appearance = theme.Node(node);
             var rect = new SpatialRect(box.X, box.Y, box.Width, box.Height);
 
+            // 自定义形状的几何在这里算好带上。内置形状留空，绘制方按形状名去表里查——
+            // 两条路最后都走到同一个绘制方，所以自定义形状没有「另一套画法」。
+            var geometry = PathShape.IsCustom(node) ? PathShape.Parse(node.ShapePath!) : null;
+
             commands.Add(new DrawShape(
                 node.Id,
                 node.Shape,
@@ -543,7 +548,8 @@ public static class SceneBuilder
                 appearance.Weight,
                 appearance.Border,
                 appearance.Radius,
-                appearance.Opacity));
+                appearance.Opacity,
+                geometry));
 
             var text = theme.Text(node.Text, appearance.Text);
 

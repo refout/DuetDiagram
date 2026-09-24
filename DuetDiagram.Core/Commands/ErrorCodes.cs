@@ -221,5 +221,27 @@ public static class ErrorCodes
     /// </remarks>
     public const string DocumentReadOnly = "DOCUMENT_READ_ONLY";
 
+    /// <summary>
+    /// 节点引用的形状名没有对应的几何。
+    /// </summary>
+    /// <remarks>
+    /// 单独一个码而不是并进 <see cref="FieldValueInvalid"/>：字段值那一条说的是
+    /// "这一段文本解析不出该字段要的类型"，是写入时的事；这一条说的是
+    /// **内容已经进来了，但它指向一个不存在的形状**——处置是换成已有的形状名，
+    /// 或者给这个节点写一段自定义路径。合成一个的话，调用方会去改值的写法，
+    /// 而值本来就是合法的形状名。
+    /// </remarks>
+    public const string ShapeUnknown = "SHAPE_UNKNOWN";
+
+    /// <summary>
+    /// 节点自带的自定义形状路径解析不出来。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="ShapeUnknown"/> 分开：那一条是"名字指向的形状不存在"，
+    /// 处置是换名字；这一条是"这段路径本身写错了"，处置是按报出来的行号改路径。
+    /// 报错里带上行号与那一行的原文，所以用户知道该改哪一行。
+    /// </remarks>
+    public const string ShapePathInvalid = "SHAPE_PATH_INVALID";
+
     #endregion
 }

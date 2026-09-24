@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Serialization;
+using DuetDiagram.Core.Shapes;
 
 namespace DuetDiagram.Core.Commands;
 
@@ -51,6 +52,7 @@ public static class NodeFieldValue
         {
             FieldNames.Label => node.Label,
             FieldNames.Shape => node.Shape.ToString(),
+            FieldNames.ShapePath => node.ShapePath,
             FieldNames.Parent => node.Parent,
             FieldNames.Layer => node.Layer,
             FieldNames.Page => node.Page,
@@ -164,6 +166,18 @@ public static class NodeFieldValue
                 }
 
                 updated = node with { Shape = shape.Value };
+                return true;
+
+            case FieldNames.ShapePath:
+                // 路径在写进来的这一刻就解析一遍。放到渲染时才解析的话，
+                // 一份写坏的路径会一路走到画布上才炸，而那时已经分不清是哪一步写进去的。
+                if (text is not null && !PathParser.TryParse(text, out _, out var pathError))
+                {
+                    error = pathError!.Message;
+                    return false;
+                }
+
+                updated = node with { ShapePath = text };
                 return true;
 
             case FieldNames.MathMode:

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Shapes;
 using DuetDiagram.Mermaid.Lexing;
 
 namespace DuetDiagram.Mermaid.Export;
@@ -538,6 +539,7 @@ public static class MermaidExporter
             DropIds("字体", [.. _document.Fonts.Select(f => f.Id)], "Mermaid 的字体由主题统一决定。");
             DropIds("文本预设", [.. _document.TextPresets.Select(t => t.Id)], "Mermaid 没有具名文本预设。");
 
+            DropIds("节点自定义形状", Ids(n => PathShape.IsCustom(n) ? n.Id : null, _document.Nodes), "Mermaid 没有自定义形状的语法，导出成该节点的内置形状。");
             DropIds("节点所属图层", Ids(n => n.Layer, _document.Nodes), "Mermaid 没有图层。");
             DropIds("节点富文本标记", Ids(n => n.RichText ? n.Id : null, _document.Nodes), "Mermaid 的方括号标签是纯文本，标记符会原样显示。");
             DropIds("节点数学排版", Ids(n => n.MathMode == MathMode.None ? null : n.Id, _document.Nodes), "Mermaid 的标签不做数学排版。");

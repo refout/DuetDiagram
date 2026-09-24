@@ -302,6 +302,68 @@ public sealed class ValidatorTests
         issues.Should().Contain(i => i.Code == ErrorCodes.ActionTargetMissing);
     }
 
+    /// <summary>
+    /// 自定义形状的路径写错了：报出结构化错误，带行号与那一行的原文。
+    /// </summary>
+    /// <remarks>
+    /// 不报的话，渲染层会一路抛到界面上；而报成"值不合法"这种泛泛的说法，
+    /// 用户得自己在那段路径里逐行找。行号与原文两样都要有。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void A_broken_custom_path_is_reported_with_its_line()
+    {
+        var document = IrFixtures.WithNode(
+            IrFixtures.Base(),
+            new NodeDef { Id = "a", Label = "甲", ShapePath = "M 0.5 0\nQ 1 1" });
+
+        var issue = DiagramValidator.Validate(document)
+            .Should().ContainSingle(i => i.Code == ErrorCodes.ShapePathInvalid).Subject;
+
+        issue.RelatedId.Should().Be("a");
+        issue.Message.Should().Contain("第 2 行").And.Contain("Q 1 1");
+        issue.Suggestion.Should().NotBeNullOrWhiteSpace();
+    }
+
+    /// <summary>
+    /// 节点引用的形状名没有对应的几何：报的是另一种码。
+    /// </summary>
+    /// <remarks>
+    /// 与路径写错分开：那一条的处置是按行号改路径，这一条是换个名字。
+    /// 合成一个码的话，用户会去改值的写法，而值本来就是合法的形状名。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void An_unknown_shape_name_is_reported()
+    {
+        // 枚举里没有的取值只可能来自外部输入（另一个工具写错了名字）。
+        var document = IrFixtures.WithNode(
+            IrFixtures.Base(),
+            new NodeDef { Id = "a", Label = "甲", Shape = (NodeShape)9999 });
+
+        var issue = DiagramValidator.Validate(document)
+            .Should().ContainSingle(i => i.Code == ErrorCodes.ShapeUnknown).Subject;
+
+        issue.RelatedId.Should().Be("a");
+        issue.Suggestion.Should().Contain("自定义路径", "换成已有的形状名或者写一段路径，两条路都指出来");
+    }
+
+    /// <summary>路径合法、形状名也认得时，两种码都不该出现。</summary>
+    [Fact]
+    [Trait("Category", "IrValidator")]
+    public void A_valid_custom_path_raises_no_shape_issue()
+    {
+        // 没有这一条的话，上面两条可以被"永远报错"满足。
+        var document = IrFixtures.WithNode(
+            IrFixtures.Base(),
+            new NodeDef { Id = "a", Label = "甲", ShapePath = "M 0.5 0 L 1 0.5 L 0.5 1 L 0 0.5 Z" });
+
+        var codes = DiagramValidator.Validate(document).Select(i => i.Code).ToArray();
+
+        codes.Should().NotContain(ErrorCodes.ShapePathInvalid);
+        codes.Should().NotContain(ErrorCodes.ShapeUnknown);
+    }
+
     [Fact]
     [Trait("Category", "IrValidator")]
     public void Every_issue_carries_a_suggestion()

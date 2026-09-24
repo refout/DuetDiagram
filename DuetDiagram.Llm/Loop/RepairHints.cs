@@ -210,6 +210,16 @@ public static class RepairHints
                 "id",
                 "这个文本预设不在文档里。先读一次图看现有预设，或者先建一个。"),
 
+            [ErrorCodes.ShapeUnknown] = new(
+                ErrorCodes.ShapeUnknown,
+                "value",
+                "这个形状名没有对应的几何。换成形状表里已有的名字，或者给这个节点写一段自定义路径。"),
+
+            [ErrorCodes.ShapePathInvalid] = new(
+                ErrorCodes.ShapePathInvalid,
+                "value",
+                "自定义形状的路径写错了。按报出来的行号改那一行：认得的指令只有 M / L / A / Z，坐标要用 0 到 1 的单位框。"),
+
             [ErrorCodes.VersionConflict] = new(
                 ErrorCodes.VersionConflict,
                 null,

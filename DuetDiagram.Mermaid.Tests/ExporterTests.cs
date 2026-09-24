@@ -299,6 +299,20 @@ public sealed class ExporterTests
 
     [Fact]
     [Trait("Category", "MermaidExport")]
+    public void A_custom_shape_is_reported_as_dropped()
+    {
+        // Mermaid 没有自定义形状的语法，导出成该节点的内置形状。
+        // 静默丢失会让模型以为导出的文本就是全部内容。
+        var document = Document(nodes: [new NodeDef { Id = "A", Label = "甲", ShapePath = "M 0.5 0 L 1 0.5 L 0.5 1 L 0 0.5 Z" }]);
+
+        var result = MermaidExporter.Export(document, new ExportOptions());
+
+        result.Text.Should().Contain("A[\"甲\"]", "自定义形状退回内置形状的写法");
+        result.Report.Dropped.Should().ContainSingle(d => d.Feature == "节点自定义形状");
+    }
+
+    [Fact]
+    [Trait("Category", "MermaidExport")]
     public void Document_level_constructs_are_reported()
     {
         // 静默丢失会让用户以为导出的文件就是全部内容，而实际不是。

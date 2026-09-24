@@ -1,5 +1,6 @@
 using System.Globalization;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Shapes;
 
 namespace DuetDiagram.Render;
 
@@ -62,6 +63,14 @@ public abstract record DrawCommand(string ElementId)
 /// <param name="Border">边框线型。</param>
 /// <param name="Radius">圆角半径。形状本身不带圆角时忽略。</param>
 /// <param name="Opacity">不透明度，取值 0 到 1。</param>
+/// <param name="Geometry">
+/// 自定义形状的几何。为空表示按 <paramref name="Shape"/> 去形状表里查。
+/// </param>
+/// <remarks>
+/// **自定义几何在构建列表时就算好，与颜色同一个道理。** 把路径文本留到绘制那一步再解析，
+/// 等于要求每个绘制方各自再解析一次，而两处解析迟早不一致；解析本身也比查表贵，
+/// 放进每一帧的绘制里是白花的时间。
+/// </remarks>
 public sealed record DrawShape(
     string ElementId,
     NodeShape Shape,
@@ -71,13 +80,15 @@ public sealed record DrawShape(
     double Weight,
     LineStyle Border,
     double Radius,
-    double Opacity) : DrawCommand(ElementId)
+    double Opacity,
+    ShapeGeometry? Geometry = null) : DrawCommand(ElementId)
 {
     /// <inheritdoc/>
     public override string Describe() =>
         $"shape {ElementId} {Shape} {Rect} fill={Fill} stroke={Stroke}"
         + $" weight={Numbers.Format(Weight)} border={Border} radius={Numbers.Format(Radius)}"
-        + $" opacity={Numbers.Format(Opacity)}";
+        + $" opacity={Numbers.Format(Opacity)}"
+        + (Geometry is null ? string.Empty : $" geometry={Geometry.Describe()}");
 }
 
 /// <summary>

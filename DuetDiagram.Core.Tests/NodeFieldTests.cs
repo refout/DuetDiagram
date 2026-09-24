@@ -116,6 +116,8 @@ public sealed class NodeFieldTests
     [Theory]
     [InlineData(FieldNames.Shape, "Triangle")]
     [InlineData(FieldNames.Shape, "7")]
+    [InlineData(FieldNames.ShapePath, "M 0.5 0 Q 1 1 0.5 0")]
+    [InlineData(FieldNames.ShapePath, "M 0.5 2 L 1 1")]
     [InlineData(FieldNames.MathMode, "Sometimes")]
     [InlineData(FieldNames.RichText, "yes")]
     [InlineData(FieldNames.Style, "{ not json")]
@@ -371,6 +373,7 @@ public sealed class NodeFieldTests
         Id = "a",
         Label = "A",
         Shape = NodeShape.Hexagon,
+        ShapePath = "M 0.5 0 L 1 0.5 L 0.5 1 L 0 0.5 Z",
         Parent = "g",
         Layer = "l1",
         Page = "p1",

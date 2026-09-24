@@ -107,6 +107,7 @@ internal static class PropertyFieldCatalog
             [FieldNames.Style] = "样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Text] = "文本样式整体。面板按成员逐个编辑，见样式与文本的子字段",
             [FieldNames.Ports] = "端口整体。入口在连线交互里，那里才看得到连线的出入点",
+            [FieldNames.ShapePath] = "自定义形状的路径。这一轮只有 IR 与导入能带进来，还没有路径编辑器；有了编辑器再挪进「形状」那一节",
             [FieldNames.Meta] = "宿主自定义数据。键值对没有通用编辑界面，它的含义只有宿主知道",
         };
 

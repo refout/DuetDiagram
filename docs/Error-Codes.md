@@ -47,6 +47,8 @@
 | `PARENT_MISSING` | 校验失败 | 节点或组合的父级指向不存在的组合 | 提示「是否创建？」 |
 | `TAG_MEMBER_MISSING` | 校验失败 | 标签的成员不存在 | 高亮该标签 |
 | `ACTION_TARGET_MISSING` | 校验失败 | 动作的目标不存在 | 高亮该动作 |
+| `SHAPE_UNKNOWN` | 校验失败 | 节点引用的形状名没有对应的几何 | 高亮该节点 |
+| `SHAPE_PATH_INVALID` | 校验失败 | 节点自带的自定义形状路径解析不出来 | 高亮该节点 |
 | `LAYOUT_NODE_MISSING` | 校验失败 | 四类布局约束引用的节点不存在 | 高亮该约束 |
 | `LAYOUT_ORDER_EDGE_MISSING` | 校验失败 | 层内次序引用的边不存在，或不是主语节点的出边 | 高亮该约束 |
 | `LAYOUT_CONSTRAINT_INVALID` | 校验失败 | 约束本身不成立：成员不够、主语缺失或多余、成员重复 | 状态栏一句话 |
@@ -159,6 +161,8 @@
 | `PARENT_MISSING` | `PromptCreate` |
 | `TAG_MEMBER_MISSING` | `HighlightTargets` |
 | `ACTION_TARGET_MISSING` | `HighlightTargets` |
+| `SHAPE_UNKNOWN` | `HighlightTargets` |
+| `SHAPE_PATH_INVALID` | `HighlightTargets` |
 | `LAYOUT_CONSTRAINT_INVALID` | `StatusBar` |
 | `LAYOUT_CONSTRAINT_MISSING` | `StatusBar` |
 | `PALETTE_ENTRY_MISSING` | `StatusBar` |
@@ -247,6 +251,8 @@
 | `PARENT_MISSING` | `targetId` | 父级指向的组合不存在。先把那个组合建出来，或者把父级换成一个存在的组合。 |
 | `TAG_MEMBER_MISSING` | `memberIds` | 标签里的成员不存在。读一次图核对成员标识之后重发。 |
 | `ACTION_TARGET_MISSING` | `targetId` | 动作的目标不存在。先把目标建出来，或者把目标换成一个存在的元素。 |
+| `SHAPE_UNKNOWN` | `value` | 这个形状名没有对应的几何。换成形状表里已有的名字，或者给这个节点写一段自定义路径。 |
+| `SHAPE_PATH_INVALID` | `value` | 自定义形状的路径写错了。按报出来的行号改那一行：认得的指令只有 M / L / A / Z，坐标要用 0 到 1 的单位框。 |
 | `PALETTE_ENTRY_MISSING` | `token` | 这个样式令牌不在调色板里。先读一次图看现有令牌，或者先建一个。 |
 | `PALETTE_ENTRY_IN_USE` | `token` | 还有元素在用这个令牌。先把引用它的节点、边与标签改成别的令牌，再删它。 |
 | `TEXT_PRESET_MISSING` | `id` | 这个文本预设不在文档里。先读一次图看现有预设，或者先建一个。 |

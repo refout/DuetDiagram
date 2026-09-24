@@ -15,7 +15,7 @@
 | DuetDiagram.E2E.Tests | 27 | 8268 | 5335 | 1173 | 1760 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4816 | 2618 | 1524 | 674 |
+| DuetDiagram.Llm | 25 | 4821 | 2622 | 1524 | 675 |
 | DuetDiagram.Llm.Tests | 17 | 4836 | 3472 | 384 | 980 |
 | DuetDiagram.Mcp | 15 | 2498 | 1292 | 840 | 366 |
 | DuetDiagram.Mcp.Tests | 11 | 3288 | 2082 | 546 | 660 |
@@ -23,8 +23,8 @@
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
-| tools | 37 | 9817 | 6675 | 1507 | 1635 |
-| **合计** | **493** | **111077** | **68854** | **23527** | **18696** |
+| tools | 39 | 10110 | 6906 | 1531 | 1673 |
+| **合计** | **495** | **111375** | **69089** | **23551** | **18735** |
 
 ## 明细
 
@@ -400,7 +400,7 @@
 | SummaryFormatter.cs | 119 |
 | ErrorEnvelope.cs | 53 |
 | ErrorLoop.cs | 68 |
-| RepairHints.cs | 240 |
+| RepairHints.cs | 244 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 27 |
@@ -594,6 +594,8 @@
 | Structure.cs | 170 |
 | Support.cs | 134 |
 | Verify.cs | 239 |
+| Matrix.cs | 132 |
+| Program.cs | 99 |
 | Program.cs | 155 |
 | Agents.cs | 165 |
 | Program.cs | 78 |

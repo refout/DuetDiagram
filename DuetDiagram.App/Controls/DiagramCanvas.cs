@@ -10,14 +10,15 @@ using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using DuetDiagram.App.Interaction;
+using DuetDiagram.App.Rendering;
 using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
+using DuetDiagram.Core.Shapes;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
 using ArrowStyle = DuetDiagram.Core.Model.ArrowStyle;
 using CoreFontWeight = DuetDiagram.Core.Model.FontWeight;
 using LineStyle = DuetDiagram.Core.Model.LineStyle;
-using NodeShape = DuetDiagram.Core.Model.NodeShape;
 
 namespace DuetDiagram.App.Controls;
 
@@ -276,115 +277,11 @@ public sealed partial class DiagramCanvas : UserControl
         DrawShape shape,
         Rect rect)
     {
-        switch (shape.Shape)
-        {
-            case NodeShape.Rect:
-                context.DrawRectangle(fill, pen, rect);
-                break;
+        // 几何由形状库给，画法在渲染器里按几何种类分发：加一个形状只要在形状库里
+        // 加一条定义，这里不必跟着改。
+        var geometry = ShapeRegistry.Default.Find(shape.Shape).Geometry;
 
-            case NodeShape.Rounded:
-                context.DrawRectangle(fill, pen, new RoundedRect(rect, shape.Radius));
-                break;
-
-            case NodeShape.Stadium:
-                context.DrawRectangle(fill, pen, new RoundedRect(rect, Math.Min(rect.Width, rect.Height) / 2));
-                break;
-
-            case NodeShape.Circle:
-                context.DrawEllipse(fill, pen, rect.Center, rect.Width / 2, rect.Height / 2);
-                break;
-
-            case NodeShape.Diamond:
-                context.DrawGeometry(fill, pen, Polygon(
-                    new Point(rect.Center.X, rect.Top),
-                    new Point(rect.Right, rect.Center.Y),
-                    new Point(rect.Center.X, rect.Bottom),
-                    new Point(rect.Left, rect.Center.Y)));
-                break;
-
-            case NodeShape.Hexagon:
-                context.DrawGeometry(fill, pen, Polygon(
-                    new Point(rect.Left + (rect.Width * 0.25), rect.Top),
-                    new Point(rect.Left + (rect.Width * 0.75), rect.Top),
-                    new Point(rect.Right, rect.Center.Y),
-                    new Point(rect.Left + (rect.Width * 0.75), rect.Bottom),
-                    new Point(rect.Left + (rect.Width * 0.25), rect.Bottom),
-                    new Point(rect.Left, rect.Center.Y)));
-                break;
-
-            case NodeShape.Parallelogram:
-                context.DrawGeometry(fill, pen, Polygon(
-                    new Point(rect.Left + (rect.Width * 0.25), rect.Top),
-                    new Point(rect.Right, rect.Top),
-                    new Point(rect.Right - (rect.Width * 0.25), rect.Bottom),
-                    new Point(rect.Left, rect.Bottom)));
-                break;
-
-            case NodeShape.Cylinder:
-                DrawCylinder(context, fill, pen, rect);
-                break;
-
-            default:
-                throw new NotSupportedException($"认不出的节点形状：{shape.Shape}");
-        }
-    }
-
-    /// <summary>
-    /// 画圆柱。
-    /// </summary>
-    /// <remarks>
-    /// 上下两条弧各占高度的一小部分，中间是柱身。弧高取高度的四分之一，
-    /// 再高就成了一段管子，再低则看不出是圆柱。
-    /// 用一段闭合路径而不是"两个椭圆加一个矩形"：三块图形各自的描边会在接缝处叠出一道深色线。
-    /// </remarks>
-    private static void DrawCylinder(DrawingContext context, IBrush fill, Pen pen, Rect rect)
-    {
-        var arc = Math.Min(rect.Height / 4, rect.Width / 2);
-        var geometry = new StreamGeometry();
-
-        using (var sink = geometry.Open())
-        {
-            sink.BeginFigure(new Point(rect.Left, rect.Top + arc), true);
-
-            // 顶面的前半圈：从左肩拱到右肩。
-            sink.ArcTo(
-                new Point(rect.Right, rect.Top + arc),
-                new Size(rect.Width / 2, arc),
-                0,
-                false,
-                SweepDirection.Clockwise);
-
-            sink.LineTo(new Point(rect.Right, rect.Bottom - arc));
-            sink.ArcTo(
-                new Point(rect.Left, rect.Bottom - arc),
-                new Size(rect.Width / 2, arc),
-                0,
-                false,
-                SweepDirection.Clockwise);
-
-            sink.EndFigure(true);
-        }
-
-        context.DrawGeometry(fill, pen, geometry);
-    }
-
-    private static StreamGeometry Polygon(params Point[] points)
-    {
-        var geometry = new StreamGeometry();
-
-        using (var sink = geometry.Open())
-        {
-            sink.BeginFigure(points[0], true);
-
-            for (var index = 1; index < points.Length; index++)
-            {
-                sink.LineTo(points[index]);
-            }
-
-            sink.EndFigure(true);
-        }
-
-        return geometry;
+        ShapeGeometryRenderer.Draw(context, geometry, rect, fill, pen, shape.Radius);
     }
 
     #endregion
@@ -468,7 +365,7 @@ public sealed partial class DiagramCanvas : UserControl
         switch (arrow)
         {
             case ArrowStyle.Arrow:
-                context.DrawGeometry(brush, null, Polygon(
+                context.DrawGeometry(brush, null, ShapeGeometryRenderer.BuildPolygon(
                     tip,
                     new Point(back.X + nx, back.Y + ny),
                     new Point(back.X - nx, back.Y - ny)));

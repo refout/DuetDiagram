@@ -1,4 +1,5 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Shapes;
 
 namespace DuetDiagram.Render;
 
@@ -151,6 +152,16 @@ public sealed record Theme
     /// <summary>调色板。令牌名到具体外观的映射。</summary>
     public Palette Palette { get; init; } = new();
 
+    /// <summary>
+    /// 形状表。节点形状到几何的映射。
+    /// </summary>
+    /// <remarks>
+    /// 与调色板同一个理由做成显式参数：形状的几何由形状库给，主题只负责
+    /// "这个形状该用多大的圆角"这类外观决定。换成一份第三方形状表时，
+    /// 文档不用动，画出来的几何跟着换。
+    /// </remarks>
+    public ShapeRegistry Shapes { get; init; } = ShapeRegistry.Default;
+
     /// <summary>缺省主题。</summary>
     public static Theme Default { get; } = new();
 
@@ -241,11 +252,17 @@ public sealed record Theme
     /// 形状自带的圆角。
     /// </summary>
     /// <remarks>
-    /// 圆角只对这两种形状有意义。其余形状忽略半径而不是报错——
-    /// 半径是样式里的一个通用字段，用户给菱形也填了它并不算错，只是画的时候用不上。
+    /// 圆角只对"带圆角的矩形"这一类几何有意义，而"哪些形状带圆角"由形状库回答，
+    /// 不在这里按枚举值列举：列举的话，加一个圆角形状要回来改这里，
+    /// 而漏改的表现是它画成直角——看不出是漏了还是本来就这么设计。
+    /// 样式里填了半径时用填的，这里给的只是没填时的兜底。
+    /// 不带圆角的形状忽略半径而不是报错——半径是样式里的一个通用字段，
+    /// 用户给菱形也填了它并不算错，只是画的时候用不上。
     /// </remarks>
     private double RadiusFor(NodeShape shape) =>
-        shape is NodeShape.Rounded or NodeShape.Stadium ? CornerRadius : 0;
+        Shapes.Find(shape).Geometry is RoundedRectOutline { Corners: not CornerRadiusMode.None }
+            ? CornerRadius
+            : 0;
 
     /// <summary>
     /// 解析填充色。

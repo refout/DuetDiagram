@@ -91,6 +91,7 @@ public sealed partial class MainWindow : Window
         Model = new CanvasViewModel();
         Properties = new PropertyPanelViewModel(Session);
         Layers = new LayerPanelViewModel(Session);
+        Shapes = new ShapeLibraryPanelViewModel(Session);
         Palette = new PalettePanelViewModel(Session);
         TextPresets = new TextPresetPanelViewModel(Session);
         Pages = new PageTabsViewModel(Session);
@@ -131,6 +132,7 @@ public sealed partial class MainWindow : Window
 
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
+        ShapesView.DataContext = Shapes;
         PaletteView.DataContext = Palette;
         TextPresetsView.DataContext = TextPresets;
         PageTabsView.DataContext = Pages;
@@ -158,7 +160,12 @@ public sealed partial class MainWindow : Window
     public PropertyPanelViewModel Properties { get; }
 
     /// <summary>图层面板的状态。</summary>
-    public LayerPanelViewModel Layers { get; }    /// <summary>调色板面板的状态。</summary>
+    public LayerPanelViewModel Layers { get; }
+
+    /// <summary>形状面板的状态。</summary>
+    public ShapeLibraryPanelViewModel Shapes { get; }
+
+    /// <summary>调色板面板的状态。</summary>
     public PalettePanelViewModel Palette { get; }
 
     /// <summary>文本预设面板的状态。</summary>
@@ -561,6 +568,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayersView 的面板");
         PaletteView = this.FindControl<PalettePanel>(nameof(PaletteView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 PaletteView 的面板");
+        ShapesView = this.FindControl<ShapeLibraryPanel>(nameof(ShapesView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ShapesView 的面板");
         TextPresetsView = this.FindControl<TextPresetPanel>(nameof(TextPresetsView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextPresetsView 的面板");
         PageTabsView = this.FindControl<PageTabs>(nameof(PageTabsView))

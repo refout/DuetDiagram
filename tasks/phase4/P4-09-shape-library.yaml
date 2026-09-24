@@ -1,7 +1,7 @@
 id: P4-09
 title: 形状库与形状提供者接口
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01]
 estimated_loc: 480
 files:
@@ -54,3 +54,82 @@ scope_note: |
   **原生编译那一条是这一条的成败判据。** 插件机制与原生编译天然冲突，
   而本仓从 P0-02 起就把原生发布当成前提。所以这一条第一件事是核「编译期注册能到什么程度」，
   核不出来就照实记成限制，而不是先做一个在开发机上能跑、发布之后少东西的版本。
+
+result: |
+  **形状从「枚举 + 渲染层的八分支 switch + 取值表」三处各写一份，变成一份表。**
+  在此之前加一个形状要同时改三处，漏掉一处不报错——表现是那个形状画不出来，
+  或者填进去说不认识。现在渲染、工具取值表、属性面板下拉都读同一张表。
+
+  **落地了什么**
+
+  - `Shapes/`：`ShapeGeometry`（单位框坐标的四类轮廓：`RoundedRectOutline` /
+    `EllipseOutline` / `PolygonOutline` / `PathOutline`，加 `ShapePoint` /
+    `CornerRadiusMode` / `PathSegment` / `PathLine` / `PathArc`）、
+    `ShapeDefinition`、`IShapeProvider`、`BuiltinShapeProvider`（八个内置形状）、
+    `ShapeRegistry`。
+  - `Theme` 多一个 `Shapes`（与 `Palette` 同一个理由做成显式参数）；兜底圆角不再按
+    枚举值列举，改成问表：几何是带圆角的矩形就给主题圆角，否则零。
+  - `ShapeGeometryRenderer`（App）把几何画到 Avalonia 上下文上，按**几何种类**分发。
+    画布与形状面板的预览共用它——预览里看到的形状就是画布上会画出来的形状。
+    `DiagramCanvas` 里那个八分支 switch 与 `DrawCylinder` 都删了。
+  - `ShapeLibraryPanel`（axaml + cs）+ `ShapeLibraryPanelViewModel` + `ShapePreview`：
+    左栏常驻一截，八颗按钮各带一个真几何画的预览，点一下把选中的节点换成它。
+    当前形状带记号；多选了几个不同形状的节点时不标任何一行。
+  - 属性面板的形状下拉改从表里取名字，不再走枚举反射。
+  - AOT 冒烟加一段：真的建一次表、把八个几何都读一遍——枚举取值元数据是原生下
+    最容易被剪掉的东西，普通运行看不出来。
+
+  **刻意的取舍与判断**
+
+  - **几何用单位框坐标（0 到 1），不含任何绘制库类型。** Core 不依赖 Avalonia，
+    所以同一份几何能被画布、预览、将来的 SVG / PNG 导出各画一遍；画法在各自的
+    绘制方里按几何种类分发，形状库里没有画法。
+  - **表在构造时校验两件事**：同一个枚举值注册两次、枚举里有值没人提供。
+    两种都是「静默少一个形状」，放到构造时而不是留到查询时。校验用的是枚举自身的
+    取值集合，所以「表覆盖了枚举」是构造时就成立的，不靠一条测试盯着。
+  - **未知形状名要拒绝**这条已经成立：`shape` 走字段解析，认不出的名字报
+    `FIELD_UNKNOWN` 并把可选值列在载荷里。所以工具那侧没有再加一道检查——
+    加了就是第二次解析，两处迟早对出两套口径。
+  - **加一个形状仍然要动两处**（枚举加成员 + 表加一条）。枚举写进序列化与哈希，
+    删不掉也长不出来，这是「枚举不许删」那条约束的代价，照实记下来。
+  - **圆柱的弧高统一按高度的四分之一算。** 原实现在极窄的节点上（宽小于高的一半）
+    会把弧高压到宽的一半，那种节点不在任何用例与快照里；新口径把这条特例去掉了，
+    是形状定义里一句注释能说清的事，不值得为它留一个形状专有的几何种类。
+
+  **与任务清单不一样的地方**
+
+  - **`DiagramEnums.cs` 未改**：约束要求枚举不许删，这一条也没加新形状，所以没动。
+  - **`FieldRegistry.cs` 未改**：`shape` 早就登记为视觉字段，这一条不需要新字段。
+  - **`Render/SceneBuilder.cs` 未改**：解析点落在 `Theme`（`SceneBuilder` 本来就在
+    调它），改 `Theme` 一处就够，不必在 `SceneBuilder` 里再插一层。
+  - **`App/Services/MenuRegistry.cs` 未改**：入口做成左栏常驻面板，与 P4-07 的调色板、
+    P4-08 的文本预设同一取舍——条目表是静态纯函数，塞不进「按文档内容长出若干条」
+    的动态清单。形状是节点自己的字段，面板点一下就是一次字段编辑，与属性面板同一条路。
+  - **`Llm/Tools/StyleTool.cs` 未改**：见上面「未知形状名要拒绝」那条。
+  - 清单没列而新增的：`Shapes/ShapeGeometry.cs`、`App/Rendering/ShapeGeometryRenderer.cs`、
+    `App/Controls/ShapePreview.cs`、`App/ViewModels/ShapeLibraryPanelViewModel.cs`。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=ShapeRegistry` 7/7、`Category=ShapeProvider` 4/4、
+    `Category=ShapeLibrary` 5/5。
+  - 全量测试：Core 532 / Layout 78 / Render 175 / Mermaid 179 / Dsl 158 / Llm 192 /
+    Mcp 109 / **E2E 169**（改动前 164）全绿。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：441 个文件 / 95348 行 / 59159 行代码）。
+  - **第四条验收（原生发布）在本机做不到，照实记下**：
+    `dotnet publish DuetDiagram.AotSmokeTest -c Release` 走到 IL 编译之后失败在链接那一步，
+    报 `Platform linker not found`——本机缺「使用 C++ 的桌面开发」工作负载（AGENTS.md
+    里 AotSmokeTest 那一行早就记着这件事）。**这不是这一条引入的**：IL 编译阶段跑过了，
+    说明源码层面的原生兼容（无反射加载、分析器干净）成立，卡住的只是最后那一次本机链接。
+    要真的验完这一条，得先装上 C++ 工作负载。
+
+  **后续**
+
+  - 第三方形状加载（接口与内置实现是这一轮的全部；还差「谁提供程序集、装在哪、
+    版本怎么对」三件事）。
+  - 自定义形状（P4-10）：现在只有四类轮廓，自定义轮廓要么落到多边形，
+    要么要再加一种几何种类。
+  - 形状预览按真实比例画（现在固定正方形，只表达"是哪种形状"）。

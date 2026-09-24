@@ -5,14 +5,14 @@
 
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
-| DuetDiagram.AotSmokeTest | 1 | 246 | 180 | 38 | 28 |
-| DuetDiagram.App | 56 | 14569 | 8381 | 3747 | 2441 |
+| DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
+| DuetDiagram.App | 60 | 15054 | 8654 | 3877 | 2523 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 104 | 14622 | 8368 | 4091 | 2163 |
-| DuetDiagram.Core.Tests | 40 | 10683 | 7549 | 1060 | 2074 |
+| DuetDiagram.Core | 109 | 15028 | 8539 | 4279 | 2210 |
+| DuetDiagram.Core.Tests | 41 | 10868 | 7671 | 1089 | 2108 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 23 | 6596 | 4291 | 914 | 1391 |
+| DuetDiagram.E2E.Tests | 24 | 6769 | 4403 | 935 | 1431 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4538 | 2513 | 1379 | 646 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2682 | 1561 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2741 | 1991 | 290 | 460 |
-| DuetDiagram.Render | 22 | 4546 | 2025 | 1285 | 1236 |
-| DuetDiagram.Render.Tests | 15 | 3361 | 2383 | 342 | 636 |
+| DuetDiagram.Render | 22 | 4563 | 2029 | 1297 | 1237 |
+| DuetDiagram.Render.Tests | 16 | 3503 | 2469 | 370 | 664 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **429** | **93911** | **58376** | **19083** | **16452** |
+| **合计** | **441** | **95348** | **59159** | **19500** | **16689** |
 
 ## 明细
 
@@ -32,7 +32,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| Program.cs | 180 |
+| Program.cs | 195 |
 
 ### DuetDiagram.App
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 18 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 911 |
+| DiagramCanvas.cs | 833 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -51,6 +51,8 @@
 | PageTabs.axaml.cs | 133 |
 | PalettePanel.axaml.cs | 246 |
 | PropertyPanel.axaml.cs | 80 |
+| ShapeLibraryPanel.axaml.cs | 88 |
+| ShapePreview.cs | 44 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
 | StatusBar.axaml.cs | 72 |
 | TextPresetPanel.axaml.cs | 233 |
@@ -64,8 +66,9 @@
 | HighlightTracker.cs | 167 |
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 305 |
+| MainWindow.axaml.cs | 310 |
 | Program.cs | 78 |
+| ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 103 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
@@ -87,11 +90,12 @@
 | PageTabViewModel.cs | 41 |
 | PageTabsViewModel.cs | 99 |
 | PalettePanelViewModel.cs | 210 |
-| PropertyFieldCatalog.cs | 127 |
+| PropertyFieldCatalog.cs | 130 |
 | PropertyFieldViewModel.cs | 104 |
 | PropertyPanelViewModel.cs | 232 |
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
+| ShapeLibraryPanelViewModel.cs | 123 |
 | StatusBarViewModel.cs | 81 |
 | TextPresetPanelViewModel.cs | 210 |
 
@@ -205,6 +209,11 @@
 | DiagramHashing.cs | 174 |
 | DiagramJsonContext.cs | 67 |
 | DiagramSerializer.cs | 54 |
+| BuiltinShapeProvider.cs | 46 |
+| IShapeProvider.cs | 5 |
+| ShapeDefinition.cs | 6 |
+| ShapeGeometry.cs | 73 |
+| ShapeRegistry.cs | 41 |
 | LayoutSidecar.cs | 44 |
 | SidecarBackup.cs | 132 |
 | SidecarPaths.cs | 55 |
@@ -249,6 +258,7 @@
 | PermissionTests.cs | 105 |
 | RoundTripTests.cs | 139 |
 | SessionIdResolutionTests.cs | 57 |
+| ShapeRegistryTests.cs | 122 |
 | SidecarBackupTests.cs | 245 |
 | SidecarTests.cs | 301 |
 | SoftLockTests.cs | 174 |
@@ -311,6 +321,7 @@
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
 | PropertyPanelTests.cs | 167 |
+| ShapeLibraryTests.cs | 112 |
 | TextPresetTests.cs | 189 |
 | ToolBarTests.cs | 118 |
 
@@ -488,7 +499,7 @@
 | SkiaTextMeasurer.cs | 70 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 22 |
-| Theme.cs | 113 |
+| Theme.cs | 117 |
 | Viewport.cs | 49 |
 | ViewportCulling.cs | 6 |
 | ViewportTransform.cs | 32 |
@@ -510,6 +521,7 @@
 | PageRenderTests.cs | 117 |
 | QuadTreeTests.cs | 285 |
 | SceneSnapshotTests.cs | 251 |
+| ShapeProviderTests.cs | 86 |
 | Snapshot.cs | 57 |
 | ViewportTests.cs | 278 |
 

@@ -1,5 +1,6 @@
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Shapes;
 
 namespace DuetDiagram.App.ViewModels;
 
@@ -112,7 +113,9 @@ internal static class PropertyFieldCatalog
     private static readonly PropertyFieldSpec[] AllFields =
     [
         // 形状是必填的：节点总得有个形状，所以这一档不给"没有设置"。
-        new(FieldNames.Shape, "形状", "形状", PropertyEditor.Choice, Names<NodeShape>(), AllowEmpty: false),
+        // 取值表来自形状库，不来自枚举反射：加一个形状只改形状库一处，
+        // 而枚举反射那条路还会漏掉"注册表里有、枚举里没有"这类不一致。
+        new(FieldNames.Shape, "形状", "形状", PropertyEditor.Choice, ShapeNames(), AllowEmpty: false),
 
         // 样式令牌的取值长在文档的调色板里，选项由属性面板在每次重读时推进来；
         // 允许自定义取值——认不出的令牌不报错，渲染按元素自己的样式兜底，
@@ -153,6 +156,16 @@ internal static class PropertyFieldCatalog
 
     private static IReadOnlyList<string> Names<TEnum>()
         where TEnum : struct, Enum => Enum.GetNames<TEnum>();
+
+    /// <summary>
+    /// 形状名，按形状库给出的顺序。
+    /// </summary>
+    /// <remarks>
+    /// 与其它几档的 <see cref="Names{TEnum}"/> 分开：形状的取值表来自形状库，
+    /// 而库与枚举的一致性由注册表在构造时校验，不靠"两边都从枚举反射"来保证。
+    /// </remarks>
+    private static IReadOnlyList<string> ShapeNames() =>
+        [.. ShapeRegistry.Default.All.Select(definition => definition.Name)];
 
     /// <summary>
     /// 建索引，并把描述表与字段表对齐。

@@ -4,6 +4,7 @@ using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Core.Serialization;
+using DuetDiagram.Core.Shapes;
 using DuetDiagram.Core.Workspace;
 using DuetDiagram.Layout;
 
@@ -93,7 +94,35 @@ internal static class Program
         Assert(workspace.CommandBus.Undo().IsEffectiveSuccess && document.Nodes.Count == 3 && document.Edges.Count == 1, "restore cascade");
 
         VerifyExtendedIr();
+        VerifyShapeLibrary();
         VerifyLayoutEngine();
+    }
+
+    /// <summary>
+    /// 形状库在原生下要能真的给出几何。
+    /// </summary>
+    /// <remarks>
+    /// 形状表在构造时会枚举枚举的取值来校验"枚举里的形状都有人提供"，而枚举取值
+    /// 正是原生下最容易出问题的一环：裁剪器可能把那份元数据剪掉，普通运行完全正常，
+    /// 发布之后才在第一次建表时失败。所以这一段要真的建一次表、真的把八个几何都读一遍。
+    /// 这也是"注册表不靠反射加载程序集"能不能上生产的前提。
+    /// </remarks>
+    private static void VerifyShapeLibrary()
+    {
+        var registry = ShapeRegistry.Default;
+
+        Assert(registry.All.Count == Enum.GetValues<NodeShape>().Length, "shape table covers the enum");
+
+        foreach (var shape in Enum.GetValues<NodeShape>())
+        {
+            var definition = registry.Find(shape);
+
+            Assert(definition.Name == shape.ToString(), $"shape name for {shape}");
+            Assert(definition.Geometry.Describe().Length > 0, $"geometry for {shape}");
+        }
+
+        Assert(registry.Find(NodeShape.Diamond).Geometry is PolygonOutline, "diamond is a polygon");
+        Assert(registry.Find(NodeShape.Cylinder).Geometry is PathOutline, "cylinder is a path");
     }
 
     /// <summary>

@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using DuetDiagram.App.Controls;
@@ -97,6 +99,7 @@ public sealed partial class MainWindow : Window
         TextPresets = new TextPresetPanelViewModel(Session);
         Pages = new PageTabsViewModel(Session);
         Status = new StatusBarViewModel(Model);
+        TextEdit = new RichTextEditorViewModel(Session);
         Status.SetReadOnly(Session.ReadOnlyReason);
 
         Model.SelectionRequested += OnSelectionRequested;
@@ -119,6 +122,22 @@ public sealed partial class MainWindow : Window
         Canvas.Host = this;
         DiffView.Session = Session;
         StatusBarView.Status = Status;
+
+        // 标签编辑那一路：画布报出"双击了谁"，编辑器只把两件事交回来（取消、提交）。
+        // 编辑器自己不碰会话——它改的是状态对象上的草稿，而草稿经命令层写进文档
+        // 那一步在这里接起来，只读门与版本检查因此只此一道。
+        Canvas.EditRequested += OnEditRequested;
+        TextEditor.CancelRequested += OnCancelEdit;
+        TextEditor.CommitRequested += OnCommitEdit;
+        TextEditor.Attach(TextEdit);
+
+        // 编辑期间点别处就算退出，与"退出即提交"同一条口径。走隧道路由：
+        // 这样不管点的是画布、面板还是状态栏，都会先经过这里，而不是只在画布上生效。
+        AddHandler(
+            InputElement.PointerPressedEvent,
+            OnAnyPointerPressed,
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
 
         // 菜单栏与工具栏读同一份条目表。它们只在建窗口时搭一次，
         // 之后换选中、换文档都只刷新启用状态——重建的话，连续点选时整条工具栏会闪。
@@ -181,6 +200,63 @@ public sealed partial class MainWindow : Window
 
     /// <summary>状态栏的状态：光标、缩放与最近一次失败的提示。</summary>
     public StatusBarViewModel Status { get; }
+
+    /// <summary>标签编辑器的状态：草稿、选区与六项行内样式。</summary>
+    public RichTextEditorViewModel TextEdit { get; }
+
+    #region 标签编辑
+
+    /// <summary>
+    /// 画布要求编辑某个节点的标签。
+    /// </summary>
+    /// <remarks>
+    /// 开不开由会话定：只读、锁定层、节点已经没了这三种情形它都会拒，
+    /// 而拒绝的理由由命令上报那条路摆到状态栏上，这里不必再说一遍。
+    /// 开在哪由绘制列表定——编辑框要盖在节点上，而节点在哪儿只有排版知道。
+    /// </remarks>
+    private void OnEditRequested(string nodeId)
+    {
+        if (!Session.BeginTextEdit(nodeId).IsSuccess)
+        {
+            return;
+        }
+
+        var box = Model.ScreenBoundsOf(nodeId);
+
+        TextEdit.Open(box?.X ?? 0, box?.Y ?? 0, box?.Width ?? 0, box?.Height ?? 0);
+        TextEditor.FocusText();
+    }
+
+    /// <summary>取消这次编辑：草稿丢掉，文档不动，历史里不留东西。</summary>
+    private void OnCancelEdit() => TextEdit.Cancel();
+
+    /// <summary>
+    /// 提交这次编辑。整次编辑算一条命令。
+    /// </summary>
+    /// <remarks>
+    /// 提交失败时编辑器**不关**：关掉的话，用户刚敲的那一段就没了，
+    /// 而它其实一个字都没写进去。失败的理由由状态对象收着，显示在编辑器里。
+    /// </remarks>
+    private void OnCommitEdit() => TextEdit.Commit();
+
+    /// <summary>
+    /// 编辑期间在编辑器外面按了一下：这一次编辑到此结束（提交）。
+    /// </summary>
+    /// <remarks>
+    /// 不靠失焦判断：输入法的候选窗口会让编辑框短暂失焦，靠失焦判断的话，
+    /// 打一半的拼音会被当成"用户走了"而提交出去。
+    /// </remarks>
+    private void OnAnyPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (TextEdit.IsOpen && !TextEditor.Contains(e.Source as Visual))
+        {
+            // 走编辑器那一条，不走状态对象：用户最后敲的那几个字还在编辑框里，
+            // 编辑器会先把它收上来再提交。
+            TextEditor.RequestCommit();
+        }
+    }
+
+    #endregion
 
     /// <summary>
     /// 人工产物读不出来时，把恢复提示摆出来。
@@ -593,5 +669,7 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayoutFailureView 的提示");
         SidecarRecoveryView = this.FindControl<SidecarRecoveryDialog>(nameof(SidecarRecoveryView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 SidecarRecoveryView 的提示");
+        TextEditor = this.FindControl<RichTextEditor>(nameof(TextEditor))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextEditor 的编辑器");
     }
 }

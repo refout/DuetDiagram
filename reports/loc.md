@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 63 | 15740 | 9038 | 4068 | 2634 |
+| DuetDiagram.App | 66 | 16940 | 9693 | 4410 | 2837 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 116 | 17445 | 9849 | 5063 | 2533 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 25 | 7086 | 4603 | 984 | 1499 |
+| DuetDiagram.E2E.Tests | 26 | 7632 | 4947 | 1073 | 1612 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4586 | 2540 | 1395 | 651 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 23 | 4434 | 2313 | 1485 | 636 |
 | DuetDiagram.Render.Tests | 19 | 4252 | 2986 | 464 | 802 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **460** | **101445** | **63270** | **21088** | **17087** |
+| **合计** | **464** | **103191** | **64269** | **21519** | **17403** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 18 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 846 |
+| DiagramCanvas.cs | 869 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -51,6 +51,7 @@
 | PageTabs.axaml.cs | 133 |
 | PalettePanel.axaml.cs | 246 |
 | PropertyPanel.axaml.cs | 80 |
+| RichTextEditor.axaml.cs | 181 |
 | ShapeLibraryPanel.axaml.cs | 88 |
 | ShapePreview.cs | 44 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
@@ -67,14 +68,15 @@
 | HighlightTracker.cs | 167 |
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
-| MainWindow.axaml.cs | 315 |
+| TextEditSession.cs | 145 |
+| MainWindow.axaml.cs | 351 |
 | Program.cs | 78 |
 | ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 103 |
 | SelfTest.cs | 148 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
-| DiagramSession.cs | 1255 |
+| DiagramSession.cs | 1330 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
@@ -84,7 +86,7 @@
 | MenuRegistry.cs | 101 |
 | TemplateCatalog.cs | 73 |
 | WorkspaceRegistry.cs | 94 |
-| CanvasViewModel.cs | 285 |
+| CanvasViewModel.cs | 296 |
 | ConstraintEditorViewModel.cs | 165 |
 | DiagnosticsViewModel.cs | 155 |
 | LayerPanelViewModel.cs | 226 |
@@ -97,6 +99,7 @@
 | PropertyPanelViewModel.cs | 232 |
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
+| RichTextEditorViewModel.cs | 184 |
 | ShapeLibraryPanelViewModel.cs | 123 |
 | StatusBarViewModel.cs | 81 |
 | TemplatePanelViewModel.cs | 130 |
@@ -334,6 +337,7 @@
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
 | PropertyPanelTests.cs | 167 |
+| RichTextEditorTests.cs | 344 |
 | ShapeLibraryTests.cs | 112 |
 | TemplateTests.cs | 197 |
 | TextPresetTests.cs | 189 |

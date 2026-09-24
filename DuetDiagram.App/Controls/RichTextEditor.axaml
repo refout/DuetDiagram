@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.RichTextEditor">
+  <!--
+    就地编辑一个节点的标签。它盖在节点上，位置与尺寸取排版结果那一块。
+    控件自己不改文档：改字、套样式、退出提交三件事各自报到状态对象上，
+    由那一边经会话走命令层——绕过命令层的话，只读门与版本检查就都没人过了。
+  -->
+  <Border Background="#ffffff"
+          BorderBrush="#1f6feb"
+          BorderThickness="1"
+          CornerRadius="4"
+          Padding="6">
+    <StackPanel Spacing="4">
+      <!--
+        样式按钮不抢焦点。抢了的话，点一下按钮编辑框就失焦，
+        而"失焦算退出"这条口径会让一次加粗变成一次提交。
+      -->
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <Button x:Name="BoldButton"
+                Content="B"
+                FontWeight="Bold"
+                Focusable="False" />
+        <Button x:Name="ItalicButton"
+                Content="I"
+                FontStyle="Italic"
+                Focusable="False" />
+        <Button x:Name="UnderlineButton"
+                Content="U"
+                Focusable="False" />
+        <Button x:Name="StrikethroughButton"
+                Content="S"
+                Focusable="False" />
+        <TextBox x:Name="FontSizeBox"
+                 Width="52"
+                 PlaceholderText="字号" />
+        <TextBox x:Name="ColorBox"
+                 Width="76"
+                 PlaceholderText="颜色" />
+      </StackPanel>
+
+      <!--
+        多行、自动折行。回车换段：段落由换行符切出来，与投影那条口径一致。
+      -->
+      <TextBox x:Name="TextArea"
+               MinHeight="48"
+               AcceptsReturn="True"
+               TextWrapping="Wrap" />
+
+      <!-- 提交失败时那句话。它不弹窗：弹窗会把刚敲的那一段盖住。 -->
+      <TextBlock x:Name="ErrorText"
+                 FontSize="12"
+                 Foreground="#c4314b"
+                 TextWrapping="Wrap"
+                 IsVisible="False"
+                 Text="" />
+
+      <StackPanel Orientation="Horizontal"
+                  Spacing="8"
+                  HorizontalAlignment="Right">
+        <Button x:Name="CancelButton" Content="取消" />
+        <Button x:Name="CommitButton" Content="完成" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

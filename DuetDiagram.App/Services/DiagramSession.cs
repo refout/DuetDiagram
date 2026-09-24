@@ -1589,6 +1589,143 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 富文本编辑
+
+    /// <summary>正在进行的一次标签编辑。没有时为空。</summary>
+    /// <remarks>
+    /// 它是"这次编辑的草稿"，不是文档的一部分：编辑期间文档一个字节都不动，
+    /// 所以画布不会因为打字而重排，撤销栈也不会被一次编辑灌满。
+    /// </remarks>
+    public TextEditSession? TextEdit { get; private set; }
+
+    /// <summary>编辑器的开关变了（开、关、草稿里的字变了）。</summary>
+    public event Action? TextEditChanged;
+
+    /// <summary>
+    /// 开一次标签编辑。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **只读与锁定在这里挡住。** 编辑控件本身没有写文档的能力，但它开着的这段时间
+    /// 会让人以为能改——挡住它比让人敲完再被拒好。
+    /// </para>
+    /// <para>
+    /// 草稿从当前内容或标签起，与渲染读的是同一份：内容在的时候它是权威。
+    /// </para>
+    /// </remarks>
+    public CommandResult BeginTextEdit(string nodeId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        if (Find(nodeId) is not { } node)
+        {
+            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, nodeId)));
+        }
+
+        if (IsLocked(node))
+        {
+            return RefuseLocked(node.Layer!);
+        }
+
+        TextEdit = new TextEditSession(node.Id, node.Label, node.RichLabel);
+        TextEditChanged?.Invoke();
+
+        return CommandResult.NoOp();
+    }
+
+    /// <summary>草稿里的文字换了。只改草稿，不碰文档。</summary>
+    public void SetTextEditText(string text)
+    {
+        TextEdit?.SetText(text);
+        TextEditChanged?.Invoke();
+    }
+
+    /// <summary>给草稿的一段选区套一项行内样式。只改草稿，不碰文档。</summary>
+    public void ApplyTextStyle(int start, int length, string field, string? value)
+    {
+        TextEdit?.ApplyStyle(start, length, field, value);
+        TextEditChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 提交这次编辑。整次编辑算一条命令。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **草稿没有样式时走纯文本标签那条路。** 用户只是改了个错别字，不该顺手把节点
+    /// 从纯文本变成富文本；顺带还让"进编辑什么都不改就退出"成为真正的空操作
+    /// （标签没变，命令报无操作，撤销栈上不留东西）。
+    /// </para>
+    /// <para>
+    /// 失败时**不丢草稿**：只读、锁着、节点没了这三种情形下关掉编辑器会让用户
+    /// 刚敲的那一段凭空消失，而它其实一个字都没写进去。
+    /// </para>
+    /// </remarks>
+    public CommandResult CommitTextEdit()
+    {
+        if (TextEdit is not { } edit)
+        {
+            return CommandResult.NoOp();
+        }
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        if (Find(edit.NodeId) is not { } node)
+        {
+            return Report(CommandResult.Fail(CommandError.Of(ErrorCodes.NodeMissing, edit.NodeId)));
+        }
+
+        // 编辑期间这一层可能被锁上了，节点也可能已经不在了。两条都挡在提交这一步，
+        // 而不是只在开编辑那一步挡：开编辑时它还没锁，锁上之后照写的话，
+        // 锁定就成了"只对还没开始做的事有效"。
+        if (IsLocked(node))
+        {
+            return RefuseLocked(node.Layer!);
+        }
+
+        IDiagramCommand command = edit.IsPlain
+            ? new SetNodeFieldCommand(edit.NodeId, FieldNames.Label, edit.Text)
+            : new SetRichLabelCommand(edit.NodeId, edit.ToContent());
+
+        var result = Bus.Execute(command);
+
+        if (result.IsSuccess)
+        {
+            TextEdit = null;
+
+            if (result.IsEffectiveSuccess)
+            {
+                Reload();
+            }
+
+            TextEditChanged?.Invoke();
+        }
+
+        return Report(result);
+    }
+
+    /// <summary>取消这次编辑。草稿丢掉，文档不动，历史里不留东西。</summary>
+    public void CancelTextEdit()
+    {
+        if (TextEdit is null)
+        {
+            return;
+        }
+
+        TextEdit = null;
+        TextEditChanged?.Invoke();
+    }
+
+    #endregion
+
     #region 布局失败
 
     /// <summary>最近一次布局失败。之后有一次布局成功就清空。</summary>

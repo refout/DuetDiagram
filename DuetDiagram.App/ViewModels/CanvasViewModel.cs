@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using Avalonia;
 using DuetDiagram.Render;
 
 namespace DuetDiagram.App.ViewModels;
@@ -565,6 +566,27 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
         }
 
         return new SpatialRect(left, top, right - left, bottom - top);
+    }
+
+    /// <summary>
+    /// 一个元素在屏幕上的外接框。列表里没有它时为空。
+    /// </summary>
+    /// <remarks>
+    /// 就地编辑的控件盖在节点上，位置与尺寸取的就是这一块。与选中框同一份几何：
+    /// 两处各算一次的话，编辑框会与选中框差半个字宽，而那种差别只有对着屏幕才看得出来。
+    /// </remarks>
+    public Rect? ScreenBoundsOf(string elementId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(elementId);
+
+        if (BoundsOf(elementId) is not { } box)
+        {
+            return null;
+        }
+
+        var onScreen = _viewport.Transform.ToScreen(box);
+
+        return new Rect(onScreen.X, onScreen.Y, onScreen.Width, onScreen.Height);
     }
 
     /// <summary>内容的范围。绘制列表的宽高就是它。</summary>

@@ -1,7 +1,7 @@
 id: P4-14
 title: 富文本编辑界面
 phase: 4
-status: pending
+status: done
 depends_on: [P4-13]
 estimated_loc: 480
 files:
@@ -46,3 +46,66 @@ scope_note: |
   **不做就地编辑的完整排版反馈。** 编辑期间显示的是同一套排版结果（因为复用 P4-13），
   但光标定位、选区的像素级对齐这些属于文本编辑器本身的工程。这一轮用一个覆盖在节点上的
   编辑控件，位置与尺寸取排版结果，看起来是就地编辑即可。
+
+result: |
+  **把"富文本"从数据变成一件能做的事。** 模型（P4-12）与排版（P4-13）落地之后，
+  文档里可以有富文本，但人没有输入的路——这一条补的是 §9.2 里「双击节点」那条交互。
+
+  **落地了什么**
+
+  - `DuetDiagram.App/Interaction/TextEditSession.cs`：一次编辑的草稿。一份纯文本加
+    "每个字符一份样式"的并排数组——把纯文本与按选区的样式对齐，最省事的做法就是逐字符记，
+    于是选区与样式之间不需要任何位置换算。改字按公共前缀与后缀对齐，被替换掉的那一段
+    继承改动点左边那一份样式；`ToContent()` 折成内容模型时按换行切段、段内把连续同样式的字符合成一段，
+    形状与 `RichTextContent.Normalize` 的规范形态一致。
+  - `DuetDiagram.App/ViewModels/RichTextEditorViewModel.cs`：编辑器的状态（草稿文本、选区、
+    六项行内样式、位置与尺寸、最近一次失败）。样式按钮按"选区里每一个字都带着它"判断开还是关，
+    没有选区时什么都不做。
+  - `DuetDiagram.App/Controls/RichTextEditor.axaml(.cs)`：就地编辑控件（多行文本框 +
+    四项开关 + 字号与颜色两栏 + 取消/完成）。它只改草稿，提交与取消都报到宿主上。
+  - `DuetDiagram.App/Services/DiagramSession.cs`：新增 `#region 富文本编辑`——
+    `BeginTextEdit` / `SetTextEditText` / `ApplyTextStyle` / `CommitTextEdit` / `CancelTextEdit`
+    与 `TextEditChanged`。只读门、锁定层与节点存在性在**开编辑**与**提交**两处各挡一次。
+  - `DuetDiagram.App/Controls/DiagramCanvas.cs`：双击节点报出 `EditRequested`；
+    `DuetDiagram.App/ViewModels/CanvasViewModel.cs`：`ScreenBoundsOf`（与选中框同一份几何）。
+  - `DuetDiagram.App/MainWindow.axaml(.cs)`：编辑器浮层与接线（双击进编辑、取消、提交、
+    点别处提交）。
+
+  **三处口径**
+
+  - **整次编辑算一条命令。** 编辑期间文档一个字节都不动，所以画布不重排、撤销栈也不会被灌满。
+    没有样式的草稿走 `set-node-field` 的 `label`，有样式才写 `set-rich-label`——
+    于是"改个错别字"不会把节点从纯文本变成富文本，"进编辑什么都没改就退出"也成了真正的空操作。
+  - **退出即提交，除非明确取消。** 点别处不靠失焦判断（输入法的候选窗口会让编辑框短暂失焦，
+    靠失焦判断会把打一半的拼音提交出去），改由窗口在隧道阶段接一次指针按下。
+    提交被拒时编辑器不关：关掉的话用户刚敲的那一段就没了，而它其实一个字都没写进去。
+  - **文字与选区在动手之前当场读一次。** 编辑框是按单个属性报选区的，而起点与终点是两次变化，
+    只等它们各自报完的话，按钮读到的可能是中间那个半截选区（长度为零，按钮于是什么都不做）。
+
+  **侦察时挖出的两件事**
+
+  - **`TextBox.TextChanged` 是延后送达的**（下一轮消息里才发）。于是"改完字马上按完成"
+    那条路上，状态对象手里还是上一次的文字——表现是提交出去的是旧标签，而屏幕上写着新字。
+    写用例时用 `Dispatcher.UIThread.RunJobs()` 前后对比才定位到。
+  - **变更边栏常驻在画布右下角，而它是有底的**：落在那一块上的点击到不了画布。
+    图省事把目标节点放在图的下方时，双击根本没到画布，症状却是"编辑器没打开"。
+    用例改成把要编辑的那个节点放在图的上方。
+
+  **门禁**
+
+  - `dotnet build -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=RichTextEditor` 7/7、`Category=RichText` 2/2、`Category=ErrorPresentation` 13/13。
+  - 全量测试：Core 639 / Layout 78 / Render 211 / Mermaid 181 / Dsl 158 / Llm 200 /
+    Mcp 109 / E2E 187 全绿。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：464 个文件 / 103191 行 / 64269 行代码）。
+
+  **后续**
+
+  - 段落级对齐与列表没有入口：这一轮只做六项行内样式，做全的话编辑控件会长成一个独立的
+    富文本编辑器，而它要维护的每一件事都与画布的排版重复一遍。
+  - 光标定位与选区的像素级对齐没做：编辑期间显示的是同一套排版结果（复用 P4-13），
+    但编辑框本身还是一个盖在节点上的普通多行文本框。
+  - 边标签仍然只做纯文本（边上的文字是路径上的一个记号，没有段落可言）。
+  - 数学排版（P4-15）在内容模型之上做，与富文本是两条排版路径。

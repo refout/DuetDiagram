@@ -84,6 +84,16 @@ public sealed partial class DiagramCanvas : UserControl
     /// </remarks>
     public MainWindow? Host { get; set; }
 
+    /// <summary>
+    /// 用户要求编辑某个节点的标签（双击节点）。
+    /// </summary>
+    /// <remarks>
+    /// 画布只报出"要编辑谁"，开不开、开在哪、能不能开都由宿主定：
+    /// 只读门、锁定层与编辑器的位置分别属于会话与视图模型，
+    /// 画布自己去判的话，同一件事就有了第二个说法。
+    /// </remarks>
+    public event Action<string>? EditRequested;
+
     private DragController? _dragger;
     private bool _nodeDragging;
 
@@ -667,6 +677,15 @@ public sealed partial class DiagramCanvas : UserControl
         var wantsPan = point.Properties.IsMiddleButtonPressed
             || (_spaceHeld && point.Properties.IsLeftButtonPressed);
 
+        // 双击节点进标签编辑。它排在拖拽之前判：双击的第二下若也进拖拽，
+        // 松手会把这一下当成一次"没挪动的拖动"把节点固定住，
+        // 而用户只是想改个错别字。
+        if (point.Properties.IsLeftButtonPressed && e.ClickCount >= 2 && TryRequestEdit(model, e.GetPosition(this)))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (!wantsPan)
         {
             if (point.Properties.IsLeftButtonPressed)
@@ -1037,6 +1056,39 @@ public sealed partial class DiagramCanvas : UserControl
     #endregion
 
     #region 连线与边编辑手势
+
+    /// <summary>双击落在节点上就要求编辑它的标签。</summary>
+    /// <remarks>
+    /// <para>
+    /// 只认节点：边与组合没有标签，把它们的标识报上去只会在状态栏换来一句
+    /// "找不到这个节点"，而用户根本没打算编辑什么。
+    /// </para>
+    /// <para>
+    /// 没人接这一下时返回假，让事件继续走普通选中。画布被单独挂起来量帧率时
+    /// 就是这个样子——吞掉它的话，那种场合下双击会变成什么都没发生。
+    /// </para>
+    /// </remarks>
+    private bool TryRequestEdit(CanvasViewModel model, Point position)
+    {
+        if (EditRequested is null || Session is not { } session)
+        {
+            return false;
+        }
+
+        if (model.Pick(position.X, position.Y) is not { } target)
+        {
+            return false;
+        }
+
+        if (!session.Document.Nodes.Any(node => string.Equals(node.Id, target, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        EditRequested(target);
+
+        return true;
+    }
 
     /// <summary>
     /// 按下那一刻决定这一手势是连线、重连还是加折点。

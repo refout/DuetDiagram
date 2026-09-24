@@ -61,6 +61,15 @@
 
       <Grid>
         <controls:DiagramCanvas x:Name="Canvas" />
+        <!--
+          就地编辑那一层。它铺在画布那一格上，编辑器自己按排版结果摆到节点上。
+          单独一层而不是塞进画布：画布只认绘制列表，让它去管控件的话，
+          绘制列表这条路径与控件那条路径就混在一起了，而快照测试覆盖的是前一条。
+          这一层没有背景色，空白处不参与命中，指针事件照样落到画布上。
+        -->
+        <Canvas x:Name="EditLayer">
+          <controls:RichTextEditor x:Name="TextEditor" IsVisible="False" />
+        </Canvas>
         <controls:DiagnosticsPanel HorizontalAlignment="Right"
                                    VerticalAlignment="Top"
                                    Margin="12"

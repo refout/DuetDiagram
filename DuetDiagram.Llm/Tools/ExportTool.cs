@@ -14,10 +14,26 @@ internal sealed record ExportArguments(string Format, string? PageId = null);
 /// <summary>
 /// 一次导出的产物。
 /// </summary>
+/// <remarks>
+/// <para>
+/// **文本与字节分两个字段，按格式二选一。** 文本格式给 <see cref="Text"/>，
+/// 位图格式给 <see cref="Base64"/>。合成一个字段的话，调用方拿到一串字符
+/// 无从分辨"这是图的文本"还是"这是图本身编了码"，而这两种的处置完全不同。
+/// </para>
+/// <para>
+/// **位图只能编码成 base64。** 工具结果的载荷是 JSON，装不下裸字节；
+/// 而这条通路上的调用方本来就要把它落盘或转发，编码是绕不开的一步。
+/// </para>
+/// </remarks>
 /// <param name="Format">实际导出的格式。</param>
-/// <param name="Text">导出的文本。同一份文档两次导出逐字节相同。</param>
+/// <param name="Text">导出的文本。文本格式给这一项，同一份文档两次导出逐字节相同。</param>
 /// <param name="Dropped">这次导出丢了什么。空清单不等于无损，只等于没有东西落进已知的丢失清单。</param>
-internal sealed record ExportPayload(string Format, string Text, IReadOnlyList<DroppedFeature> Dropped);
+/// <param name="Base64">导出的位图，base64 编码。位图格式给这一项。</param>
+internal sealed record ExportPayload(
+    string Format,
+    string? Text,
+    IReadOnlyList<DroppedFeature> Dropped,
+    string? Base64 = null);
 
 /// <summary>
 /// 把当前图导出成文本。
@@ -58,11 +74,15 @@ internal static class ExportTool
 
             "svg" => Svg(context, args.PageId),
 
+            "png" => Png(context, args.PageId),
+
             // 这一条不是「还没排到」，是**不该现在做**：DSL 的导出方向还没有实现，
             // 而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。
             "dsl" => NotYet("dsl", "DSL 的导出方向还没实现，而 DSL 去留还没有定论"),
 
-            "png" or "pdf" => NotYet(args.Format, "位图与 PDF 要依赖渲染层或排版库，还没有排到"),
+            // PDF 落点还没定（矢量 PDF 还是位图嵌入），那是 Phase 4 的选型验证，
+            // 与已经确定的 PNG 不是一件事。
+            "pdf" => NotYet("pdf", "PDF 要先定下选型（矢量还是位图嵌入），那件事还没做"),
 
             _ => ActionDispatch.Reject(
                 $"{args.Format} 不是它认得的导出格式",
@@ -107,20 +127,12 @@ internal static class ExportTool
     {
         if (context.SvgExporter is null)
         {
-            return ToolResult.Fail(ToolError.Of(
-                ToolErrorCodes.NotSupported,
-                "这个宿主没有接上渲染层，导出不了 SVG",
-                "format",
-                "这个宿主现在能用的格式：mermaid"));
+            return HostMissing("SVG");
         }
 
         if (context.SvgExporter(context.Document, pageId) is not { } result)
         {
-            return ToolResult.Fail(ToolError.Of(
-                ToolErrorCodes.NotSupported,
-                "渲染层拿到了这份文档却排不出结果，导不了 SVG",
-                "format",
-                "先让这份文档能排出来——布局问题可以用 diagram_validate 查"));
+            return RenderFailed("SVG");
         }
 
         var payload = new ExportPayload("svg", result.Svg, result.Dropped);
@@ -133,6 +145,63 @@ internal static class ExportTool
             JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
             message);
     }
+
+    /// <summary>
+    /// 导出 PNG。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 SVG 那一条同一口径：渲染由宿主做，这一层只转发。工具层不引渲染层，
+    /// 引了的话它连同它的每个宿主都要带上原生绘图库。
+    /// </para>
+    /// <para>
+    /// **位图按 base64 走载荷。** 工具结果是要交给模型与代理的 JSON，装不下裸字节；
+    /// 而调用方本来就要把它落盘或转发，编码是绕不开的一步。放进一个叫 <c>base64</c>
+    /// 的字段而不是塞进 <c>text</c>：调用方拿到 <c>text</c> 会以为那是图的文本。
+    /// </para>
+    /// </remarks>
+    private static ToolResult Png(DiagramToolContext context, string? pageId)
+    {
+        if (context.BitmapExporter is null)
+        {
+            return HostMissing("PNG");
+        }
+
+        if (context.BitmapExporter(context.Document, pageId) is not { } result)
+        {
+            return RenderFailed("PNG");
+        }
+
+        var payload = new ExportPayload("png", null, result.Dropped, Convert.ToBase64String(result.Png));
+
+        var message = result.Dropped.Count == 0
+            ? pageId is null ? $"已导出 PNG（{result.Width}×{result.Height}）" : $"已导出 {pageId} 这一页的 PNG（{result.Width}×{result.Height}）"
+            : $"已导出 PNG（{result.Width}×{result.Height}），有 {result.Dropped.Count} 类内容没按原样写出，见 dropped";
+
+        return ToolResult.Ok(
+            JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
+            message);
+    }
+
+    /// <summary>这个宿主没接上渲染层。失败的原因归宿主，不归调用方的参数。</summary>
+    private static ToolResult HostMissing(string format) => ToolResult.Fail(ToolError.Of(
+        ToolErrorCodes.NotSupported,
+        $"这个宿主没有接上渲染层，导出不了 {format}",
+        "format",
+        "这个宿主现在能用的格式：mermaid"));
+
+    /// <summary>
+    /// 渲染层拿到了文档却排不出结果。
+    /// </summary>
+    /// <remarks>
+    /// 失败的原因归宿主：这一层看不见布局引擎的异常类型，也就无从分辨
+    /// "排不出来"与"程序坏了"。所以它只说排不出来，并指向校验那一条。
+    /// </remarks>
+    private static ToolResult RenderFailed(string format) => ToolResult.Fail(ToolError.Of(
+        ToolErrorCodes.NotSupported,
+        $"渲染层拿到了这份文档却排不出结果，导不了 {format}",
+        "format",
+        "先让这份文档能排出来——布局问题可以用 diagram_validate 查"));
 
     private static ToolResult NotYet(string format, string missing) => ToolResult.Fail(ToolError.Of(
         ToolErrorCodes.NotSupported,

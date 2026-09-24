@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 66 | 16991 | 9715 | 4435 | 2841 |
+| DuetDiagram.App | 66 | 17065 | 9747 | 4465 | 2853 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 119 | 18102 | 10222 | 5243 | 2637 |
+| DuetDiagram.Core | 120 | 18132 | 10228 | 5266 | 2638 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 26 | 7632 | 4947 | 1073 | 1612 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4666 | 2572 | 1435 | 659 |
-| DuetDiagram.Llm.Tests | 17 | 4541 | 3259 | 365 | 917 |
-| DuetDiagram.Mcp | 15 | 2406 | 1259 | 791 | 356 |
-| DuetDiagram.Mcp.Tests | 11 | 3186 | 2024 | 520 | 642 |
+| DuetDiagram.Llm | 25 | 4756 | 2598 | 1490 | 668 |
+| DuetDiagram.Llm.Tests | 17 | 4678 | 3361 | 370 | 947 |
+| DuetDiagram.Mcp | 15 | 2438 | 1269 | 810 | 359 |
+| DuetDiagram.Mcp.Tests | 11 | 3235 | 2051 | 533 | 651 |
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
-| DuetDiagram.Render | 28 | 5514 | 2926 | 1803 | 785 |
-| DuetDiagram.Render.Tests | 22 | 5116 | 3577 | 592 | 947 |
+| DuetDiagram.Render | 30 | 6234 | 3352 | 1970 | 912 |
+| DuetDiagram.Render.Tests | 23 | 5649 | 3936 | 677 | 1036 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **476** | **106152** | **66046** | **22252** | **17854** |
+| **合计** | **480** | **107817** | **67034** | **22649** | **18134** |
 
 ## 明细
 
@@ -73,7 +73,7 @@
 | Program.cs | 78 |
 | ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 80 |
-| SelfTest.cs | 192 |
+| SelfTest.cs | 224 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
 | DiagramSession.cs | 1330 |
@@ -195,6 +195,7 @@
 | DiffResult.cs | 27 |
 | VersionEntry.cs | 23 |
 | VersionLog.cs | 93 |
+| BitmapExport.cs | 6 |
 | ChangeConflict.cs | 72 |
 | CollectionEquality.cs | 104 |
 | Composites.cs | 49 |
@@ -396,10 +397,10 @@
 | RepairHints.cs | 240 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
-| DiagramToolContext.cs | 25 |
+| DiagramToolContext.cs | 26 |
 | DiagramToolset.cs | 169 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 77 |
+| ExportTool.cs | 102 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -419,8 +420,8 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 226 |
-| Harness.cs | 85 |
+| ExportToolTests.cs | 324 |
+| Harness.cs | 89 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
@@ -441,14 +442,14 @@
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
-| DiagramMcpServer.cs | 92 |
+| DiagramMcpServer.cs | 93 |
+| DocumentRendering.cs | 29 |
 | HttpHost.cs | 280 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 71 |
 | SessionState.cs | 110 |
 | StandardErrorDiagnostics.cs | 11 |
 | StdioLogging.cs | 11 |
-| SvgRendering.cs | 20 |
 | WorkspaceGuard.cs | 60 |
 | SkillCatalog.cs | 252 |
 | SkillResource.cs | 18 |
@@ -467,7 +468,7 @@
 | SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
 | SkillTests.cs | 143 |
-| StdioTests.cs | 176 |
+| StdioTests.cs | 203 |
 
 ### DuetDiagram.Mermaid
 
@@ -511,6 +512,8 @@
 | DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 91 |
 | DrawList.cs | 64 |
+| BitmapExporter.cs | 411 |
+| BitmapOptions.cs | 15 |
 | SvgExporter.cs | 266 |
 | SvgOptions.cs | 6 |
 | Highlight.cs | 181 |
@@ -537,6 +540,7 @@
 
 | 文件 | 代码 |
 |---|---:|
+| BitmapExportTests.cs | 359 |
 | CompositeFrameTests.cs | 106 |
 | CullingPolicyTests.cs | 216 |
 | CustomShapeTests.cs | 98 |

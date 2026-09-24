@@ -1,7 +1,7 @@
 id: P4-17
 title: PNG 导出
 phase: 4
-status: pending
+status: done
 depends_on: [P4-16]
 estimated_loc: 440
 files:
@@ -45,3 +45,124 @@ scope_note: |
   **PDF 不在这一条里。** 方案把 PDF 的选型标成「Phase 4 验证」，
   也就是它的落点还没定（矢量 PDF 还是位图嵌入）。两件事混在一条里的话，
   选型的不确定性会拖住 PNG 这条已经确定的。
+result: |
+  **这一条要的是「导出与画布是同一条绘制路径」，而且这条路必须无头。**
+  导出器只消费**绘制列表**，不重新遍历文档——重新遍历的话两条路径迟早对不上，
+  而对不上的表现是「导出的图与屏幕上不一样」，且两边各自都自洽。
+  无头那一条不是可选的美德，是被谁调用决定的：喂它的是 MCP 服务端与模型那条通路，
+  那两处都没有窗口平台；依赖窗口的话，命令行导出会失败而界面上一切正常。
+  所以判据落在三处：渲染层核「同一份列表导两次逐像素相同」与「三种指令都被消费掉」，
+  `Category=McpStdio` 拉真子进程核无头，自检则拿**同一份**绘制列表画布画一遍、
+  导出器写一遍，并核文件头里的尺寸与导出器报的一致。
+
+  **四项选项各有一条口径**
+
+  - **尺寸**：整份内容的外接框（绘制列表自己的宽高），或页面尺寸。
+    页面尺寸不是绘制列表的一部分（它不影响任何一条指令），所以由调用方从文档的
+    画布设置里读出来传进来——导出器自己去读文档的话，就又多了一条绘制路径。
+  - **缩放按倍数给，不给目标像素宽度。** 给宽度的话，同一份文档导两次
+    （一次 1000 像素、一次 2000 像素）会各自算出一个缩放系数，字体的渲染结果
+    会有一点差别，而用户以为是自己哪一步写错了。给倍数时「我要两倍图」是一个确定的值。
+  - **背景与透明度显式给，缺省不透明。** 缺省透明的话，导出的 PNG 贴进白底文档里
+    会变成黑底——这是「导出看起来坏了」里最常见的一种。底色取绘制列表自己的背景色。
+  - **确定性**：同一份列表与同一组选项导出两次逐像素相同。不带时间戳、不带随机标识、
+    不依赖集合迭代顺序，抗锯齿也显式打开而不是听凭默认值。唯一与机器有关的是字体
+    （字形由本机装的字体画出来），这一条与「节点尺寸由字体量出来」是同一件事，
+    不是导出引入的。
+
+  **落地了什么**
+
+  - `DuetDiagram.Render/Export/BitmapExporter.cs`：`SKSurface` 离屏光栅化，
+    三类指令各走一段——形状按几何种类建路径（圆角半径、路径弧的方向与画布、
+    SVG 导出同一口径）、折线加箭头（四种标记，尺寸与画布、SVG 共用同一组常量）、
+    文字按框中线排。**认不出的指令抛异常，不静默跳过**，与画布、SVG 同一条口径。
+    留白先缩放再平移，于是「留白十像素」在二倍图上还是十像素。
+  - `DuetDiagram.Render/Export/BitmapOptions.cs`：倍数、留白、透明与否、裁剪范围
+    （内容外接框 / 页面尺寸，后者由调用方给尺寸）。
+  - `DuetDiagram.Core/Model/BitmapExport.cs`：产物（PNG 字节 + 像素尺寸 + 丢失清单）。
+    放在 Core 的理由与 `SvgExport` 一样——工具层要把它原样交给调用方，
+    而工具层看不见渲染层。
+  - `DuetDiagram.Llm/Tools/DiagramToolContext.cs` 与 `ExportTool.cs`：`png` 分支
+    不再返回「还没接上」。渲染那一步由宿主喂进来（`BitmapExporter` 委托），
+    与 SVG 同一口径；两处失败各给一句不同的结构化错误，不许悄悄给一张空图。
+    载荷多一个可空的 `base64` 字段、`text` 变成可空——位图按 base64 走，
+    塞进 `text` 的话调用方会以为那是图的文本。两句共用的失败措辞抽成了
+    `HostMissing` / `RenderFailed`，SVG 与 PNG 各用一次。
+  - `DuetDiagram.Mcp/Server/DocumentRendering.cs`：**两个导出器共用一次「排出来」**。
+    P4-16 那个 `SvgRendering` 收成它，`Svg` 与 `Bitmap` 两个方法各走最后一步；
+    各写一份的话，两条路的布局参数迟早会分叉。每次导出新建一个度量器并当场释放
+    （会话级共用一份的话，多个请求会同时用同一份字体缓存，而那份缓存不是线程安全的）。
+  - `DuetDiagram.Mcp/Server/DiagramMcpServer.cs`：宿主接上 `BitmapExporter`。
+  - `DuetDiagram.App/SelfTest.cs`：**存盘的那份位图改走导出器**。原来自检自己写一份
+    脱屏渲染存 PNG 的代码，而那条路只在自检里跑过；改完之后流水线上那份证据图
+    验的就是真导出路径。离屏渲染那一步留着，只为回答「画布把指令消费完了没有」——
+    位图里数不出元素，导出器那边也数不出来。新加的两条断言核的是文件头：
+    它得是一张 PNG，且 IHDR 里的宽高与导出器报的一致（算两遍不一样就说明留白或缩放的
+    算法与自己报出来的读数分了岔）。
+  - `DuetDiagram.App/Services/MenuEntries.cs`：占位条目**仍是占位**，只把理由改准了——
+    「选格式」那一样要等到 PDF 也落地才值得做。
+
+  **侦察时发现的一件事，顺手修了。** `SKTypeface.FromFamilyName("Segoe UI")` 认不出汉字，
+  于是中文标签会画成空白方块（实测 `SKFont.GetGlyph('开') == 0`，
+  而 `SKFontManager.MatchCharacter` 还的是本机的中文字体）。空白方块是「导出看起来坏了」
+  里最容易被当成「程序坏了」的一种，所以导出时**整段挑一次字体**：点名的家族认不出这段字里的
+  某个字时，换一个认得的。整段换而不是逐字换——逐字换要真正的文字整形，而这里要的只是
+  「不出现空白方块」。代价是混排标签整段用回退字体，而画布那边逐字回退；
+  这一条记进了差异表。
+
+  **顺带发现、但这一条不改的一件事。** `SkiaTextMeasurer` 也不做字体回退：它按点名的家族量，
+  认不出的字按西文兜底字形的宽度算，而画布、SVG 导出与 PNG 导出都按真实字形画。
+  结果是中文标签的框比字窄一点，三个绘制方一致地「溢出框一点」。这是**度量**那一步的事，
+  不是绘制的事；改它会动到每一份中文文档的节点尺寸，得单独做一条并单独取证。
+  记在差异表里，免得下次当成导出新引入的问题。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - `Category=BitmapExport` 30/30：八种内置形状与自定义路径各画一遍、四种箭头各画一遍、
+    三种线型各画一遍、三项文字修饰画得出来、空文字与不足两点的折线跳过不算漏画、
+    认不出的指令抛异常、认不出的颜色退回兜底色；尺寸 / 缩放 / 留白 / 背景 / 透明 /
+    按页面裁各有用例，按页面裁掉内容时如实进丢失清单，按页面裁却不给尺寸当场拒掉；
+    **同一份列表导两次逐像素相同**；中文标签画的是真字形而不是空白方块
+    （判据取「整字宽」：汉字在字号下占满一个正方，空白方块只有西文兜底字形那么宽）。
+  - `Category=ExportTool` 23/23：png 拿到 base64 与丢失清单、载荷里没有 `text` 字段、
+    页面标识原样交下去、宿主没接上与渲染层排不出结果各有一句、两次导出逐字节相同、
+    不动版本号也不进撤销栈；`png` 从「还没接上的那几种」里移走了（只剩 `dsl` / `pdf`）。
+  - `Category=McpStdio` 9/9，其中新加的一条**拉真子进程**调 `diagram_export` 要 PNG：
+    解出来是一张真的 PNG，**顺带验了光栅化在这个没有窗口平台的部署形态下能跑**。
+  - `dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/ci-selftest.png`：
+    退出码 0。画布消费 17/17 条指令；存盘那份位图 240×386，是导出器的产出；
+    SVG 那一边逐类照旧对得上（形状 5、折线 5、文字 7）。人工看了一眼图：
+    中文标签是真字形，形状、连线、箭头与屏幕上一致。
+  - 全量测试：Core 639 / Layout 78 / Render 300 / Mermaid 181 / Dsl 158 / Llm 212 /
+    Mcp 111 / E2E 187 全绿；`Category=MultiAgent` 通过（Mcp 1/1）；
+    `tools/McpHarness -- protocol` 8/8 通过；`tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：480 个文件 / 107817 行 / 67034 行代码）。
+  - `dotnet publish DuetDiagram.AotSmokeTest -c Release`：**退出码 1，与本条无关**。
+    报的是 `Platform linker not found`——这台机器缺 C++ 工作负载，与 P0-02 卡住的是同一件事。
+    这一轮没有引入任何 NuGet 依赖（`Directory.Packages.props` 一个字没动）。
+
+  **与任务清单的出入**
+
+  - 清单里写的 `DuetDiagram.App/Services/MenuRegistry.cs` 实为 `MenuEntries.cs`
+    （条目注册在那里），且只改了占位条目的理由文字。
+  - 清单里没有列的几处也改了：`DuetDiagram.Core/Model/BitmapExport.cs`（新增）、
+    `DuetDiagram.Mcp/Server/DocumentRendering.cs`（新增，替掉 P4-16 的 `SvgRendering.cs`）、
+    `DuetDiagram.Mcp/Server/DiagramMcpServer.cs`（接上 `BitmapExporter`）、
+    `DuetDiagram.Llm/Tools/ToolResult.cs`（`ExportPayload` 加 `base64`）、
+    `DuetDiagram.Mcp.Tests/StdioTests.cs` 与 `DuetDiagram.Llm.Tests/Harness.cs`（用例）。
+    不接 MCP 那一侧的话，唯一对外暴露 `diagram_export` 的宿主就永远导不出 PNG，
+    而约束里那句「它要被 MCP 服务端调用」正是指这一侧。
+  - `docs/Render-Pipeline.md` 加了「导出 PNG」一节；`docs/Architecture.md`、
+    `README.md`、`tasks/README.md` 与 `AGENTS.md`（含差异表四行、`Category=BitmapExport`
+    门禁、以及一份补齐的测试分类清单）同步更新。
+
+  **后续**
+
+  - 界面上的导出入口仍是占位：选文件、选格式、选范围三样都在后面的任务里，
+    其中「选格式」要等到 PDF 落地之后才有意义（P4-18）。
+  - 工具那一条路还没有让调用方选缩放与裁剪范围的地方，只给缺省那一组
+    （不透明底、按内容外接框、一倍）——那正是「贴进文档里不会变成黑底」的那一组。
+    等导出对话框开工时一并定，记在差异表里。
+  - 度量不做字体回退那件事单独做（见上）。
+  - PDF 不在这一条里，落点在 P4-18 的选型验证。

@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Xml.Linq;
 using Avalonia;
@@ -50,7 +51,7 @@ internal static class SelfTest
 
             // 渲染阶段计时，与启动阶段分开报，出问题时能看出瓶颈在哪一段。
             var render = Stopwatch.StartNew();
-            var pixelSize = RenderFrame(outputPath, out var report);
+            var report = RenderFrame(outputPath);
             render.Stop();
 
             var skia = ProbeSkia();
@@ -65,9 +66,9 @@ internal static class SelfTest
             Console.WriteLine($"  画布消费          {report.Drawn,8}");
             Console.WriteLine($"  SVG 形状/折线/文字 {report.Svg.Shapes,7} / {report.Svg.Polylines} / {report.Svg.Texts}");
             Console.WriteLine($"  视口缩放          {report.Scale,8:0.00}x");
-            Console.WriteLine($"  位图尺寸          {pixelSize.Width,8} x {pixelSize.Height}");
+            Console.WriteLine($"  位图尺寸          {report.Bitmap.Width,8} x {report.Bitmap.Height}");
             Console.WriteLine($"  原生绘图库        {skia}");
-            Console.WriteLine($"  输出文件          {outputPath}");
+            Console.WriteLine($"  输出文件          {report.Bitmap.Path}");
             Console.WriteLine($"  SVG 文件          {report.Svg.Path}");
 
             var failure = Check(report);
@@ -148,8 +149,51 @@ internal static class SelfTest
                 + "导出与画布不是同一条绘制路径";
         }
 
-        return null;
+        // 位图那一边数不出元素，能自动断言的只有"它真是一张 PNG，而且尺寸与导出器说的一致"。
+        // 少了这一步，导出器写出一个空文件、或者尺寸算错，退出码仍然是 0。
+        return CheckBitmap(report.Bitmap);
     }
+
+    /// <summary>
+    /// 核对导出的位图：文件头是 PNG，且里面写的尺寸与导出器报的一致。
+    /// </summary>
+    /// <remarks>
+    /// 尺寸对不上说明留白或缩放的算法与它自己报出来的读数分了岔——那种错不会让文件损坏，
+    /// 只会让导出的图比预期大一点或小一点，而看的人多半以为是自己选错了选项。
+    /// </remarks>
+    private static string? CheckBitmap(BitmapReadings bitmap)
+    {
+        if (bitmap.Width <= 0 || bitmap.Height <= 0)
+        {
+            return $"导出的位图尺寸是 {bitmap.Width}×{bitmap.Height}";
+        }
+
+        // PNG 头：8 字节签名，4 字节块长度，4 字节 "IHDR"，然后宽高各 4 字节（大端）。
+        var header = new byte[24];
+
+        using (var stream = File.OpenRead(bitmap.Path))
+        {
+            if (stream.Read(header, 0, header.Length) != header.Length)
+            {
+                return $"{bitmap.Path} 短得不像一张 PNG——导出那条路没走通";
+            }
+        }
+
+        if (!header.AsSpan(0, PngSignature.Length).SequenceEqual(PngSignature))
+        {
+            return $"{bitmap.Path} 不是一张 PNG——导出那条路没走通";
+        }
+
+        var width = BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(16));
+        var height = BinaryPrimitives.ReadInt32BigEndian(header.AsSpan(20));
+
+        return width == bitmap.Width && height == bitmap.Height
+            ? null
+            : $"导出器报的是 {bitmap.Width}×{bitmap.Height}，文件里写的是 {width}×{height}——尺寸算了两遍，两遍不一样";
+    }
+
+    /// <summary>PNG 文件头的八个字节。</summary>
+    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     /// <summary>
     /// 自检这一帧要求文档里至少有这么多条约束。
@@ -162,14 +206,22 @@ internal static class SelfTest
     private const int RequiredConstraints = 2;
 
     /// <summary>
-    /// 把画布脱屏渲染成一帧位图并保存。
+    /// 把画布脱屏渲染一遍，并把同一份绘制列表导成位图存盘。
     /// </summary>
     /// <remarks>
-    /// 控件没有挂到窗口上，所以要手工走一遍测量与排布，否则它的尺寸是零、什么都画不出来。
+    /// <para>
+    /// **控件没有挂到窗口上，所以要手工走一遍测量与排布**，否则它的尺寸是零、什么都画不出来。
     /// 顺序必须是先测量再排布再渲染，跳过任何一步都会得到一张空白图而不是报错，
     /// 这种"静默产出错误结果"的行为是脱屏渲染最容易踩的坑。
+    /// </para>
+    /// <para>
+    /// **存盘的那一份来自导出器，不是这块离屏位图。** 自检原来自己写一份存位图的代码，
+    /// 而那条路只在自检里跑过；改走导出器之后，流水线上那份证据图验的就是真导出路径。
+    /// 离屏渲染这一步留着，是因为"画布把指令消费完了没有"只有它答得了——
+    /// 导出器那边数不出元素，位图里也数不出来。
+    /// </para>
     /// </remarks>
-    private static PixelSize RenderFrame(string outputPath, out FrameReport report)
+    private static FrameReport RenderFrame(string outputPath)
     {
         // 会话而不是"文档走一遍链路"：约束要经命令层写进去。直接往文档里塞约束的话，
         // 这一帧验的只是"引擎认不认约束"，而约束是怎么进文档的那条路
@@ -185,31 +237,30 @@ internal static class SelfTest
 
         var canvas = new DiagramCanvas { DataContext = model };
         var size = new Size(DefaultWidth, DefaultHeight);
-        var pixelSize = new PixelSize(DefaultWidth, DefaultHeight);
 
         canvas.Measure(size);
         canvas.Arrange(new Rect(size));
 
-        using var bitmap = new RenderTargetBitmap(pixelSize, new Vector(96, 96));
-        bitmap.Render(canvas);
+        using var frame = new RenderTargetBitmap(new PixelSize(DefaultWidth, DefaultHeight), new Vector(96, 96));
 
+        frame.Render(canvas);
+
+        var commands = scene.DrawList.Commands;
+        var layout = scene.Document.Layout;
+
+        // 两份产物写在同一个目录下，所以目录只在这里建一次：交给两边各自去建的话，
+        // 先跑的那一边会在目录不存在时直接失败。
         var directory = Path.GetDirectoryName(outputPath);
+
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        // 写流并显式指定编码格式。不带编码参数的那条重载已标记为过时，
-        // 靠扩展名推断格式既不可控，也无法在将来支持导出 PDF 之类的目标时复用同一条路径。
-        // 注意 Avalonia 12 把编码选项从"质量整数"改成了独立的选项类型。
-        using var stream = File.Create(outputPath);
-        bitmap.Save(stream, new PngBitmapEncoderOptions());
-
-        var commands = scene.DrawList.Commands;
-        var layout = scene.Document.Layout;
         var svg = ExportSvg(scene, outputPath);
+        var bitmap = ExportBitmap(scene, outputPath);
 
-        report = new FrameReport(
+        return new FrameReport(
             scene.Document.Nodes.Count,
             scene.Document.Edges.Count,
             layout.SameRank.Count + layout.Order.Count + layout.Align.Count + layout.Place.Count,
@@ -221,9 +272,24 @@ internal static class SelfTest
             // 导出器也照样跳过它们，两边要数的得是同一件事。
             commands.OfType<DrawPolyline>().Count(line => line.Points.Count >= 2),
             commands.OfType<DrawText>().Count(text => text.Text.Length > 0),
-            svg);
+            svg,
+            bitmap);
+    }
 
-        return pixelSize;
+    /// <summary>
+    /// 把这一帧的绘制列表导成位图并存盘。
+    /// </summary>
+    /// <remarks>
+    /// 选项取默认那一组：不透明底、按内容外接框裁、一倍。透明底那一档在这里不能用——
+    /// 证据图要贴进报告里，透明底在报告的白底上会显示成黑底。
+    /// </remarks>
+    private static BitmapReadings ExportBitmap(SampleScene scene, string outputPath)
+    {
+        var export = BitmapExporter.Export(scene.DrawList);
+
+        File.WriteAllBytes(outputPath, export.Png);
+
+        return new BitmapReadings(export.Width, export.Height, outputPath);
     }
 
     /// <summary>
@@ -325,6 +391,7 @@ internal static class SelfTest
     /// <param name="Polylines">折线指令数。</param>
     /// <param name="Texts">文本指令数。</param>
     /// <param name="Svg">同一份列表导出之后各类元素的读数。</param>
+    /// <param name="Bitmap">同一份列表导出的位图的读数。</param>
     private sealed record FrameReport(
         int Nodes,
         int Edges,
@@ -335,7 +402,8 @@ internal static class SelfTest
         int Shapes,
         int Polylines,
         int Texts,
-        SvgReadings Svg);
+        SvgReadings Svg,
+        BitmapReadings Bitmap);
 
     /// <summary>导出之后各类元素的读数。</summary>
     /// <param name="Shapes">形状元素数。</param>
@@ -343,4 +411,10 @@ internal static class SelfTest
     /// <param name="Texts">文字元素数。</param>
     /// <param name="Path">写出去的那份 SVG 在哪。</param>
     private sealed record SvgReadings(int Shapes, int Polylines, int Texts, string Path);
+
+    /// <summary>导出的位图的读数。</summary>
+    /// <param name="Width">位图宽度，像素。</param>
+    /// <param name="Height">位图高度，像素。</param>
+    /// <param name="Path">写出去的那份位图在哪。</param>
+    private sealed record BitmapReadings(int Width, int Height, string Path);
 }

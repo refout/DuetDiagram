@@ -57,6 +57,9 @@ internal static class Harness
     /// 宿主喂进来的 SVG 渲染器。不给表示这个宿主没接上渲染层——
     /// 工具层不引渲染层，所以这一步只能由宿主提供，测试里也一样。
     /// </param>
+    /// <param name="bitmapExporter">
+    /// 宿主喂进来的位图渲染器。理由与 <paramref name="svgExporter"/> 相同。
+    /// </param>
     public static DiagramToolContext Context(
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
@@ -64,7 +67,8 @@ internal static class Harness
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
-        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null)
+        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
+        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
@@ -77,6 +81,7 @@ internal static class Harness
             Clock = time,
             Permissions = () => permissions ?? PermissionSet.Full,
             SvgExporter = svgExporter,
+            BitmapExporter = bitmapExporter,
         };
     }
 
@@ -88,8 +93,10 @@ internal static class Harness
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
-        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null) =>
-        ToolRegistry.CreateDefault(Context(document, placement, pinned, clock, session, permissions, svgExporter));
+        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
+        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null) =>
+        ToolRegistry.CreateDefault(
+            Context(document, placement, pinned, clock, session, permissions, svgExporter, bitmapExporter));
 
     /// <summary>按 JSON 参数调一个工具。</summary>
     public static ToolResult Invoke(

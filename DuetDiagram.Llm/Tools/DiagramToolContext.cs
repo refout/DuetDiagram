@@ -109,6 +109,27 @@ public sealed record DiagramToolContext
     /// </remarks>
     public Func<DiagramDocument, string?, SvgExport?>? SvgExporter { get; init; }
 
+    /// <summary>
+    /// 把一份文档导成 PNG。由宿主喂进来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 <see cref="SvgExporter"/> 同一口径、同一理由：位图也不是文档的函数
+    /// （它要先把文档排成布局、再按字体量出标签尺寸，还要一块离屏画布去光栅化），
+    /// 所以只能由宿主喂进来。这一层不引渲染层，引了的话它连同它的每个宿主
+    /// 都要带上原生绘图库。
+    /// </para>
+    /// <para>
+    /// **导出必须无头**，理由正在于喂它的是谁：服务端与模型那条通路都没有窗口平台，
+    /// 依赖窗口的话，命令行导出必失败而界面上一切正常。
+    /// </para>
+    /// <para>
+    /// 为空表示这个宿主没接上渲染层；返回空表示渲染层拿到了文档却排不出结果。
+    /// 两种都不许悄悄给一张空图——调用方会把空图当成"这张图就是空的"。
+    /// </para>
+    /// </remarks>
+    public Func<DiagramDocument, string?, BitmapExport?>? BitmapExporter { get; init; }
+
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;
 

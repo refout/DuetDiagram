@@ -118,14 +118,15 @@ public sealed class DiagramMcpServer : IAsyncDisposable
     /// <remarks>
     /// 两样随请求变的东西都用委托取：版本声明与图层权限。工具表是按会话建一次、
     /// 之后一直复用的，存成值的话第二条请求会拿着第一条的值去判。
-    /// 渲染那一样是纯函数，按会话建一次即可。
+    /// 两个导出器是纯函数，按会话建一次即可。
     /// </remarks>
     internal static DiagramToolContext ToolContext(SessionCore session) => new()
     {
         Bus = session.Bus,
         ExpectedVersion = session.DeclaredVersion,
         Permissions = () => session.Permissions,
-        SvgExporter = SvgRendering.Export,
+        SvgExporter = DocumentRendering.Svg,
+        BitmapExporter = DocumentRendering.Bitmap,
     };
 
     /// <summary>

@@ -248,4 +248,53 @@ public sealed class StdioTests
         data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
             "文字留成 <text> 而不是转成路径这件事要如实带上");
     }
+
+    /// <summary>
+    /// 导出 PNG 真的走通了：服务端自己把文档排出来，再光栅化成一张位图。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 SVG 那条同一条理由：工具层只留了一个口子，渲染那一步由宿主喂进去。
+    /// 不接的话这一层会回一句"这个宿主没有接上渲染层"，而服务端其余七条工具一切正常。
+    /// </para>
+    /// <para>
+    /// **这一条还顺带验了光栅化是无头的。** 服务端是个真子进程，没有窗口平台；
+    /// 依赖窗口的话，这里会直接失败，而界面上一切正常。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "McpStdio")]
+    public async Task The_agent_gets_png_bytes_out_of_the_export_tool()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var session = await AgentSession.ConnectAsync(cancellationToken: cancellationToken);
+
+        await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Edit,
+            """{"action":"add-node","id":"a","label":"甲"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        var payload = await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Export,
+            """{"format":"png"}""",
+            cancellationToken);
+
+        var data = payload.GetProperty("data");
+
+        data.GetProperty("format").GetString().Should().Be("png");
+        data.TryGetProperty("text", out _).Should().BeFalse(
+            "位图那一档没有文本；给它一个空的 text 会让调用方以为这是一张空图");
+
+        var bytes = Convert.FromBase64String(data.GetProperty("base64").GetString()!);
+
+        bytes.Should().StartWith([0x89, 0x50, 0x4E, 0x47], "导出的要是一张真的 PNG，而不是一份空文件");
+        bytes.Length.Should().BeGreaterThan(100, "一张真画了东西的位图不会这么小");
+
+        data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
+            "位图把一切都变成像素这件事要如实带上");
+    }
 }

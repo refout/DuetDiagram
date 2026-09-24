@@ -5,26 +5,26 @@
 
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
-| DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
+| DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
 | DuetDiagram.App | 66 | 17065 | 9747 | 4465 | 2853 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 120 | 18132 | 10228 | 5266 | 2638 |
+| DuetDiagram.Core | 121 | 18158 | 10233 | 5286 | 2639 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
 | DuetDiagram.E2E.Tests | 26 | 7632 | 4947 | 1073 | 1612 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4756 | 2598 | 1490 | 668 |
-| DuetDiagram.Llm.Tests | 17 | 4678 | 3361 | 370 | 947 |
-| DuetDiagram.Mcp | 15 | 2438 | 1269 | 810 | 359 |
-| DuetDiagram.Mcp.Tests | 11 | 3235 | 2051 | 533 | 651 |
+| DuetDiagram.Llm | 25 | 4816 | 2618 | 1524 | 674 |
+| DuetDiagram.Llm.Tests | 17 | 4836 | 3472 | 384 | 980 |
+| DuetDiagram.Mcp | 15 | 2498 | 1292 | 840 | 366 |
+| DuetDiagram.Mcp.Tests | 11 | 3288 | 2082 | 546 | 660 |
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
-| DuetDiagram.Render | 30 | 6234 | 3352 | 1970 | 912 |
-| DuetDiagram.Render.Tests | 23 | 5649 | 3936 | 677 | 1036 |
-| tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **480** | **107817** | **67034** | **22649** | **18134** |
+| DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
+| DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
+| tools | 37 | 9817 | 6675 | 1507 | 1635 |
+| **合计** | **488** | **109426** | **67917** | **23123** | **18386** |
 
 ## 明细
 
@@ -32,7 +32,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| Program.cs | 195 |
+| Program.cs | 217 |
 
 ### DuetDiagram.App
 
@@ -214,6 +214,7 @@
 | PageAndLayer.cs | 15 |
 | PageMembership.cs | 91 |
 | Palette.cs | 48 |
+| PdfExport.cs | 5 |
 | RichTextContent.cs | 193 |
 | Styles.cs | 53 |
 | SupportingDefs.cs | 62 |
@@ -397,10 +398,10 @@
 | RepairHints.cs | 240 |
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
-| DiagramToolContext.cs | 26 |
+| DiagramToolContext.cs | 27 |
 | DiagramToolset.cs | 169 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 102 |
+| ExportTool.cs | 121 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -420,8 +421,8 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 324 |
-| Harness.cs | 89 |
+| ExportToolTests.cs | 432 |
+| Harness.cs | 92 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
@@ -442,8 +443,8 @@
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
-| DiagramMcpServer.cs | 93 |
-| DocumentRendering.cs | 29 |
+| DiagramMcpServer.cs | 94 |
+| DocumentRendering.cs | 51 |
 | HttpHost.cs | 280 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 71 |
@@ -468,7 +469,7 @@
 | SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
 | SkillTests.cs | 143 |
-| StdioTests.cs | 203 |
+| StdioTests.cs | 234 |
 
 ### DuetDiagram.Mermaid
 
@@ -512,8 +513,11 @@
 | DiagnosticsSampler.cs | 107 |
 | DrawCommand.cs | 91 |
 | DrawList.cs | 64 |
-| BitmapExporter.cs | 411 |
+| BitmapExporter.cs | 60 |
 | BitmapOptions.cs | 15 |
+| CanvasPainter.cs | 361 |
+| PdfExporter.cs | 77 |
+| PdfOptions.cs | 12 |
 | SvgExporter.cs | 266 |
 | SvgOptions.cs | 6 |
 | Highlight.cs | 181 |
@@ -555,6 +559,7 @@
 | MathTypesettingTests.cs | 258 |
 | ModeSwitchTests.cs | 113 |
 | PageRenderTests.cs | 117 |
+| PdfExportTests.cs | 355 |
 | QuadTreeTests.cs | 285 |
 | RichTextLayoutTests.cs | 297 |
 | RichTextRenderTests.cs | 117 |
@@ -596,6 +601,9 @@
 | LayoutModels.cs | 41 |
 | Program.cs | 36 |
 | SugiyamaCandidate.cs | 85 |
+| Candidates.cs | 137 |
+| Facts.cs | 68 |
+| Program.cs | 12 |
 | Analysis.cs | 381 |
 | Checks.cs | 181 |
 | Program.cs | 75 |

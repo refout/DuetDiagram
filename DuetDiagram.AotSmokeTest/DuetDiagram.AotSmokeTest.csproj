@@ -27,6 +27,13 @@
       只有真的发布一次才知道，而那正是这个工程存在的意义。
     -->
     <ProjectReference Include="..\DuetDiagram.Layout\DuetDiagram.Layout.csproj" />
+    <!--
+      渲染层也进冒烟。它是导出那几条通路的落点，而导出依赖一个原生绘图库——
+      同样属于"分析器看不出来、只有真的跑一遍才知道"的那一类。
+      PDF 那一条判据要的就是"选中的 PDF 库在原生编译后可用"，
+      所以这里必须真的写一份出来，而不是只引用一下。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Render\DuetDiagram.Render.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using System.Text;
 using DuetDiagram.Core.Broadcasting;
 using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Commands;
@@ -7,6 +8,7 @@ using DuetDiagram.Core.Serialization;
 using DuetDiagram.Core.Shapes;
 using DuetDiagram.Core.Workspace;
 using DuetDiagram.Layout;
+using DuetDiagram.Render;
 
 namespace DuetDiagram.AotSmokeTest;
 
@@ -96,6 +98,49 @@ internal static class Program
         VerifyExtendedIr();
         VerifyShapeLibrary();
         VerifyLayoutEngine();
+        VerifyPdfExport();
+    }
+
+    /// <summary>
+    /// 导出 PDF 在原生下要能真的出一份文件。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一段是"选中的 PDF 库在原生编译后可用"那条判据的落点。PDF 由绘图库自带的写入器
+    /// 产出，而它是一份原生库——分析器看不出它会不会被裁掉，只有真的跑一遍才知道。
+    /// </para>
+    /// <para>
+    /// 走的是完整链路：量尺寸、求解布局、翻译成绘制指令、写成 PDF。只调写入器的话，
+    /// 链条上前面几段被裁掉也照样绿。
+    /// </para>
+    /// <para>
+    /// 判据落在文件自己身上而不是我们的代码上：开头四字节是 PDF 的标识，
+    /// 页数与报出来的一致，而且字体真的嵌进去了——汉字能不能画出来，
+    /// 在原生编译下是最容易悄悄坏掉的一环。
+    /// </para>
+    /// </remarks>
+    private static void VerifyPdfExport()
+    {
+        var document = DiagramDocument.CreateFromContent(
+            "aot-pdf",
+            nodes:
+            [
+                new NodeDef { Id = "a", Label = "开始", Shape = NodeShape.Stadium },
+                new NodeDef { Id = "b", Label = "校验", Shape = NodeShape.Diamond },
+            ],
+            edges: [new EdgeDef { Id = "e", From = "a", To = "b", Label = "是" }]);
+
+        using var measurer = new SkiaTextMeasurer();
+        var scene = SceneComposer.Compose(document, Theme.Default, measurer);
+        var export = PdfExporter.Export([scene.DrawList]);
+
+        Assert(export.Pages == 1, "pdf page count");
+        Assert(export.Pdf.Length > 1024, "pdf has content");
+
+        var head = Encoding.ASCII.GetString(export.Pdf, 0, 4);
+
+        Assert(head == "%PDF", $"pdf header is {head}");
+        Assert(Encoding.Latin1.GetString(export.Pdf).Contains("/FontFile", StringComparison.Ordinal), "pdf embeds a font");
     }
 
     /// <summary>

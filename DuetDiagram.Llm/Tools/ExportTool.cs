@@ -76,13 +76,11 @@ internal static class ExportTool
 
             "png" => Png(context, args.PageId),
 
+            "pdf" => Pdf(context, args.PageId),
+
             // 这一条不是「还没排到」，是**不该现在做**：DSL 的导出方向还没有实现，
             // 而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。
             "dsl" => NotYet("dsl", "DSL 的导出方向还没实现，而 DSL 去留还没有定论"),
-
-            // PDF 落点还没定（矢量 PDF 还是位图嵌入），那是 Phase 4 的选型验证，
-            // 与已经确定的 PNG 不是一件事。
-            "pdf" => NotYet("pdf", "PDF 要先定下选型（矢量还是位图嵌入），那件事还没做"),
 
             _ => ActionDispatch.Reject(
                 $"{args.Format} 不是它认得的导出格式",
@@ -177,6 +175,47 @@ internal static class ExportTool
         var message = result.Dropped.Count == 0
             ? pageId is null ? $"已导出 PNG（{result.Width}×{result.Height}）" : $"已导出 {pageId} 这一页的 PNG（{result.Width}×{result.Height}）"
             : $"已导出 PNG（{result.Width}×{result.Height}），有 {result.Dropped.Count} 类内容没按原样写出，见 dropped";
+
+        return ToolResult.Ok(
+            JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
+            message);
+    }
+
+    /// <summary>
+    /// 导出 PDF。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与前两条同一口径：渲染由宿主做，这一层只转发。
+    /// </para>
+    /// <para>
+    /// **它与前两条有一处不同：页面标识为空时，出来的可能不止一页。** 一份文档有哪几页
+    /// 由文档自己说了算，而"这一页上有谁"那套口径在 Core 里只有一份、在宿主那一侧。
+    /// 这一层只把标识原样转过去，然后把页数报出来。
+    /// </para>
+    /// <para>
+    /// **PDF 也按 base64 走载荷。** 它同样是二进制，理由与 PNG 那一条完全相同；
+    /// 放进 <c>base64</c> 而不是 <c>text</c>，是因为调用方拿到 <c>text</c> 会以为那是图的文本。
+    /// </para>
+    /// </remarks>
+    private static ToolResult Pdf(DiagramToolContext context, string? pageId)
+    {
+        if (context.PdfExporter is null)
+        {
+            return HostMissing("PDF");
+        }
+
+        if (context.PdfExporter(context.Document, pageId) is not { } result)
+        {
+            return RenderFailed("PDF");
+        }
+
+        var payload = new ExportPayload("pdf", null, result.Dropped, Convert.ToBase64String(result.Pdf));
+        var pages = $"{result.Pages} 页";
+
+        var message = result.Dropped.Count == 0
+            ? pageId is null ? $"已导出 PDF（{pages}）" : $"已导出 {pageId} 这一页的 PDF（{pages}）"
+            : $"已导出 PDF（{pages}），有 {result.Dropped.Count} 类内容没按原样写出，见 dropped";
 
         return ToolResult.Ok(
             JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),

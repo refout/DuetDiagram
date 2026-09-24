@@ -60,6 +60,9 @@ internal static class Harness
     /// <param name="bitmapExporter">
     /// 宿主喂进来的位图渲染器。理由与 <paramref name="svgExporter"/> 相同。
     /// </param>
+    /// <param name="pdfExporter">
+    /// 宿主喂进来的 PDF 渲染器。理由与 <paramref name="svgExporter"/> 相同。
+    /// </param>
     public static DiagramToolContext Context(
         DiagramDocument? document = null,
         IReadOnlyList<NodeRank>? placement = null,
@@ -68,7 +71,8 @@ internal static class Harness
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
         Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
-        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null)
+        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null,
+        Func<DiagramDocument, string?, PdfExport?>? pdfExporter = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
@@ -82,6 +86,7 @@ internal static class Harness
             Permissions = () => permissions ?? PermissionSet.Full,
             SvgExporter = svgExporter,
             BitmapExporter = bitmapExporter,
+            PdfExporter = pdfExporter,
         };
     }
 
@@ -94,9 +99,10 @@ internal static class Harness
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
         Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
-        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null) =>
+        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null,
+        Func<DiagramDocument, string?, PdfExport?>? pdfExporter = null) =>
         ToolRegistry.CreateDefault(
-            Context(document, placement, pinned, clock, session, permissions, svgExporter, bitmapExporter));
+            Context(document, placement, pinned, clock, session, permissions, svgExporter, bitmapExporter, pdfExporter));
 
     /// <summary>按 JSON 参数调一个工具。</summary>
     public static ToolResult Invoke(

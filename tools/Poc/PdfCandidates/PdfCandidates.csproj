@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DuetDiagram.Poc.PdfCandidates</RootNamespace>
+
+    <!--
+      分析器开着，但不把警告当错误。这一条与仓库其它工程不同，理由正是这个工程要做的事：
+      "原生编译"是 PDF 库选型的第一条判据，而它能不能过就看这里报不报裁剪与 AOT 警告。
+      报成错误的话，一个不合规的候选会让整个脚手架建不起来，于是另外三个也跑不了——
+      而这一份的价值恰恰在于"四个候选都能跑、结论摆在一起看"。
+      所以：分析器开、警告照报、但不拦。
+    -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    一次性依赖验证脚手架：用同一套判据对比 PDF 写入候选。
+    它是调查工具而不是产品的一部分，因此不进解决方案文件；结论固化后即可删除。
+    与布局引擎那次同一形状，见 tools/Poc/LayoutCandidates。
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
+    <PackageReference Include="QuestPDF" />
+    <PackageReference Include="PdfSharpCore" />
+  </ItemGroup>
+
+</Project>

@@ -355,11 +355,163 @@ public sealed class ExportToolTests
 
     #endregion
 
+    #region PDF
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_returns_the_bytes_as_base64()
+    {
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            pdfExporter: (_, _) => new PdfExport([1, 2, 3, 4], 2, [new DroppedFeature("字体的整份嵌入", [], "文件大")]));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+
+        result.IsSuccess.Should().BeTrue();
+
+        var data = result.Data!.Value;
+
+        data.GetProperty("format").GetString().Should().Be("pdf");
+        Convert.FromBase64String(data.GetProperty("base64").GetString()!).Should().Equal([1, 2, 3, 4]);
+        data.TryGetProperty("text", out _).Should().BeFalse(
+            "PDF 是二进制；给它一个空的 text 会让调用方以为这是一份空文件");
+        data.GetProperty("dropped").GetArrayLength().Should().Be(1);
+    }
+
+    /// <summary>
+    /// 页数要报出来。
+    /// </summary>
+    /// <remarks>
+    /// 这是 PDF 与另外三种格式唯一一处结构上的差别：一份文档可以出好几页，
+    /// 而调用方拿到的是一串字节，自己数不出页数。不报的话，
+    /// "我导的是整份还是某一页"这个问题只能靠猜。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_reports_the_page_count()
+    {
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            pdfExporter: (_, _) => new PdfExport([1], 3, []));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+
+        result.Message.Should().Contain("3 页");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_hands_the_page_to_the_renderer()
+    {
+        // 与另外两条同一条理由：按页过滤那一套口径在 Core 里只有一份。
+        // PDF 还多一层——页面标识为空时，出哪几页由宿主按文档自己声明的页序决定，
+        // 而"文档有哪几页"这一层看不见。
+        string? seen = null;
+
+        var document = DiagramDocument.CreateFromContent(
+            "doc",
+            DiagramKind.Flowchart,
+            Direction.TB,
+            pages: [new PageDef { Id = "p1", Order = 0 }, new PageDef { Id = "p2", Order = 1 }],
+            nodes: [new NodeDef { Id = "second", Label = "第二页上的", Page = "p2" }]);
+
+        var registry = Harness.Registry(
+            document,
+            pdfExporter: (_, pageId) =>
+            {
+                seen = pageId;
+
+                return new PdfExport([1], 1, []);
+            });
+
+        Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf","pageId":"p2"}""")
+            .IsSuccess.Should().BeTrue();
+
+        seen.Should().Be("p2");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_says_so_when_the_host_has_no_render_layer()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+
+        result.IsSuccess.Should().BeFalse();
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.NotSupported);
+        result.Errors[0].Parameter.Should().Be("format");
+        result.Errors[0].Message.Should().Contain("宿主");
+        result.Errors[0].Message.Should().NotContain("还没排到", "这是宿主没接上，不是排期问题");
+        result.Errors[0].Message.Should().NotContain("选型", "选型已经定下来了，不再是这个理由");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_says_so_when_the_renderer_gives_nothing()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"), pdfExporter: (_, _) => null);
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.NotSupported);
+        result.Errors[0].Message.Should().Contain("排不出结果");
+        result.Errors[0].Expected.Should().Contain("diagram_validate", "要说清下一步该去查什么");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Two_pdf_exports_of_the_same_document_are_byte_identical()
+    {
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            pdfExporter: (_, _) => new PdfExport([9, 8, 7], 1, []));
+
+        var first = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+        var second = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""");
+
+        second.Data!.Value.GetRawText().Should().Be(first.Data!.Value.GetRawText());
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_does_not_touch_the_version_or_the_history()
+    {
+        var document = new DiagramDocument("doc");
+        var context = Harness.Context(document, pdfExporter: (_, _) => new PdfExport([1], 1, []));
+        var registry = ToolRegistry.CreateDefault(context);
+
+        Harness.Edit(registry, """{"action":"add-node","id":"a"}""");
+
+        var version = document.Version;
+        var history = context.Bus.Context.History.UndoCount;
+
+        Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf"}""").IsSuccess.Should().BeTrue();
+
+        document.Version.Should().Be(version, "导出是只读的，不得触发版本号变化");
+        context.Bus.Context.History.UndoCount.Should().Be(history, "导出不进撤销栈");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_exporting_a_page_that_is_not_there_is_refused()
+    {
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            pdfExporter: (_, _) => new PdfExport([1], 1, []));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf","pageId":"p1"}""");
+
+        Harness.CodeOf(result).Should().Be(ErrorCodes.PageMissing);
+        result.Errors[0].Parameter.Should().Be("pageId");
+    }
+
+    #endregion
+
     #region 还没接上的那几种
 
     [Theory]
     [InlineData("dsl")]
-    [InlineData("pdf")]
     [Trait("Category", "ExportTool")]
     public void Formats_without_an_implementation_say_so(string format)
     {

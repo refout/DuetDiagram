@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using DuetDiagram.Llm.Tools;
 using FluentAssertions;
@@ -296,5 +297,57 @@ public sealed class StdioTests
 
         data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
             "位图把一切都变成像素这件事要如实带上");
+    }
+
+    /// <summary>
+    /// 代理从导出工具里拿到一份真的 PDF。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一条盯的是"无头"那一件事：进程里没有窗口平台，PDF 照样写得出来。
+    /// 依赖窗口的话，界面上一切正常而这条通路必失败。
+    /// </para>
+    /// <para>
+    /// 判据落在文件自己身上：开头是 PDF 的标识，里面有页对象，而且字体嵌进去了——
+    /// 最后这一条是汉字能不能画出来的分界，也是这一档与位图那一档的差别所在。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "McpStdio")]
+    public async Task The_agent_gets_pdf_bytes_out_of_the_export_tool()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var session = await AgentSession.ConnectAsync(cancellationToken: cancellationToken);
+
+        await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Edit,
+            """{"action":"add-node","id":"a","label":"甲"}""",
+            cancellationToken,
+            Harness.At(0));
+
+        var payload = await Harness.CallSucceedsAsync(
+            session.Client,
+            DiagramToolset.Export,
+            """{"format":"pdf"}""",
+            cancellationToken);
+
+        var data = payload.GetProperty("data");
+
+        data.GetProperty("format").GetString().Should().Be("pdf");
+        data.TryGetProperty("text", out _).Should().BeFalse(
+            "PDF 是二进制；给它一个空的 text 会让调用方以为这是一份空文件");
+
+        var bytes = Convert.FromBase64String(data.GetProperty("base64").GetString()!);
+        var file = Encoding.Latin1.GetString(bytes);
+
+        bytes.Should().StartWith("%PDF"u8.ToArray(), "导出的要是一份真的 PDF，而不是一份空文件");
+        file.Should().Contain("/Type /Page");
+        file.Should().Contain("/FontFile", "字体没嵌进去，收件人机器上没有那份字体");
+        file.Should().Contain("/Type0", "汉字要按 CID 型字体嵌，否则到了别处是方块");
+
+        data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
+            "字体整份嵌入的代价要如实带上");
     }
 }

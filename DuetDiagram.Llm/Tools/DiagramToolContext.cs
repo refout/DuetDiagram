@@ -130,6 +130,27 @@ public sealed record DiagramToolContext
     /// </remarks>
     public Func<DiagramDocument, string?, BitmapExport?>? BitmapExporter { get; init; }
 
+    /// <summary>
+    /// 把一份文档导成 PDF。由宿主喂进来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 <see cref="SvgExporter"/>、<see cref="BitmapExporter"/> 同一口径、同一理由：
+    /// 也不是文档的函数，所以只能由宿主喂进来。
+    /// </para>
+    /// <para>
+    /// **它与那两个有一处不同：一份文档可以出好几页。** 页面标识为空时，
+    /// 文档自己有哪几页就出哪几页；点了名就只出那一页。所以喂进来的这个函数
+    /// 要替调用方决定"整份文档是几页"，而那不是这一层能算的——
+    /// 这一层看不见页面归属那一套口径。
+    /// </para>
+    /// <para>
+    /// 为空表示这个宿主没接上渲染层；返回空表示渲染层拿到了文档却排不出结果。
+    /// 两种都不许悄悄给一份空文件——调用方会把空文件当成"这张图就是空的"。
+    /// </para>
+    /// </remarks>
+    public Func<DiagramDocument, string?, PdfExport?>? PdfExporter { get; init; }
+
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;
 

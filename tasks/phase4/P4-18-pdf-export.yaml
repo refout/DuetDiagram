@@ -1,7 +1,7 @@
 id: P4-18
 title: PDF 导出——选型验证与落地
 phase: 4
-status: pending
+status: done
 depends_on: [P4-17]
 estimated_loc: 480
 files:
@@ -46,3 +46,133 @@ scope_note: |
 
   **`reports/phase4-pdf.md` 是这一条的产物之一，不是副产品。** 选型报告要能独立复现：
   每条判据一个命令或一段代码，读的人不必信结论、可以自己跑。
+
+result: |
+  **结论是第四条路：用 SkiaSharp 自带的 PDF 写入器（`SKDocument.CreatePdf`），一个包都不加。**
+  方案 §2 列的三个候选（QuestPDF / PdfSharpCore / 位图嵌入）一个都没选上，
+  而赢的那个之所以赢，恰恰是因为仓库里已经有 SkiaSharp——同一个原生库既量文本、画位图，
+  也写 PDF，所以这条路不引入任何新依赖。
+
+  **四条判据逐条取证，每条都可复现。** 取证脚手架落在 `tools/Poc/PdfCandidates`
+  （与布局引擎那次同一形状：一次性依赖验证脚手架，不进解决方案文件），
+  四个候选各画同一张图（一个矩形、一段西文、一段中文），再把**文件自己的属性**打出来——
+  字节数、有没有位图对象、字体嵌没嵌、两次导出一不一样。判据落在文件上而不是落在候选的代码上，
+  换一个写入器照样成立。报告 `reports/phase4-pdf.md` 里每一格都能追到脚手架的一行输出。
+
+  **判据一（原生编译）：过，但只验到静态分析这一层。** `Directory.Build.props` 对每个工程
+  都开了 AOT 与裁剪分析器且警告即错误，所以"会不会被裁坏"建一次就有答案。
+  脚手架刻意把"警告即错误"关掉——不关的话一个不合规的候选会让另外三个也跑不了，
+  而这一份的价值正是"四个候选都能跑、结论摆在一起看"。结果：0 条裁剪/AOT 警告，
+  只有 QuestPDF 多一条 CS0618（废弃警告）。**真的链接一次没跑成**：本机缺 VS 的
+  「使用 C++ 的桌面开发」工作负载，`dotnet publish` 停在 `Platform linker not found`，
+  这是 P0-02 就记在账上的环境缺口，照实记成"没跑成"。
+
+  **判据二（许可证）：QuestPDF 判不下来，另外三个过。** 它的社区版不是"开源免费"那一类，
+  而是一份带六个条件的免费授权；最像我们的那一条是"按 OSI 许可分发的开源项目"，
+  而**本仓根目录没有 LICENSE 文件**，方案里也没写打算按哪个许可分发——说不出那句话，
+  就只剩"年营收不足一百万美元"那一条，而营收是仓库里读不出来的事实。
+  没有写成"不过"（可能真的够），也没有写成"过"（在拿到答案之前用它是在拿法律风险换开发便利），
+  写的是"取决于一个仓库外的事实，未决"。**顺带发现一处更大的问题：本仓没有 LICENSE 文件**，
+  这会影响的不止 PDF 这一处依赖，已记进 `docs/Dependency-Fallbacks.md` 的许可风险台账。
+
+  **判据三（中文字体嵌入）：过。** 看的是文件里有没有 `/Type0` 配 `Identity-H`——
+  汉字在 PDF 里要按 CID 型字体嵌，只嵌一份西文子集不够。SkiaSharp 与 PdfSharpCore 都嵌，
+  位图那一档不需要字体。**判据四（矢量还是位图）：选矢量。**
+  看的是有没有 `/Subtype /Image`；再往下把内容流解压出来，看到成对的 `BT`…`ET`
+  与一份字形到文字的映射表（`<47E4> <7532>` 是「甲」的码位），
+  所以这份 PDF 里的中文不只是看得见，还能搜、能复制。
+
+  **三个候选各自死在一处硬判据上**
+
+  - **QuestPDF 2026.9.0** 唯一的自由绘制入口 `Canvas` 已废弃（2024.3.0 起），
+    而且**运行时直接抛 `NotImplementedException`**——这是实测的，不是读文档读来的。
+    它的官方替代是 `.Svg(一段 SVG 文本)`，那条路走得通，但要走就得先把绘制列表导成 SVG、
+    再让它把 SVG 渲染进 PDF，等于**把一条绘制路径变成两条**，而"两条迟早对不上"正是
+    SVG 与 PNG 两个导出器当初共用一份画法的理由；换来的是一个更重的依赖栈
+    （它自己带 `QuestPdfSkia.dll` 与 `qpdf.dll` 两个原生库）。判据二也还没过。
+  - **PdfSharpCore 1.3.67** 逐字节不确定：显式把 `CreationDate` 与 `ModificationDate`
+    设成同一个值之后两次导出仍然不同，不一样的是 `/ID`（随机）与**字体子集前缀那六个大写字母**
+    （也是随机）。这不是配置能改的，是库内部的随机数，而它让"导出的文件有没有变"这个问题
+    永远答不了、PDF 也进不了版本控制。另外它**不认字体集合**：`msyh.ttc`（微软雅黑，
+    本机的中文默认字体）直接抛 `TrueType collection fonts are not yet supported`，
+    要用它就得换一个单文件字体——用户的字体选择被库限制。
+  - **位图嵌入** 什么都过得了（不加依赖、许可干净、字不字体无所谓），但它与 PNG 导出重复，
+    而 PDF 相对 PNG 的意义正在于矢量。列在脚手架里是为了让"为什么不选它"有个可跑的对照。
+
+  **唯一的缺口，量清楚了：字体整份嵌入。** `/Length1` 是嵌进去的字体程序的未压缩长度，
+  拿它跟源字体文件比：`959752` 对 `segoeui.ttf` 的 959,752，`19704352` 对 `msyh.ttc` 的
+  19,704,352——**100%，不做子集**。一个汉字与一整页汉字代价一样（实测：只写「开」一个字
+  12,459,820 字节，写四行中文 12,459,985 字节，差不到两百字节），所以含中文的 PDF 通常十几兆。
+  Skia 的 PDF 后端没有带 TrueType 子集器，`SKDocumentPdfMetadata` 上也没有对应开关。
+  对照组是 PdfSharpCore：同一份内容 38,422 字节（子集，53,416 / 176,280）。
+  **这是取舍的结果，不是疏漏**：要小文件就得换库，而换库要丢掉确定性。
+  这一条写进丢失清单——用户拿到一份十几兆的文件时不会以为是哪里写错了。
+
+  **结构上最要紧的一处：PDF 不自己画，它复用位图那一份画法。**
+  P4-17 的 `BitmapExporter` 里原本有整段绘制代码（形状路径、箭头、虚线、字体回退、装饰线），
+  抽成了 `CanvasPainter`，两个导出器共用：`CanvasPainter` 知道"绘制列表怎么变成图元"，
+  `BitmapExporter` 只知道"开离屏画布、定范围、编 PNG"，`PdfExporter` 只知道
+  "开 PDF、按范围给每页定纸张"。于是"两种格式导出来不一样"在结构上不可能发生，
+  而不是靠两条约定各自维护。抽完之后位图那 30 条用例全绿，是这次重构没走样的证据。
+
+  **它与另外三种格式有一处结构差别：一份绘制列表一页。** PDF 自己就有页的概念，
+  而 SVG、PNG 的"页"要靠投影掉。所以页面标识为空时出几页由宿主按文档自己声明的页序决定
+  （`DocumentRendering.PageIds` 读 `PageMembership.Ordered` 那一份），工具层只把标识原样转下去。
+  按内容外接框裁时各页取同一个尺寸（各页里最大的那个宽与高）——各页各按自己的内容定的话，
+  翻页时页面会跳来跳去、打印时每页缩放比还不一样。
+
+  **纸张尺寸会被取整到整点。** 1123×794 折成 842.25×595.5，落到文件里是 842×595。
+  差不到一个点，打印出来看不出来，但精确到小数点的纸张办不到。已记进 AGENTS.md 的差异表。
+
+  **落地时改了什么**
+
+  - 新增 `DuetDiagram.Core/Model/PdfExport.cs`（产物记录，放 Core 的理由与 `SvgExport`
+    和 `BitmapExport` 一样：工具层要原样交出去而它看不见渲染层）、
+    `DuetDiagram.Render/Export/PdfOptions.cs`、`PdfExporter.cs`、`CanvasPainter.cs`。
+  - `BitmapExporter` 瘦身成"开画布、定范围、编 PNG"三件事。
+  - `ExportTool` 的 `pdf` 分支从「还没接上」改成真出图；`DiagramToolContext.PdfExporter`；
+    `DocumentRendering.Pdf`（一个入口管三个导出器，共用一次"排出来"）；
+    `DiagramMcpServer.ToolContext` 接线。
+  - `DuetDiagram.AotSmokeTest` 纳入渲染层，并真的走完整链路写一份 PDF——
+    "选中的 PDF 库在原生编译后可用"那条判据的落点。
+  - `Directory.Packages.props` 新增两条登记（QuestPDF 与 PdfSharpCore），
+    只被取证脚手架引用，与 `Sugiyama` 当初的情形一样。
+    **没有新增产品依赖**，所以"新依赖进 `Directory.Packages.props` 并精确锁定"这一条
+    在这一条里没有对象。
+
+  **与任务清单的出入**
+
+  - `files.modify` 里列了 `DuetDiagram.Render/DuetDiagram.Render.csproj`——没改。
+    选的写入器在已有的 `SkiaSharp` 包里，所以这个文件一个字都不用动。
+  - `files.modify` 里列了 `DuetDiagram.App/Services/MenuRegistry.cs`——改的是
+    `DuetDiagram.App/Services/MenuEntries.cs`。菜单条目实际住在 `MenuEntries.cs`
+    （`ExportEntries`），`MenuRegistry.cs` 只是注册表本身。
+  - `files.create` 之外多了一个 `tools/Poc/PdfCandidates`（取证脚手架）与
+    `DuetDiagram.Render/Export/CanvasPainter.cs`（两个导出器共用的画法）。
+    前者是"报告要能独立复现"那条要求的落点，后者是复用画法的必然结果。
+
+  **门禁**
+
+  - Release 生成 0 警告。
+  - 八个测试工程全绿：Core 639、Layout 78、Render 328、Mermaid 181、Dsl 158、
+    Llm 219、Mcp 112、E2E 187。
+  - `Category=PdfExport` 28/28（页尺寸 6、多页 4、矢量与位图取舍 8、确定性 2、丢失清单 1、
+    其余为指令覆盖）。
+  - `Category=ExportTool` 30/30；`Category=McpStdio` 10/10（含新的 PDF 一条，
+    真子进程里核了 `/Type /Page`、`/FontFile` 与 `/Type0`）；
+    `Category=MultiAgent` 1/1；`Category=CommentDiscipline` 1/1。
+  - `tools/McpHarness -- protocol` 8/8。
+  - `tools/LocCounter --root . --check` 退出 0（488 文件 / 109426 行 / 67917 代码）。
+  - `dotnet run --project DuetDiagram.App -c Release -- --selftest` 退出 0
+    （画布消费 17/17，位图 240 x 386）。
+  - **`dotnet publish DuetDiagram.AotSmokeTest -c Release` 没跑成**：
+    `Platform linker not found`（缺 C++ 工作负载，P0-02 的环境缺口）。
+    不带原生编译地跑一遍（`dotnet run`）是过的，且其中包含真的写一份 PDF 那一步。
+    这一条判据不能算过。
+
+  **后续**
+
+  - 界面上的导出对话框（要选文件、选格式、选范围）仍没有，PDF 只是让格式那一样凑齐了四种。
+  - 要小文件的 PDF 就得换一个做子集的写入器，而换库要解决确定性——那是另一次选型。
+  - `SkiaTextMeasurer` 不做字体回退那一条仍在（中文标签的框比字窄一点，
+    四个绘制方一致地"溢出框一点"），改它会动到每一份中文文档的节点尺寸，得单独做。

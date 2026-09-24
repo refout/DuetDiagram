@@ -40,6 +40,7 @@ namespace DuetDiagram.Core.Commands;
 [JsonDerivedType(typeof(TextPresetMemento), "text-preset")]
 [JsonDerivedType(typeof(TextPresetApplyMemento), "text-preset-apply")]
 [JsonDerivedType(typeof(InsertTemplateMemento), "insert-template")]
+[JsonDerivedType(typeof(ImportFragmentMemento), "import-fragment")]
 [JsonDerivedType(typeof(CanvasMemento), "canvas")]
 [JsonDerivedType(typeof(CompositeMemento), "composite")]
 [JsonDerivedType(typeof(LayerMemento), "layer")]
@@ -418,6 +419,34 @@ public sealed record InsertTemplateMemento : CommandMemento
     public EdgeDef[] Edges { get; init; } = [];
 
     /// <summary>这次拼进去的组合。</summary>
+    public CompositeDef[] Composites { get; init; } = [];
+}
+
+/// <summary>
+/// 导入一份片段的逆变更。
+/// </summary>
+/// <remarks>
+/// <para>
+/// 形状与放入模板那一个逐字相同（三批元素 + 一律追加在末尾），但**不共用那个记录**：
+/// 两个记录的标签要说明这次改动是哪一种入口来的。读日志的人看到一次"放入模板"，
+/// 会去模板目录里找是哪一份模板——而那次改动其实来自一份导入的文件，
+/// 模板目录里根本没有它。
+/// </para>
+/// <para>
+/// 三样分开存而不是合成一个"元素"列表，理由与放入模板那一个相同：
+/// 撤销要按各自的集合去删，合成一个列表就得给每条元素加一个"它是哪一种"的判别字段，
+/// 而那个字段写错的表现是撤销时去错误的集合里找它、找不到、于是静默不删。
+/// </para>
+/// </remarks>
+public sealed record ImportFragmentMemento : CommandMemento
+{
+    /// <summary>这次导进来的节点。</summary>
+    public NodeDef[] Nodes { get; init; } = [];
+
+    /// <summary>这次导进来的边。</summary>
+    public EdgeDef[] Edges { get; init; } = [];
+
+    /// <summary>这次导进来的组合。</summary>
     public CompositeDef[] Composites { get; init; } = [];
 }
 

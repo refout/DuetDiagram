@@ -19,6 +19,7 @@
 | `MCP_RATE_LIMITED` | 速率超限 | — （Phase 3） | 状态栏提示「请求过于频繁」 |
 | `INTERNAL_ERROR` | 内部错误 | `Apply` 抛异常 | 状态栏提示 + 日志 |
 | `TEMPLATE_EMPTY` | 校验失败 | 要放进去的模板里一条元素都没有 | 状态栏灰显一句话 |
+| `IMPORT_EMPTY` | 校验失败 | 要导入的那份内容里一条元素都没有 | 状态栏灰显一句话 |
 
 `INTERNAL_ERROR` 可重试，`VERSION_CONFLICT` 可重试 —— 两者由 `CommandResult.IsRetryable` 判定。
 
@@ -189,6 +190,7 @@
 | `DOCUMENT_READ_ONLY` | `StatusBarMuted` |
 | `LAYER_FORBIDDEN` | `StatusBarMuted` |
 | `TEMPLATE_EMPTY` | `StatusBarMuted` |
+| `IMPORT_EMPTY` | `StatusBarMuted` |
 | `RICH_TEXT_MISMATCH` | `HighlightTargets` |
 | `MATH_SYNTAX_INVALID` | `HighlightTargets` |
 
@@ -272,6 +274,7 @@
 | `DOCUMENT_READ_ONLY` | — | 这份文档正被另一个进程编辑着，这一份只读。去改那一份，或者等对方放开再来。 |
 | `LAYER_FORBIDDEN` | — | 这份凭据够不着那个图层。把这一次改动换到一个允许的图层上，或者让配凭据的人把它加进允许的图层里。 |
 | `TEMPLATE_EMPTY` | — | 这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。 |
+| `IMPORT_EMPTY` | — | 这份文件里没有能导入的元素。换一份有内容的 Mermaid 文件，或者确认它确实是本程序认得的图类型——认不出的图类型不会落进文档，只会进导入报告。 |
 | `RICH_TEXT_MISMATCH` | — | 富文本内容与标签对不上。把标签改成内容投影出的那段文字，或者重写一次内容：两者只能有一份说了算。 |
 | `MATH_SYNTAX_INVALID` | — | 公式里有认不出来的写法。按报出来的位置改那一处——公式只认清单里的命令与记号；也可以把数学模式关掉，按普通文字排。 |
 | `TOOL_UNKNOWN` | — | 工具名不在表里。换成已登记的那几个工具名，别自己拼一个。 |

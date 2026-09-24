@@ -136,6 +136,10 @@ public static class ErrorPresenterTable
             // 所以走灰显那一档：一句话说清，不弹窗。
             [ErrorCodes.TemplateEmpty] = new(ErrorPresentationKind.StatusBarMuted, "这份模板是空的，没有可放进去的元素"),
 
+            // 导入的那份内容里没有能变成元素的东西。与上一条同一个口径，
+            // 但要说的是"文件"而不是"模板"——用户手上是一份文件，从没碰过模板目录。
+            [ErrorCodes.ImportEmpty] = new(ErrorPresentationKind.StatusBarMuted, "这份内容里没有能导入的元素"),
+
             // 两份文字对不上：处置是改其中一边，所以要把那个节点指出来——
             // 只给一句话的话，用户还得自己在图上找是哪个节点。
             [ErrorCodes.RichTextMismatch] = new(ErrorPresentationKind.HighlightTargets, "富文本内容与标签对不上"),

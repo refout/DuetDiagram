@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using DuetDiagram.App;
@@ -160,6 +161,41 @@ public static class HeadlessFixture
         ArgumentNullException.ThrowIfNull(window);
 
         return window.GetVisualDescendants().OfType<DiagramMenuBar>().Single();
+    }
+
+    /// <summary>窗口里那张导入报告。</summary>
+    public static ImportDialog ImportReport(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<ImportDialog>().Single();
+    }
+
+    /// <summary>
+    /// 在一个面板里按按钮上显示的字找它。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 提示类面板上的按钮没有别的标识可用，而"用户点的是哪一颗"这件事
+    /// 只能按他看到的那几个字来定——按视觉树里的次序找的话，
+    /// 以后往那一排里加一颗按钮就会点错，而测试仍然全绿。
+    /// </para>
+    /// <para>
+    /// **要从那个面板往下找，不从窗口往下找。** 同一个窗口里不止一处有"关闭"
+    /// （性能诊断面板上也有一个），从窗口找会同时命中两个。
+    /// </para>
+    /// <para>
+    /// 走**逻辑**树而不是视觉树：面板是刚刚才被摆出来的，
+    /// 它的子控件要等到下一帧排布才进视觉树，而这里等不到那一帧。
+    /// </para>
+    /// </remarks>
+    public static Button Button(Control root, string content)
+    {
+        ArgumentNullException.ThrowIfNull(root);
+
+        return root.GetLogicalDescendants()
+            .OfType<Button>()
+            .Single(button => button.Content as string == content);
     }
 
     /// <summary>

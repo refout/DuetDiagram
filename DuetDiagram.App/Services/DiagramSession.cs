@@ -1589,6 +1589,47 @@ public sealed class DiagramSession : IDisposable
 
     #endregion
 
+    #region 导入
+
+    /// <summary>
+    /// 把一份从别的格式导进来的片段拼进当前文档。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **一条命令，因此撤销一次整份退回。** 与放入模板同一条口径：
+    /// 一份五百个节点的导入只有一条历史，而用户在界面上做的是同一次「导入了这个文件」。
+    /// 撤销按五百次与那件事对不上，而"导错了想退回去"是导入之后最常见的第一个动作。
+    /// </para>
+    /// <para>
+    /// **拼完必须重排。** 导进来的是节点与边，它们要占位置；只重绘不重排的话，
+    /// 新导进来的元素没有坐标，画面上的表现是"点了没反应"。
+    /// </para>
+    /// <para>
+    /// **选中不动。** 导进来的标识是命令层改过名的，会话这一层看不到那份计划；
+    /// 而按"看起来像"去猜会选错。要看里面的东西，用户自己在图上点。
+    /// </para>
+    /// </remarks>
+    public CommandResult ImportFragment(TemplateDocument fragment)
+    {
+        ArgumentNullException.ThrowIfNull(fragment);
+
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var result = Bus.Execute(new ImportFragmentCommand(fragment));
+
+        if (result.IsEffectiveSuccess)
+        {
+            Reload();
+        }
+
+        return Report(result);
+    }
+
+    #endregion
+
     #region 富文本编辑
 
     /// <summary>正在进行的一次标签编辑。没有时为空。</summary>

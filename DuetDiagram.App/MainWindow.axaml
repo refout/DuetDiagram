@@ -94,6 +94,14 @@
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         IsVisible="False" />
+        <!--
+          导入报告与上面两条同一个位置、同一个理由：它也是一份要读的单子，
+          一出现就改画布尺寸的话图会跟着跳一下。
+        -->
+        <controls:ImportDialog x:Name="ImportView"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsVisible="False" />
       </Grid>
     </DockPanel>
   </DockPanel>

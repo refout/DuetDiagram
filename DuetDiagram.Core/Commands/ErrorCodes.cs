@@ -254,6 +254,17 @@ public static class ErrorCodes
     public const string TemplateEmpty = "TEMPLATE_EMPTY";
 
     /// <summary>
+    /// 要导入的那份内容里一条元素都没有。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="TemplateEmpty"/> 分开：那一条说的是"这份模板里没有可放的东西"，
+    /// 处置是换一份模板；这一条说的是**这份文件解析通了、但里面没有能变成元素的内容**
+    /// （例如整份只有一行 <c>flowchart LR</c>），处置是换一份文件。
+    /// 合成一个的话，用户看到的是一句"这份模板是空的"，而他从没碰过模板。
+    /// </remarks>
+    public const string ImportEmpty = "IMPORT_EMPTY";
+
+    /// <summary>
     /// 富文本内容与纯文本标签（或富文本开关）互相矛盾。
     /// </summary>
     /// <remarks>

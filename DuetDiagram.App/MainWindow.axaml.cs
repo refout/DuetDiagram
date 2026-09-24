@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using DuetDiagram.App.Controls;
 using DuetDiagram.App.Services;
@@ -149,6 +150,10 @@ public sealed partial class MainWindow : Window
         LayoutFailureView.RetryRequested += OnRetryLayout;
         LayoutFailureView.ManualLayoutRequested += OnManualLayout;
         LayoutFailureView.SimplifyRequested += OnShowConflicts;
+
+        // 导入报告只是一个"读一遍再关掉"的面板：它自己不做任何事，
+        // 关掉那一下由这里办。
+        ImportView.DismissRequested += ImportView.Dismiss;
 
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
@@ -407,6 +412,115 @@ public sealed partial class MainWindow : Window
                 ErrorPresentationKind.StatusBar,
                 $"存不进去：{exception.Message}"));
         }
+    }
+
+    /// <summary>
+    /// 从界面上发起一次导入：先让用户选一份文件，再导。
+    /// </summary>
+    /// <remarks>
+    /// 选文件那一步是异步的，而菜单条目是一个同步的动作，所以这里只把这件事起个头。
+    /// 选文件的对话框在无头模式下打不开，所以**能验的那一段全在 <see cref="Import"/> 里**：
+    /// 端到端用例直接给它一条路径，走的是与点菜单完全相同的那条路。
+    /// </remarks>
+    public void BeginImport() => _ = ChooseAndImport();
+
+    private async Task ChooseAndImport()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "导入 Mermaid",
+            AllowMultiple = false,
+
+            // 后缀只用来让用户少找一会儿，不用来判断格式——判断是解析器按内容做的。
+            // 所以这里把文本类都放进来：一份 .txt 里的 Mermaid 也该导得进来。
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Mermaid")
+                {
+                    Patterns = ["*.mmd", "*.mermaid", "*.md", "*.txt"],
+                },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        // 云端或虚拟位置拿不到本地路径。那种情况下这个窗口导不了它，
+        // 而不是"点了没反应"——理由要说出来。
+        if (files[0].TryGetLocalPath() is not { } path)
+        {
+            ImportView.Show(files[0].Name, "这份文件不在本机，读不了", []);
+
+            return;
+        }
+
+        Import(path);
+    }
+
+    /// <summary>
+    /// 导入一份文件，并把这次导入做了什么摆出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **导入是一条命令。** 撤销一次整份退回——"导错了想退回去"是导入之后
+    /// 最常见的第一个动作。所以这里不做"先预览再确认"：多一步确认不如一次可撤销的导入。
+    /// </para>
+    /// <para>
+    /// **报告一律摆出来，成功也摆。** 导入是宽松模式，认不出的内容不进 IR，
+    /// 被丢掉的节点与没映射的样式都是有意的取舍。只在失败时才说的话，
+    /// 用户拿到的是一张少了几条边的图，而他会以为原文里就没有。
+    /// </para>
+    /// </remarks>
+    public void Import(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        // 只读时不给选文件的机会是菜单那一条的事；直接走到这里也要挡住，
+        // 而且要说清为什么——不说的话用户以为是自己选错了文件。
+        if (Session.IsReadOnly)
+        {
+            ImportView.Show(
+                System.IO.Path.GetFileName(path),
+                ErrorPresenterTable.For(ErrorCodes.DocumentReadOnly).Message,
+                []);
+
+            return;
+        }
+
+        var outcome = ImportService.Read(path, Session.Document.Direction);
+
+        if (!outcome.Succeeded)
+        {
+            ImportView.Show(outcome.File, outcome.Refusal!, outcome.Notes);
+
+            return;
+        }
+
+        var result = Session.ImportFragment(outcome.Fragment!);
+
+        ImportView.Show(outcome.File, HeadlineOf(result), outcome.Notes);
+    }
+
+    /// <summary>
+    /// 导入那一下的结果说成一句话。
+    /// </summary>
+    /// <remarks>
+    /// 成功时用命令自己那句（它点名了来源与改过几个名）；失败时用错误码呈现表那一句，
+    /// 与状态栏上那一句是同一句——两处各写一句的话，用户会以为遇到的是两个问题。
+    /// </remarks>
+    private static string HeadlineOf(CommandResult result)
+    {
+        if (result.IsEffectiveSuccess)
+        {
+            return result.Message ?? "导入完成";
+        }
+
+        var presentations = ErrorPresenter.Present(result);
+
+        return presentations.Count > 0 ? presentations[0].Message : "这次导入没能写进去";
     }
 
     protected override void OnClosed(EventArgs e)
@@ -669,6 +783,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 LayoutFailureView 的提示");
         SidecarRecoveryView = this.FindControl<SidecarRecoveryDialog>(nameof(SidecarRecoveryView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 SidecarRecoveryView 的提示");
+        ImportView = this.FindControl<ImportDialog>(nameof(ImportView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ImportView 的提示");
         TextEditor = this.FindControl<RichTextEditor>(nameof(TextEditor))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextEditor 的编辑器");
     }

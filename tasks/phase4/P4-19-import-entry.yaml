@@ -1,7 +1,7 @@
 id: P4-19
 title: 导入入口——Mermaid 文件导入
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01]
 estimated_loc: 460
 files:
@@ -10,17 +10,21 @@ files:
     - DuetDiagram.App/Services/ImportService.cs
     - DuetDiagram.App/Controls/ImportDialog.axaml
     - DuetDiagram.App/Controls/ImportDialog.axaml.cs
-  modify:
-    - DuetDiagram.Core/Commands/CommandMemento.cs
-    - DuetDiagram.App/Services/MenuRegistry.cs
-    - DuetDiagram.App/MainWindow.axaml.cs
-    - DuetDiagram.Mermaid/Import/MermaidImporter.cs
-    - docs/Command-List.md
-    - docs/GUI.md
-    - AGENTS.md
-  test:
     - DuetDiagram.Core.Tests/ImportCommandTests.cs
     - DuetDiagram.E2E.Tests/ImportTests.cs
+  modify:
+    - DuetDiagram.Core/Commands/CommandMemento.cs
+    - DuetDiagram.Core/Commands/ErrorCodes.cs
+    - DuetDiagram.App/Services/MenuEntries.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/Services/ErrorPresenterTable.cs
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.Llm/Loop/RepairHints.cs
+    - docs/Command-List.md
+    - docs/GUI.md
+    - docs/Error-Codes.md
+    - AGENTS.md
 acceptance:
   - command: dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Import"
     expect: 全通过；标识冲突消解、诊断的传递、失败整体回滚各有用例
@@ -51,3 +55,58 @@ scope_note: |
   撤销就没法做，而「导错了想退回去」是导入之后最常见的第一个动作。
   走命令层意味着这 500 个节点要能一次装进一条命令的 memento 里——
   这一点要在侦察里核实代价，若不可行则如实记下并给出替代口径。
+
+result: |
+  **结论：导入入口接上了，落点是「导入 Mermaid 文件」那一条界面接线，没有新格式、没有新引擎。**
+  方案里 Mermaid 导入早就有了（词法、语法、宽松模式、诊断进报告），缺的是
+  「用户选一份文件、当成片段拼进当前文档」这一档——而那是用户操作，不是代理工具，
+  所以**不进工具层**（代理侧没有「导入文件」那个 action；一旦有，等于给模型开了
+  一条未经用户选文件就改文档的口子）。
+
+  **一条命令整体落地。** `ImportFragmentCommand` 把整份片段当一次命令，撤销一次整份退回；
+  按元素发命令的话 500 个节点的导入要撤 500 次，而用户那一侧做的是「导入了这一个文件」。
+  memento 用 `ImportFragmentMemento`（`CommandMemento` 的 `[JsonDerivedType]` 派生之一），
+  往返测试覆盖——500 个节点装得进一条 memento，侦察里担心的代价不成立。
+
+  **标识冲突消解复用模板实例化的同一份实现**（`TemplateInstantiator`）：与目标文档重名的节点
+  改 `-2`、`-3` 依次；边与组合里的引用一起改掉；同一次计划里已经分配出去的名字也参与查重，
+  否则片段里同时有 `a` 与 `a-2` 两个都会被改写成 `a-2`。失败整体回滚一条都不落。
+
+  **类型按内容判，不只看扩展名。** `ImportService` 读文件后交给 Mermaid 层识别图类型，
+  认不出的图类型明确拒绝（`IMPORT_EMPTY`：解析出来零元素，或图类型不在认得的那几种里）；
+  解析与映射走与 `Category=MermaidCorpus` 语料同一条口径——导入器只有 `MermaidImporter.Import`
+  这一个调用入口，语料、基准、`tools/CompareHarness` 与本条走的是同一份，没有第二条。
+  诊断逐条摆到 `ImportDialog` 上（「第 N 行没认出来」之类），认不出的部分不落文档。
+
+  **界面接线。** `file.import` 菜单项 → `MainWindow.Import(path)` → `ImportService` 判类型、
+  调 `DiagramSession.ImportFragment` 落命令、把报告喂给 `ImportDialog`（诊断逐条、有意取舍说明、
+  关闭即清）。选文件那一层（存储提供者的打开对话框）无头模式打不开，所以能验的那一段全压在
+  `MainWindow.Import(路径)` 上，端到端用例直接调它。
+
+  **顺带补的登记。** `IMPORT_EMPTY` 错误码在 `ErrorCodes` / `ErrorPresenterTable`（状态栏灰显）/
+  `docs/Error-Codes.md`（呈现表 + 修复建议表，后者与 `RepairHints.cs` 逐字一致）三处都登记了；
+  `docs/Command-List.md` 的「已实现」表登记 `import-fragment`（由 `Category=CommandGroups` 逐行比对）；
+  `AGENTS.md` 的测试分类加了 `Import`，门禁块加了 Core 与 E2E 两组，差异表加了一条
+  「导入走主窗口入口、不经过工具层」。
+
+  **门禁（全部通过）。**
+  - Release 构建 0 警告 0 错误。
+  - 八工程：Core 651 / Layout 78 / Render 328 / Mermaid 181 / Dsl 158 / Llm 219 / Mcp 112 / E2E 202，全绿。
+  - `Category=Import`：Core 12 / E2E 15。
+  - `Category=CommandGroups` 4、`Category=MementoRegistration` 12、`Category=Atomicity` 170、
+    `Category=Template` 32、`Category=CommentDiscipline` 1、`Category=MultiAgent` 1，全绿。
+  - `tools/McpHarness -- protocol` 8/8。
+  - `tools/LocCounter --root . --check` 退出 0（488 文件 / 109426 行 / 67917 代码；`reports/loc.md` 已重算）。
+  - `dotnet run --project DuetDiagram.App -c Release -- --selftest` 退出 0（画布消费 17/17，位图 240×386）。
+
+  **与任务清单的出入。**
+  1. 计划里「`MenuRegistry.cs`」实际落在 `MenuEntries.cs`（条目按注册表组织，但文件本身叫这个名字）；
+     `MermaidImporter.cs` 本来就实现了，本条没动它——只是第一次从生产代码调到它。
+  2. 多改了 `DiagramSession.cs`（接 `ImportFragment` 入口）、`ErrorPresenterTable.cs`、
+     `DuetDiagram.Llm/Loop/RepairHints.cs`、`docs/Error-Codes.md`——都是 `IMPORT_EMPTY` 这个新错误码
+     必须登记到的地方，否则 `Category=RepairHint` 与 `Category=ErrorPresentation` 会红。
+  3. 界面的「导出」那条路仍是占位：导出四样格式（Mermaid/SVG/PNG/PDF）在工具层与渲染层都齐了，
+     但界面上选文件、选格式、选范围的对话框还没有；导入这一条只把「导入」那一档补齐。
+
+  **后续。** 界面导出对话框（选文件 + 选格式 + 选范围）是下一档；DSL 导入与导出都卡在决策门 1（去留）。
+

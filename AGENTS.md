@@ -17,13 +17,13 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Layout.Tests` | 布局不变量测试 | 已落地 |
 | `DuetDiagram.Render` | 绘制列表、文本度量、富文本排版（分段、折行、行内样式混排）、数学排版（分数、根号、上下标）、从文档到绘制列表的整条链路（`SceneComposer`）、SVG 导出（`SvgExporter`）、PNG 导出（`BitmapExporter`，无头光栅化）与 PDF 导出（`PdfExporter`，矢量，写入器用 SkiaSharp 自带的那个）、三种绘制方共用的画法（`CanvasPainter`）、视口变换、视口虚拟化与换档、帧时采样器、图层对画面的影响（谁不画、谁画了但点不中、谁画在谁上面）、组合框的四种形态（`CompositeFrame`） | Phase 2 P2-01 / P2-03 / P2-04 已落地（画布控件在主程序）；P4-02 让渲染层真的读图层；P4-04 让绘制列表只出当前页的元素；P4-06 让组合可见、可点、可拖；P4-10 让自定义形状的几何在构建列表时算好带进 `DrawShape`；P4-13 加了富文本排版（`RichTextLayout`）并让 `DrawText` 带上斜体、下划线与删除线；P4-15 加了数学排版（`MathTypesetter`），公式拆成普通的文本段与折线出指令；P4-16 加了 SVG 导出，并把"文档到绘制列表"那条链路从入口层搬进来（界面、导出与帧率测量从此只有这一份）；P4-17 加了 PNG 导出（离屏光栅化，尺寸 / 缩放 / 背景 / 裁剪范围四项可选，文本按家族认不认得挑一次字体）；P4-18 加了 PDF 导出（矢量、一份绘制列表一页），并把两个导出器共用的画法抽成 `CanvasPainter`——两边的差别只剩最后那一步 |
 | `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、数学排版与度量、SVG 导出、PNG 导出、PDF 导出、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照；P4-15 加了 `Category=MathTypesetting` / `MathSnapshot` 与两档模式的场景快照；P4-16 加了 `Category=SvgExport`；P4-17 加了 `Category=BitmapExport`；P4-18 加了 `Category=PdfExport`（判据尽量读 PDF 自己的结构，读内容的地方先解压） |
-| `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地；P4-10 把自定义形状加进导出的丢失清单 |
+| `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地；P4-10 把自定义形状加进导出的丢失清单；P4-19 起主程序在「导入 Mermaid…」那条路上直接调它（解析与映射是格式自己的事，那条路不经过工具层），本工程本身没改 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返、形状表、布局引擎、渲染层与 PDF 导出） | 已落地（本机缺 C++ 工作负载，未完成发布）；P4-18 把渲染层纳进来并真的走完整链路写一份 PDF——"选中的 PDF 库在原生编译后可用"那条判据的落点 |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器 | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数；P4-17 让自检存盘的那份位图改走导出器（离屏渲染那一步留着，只为回答"画布把指令消费完了没有"），界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里） |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层） |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器、导入 Mermaid（选一份文件当成片段拼进当前文档，报告面板摆出诊断与有意的取舍） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数；P4-17 让自检存盘的那份位图改走导出器（离屏渲染那一步留着，只为回答"画布把指令消费完了没有"），界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里；P4-19 加了导入 Mermaid 那一档，并为此引了格式那一层——选文件那一层在无头模式下打不开，能验的那一段全在 `MainWindow.Import(路径)` 里） |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 / P4-19 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层；P4-19 的导入走主窗口那个公开入口，选文件那一层进不来） |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -52,7 +52,7 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-10`（自定义形状的路径数据）与 `P4-11`（模板库与模板应用）与
 `P4-12`（富文本内容模型）与 `P4-13`（富文本的排版与渲染）与
 `P4-14`（富文本编辑界面）与 `P4-15`（数学排版）与 `P4-16`（SVG 导出）与 `P4-17`（PNG 导出）与
-`P4-18`（PDF 导出——选型验证与落地）已落地**（`done`），
+`P4-18`（PDF 导出——选型验证与落地）与 `P4-19`（Mermaid 导入入口）已落地**（`done`），
 其余 `pending`，
 其中 **`P4-20`（DSL 导出）标 `blocked`**，
 卡在决策门 1 上——留则照做，不留则整条删掉。
@@ -482,6 +482,11 @@ dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -
 dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Template"
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Template"
 
+# 导入 Mermaid：一条命令整体落地一份片段、标识冲突消解（引用跟着改）、
+# 失败整体回滚一条都不落、memento 往返、诊断不进命令层但结果带得出来
+dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -- --filter-trait "Category=Import"
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Import"
+
 # 富文本：段落与行内样式往返序列化、标签是纯文本投影且内容与标签只有一份权威、
 # 内容进视觉哈希（同样改动仍改变视觉哈希）、认不出的样式字段在字段写入与文件加载两条路都拒绝、
 # 摘要里的纯文本投影逐字确定、改标签那条路对富文本与纯文本给同样形状的结果
@@ -542,7 +547,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `Layout`、`OrderAlign`、`LayoutFallback`、`LayoutConstraint`、`QuadTree`、`Viewport`、
 `CullingPolicy`、`ModeSwitch`、`DiagnosticsSampler`、`DrawList`、`SceneSnapshot`、
 `SvgExport`、`BitmapExport`、`PdfExport`、`RichText`、`RichTextLayout`、`TextMeasurement`、
-`RichTextEditor`、`MathTypesetting`、`MathSnapshot`、`Template`、`NodeField`、
+`RichTextEditor`、`MathTypesetting`、`MathSnapshot`、`Template`、`Import`、`NodeField`、
 `ShapeRegistry`、`ShapeProvider`、`ShapeLibrary`、`PathShape`、`CustomShape`、
 `LayerVisibility`、`LayerRender`、`LayerPanel`、`PageMembership`、`PageRender`、`PageTabs`、
 `Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、
@@ -640,6 +645,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | 工具层的 action 数少于命令数 | 节点与边的属性各合成一条按字段名分发的命令，所以「改标签」「改形状」「套令牌」「改字号」在命令层是同一条 | 字段表落地时就定下了这个口径。工具层把它拆回一条一个 action 的话，同一个效果会有两条路，而其中一条不进结构哈希——判据是**被改的值挂在元素上还是挂在文档上** |
 | 工具层的错误码与命令层的错误码分成两套 | 工具层自己一份（`TOOL_` 前缀），不进 `ErrorCodes` | 命令层那张表由界面呈现的用例逐行核对，把工具层的码并进去会把它判红；而且两者的处置不同——命令层的「字段值不合法」是去改文档，工具层的「参数不合法」是去改这一次调用 |
 | 参数约束的注入方式 | 不用 `AIJsonSchemaCreateOptions.TransformSchemaNode`，改成在 schema 生成之后按声明方法的参数表回填 | 实测那个回调对每个 schema 节点都被调用，但路径恒为空、参数特性提供者恒为空，认不出当前节点属于哪个参数。按参数表回填是确定的，也不依赖回调次序 |
+| Mermaid 导入的入口 | 走主窗口的 `MainWindow.Import(路径)`，不经过工具层（代理侧没有「导入文件」那一条 action） | 选择一份文件当成片段拼进当前文档是**用户**在界面上做的事，不是代理调一个工具；把它塞进代理的工具集，等于给模型开了一条「未经用户选文件就改文档」的口子。选文件那一层（存储提供者的打开对话框）在无头模式里打不开，所以能验的那一段全压在 `MainWindow.Import` 上——解析与映射仍是格式层自己的事，那条入口只负责读文件、判类型、把报告摆到界面上 |
 | `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | 起草 P3-08 时写的「pin 与 unpin 走命令层」与命令层的现状对不上，P3-08 开工时改掉了。连带着那一轮写的「pin 与 sidecar 的固定位置两回事、合并规则要定死」也不成立：只有一处存放处，没有两份要合并 |
 | `diagram_layout` 的 `owner` | 缺省写 `llm`；`auto` 放行，**`human` 被拒绝** | 命令层要求显式给出归属，理由是默认值会让模型那条路径悄悄写出人工归属的约束、而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以缺省写 `llm` 是事实；而 `human` 放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。用户从面板上设的约束由面板自己写，不经过这一层 |
 | 增删布局约束的动作名 | 动作叫 `add-constraint` / `remove-constraint`，命令标识是 `add-layout-constraint` / `remove-layout-constraint`，两者不同名 | 动作名短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。冻结的参数表说明里举的例子就是 `add-constraint`，照它写才不至于让说明与实际动作名对不上 |

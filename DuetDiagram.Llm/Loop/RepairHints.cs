@@ -285,6 +285,11 @@ public static class RepairHints
                 null,
                 "这份模板里一条元素都没有。换一份有内容的模板，或者先选几个元素存成模板再用。"),
 
+            [ErrorCodes.ImportEmpty] = new(
+                ErrorCodes.ImportEmpty,
+                null,
+                "这份文件里没有能导入的元素。换一份有内容的 Mermaid 文件，或者确认它确实是本程序认得的图类型——认不出的图类型不会落进文档，只会进导入报告。"),
+
             [ErrorCodes.RichTextMismatch] = new(
                 ErrorCodes.RichTextMismatch,
                 null,

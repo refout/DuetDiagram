@@ -31,7 +31,7 @@ internal static class MenuRefusals
         ReadOnly(context) ?? (context.Selected.Count < 2 ? $"先选中两个以上{what}" : null);
 }
 
-/// <summary>文件那一档。这一轮有"再开一个窗口"、"存盘"与"存为模板"三件。</summary>
+/// <summary>文件那一档。这一轮有"再开一个窗口"、"存盘"、"存为模板"与"导入"四件。</summary>
 internal static class FileEntries
 {
     public static void Register(MenuRegistry registry)
@@ -44,6 +44,17 @@ internal static class FileEntries
             MenuSurface.Menu,
             _ => null,
             context => context.Window.OpenAnotherWindow()));
+
+        // 「导入」与「保存」都在文件那一档，但一个把外面的东西拿进来、一个把这份写出去。
+        // 它排在保存前面：这一档的第一件事是"从哪儿来"。
+        registry.Add(new MenuEntry(
+            "file.import",
+            MenuGroups.File,
+            "导入 Mermaid…",
+            null,
+            MenuSurface.Menu,
+            MenuRefusals.ReadOnly,
+            context => context.Window.BeginImport()));
 
         registry.Add(new MenuEntry(
             "file.save",

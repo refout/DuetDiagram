@@ -1,0 +1,6 @@
+canvas 400×300 background=#ffffff
+shape n1 Rect (40, 40, 108.944×65.9) fill=#f2f5f9 stroke=#39424f weight=1.5 border=Solid radius=0 opacity=1
+text n1 (56, 50, 25.2×18.9) "普通 " color=#161d26 font=Inter/14/Normal
+text n1 (81.2, 50, 18.144×18.9) "粗体" color=#161d26 font=Inter/14/Bold
+text n1 (99.344, 50, 33.6×18.9) " 下划线" color=#161d26 font=Inter/14/Normal italic=False underline=True strikethrough=False
+text n1 (108.944, 68.9, 24×27) "大字" color=#c0392b font=Inter/20/Normal

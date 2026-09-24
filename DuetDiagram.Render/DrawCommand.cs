@@ -92,26 +92,30 @@ public sealed record DrawShape(
 }
 
 /// <summary>
-/// 画一行文本。
+/// 画一段文本。
 /// </summary>
 /// <remarks>
 /// <para>
-/// **一行一条指令**，不是一段一条。分行由构建列表的那一步做完，
-/// 绘制方拿到的框就是这一行的框，不必再自己做换行——换行依赖文本度量，
-/// 而度量是注入进来的，绘制方没有它。
+/// **一段一条指令**，不是一行一条。分行与行内切段都由构建列表的那一步做完，
+/// 绘制方拿到的框就是这一段的框，不必再自己做换行——换行依赖文本度量，
+/// 而度量是注入进来的，绘制方没有它。纯文本的一行正好是一段，
+/// 富文本的一行可以切成好几段，每段带自己的字号、颜色与修饰。
 /// </para>
 /// <para>
 /// 指令里不带对齐方式：<see cref="Box"/> 已经是对齐算完之后的位置。
 /// 留着对齐字段等于给了两处可以互相矛盾的真相。
 /// </para>
 /// </remarks>
-/// <param name="ElementId">元素标识。同一个元素的多行共用它。</param>
-/// <param name="Text">这一行的文本。</param>
-/// <param name="Box">这一行的框。左边缘是起始位置，垂直方向按框中居中排。</param>
+/// <param name="ElementId">元素标识。同一个元素的多段共用它。</param>
+/// <param name="Text">这一段的文本。</param>
+/// <param name="Box">这一段的框。左边缘是起始位置，垂直方向按框中居中排。</param>
 /// <param name="Color">文字颜色，已解析。</param>
 /// <param name="FontFamily">字体名。</param>
 /// <param name="FontSize">字号。</param>
 /// <param name="Weight">字重。</param>
+/// <param name="Italic">斜体。</param>
+/// <param name="Underline">下划线。</param>
+/// <param name="Strikethrough">删除线。</param>
 public sealed record DrawText(
     string ElementId,
     string Text,
@@ -119,12 +123,25 @@ public sealed record DrawText(
     string Color,
     string FontFamily,
     double FontSize,
-    FontWeight Weight) : DrawCommand(ElementId)
+    FontWeight Weight,
+    bool Italic = false,
+    bool Underline = false,
+    bool Strikethrough = false) : DrawCommand(ElementId)
 {
     /// <inheritdoc/>
-    public override string Describe() =>
-        $"text {ElementId} {Box} \"{Text}\" color={Color}"
-        + $" font={FontFamily}/{Numbers.Format(FontSize)}/{Weight}";
+    /// <remarks>
+    /// 三项修饰都没设时**不往文本里加任何字**：纯文本的快照要逐字节与从前相同，
+    /// 多一个恒定的尾巴会让所有既有快照一起变红，而那些快照本来没变。
+    /// </remarks>
+    public override string Describe()
+    {
+        var text = $"text {ElementId} {Box} \"{Text}\" color={Color}"
+            + $" font={FontFamily}/{Numbers.Format(FontSize)}/{Weight}";
+
+        return Italic || Underline || Strikethrough
+            ? text + $" italic={Italic} underline={Underline} strikethrough={Strikethrough}"
+            : text;
+    }
 }
 
 /// <summary>画一条折线。连线的走线用它。</summary>

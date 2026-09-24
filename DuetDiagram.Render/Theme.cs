@@ -24,6 +24,11 @@ public sealed record NodeAppearance(
 public sealed record EdgeAppearance(string Color, double Weight, LineStyle Line, ArrowStyle Arrow);
 
 /// <summary>文本解析之后的样式。</summary>
+/// <remarks>
+/// 后三项是行内修饰，只有富文本的行内片段会用到，纯文本一律为假。做成带默认值的
+/// 附加属性而不是位置参数：位置参数会让每一处构造都要多写三个 <c>false</c>，
+/// 而那三处里有两处（组合标题、连线标签）永远不会用到它们。
+/// </remarks>
 public sealed record TextAppearance(
     string Color,
     string FontFamily,
@@ -31,7 +36,17 @@ public sealed record TextAppearance(
     FontWeight Weight,
     TextAlign Align,
     VerticalAlign Vertical,
-    double LineHeight);
+    double LineHeight)
+{
+    /// <summary>斜体。</summary>
+    public bool Italic { get; init; }
+
+    /// <summary>下划线。</summary>
+    public bool Underline { get; init; }
+
+    /// <summary>删除线。</summary>
+    public bool Strikethrough { get; init; }
+}
 
 /// <summary>
 /// 外观查表。
@@ -246,6 +261,44 @@ public sealed record Theme
             style?.Align ?? TextAlign.Center,
             style?.VerticalAlign ?? VerticalAlign.Middle,
             style?.LineHeight ?? LineHeight);
+    }
+
+    /// <summary>
+    /// 解析一个行内片段的文字外观。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 没设的项从 <paramref name="text"/> 继承。继承而不是各自取兜底：节点上写着字号 20，
+    /// 一段没有样式的片段就该跟着是 20，而不是回到主题兜底的 14——后者会让
+    /// "只有几个字加粗"的节点里，其余的字突然变小。
+    /// </para>
+    /// <para>
+    /// <c>Bold</c> 写成 <c>false</c> 与"没写"不一样：前者是明确要求不加粗，
+    /// 后者是跟着节点走。三态做成两态的话，节点整体加粗之后就没法把某一段改回常规。
+    /// </para>
+    /// <para>
+    /// 颜色走与节点文字色同一条解析：先按调色板令牌名查，查不到就按颜色字面量用。
+    /// 令牌名拼错的表现因此是"颜色不对"而不是"整段变成默认色"。
+    /// </para>
+    /// </remarks>
+    public TextAppearance Run(RichRunStyle? style, TextAppearance text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        if (style is null)
+        {
+            return text;
+        }
+
+        return text with
+        {
+            Color = ResolveText(style.Color, null, text.Color),
+            FontSize = style.FontSize ?? text.FontSize,
+            Weight = style.Bold is { } bold ? (bold ? FontWeight.Bold : FontWeight.Normal) : text.Weight,
+            Italic = style.Italic ?? text.Italic,
+            Underline = style.Underline ?? text.Underline,
+            Strikethrough = style.Strikethrough ?? text.Strikethrough,
+        };
     }
 
     /// <summary>

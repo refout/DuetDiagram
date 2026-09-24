@@ -1,7 +1,7 @@
 id: P4-13
 title: 富文本的排版与渲染
 phase: 4
-status: pending
+status: done
 depends_on: [P4-12]
 estimated_loc: 480
 files:
@@ -48,3 +48,77 @@ scope_note: |
   **不做竖排、不做双向文字、不做连字。** 三样都是各自独立的排版工程，
   而方案的判据只说「富文本与数学正确」。竖排与双向文字记进 followups，
   与 Phase 5 的 i18n 那一条接上。
+result: |
+  **只做排版与渲染，不做编辑界面。** 排版是富文本里唯一一块"做错了画面上看得出来"的，
+  所以判据全部写成了可数的（行数、每行的文字、块尺寸），不写成"看起来对"。
+
+  **落地了什么**
+
+  - `DuetDiagram.Render/RichTextLayout.cs`：分段、折行、行内样式混排。切原子 → 贪心填行 → 定位。
+  - `DuetDiagram.Render/TextLayout.cs`：新增 `TextSegment` / `TextLine` / `TextBody` 三个类型与
+    `Layout`（纯文本那条路，每行一个片段）和 `Place`（唯一的定位实现，两条路共用）。
+  - `DuetDiagram.Render/DrawCommand.cs`：`DrawText` 从"一行一条"改成"一段一条"，
+    并带上 `Italic` / `Underline` / `Strikethrough` 三个布尔。
+  - `DuetDiagram.Render/Theme.cs`：`TextAppearance` 加三项修饰（带默认值，既有构造点不动）；
+    新增 `Theme.Run(style, text)` 把行内样式解析成完整外观。
+  - `DuetDiagram.Render/ITextMeasurer.cs` + `SkiaTextMeasurer.cs`：度量接口加 `italic`；
+    Skia 那侧把字重与倾斜一起交给字体匹配（此前字重根本没进 `SKFont`）。
+  - `DuetDiagram.Render/SceneBuilder.cs`：`MeasureNode` / `AppendBlock` 改走标签块，
+    富文本节点排内容、纯文本节点排标签，出指令时逐段出。
+  - `DuetDiagram.App/Controls/DiagramCanvas.cs`：斜体进 `Typeface`，
+    下划线与删除线走 `FormattedText.SetTextDecorations`。
+
+  **刻意的取舍与判断**
+
+  - **纯文本与富文本共用一份定位**（`TextLayout.Place`）。各写一份的话，两边的边距与对齐
+    迟早对不上，而那种偏差看起来像对齐算错了。
+  - **切原子决定断行语义。** 拉丁词整体成原子，所以英文单词不会被从中间切开；
+    表意文字（中日韩）逐字成原子，所以中文按字断行——两者要分开判。
+    一个原子比整行还宽时才按字符硬切，且每段至少一个字，不会死循环。
+  - **换行处的空格丢掉**：留在行尾会撑宽整块，留在行首会看起来像缩进。
+    不折行时按字面排（`trim: false`），与纯文本同一口径——节点尺寸是量出来的，
+    量之前没有宽度可用，所以按节点排版时不给宽度上限。
+  - **同一行上相邻的同样式原子合回一段**：于是"一段"就是"一个 run 在这一行上的那一截"，
+    不随行宽漂移，绘制列表里也不会因为折行算法当时手里的分块方式而多出指令。
+  - **行高取行内最高的那个 run，片段高度一律取行高**：前者不取的话混排大字号的那一行
+    会与下一行叠住，后者不取的话小字号的那一段会往下掉。
+  - **三项修饰都没设时 `Describe()` 不加任何字**：纯文本的既有快照因此逐字节不变，
+    否则十个场景会一起变红，而那些场景本来没变。
+  - **`Bold` 写成 `false` 与"没写"不一样**：前者是明确要求不加粗。
+    三态做成两态的话，节点整体加粗之后就没法把某一段改回常规。
+
+  **与任务清单不一样的地方**
+
+  - **清单没列而改动**：`DuetDiagram.Render/Theme.cs`（`TextAppearance` 三项修饰与 `Theme.Run`）、
+    `DuetDiagram.Render.Tests/FakeTextMeasurer.cs` 与 `DrawListTests.cs`（度量接口多了 `italic`）、
+    `docs/Render-Pipeline.md`、`README.md`、`tasks/README.md`。
+  - **新增一个快照场景**：`Scenes/11-richtext.txt`（行内混排 + 段落对齐）。
+    清单没要求，但加一种指令形状而不加场景等于它没有回归网。
+  - **`DuetDiagram.Render.Tests/RichTextLayoutTests.cs` 里同时放了 `Category=TextMeasurement`**：
+    清单把三条验收拆在两个文件上，而"量出来的块尺寸与画出来的一致"这一条要同时用到
+    排版结果与绘制列表，放在一处读起来更顺。
+
+  **侦察时挖出的一个自己的缺陷**
+
+  - **攒行时片段列表存的是引用**，调用方清空并复用那个列表接着攒下一行，
+    于是上一行的内容跟着一起变——两行变成一样。表现是硬切那条用例里
+    `{"abcdef", "ghijkl"}` 变成 `{"ghijkl", "ghijkl"}`。改成复制一份再返回。
+
+  **门禁**
+
+  - `dotnet build DuetDiagram.slnx -c Release`：0 警告 0 错误。
+  - 三条验收：`Category=RichTextLayout` 18/18、`Category=TextMeasurement` 4/4、
+    `Category=SceneSnapshot` 19/19（含新场景 `11-richtext`）。
+  - 全量测试：Core 639 / Layout 78 / Render 211 / Mermaid 181 / Dsl 158 / Llm 200 /
+    Mcp 109 / E2E 176 全绿。
+  - `Category=MultiAgent` 通过（Mcp 1/1）；`tools/McpHarness -- protocol` 8/8 通过；
+    `tools/LocCounter --root . --check` 退出码 0
+    （`reports/loc.md` 已重新生成：460 个文件 / 101445 行 / 63270 行代码）。
+
+  **后续**
+
+  - 编辑界面（P4-14）还没做：内容能排能画，但人还没有改分段与行内样式的入口。
+  - 折行宽度目前只有调用方能给；节点按内容量尺寸、不设上限，所以长段落会撑出很宽的节点。
+    要让节点自己折行得先定一个最小宽度再迭代，那是另一件事。
+  - 竖排与双向文字没做，与 Phase 5 的 i18n 那一条接上。
+  - 数学排版（P4-15）在内容模型之上做，与富文本是两条排版路径。

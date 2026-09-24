@@ -305,7 +305,7 @@ public sealed class DrawListTests
     /// <summary>比假度量器宽一倍的度量器。用来证明尺寸确实来自注入的那个。</summary>
     private sealed class DoublingMeasurer : ITextMeasurer
     {
-        public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight) =>
+        public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight, bool italic = false) =>
             new(text.Length * fontSize * 1.2, fontSize);
     }
 }

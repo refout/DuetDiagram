@@ -25,7 +25,7 @@ namespace DuetDiagram.Render;
 /// </remarks>
 public sealed class SkiaTextMeasurer : ITextMeasurer, IDisposable
 {
-    private readonly Dictionary<string, SKTypeface> _typefaces = new(StringComparer.Ordinal);
+    private readonly Dictionary<TypefaceKey, SKTypeface> _typefaces = new();
     private readonly Dictionary<FontKey, SKFont> _fonts = [];
     private bool _disposed;
 
@@ -34,11 +34,11 @@ public sealed class SkiaTextMeasurer : ITextMeasurer, IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        return Typeface(fontFamily).FamilyName;
+        return Typeface(fontFamily, FontWeight.Normal, italic: false).FamilyName;
     }
 
     /// <inheritdoc/>
-    public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight)
+    public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight, bool italic = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -47,7 +47,7 @@ public sealed class SkiaTextMeasurer : ITextMeasurer, IDisposable
             return new Size(0, 0);
         }
 
-        var font = Font(fontFamily, fontSize, weight);
+        var font = Font(fontFamily, fontSize, weight, italic);
         var metrics = font.Metrics;
 
         return new Size(font.MeasureText(text), metrics.Descent - metrics.Ascent + metrics.Leading);
@@ -75,16 +75,16 @@ public sealed class SkiaTextMeasurer : ITextMeasurer, IDisposable
         _disposed = true;
     }
 
-    private SKFont Font(string fontFamily, double fontSize, FontWeight weight)
+    private SKFont Font(string fontFamily, double fontSize, FontWeight weight, bool italic)
     {
-        var key = new FontKey(fontFamily, fontSize, weight);
+        var key = new FontKey(fontFamily, fontSize, weight, italic);
 
         if (_fonts.TryGetValue(key, out var cached))
         {
             return cached;
         }
 
-        var font = new SKFont(Typeface(fontFamily), (float)fontSize)
+        var font = new SKFont(Typeface(fontFamily, weight, italic), (float)fontSize)
         {
             // 提示关闭：开与不开量出来的宽度差一点点，而这一点点会让同一份文档
             // 在不同后端上得到不同的节点尺寸。测量要的是一致，不是像素级贴合。
@@ -96,22 +96,33 @@ public sealed class SkiaTextMeasurer : ITextMeasurer, IDisposable
         return font;
     }
 
-    private SKTypeface Typeface(string fontFamily)
+    private SKTypeface Typeface(string fontFamily, FontWeight weight, bool italic)
     {
         var name = string.IsNullOrWhiteSpace(fontFamily) ? DefaultFamily : fontFamily;
+        var key = new TypefaceKey(name, weight, italic);
 
-        if (_typefaces.TryGetValue(name, out var cached))
+        if (_typefaces.TryGetValue(key, out var cached))
         {
             return cached;
         }
 
-        var typeface = SKTypeface.FromFamilyName(name) ?? SKTypeface.Default;
-        _typefaces[name] = typeface;
+        // 字重与倾斜要一起交给字体匹配，而不是拿到常规体再让绘制方自己变：
+        // 量出来的宽度必须与画出来的那一个字面一致，否则加粗的那一段会溢出。
+        var typeface = SKTypeface.FromFamilyName(
+            name,
+            weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright)
+            ?? SKTypeface.Default;
+
+        _typefaces[key] = typeface;
 
         return typeface;
     }
 
     private const string DefaultFamily = "Segoe UI";
 
-    private readonly record struct FontKey(string Family, double Size, FontWeight Weight);
+    private readonly record struct FontKey(string Family, double Size, FontWeight Weight, bool Italic);
+
+    private readonly record struct TypefaceKey(string Family, FontWeight Weight, bool Italic);
 }

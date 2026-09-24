@@ -6,7 +6,7 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 275 | 195 | 47 | 33 |
-| DuetDiagram.App | 63 | 15719 | 9025 | 4064 | 2630 |
+| DuetDiagram.App | 63 | 15740 | 9038 | 4068 | 2634 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 116 | 17445 | 9849 | 5063 | 2533 |
 | DuetDiagram.Core.Tests | 44 | 12614 | 8880 | 1321 | 2413 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3137 | 1998 | 506 | 633 |
 | DuetDiagram.Mermaid | 12 | 2685 | 1564 | 704 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
-| DuetDiagram.Render | 22 | 3905 | 2035 | 1307 | 563 |
-| DuetDiagram.Render.Tests | 17 | 3681 | 2567 | 419 | 695 |
+| DuetDiagram.Render | 23 | 4434 | 2313 | 1485 | 636 |
+| DuetDiagram.Render.Tests | 19 | 4252 | 2986 | 464 | 802 |
 | tools | 34 | 9460 | 6458 | 1442 | 1560 |
-| **合计** | **457** | **100324** | **62560** | **20861** | **16903** |
+| **合计** | **460** | **101445** | **63270** | **21088** | **17087** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 18 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 833 |
+| DiagramCanvas.cs | 846 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -501,7 +501,7 @@
 | CullingPolicy.cs | 19 |
 | DiagnosticsFrame.cs | 14 |
 | DiagnosticsSampler.cs | 107 |
-| DrawCommand.cs | 83 |
+| DrawCommand.cs | 91 |
 | DrawList.cs | 64 |
 | Highlight.cs | 181 |
 | HitTester.cs | 113 |
@@ -510,11 +510,12 @@
 | ModeSwitch.cs | 44 |
 | QuadTree.cs | 260 |
 | RenderMode.cs | 6 |
-| SceneBuilder.cs | 437 |
-| SkiaTextMeasurer.cs | 70 |
+| RichTextLayout.cs | 190 |
+| SceneBuilder.cs | 432 |
+| SkiaTextMeasurer.cs | 77 |
 | SpatialRect.cs | 29 |
-| TextLayout.cs | 22 |
-| Theme.cs | 117 |
+| TextLayout.cs | 78 |
+| Theme.cs | 139 |
 | Viewport.cs | 49 |
 | ViewportCulling.cs | 6 |
 | ViewportTransform.cs | 32 |
@@ -528,7 +529,7 @@
 | CustomShapeTests.cs | 98 |
 | DiagnosticsSamplerTests.cs | 199 |
 | DrawListTests.cs | 237 |
-| FakeTextMeasurer.cs | 17 |
+| FakeTextMeasurer.cs | 22 |
 | HighlightTests.cs | 143 |
 | HitTesterTests.cs | 104 |
 | LayerRenderTests.cs | 201 |
@@ -536,6 +537,8 @@
 | ModeSwitchTests.cs | 113 |
 | PageRenderTests.cs | 117 |
 | QuadTreeTests.cs | 285 |
+| RichTextLayoutTests.cs | 297 |
+| RichTextRenderTests.cs | 117 |
 | SceneSnapshotTests.cs | 251 |
 | ShapeProviderTests.cs | 86 |
 | Snapshot.cs | 57 |

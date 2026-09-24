@@ -46,6 +46,10 @@ public static class SceneBuilder
     /// 留白加在这里而不是加在绘制那一步：尺寸是布局的输入，必须在布局之前定下来，
     /// 而绘制那一步只能拿到定好的尺寸。
     /// </para>
+    /// <para>
+    /// **有富文本内容时量的是内容，不是标签。** 内容在的时候它是权威，而标签只是它的投影——
+    /// 按标签量的话，混排了大字号的那一块会量矮，字就溢到框外面。
+    /// </para>
     /// </remarks>
     public static Size MeasureNode(NodeDef node, Theme theme, ITextMeasurer measurer)
     {
@@ -55,7 +59,7 @@ public static class SceneBuilder
 
         var appearance = theme.Node(node);
         var text = theme.Text(node.Text, appearance.Text);
-        var block = TextLayout.MeasureBlock(measurer, TextLayout.SplitLines(node.Label), text);
+        var block = Block(node, text, theme, measurer);
 
         return new Size(
             Math.Max(block.Width + (theme.NodePaddingX * 2), theme.MinNodeWidth),
@@ -77,7 +81,7 @@ public static class SceneBuilder
 
         var appearance = theme.Composite(composite);
         var text = theme.Text(null, appearance.Text);
-        var block = TextLayout.MeasureBlock(measurer, TextLayout.SplitLines(composite.Label), text);
+        var block = TextLayout.Layout(measurer, TextLayout.SplitLines(composite.Label), text);
 
         return new Size(block.Width, Math.Max(block.Height, theme.CompositeHeader));
     }
@@ -205,7 +209,12 @@ public static class SceneBuilder
 
             var text = theme.Text(null, theme.Composite(composite).Text);
 
-            AppendBlock(commands, composite.Id, composite.Label, band, text, measurer);
+            AppendBlock(
+                commands,
+                composite.Id,
+                TextLayout.Layout(measurer, TextLayout.SplitLines(composite.Label), text),
+                band,
+                text);
         }
     }
 
@@ -420,7 +429,12 @@ public static class SceneBuilder
             var text = theme.Text(null, theme.EdgeText);
             var anchor = Along(points, LabelFactor(edge.Style.LabelPosition));
 
-            AppendBlockAt(commands, edge.Id, edge.Label, anchor, text, measurer);
+            AppendBlockAt(
+                commands,
+                edge.Id,
+                TextLayout.Layout(measurer, TextLayout.SplitLines(edge.Label), text),
+                anchor,
+                text);
         }
     }
 
@@ -553,7 +567,7 @@ public static class SceneBuilder
 
             var text = theme.Text(node.Text, appearance.Text);
 
-            AppendBlock(commands, node.Id, node.Label, rect, text, measurer);
+            AppendBlock(commands, node.Id, Block(node, text, theme, measurer), rect, text);
         }
     }
 
@@ -562,29 +576,39 @@ public static class SceneBuilder
     #region 文本
 
     /// <summary>
-    /// 把一段标签排在容器里。
+    /// 排一个节点的标签块。
     /// </summary>
     /// <remarks>
-    /// 两段定位：先按对齐方式把整块放进容器，再按同一个对齐方式把每一行放进块里。
-    /// 看似重复，其实是两件事——块宽取最长的那一行，短行要靠行内对齐才能跟长行对齐。
+    /// 有富文本内容时排的是内容，否则排纯文本标签。**两条路最后都汇到
+    /// <see cref="TextLayout.Place"/>**，所以边距、行高与对齐只有一份实现。
+    /// 按 <c>richText</c> 开关分而不是按内容在不在分：内容在的时候它是权威，
+    /// 而"开关开着却没有内容"这一种，按纯文本标签排出来的样子与纯文本节点一样。
+    /// </remarks>
+    private static TextBody Block(NodeDef node, TextAppearance text, Theme theme, ITextMeasurer measurer) =>
+        node.RichLabel is { IsEmpty: false } content
+            ? RichTextLayout.Layout(measurer, content, text, style => theme.Run(style, text))
+            : TextLayout.Layout(measurer, TextLayout.SplitLines(node.Label), text);
+
+    /// <summary>
+    /// 把一整块排在容器里。
+    /// </summary>
+    /// <remarks>
+    /// 两段定位：先按对齐方式把整块放进容器，再按同一个对齐方式把每一行放进块里
+    /// （后者已经在 <see cref="TextLayout.Place"/> 里算进片段的位置）。
     /// 只做一段的话，居中的标签会变成左边对齐。
     /// </remarks>
     private static void AppendBlock(
         List<DrawCommand> commands,
         string elementId,
-        string label,
+        TextBody block,
         SpatialRect container,
-        TextAppearance text,
-        ITextMeasurer measurer)
+        TextAppearance text)
     {
-        var lines = TextLayout.SplitLines(label);
-
-        if (lines.Count == 0)
+        if (block.Lines.Count == 0)
         {
             return;
         }
 
-        var block = TextLayout.MeasureBlock(measurer, lines, text);
         var left = text.Align switch
         {
             TextAlign.Start => container.X,
@@ -599,80 +623,58 @@ public static class SceneBuilder
             _ => container.Y + ((container.Height - block.Height) / 2),
         };
 
-        EmitLines(commands, elementId, lines, new DrawPoint(left, top), block.Width, text, measurer);
+        Emit(commands, elementId, block, new DrawPoint(left, top));
     }
 
-    /// <summary>把一段标签排在某个点周围。连线标签用它。</summary>
+    /// <summary>把一整块排在某个点周围。连线标签用它。</summary>
     private static void AppendBlockAt(
         List<DrawCommand> commands,
         string elementId,
-        string label,
+        TextBody block,
         DrawPoint center,
-        TextAppearance text,
-        ITextMeasurer measurer)
+        TextAppearance text)
     {
-        var lines = TextLayout.SplitLines(label);
-
-        if (lines.Count == 0)
+        if (block.Lines.Count == 0)
         {
             return;
         }
 
-        var block = TextLayout.MeasureBlock(measurer, lines, text);
-
-        EmitLines(
+        Emit(
             commands,
             elementId,
-            lines,
-            new DrawPoint(center.X - (block.Width / 2), center.Y - (block.Height / 2)),
-            block.Width,
-            text,
-            measurer);
+            block,
+            new DrawPoint(center.X - (block.Width / 2), center.Y - (block.Height / 2)));
     }
 
     /// <summary>
-    /// 逐行出指令。
+    /// 逐段出指令。
     /// </summary>
     /// <remarks>
-    /// 空行只占高度，不出指令：一条宽度为零的文本指令画不出东西，
+    /// 空行没有片段，自然不出指令：一条宽度为零的文本指令画不出东西，
     /// 却会让快照里多出一堆没有意义的行。
     /// </remarks>
-    private static void EmitLines(
-        List<DrawCommand> commands,
-        string elementId,
-        IReadOnlyList<string> lines,
-        DrawPoint origin,
-        double blockWidth,
-        TextAppearance text,
-        ITextMeasurer measurer)
+    private static void Emit(List<DrawCommand> commands, string elementId, TextBody block, DrawPoint origin)
     {
-        var lineHeight = TextLayout.LineHeight(text);
-
-        for (var index = 0; index < lines.Count; index++)
+        foreach (var line in block.Lines)
         {
-            var line = lines[index];
-
-            if (line.Length == 0)
+            foreach (var segment in line.Segments)
             {
-                continue;
+                commands.Add(new DrawText(
+                    elementId,
+                    segment.Text,
+                    new SpatialRect(
+                        origin.X + segment.X,
+                        origin.Y + segment.Y,
+                        segment.Width,
+                        segment.Height),
+                    segment.Appearance.Color,
+                    segment.Appearance.FontFamily,
+                    segment.Appearance.FontSize,
+                    segment.Appearance.Weight,
+                    segment.Appearance.Italic,
+                    segment.Appearance.Underline,
+                    segment.Appearance.Strikethrough));
             }
-
-            var width = measurer.Measure(line, text.FontFamily, text.FontSize, text.Weight).Width;
-            var left = text.Align switch
-            {
-                TextAlign.Start => origin.X,
-                TextAlign.End => origin.X + blockWidth - width,
-                _ => origin.X + ((blockWidth - width) / 2),
-            };
-
-            commands.Add(new DrawText(
-                elementId,
-                line,
-                new SpatialRect(left, origin.Y + (index * lineHeight), width, lineHeight),
-                text.Color,
-                text.FontFamily,
-                text.FontSize,
-                text.Weight));
         }
     }
 

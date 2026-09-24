@@ -27,13 +27,21 @@ internal sealed class FakeTextMeasurer : ITextMeasurer
     /// <summary>字重为粗体时额外加宽的比例。</summary>
     public const double BoldFactor = 0.08;
 
-    public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight)
+    /// <summary>斜体额外加宽的比例。真实字体的斜体也比常规体宽一点。</summary>
+    public const double ItalicFactor = 0.05;
+
+    public Size Measure(string text, string fontFamily, double fontSize, FontWeight weight, bool italic = false)
     {
         var width = text.Length * fontSize * CharacterWidth;
 
         if (weight == FontWeight.Bold)
         {
             width *= 1 + BoldFactor;
+        }
+
+        if (italic)
+        {
+            width *= 1 + ItalicFactor;
         }
 
         return new Size(width, fontSize * LineFactor);

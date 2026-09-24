@@ -30,5 +30,10 @@ public interface ITextMeasurer
     /// <param name="fontFamily">字体名。</param>
     /// <param name="fontSize">字号。</param>
     /// <param name="weight">字重。</param>
-    Size Measure(string text, string fontFamily, double fontSize, FontWeight weight);
+    /// <param name="italic">是不是斜体。</param>
+    /// <remarks>
+    /// 斜体要进来，是因为它会改变字形的实际宽度。量的时候按常规体、画的时候按斜体，
+    /// 表现是斜体的那一段比量出来的宽一点，最后几个字压到边框上。
+    /// </remarks>
+    Size Measure(string text, string fontFamily, double fontSize, FontWeight weight, bool italic = false);
 }

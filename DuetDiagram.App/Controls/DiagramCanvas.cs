@@ -63,7 +63,7 @@ public sealed partial class DiagramCanvas : UserControl
     private static readonly Cursor PanCursor = new(StandardCursorType.SizeAll);
 
     private readonly Dictionary<string, IBrush> _brushes = new(StringComparer.Ordinal);
-    private readonly Dictionary<(string Family, CoreFontWeight Weight), Typeface> _typefaces = [];
+    private readonly Dictionary<(string Family, CoreFontWeight Weight, bool Italic), Typeface> _typefaces = [];
 
     private CanvasViewModel? _subscribed;
     private bool _panning;
@@ -399,13 +399,17 @@ public sealed partial class DiagramCanvas : UserControl
     #region 文本
 
     /// <summary>
-    /// 画一行文本。
+    /// 画一段文本。
     /// </summary>
     /// <remarks>
     /// 指令里的框已经是对齐算完之后的框，左边缘就是起始位置，
     /// 所以这里只做纵向居中——横向再对一次会把居中标签推偏半个字宽。
     /// 纵向居中不能省：框高是按行高算的，而字形的实际高度比行高小，
     /// 不居中则文字贴着框的上沿。
+    /// <para>
+    /// 下划线与删除线按需挂上。两者都要时用一份集合带上，不是二选一——
+    /// 一段文字可以既有下划线又有删除线。
+    /// </para>
     /// </remarks>
     private void DrawText(DrawingContext context, ViewportTransform transform, DrawText text)
     {
@@ -416,9 +420,26 @@ public sealed partial class DiagramCanvas : UserControl
             text.Text,
             CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight,
-            TypefaceFor(text.FontFamily, text.Weight),
+            TypefaceFor(text.FontFamily, text.Weight, text.Italic),
             text.FontSize * transform.Scale,
             Brush(text.Color));
+
+        if (text.Underline || text.Strikethrough)
+        {
+            var decorations = new TextDecorationCollection();
+
+            if (text.Underline)
+            {
+                decorations.AddRange(TextDecorations.Underline);
+            }
+
+            if (text.Strikethrough)
+            {
+                decorations.AddRange(TextDecorations.Strikethrough);
+            }
+
+            formatted.SetTextDecorations(decorations);
+        }
 
         context.DrawText(formatted, new Point(origin.X, origin.Y + ((box.Height - formatted.Height) / 2)));
     }
@@ -457,9 +478,9 @@ public sealed partial class DiagramCanvas : UserControl
         };
     }
 
-    private Typeface TypefaceFor(string family, CoreFontWeight weight)
+    private Typeface TypefaceFor(string family, CoreFontWeight weight, bool italic)
     {
-        var key = (family, weight);
+        var key = (family, weight, italic);
 
         if (_typefaces.TryGetValue(key, out var cached))
         {
@@ -468,7 +489,7 @@ public sealed partial class DiagramCanvas : UserControl
 
         var typeface = new Typeface(
             new FontFamily(string.IsNullOrWhiteSpace(family) ? FontFamily.Default.Name : family),
-            FontStyle.Normal,
+            italic ? FontStyle.Italic : FontStyle.Normal,
             weight == CoreFontWeight.Bold ? FontWeight.Bold : FontWeight.Normal);
 
         _typefaces[key] = typeface;

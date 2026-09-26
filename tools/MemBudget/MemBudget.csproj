@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MemBudget</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    内存预算取证装置。它按档造出大文档与千节点场景，逐档量进程的真实工作集，
+    并单独核两处「有上限」的设计（视口索引、版本日志）到底有没有上限。
+
+    引用的是**产品里那条链路**而不是另抄一份：抄一份出来，量到的就是抄件占多少内存，
+    而这一条要回答的是「用户打开一份大图要占多少」。它是调查装置而不是产品的一部分，
+    因此不进解决方案文件。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../DuetDiagram.Core/DuetDiagram.Core.csproj" />
+    <ProjectReference Include="../../DuetDiagram.Layout/DuetDiagram.Layout.csproj" />
+    <ProjectReference Include="../../DuetDiagram.Render/DuetDiagram.Render.csproj" />
+  </ItemGroup>
+
+</Project>

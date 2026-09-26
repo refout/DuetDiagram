@@ -247,6 +247,8 @@ jobs:
           gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj BitmapExport
           gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj PdfExport
           gate DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj MermaidImport
+          gate DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj DslExport
+          gate DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj DslRoundTrip
           gate DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj ExportTool
           exit $STATUS
 

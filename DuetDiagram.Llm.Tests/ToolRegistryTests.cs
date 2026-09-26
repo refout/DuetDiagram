@@ -220,13 +220,15 @@ public sealed class ToolRegistryTests
     [Trait("Category", "ToolRegistry")]
     public void An_unwired_capability_says_so_without_blaming_the_caller()
     {
-        var result = Invoke(Registry(), DiagramToolset.Export, """{"format":"dsl"}""");
+        // 这个宿主没接上渲染层，所以 svg 这一类导不出来。缺的是宿主的能力，
+        // 不是调用方给错了参数——错误要这么报，否则模型会去改一个本来就对的参数。
+        var result = Invoke(Registry(), DiagramToolset.Export, """{"format":"svg"}""");
 
         result.IsSuccess.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         result.Errors[0].Code.Should().Be(ToolErrorCodes.NotSupported);
         result.Errors[0].Parameter.Should().Be("format", "缺的是这一项能力，不是调用方给错了参数");
-        result.Errors[0].Message.Should().Contain("dsl");
+        result.Errors[0].Message.Should().Contain("SVG", "要说清是哪一种格式导不出来");
     }
 
     [Fact]

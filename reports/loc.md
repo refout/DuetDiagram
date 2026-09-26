@@ -10,13 +10,13 @@
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18415 | 10380 | 5360 | 2675 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
-| DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
-| DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
+| DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
+| DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
 | DuetDiagram.E2E.Tests | 28 | 8483 | 5464 | 1221 | 1798 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4821 | 2622 | 1524 | 675 |
-| DuetDiagram.Llm.Tests | 17 | 4836 | 3472 | 384 | 980 |
+| DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
+| DuetDiagram.Llm.Tests | 17 | 4900 | 3512 | 390 | 998 |
 | DuetDiagram.Mcp | 15 | 2498 | 1292 | 840 | 366 |
 | DuetDiagram.Mcp.Tests | 11 | 3288 | 2082 | 546 | 660 |
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
 | tools | 39 | 10110 | 6906 | 1531 | 1673 |
-| **合计** | **496** | **111590** | **69218** | **23599** | **18773** |
+| **合计** | **500** | **113326** | **70429** | **23832** | **19065** |
 
 ## 明细
 
@@ -299,6 +299,8 @@
 
 | 文件 | 代码 |
 |---|---:|
+| DslExportReport.cs | 7 |
+| DslExporter.cs | 610 |
 | DslLexer.cs | 228 |
 | DslSource.cs | 23 |
 | DslToken.cs | 26 |
@@ -316,6 +318,8 @@
 | AstProjection.cs | 25 |
 | Corpus.cs | 45 |
 | CorpusParsingTests.cs | 203 |
+| DslExportTests.cs | 403 |
+| DslRoundTripTests.cs | 131 |
 | LayoutIntentTests.cs | 365 |
 | LexerTests.cs | 195 |
 | MapperTests.cs | 366 |
@@ -407,7 +411,7 @@
 | DiagramToolContext.cs | 27 |
 | DiagramToolset.cs | 169 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 121 |
+| ExportTool.cs | 141 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -427,7 +431,7 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 432 |
+| ExportToolTests.cs | 472 |
 | Harness.cs | 92 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |

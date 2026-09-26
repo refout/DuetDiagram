@@ -27,6 +27,12 @@
       而导出文本本来就是文档的纯函数，没有可注入的余地。
     -->
     <ProjectReference Include="..\DuetDiagram.Mermaid\DuetDiagram.Mermaid.csproj" />
+
+    <!--
+      DSL 导出与 Mermaid 导出同一口径：它是本仓的纯函数库、只依赖 Core，
+      所以直接引，不绕注入那一道。两个导出器都只吃文档、不碰平台。
+    -->
+    <ProjectReference Include="..\DuetDiagram.Dsl\DuetDiagram.Dsl.csproj" />
   </ItemGroup>
 
 </Project>

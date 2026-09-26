@@ -19,8 +19,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Render.Tests` | 空间索引、绘制列表与场景快照、富文本排版与度量、数学排版与度量、SVG 导出、PNG 导出、PDF 导出、剔除判据、换档编排与帧时采样 | 已落地；P4-13 加了 `Category=RichTextLayout` / `TextMeasurement` 与富文本场景快照；P4-15 加了 `Category=MathTypesetting` / `MathSnapshot` 与两档模式的场景快照；P4-16 加了 `Category=SvgExport`；P4-17 加了 `Category=BitmapExport`；P4-18 加了 `Category=PdfExport`（判据尽量读 PDF 自己的结构，读内容的地方先解压） |
 | `DuetDiagram.Mermaid` | Mermaid 词法、语法、图类型识别、导入与导出 | Phase 1 P1-08 / P1-09 / P1-10 已落地；P4-10 把自定义形状加进导出的丢失清单；P4-19 起主程序在「导入 Mermaid…」那条路上直接调它（解析与映射是格式自己的事，那条路不经过工具层），本工程本身没改 |
 | `DuetDiagram.Mermaid.Tests` | 词法/语法用例与冻结语料回归 | 已落地 |
-| `DuetDiagram.Dsl` | 自有 DSL 的词法、语法与语义映射 | Phase 1 P1-16 / P1-17 已落地 |
-| `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归 | 已落地 |
+| `DuetDiagram.Dsl` | 自有 DSL 的词法、语法、语义映射，以及导出方向（把 IR 写成 DSL 文本，写不出来的记进丢失清单） | Phase 1 P1-16 / P1-17 已落地；P4-20 加了导出方向（`Export/DslExporter.cs`），决策门 1 判为「留」 |
+| `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归；导出方向的逐类用例与往返无损用例 | 已落地；P4-20 加了 `Category=DslExport` / `DslRoundTrip` |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返、形状表、布局引擎、渲染层与 PDF 导出） | 已落地（本机缺 C++ 工作负载，未完成发布）；P4-18 把渲染层纳进来并真的走完整链路写一份 PDF——"选中的 PDF 库在原生编译后可用"那条判据的落点 |
 | `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器、导入 Mermaid（选一份文件当成片段拼进当前文档，报告面板摆出诊断与有意的取舍） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数；P4-17 让自检存盘的那份位图改走导出器（离屏渲染那一步留着，只为回答"画布把指令消费完了没有"），界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里；P4-19 加了导入 Mermaid 那一档，并为此引了格式那一层——选文件那一层在无头模式下打不开，能验的那一段全在 `MainWindow.Import(路径)` 里）；P4-22 的两条 L3 端到端用例复用主窗口导入入口与画布绘制列表导出（界面上的导出对话框仍是占位，见 `reports/phase4.md`） |
 | `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 / P4-19 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层；P4-19 的导入走主窗口那个公开入口，选文件那一层进不来）；P4-22 加了两条 L3 端到端用例（`Category=Phase4Scenario`：导入 500 节点渲染 < 2s 且可点击、导出 SVG 合法且无损） |
@@ -34,7 +34,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
 | `tools/CoverageAudit` | draw.io 覆盖率取证装置：分母写死在 `Matrix.cs`（来自 draw.io 公开能力面，取数时间 2026-09），每条判定带证据或理由，印逐档计数与覆盖率，`--list-missing` 列全部「无」（不进 sln） | Phase 4 P4-21 已落地（覆盖率 86.3%，≥ 85%） |
-| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid 直接调、SVG 与 PNG 与 PDF 走宿主喂进来的渲染器，位图与 PDF 按 base64 进载荷）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；P4-16 让 `diagram_export` 的 `svg` 真的出图；P4-17 让 `png` 也出图；P4-18 让 `pdf` 也出图（选型见 `reports/phase4-pdf.md`）；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
+| `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid 与自有 DSL 直接调、SVG 与 PNG 与 PDF 走宿主喂进来的渲染器，位图与 PDF 按 base64 进载荷）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；P4-16 让 `diagram_export` 的 `svg` 真的出图；P4-17 让 `png` 也出图；P4-18 让 `pdf` 也出图（选型见 `reports/phase4-pdf.md`）；P4-20 让 `dsl` 也出文本，并为此引了 DSL 那一层；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误；导出 SVG、PNG 与 PDF 那一侧的渲染接线（把文档排出来再交给导出器，三个导出器共用一次"排出来"；排不出结果时如实说） | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；P4-16 引了渲染层与布局引擎，只为导出 SVG 那一档；P4-17 让同一个入口也出 PNG，两条渲染接线收成一个 `DocumentRendering`；P4-18 让同一个入口再出 PDF，并按文档自己声明的页序一页一张纸；跨机器传输（TLS、多实例共享变化源）未开工 |
 | `DuetDiagram.Mcp.Tests` | 起子进程走标准输入输出验工具发现与调用、会话状态与协议层；起真端口走 HTTP 验无状态、五种拒绝、冲突返回与变化源的门禁；另有一组十个 agent 真并发写同一份文档 | 已落地；P4-16 加了"真子进程里导出 SVG 拿得回文本"一条，顺带验了原生绘图库在这个部署形态下能加载；P4-17 加了 PNG 一条，顺带验了光栅化在这个没有窗口平台的部署形态下能跑；P4-18 加了 PDF 一条，顺带验了矢量写入与中文字体嵌入在这个部署形态下能跑 |
@@ -54,13 +54,15 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-12`（富文本内容模型）与 `P4-13`（富文本的排版与渲染）与
 `P4-14`（富文本编辑界面）与 `P4-15`（数学排版）与 `P4-16`（SVG 导出）与 `P4-17`（PNG 导出）与
 `P4-18`（PDF 导出——选型验证与落地）、`P4-19`（Mermaid 导入入口）、
+`P4-20`（DSL 导出——`DuetDiagram.Dsl/Export/` 的导出器与丢失清单、
+`diagram_export` 的 `dsl` 分支）与
 `P4-21`（draw.io 覆盖率取证，86.3% ≥ 85%）与
 `P4-22`（Phase 4 收尾——四条判据与端到端，验报告 `reports/phase4.md`、两条 L3 端到端用例 `Category=Phase4Scenario`、CI 补 Phase 4 门禁、并产出 Phase 5 任务 YAML）已落地**（`done`），
-其余 `pending`，
-其中 **`P4-20`（DSL 导出）标 `blocked`**，
-卡在决策门 1 上——留则照做，不留则整条删掉。
+其余 `pending`。
 **Phase 5 的任务集（`P5-01` ~ `P5-07`）由 P4-22 顺带产出**，见 `tasks/README.md` 的 DAG 与 `tasks/phase5/`。
-两个决策门（DSL 去留、布局引擎主选）都还开着，卡在 `reports/compare-blind/` 的人工评分上——
+**决策门 1（DSL 去留）已按产品负责人的指令判为「留」**，P4-20 因此解封；
+这与方案 §15.3 的原始口径有一处差别，记在下面的差异表里。
+决策门 2（布局引擎主选）仍然开着，卡在 `reports/compare-blind/` 的人工评分上——
 **那不是「还没做」，是「做不了」**，编码 agent 判不了自己写的东西好不好用。
 
 **不要提前创建后续 Phase 的空项目。** 每个 PR 只引入该任务真正需要的项目。
@@ -192,6 +194,8 @@ dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --fi
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslCorpus"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslMapping"
 dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslLayoutIntent"
+dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslExport"
+dotnet test --project DuetDiagram.Dsl.Tests/DuetDiagram.Dsl.Tests.csproj -- --filter-trait "Category=DslRoundTrip"
 
 # 工具表：八个工具全部登记、名称唯一、说明与参数 schema 非空；
 # 模型侧与代理侧的名称、说明、参数 schema 逐字相同
@@ -225,7 +229,8 @@ dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --fi
 # 导出：Mermaid 文本逐字节可复现、丢失清单原样带出、导出不动版本号也不进撤销栈；
 # SVG、PNG 与 PDF 走宿主喂进来的渲染器（宿主没接上或排不出结果时如实说），页面标识原样交下去，
 # 位图与 PDF 按 base64 进载荷且不带 text 字段，PDF 还要报出页数；
-# 自有 DSL 的导出方向返回结构化「尚未支持」
+# 自有 DSL 的导出方向把文档写成 DSL 文本，丢失清单原样带出；
+# 宿主没接上固定位置时如实说「固定位置写不出来」
 dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
 
 # 校验：问题逐条带上错误码、相关标识与修复建议（建议来自校验器那一份，工具层不另写一张表）；
@@ -653,10 +658,13 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 | `diagram_layout` 里没有 pin / unpin | 命令层没有这条命令，IR 里也没有能存绝对坐标的地方——节点的固定位置落在 sidecar | 起草 P3-08 时写的「pin 与 unpin 走命令层」与命令层的现状对不上，P3-08 开工时改掉了。连带着那一轮写的「pin 与 sidecar 的固定位置两回事、合并规则要定死」也不成立：只有一处存放处，没有两份要合并 |
 | `diagram_layout` 的 `owner` | 缺省写 `llm`；`auto` 放行，**`human` 被拒绝** | 命令层要求显式给出归属，理由是默认值会让模型那条路径悄悄写出人工归属的约束、而降级时被当成「用户设的」保住。工具层就是模型那条路径，所以缺省写 `llm` 是事实；而 `human` 放行的话模型可以伪造最高优先级的归属，把用户自己设的约束挤掉。用户从面板上设的约束由面板自己写，不经过这一层 |
 | 增删布局约束的动作名 | 动作叫 `add-constraint` / `remove-constraint`，命令标识是 `add-layout-constraint` / `remove-layout-constraint`，两者不同名 | 动作名短，而命令标识带 `layout` 前缀是为了在命令清单里与别的增删区分开。冻结的参数表说明里举的例子就是 `add-constraint`，照它写才不至于让说明与实际动作名对不上 |
-| `DuetDiagram.Llm` 多一条到 `DuetDiagram.Mermaid` 的工程引用 | 导出那一路直接调 `MermaidExporter`，不把导出器当委托注入上下文 | 它与「工具层不引布局引擎」那条口径不冲突：布局引擎是第三方组件，而 Mermaid 是本仓的、只依赖 Core 的纯函数库。反过来注入的话，每个宿主与每条用例都要接一次线，而导出文本本来就是文档的纯函数。对照 P3-06 注入的那两样（层投影、固定标识）：它们**不是**文档的函数，一个在布局结果里、一个在 sidecar 里，所以必须由宿主喂进来 |
+| `DuetDiagram.Llm` 多一条到 `DuetDiagram.Mermaid` 的工程引用（P4-20 起又多了到 `DuetDiagram.Dsl` 的一条，同一口径） | 导出那一路直接调 `MermaidExporter` 与 `DslExporter`，不把导出器当委托注入上下文 | 它与「工具层不引布局引擎」那条口径不冲突：布局引擎是第三方组件，而 Mermaid 与 DSL 都是本仓的、只依赖 Core 的纯函数库（DSL 那一层只多依赖自己的词法与语法）。反过来注入的话，每个宿主与每条用例都要接一次线，而导出文本本来就是文档的纯函数。对照 P3-06 注入的那两样（层投影、固定标识）：它们**不是**文档的函数，一个在布局结果里、一个在 sidecar 里，所以必须由宿主喂进来。**唯一一处需要宿主的是固定位置**：DSL 的 `pin` 来自 sidecar，工具层这一层拿不到 sidecar，所以宿主没喂时如实说「固定位置写不出来」——但那仍是纯函数的边界，不是注入 |
 | SVG 导出不直接引渲染层，而是由宿主注入（`DiagramToolContext.SvgExporter`） | 工具层的 `svg` 分支只转发，渲染那一步由宿主接；产物类型 `SvgExport` 落在 Core，于是工具层不必引渲染层 | 与上一条同一口径的另一半：Mermaid 是文档的纯函数，所以直接调；SVG **不是**——它要布局结果与字体度量，而两者都是需要平台适配的第三方组件。直接引的话，工具层连同它的每个宿主都要带上原生绘图库；注入的话只有真正要出图的宿主带。代价是每个这样的宿主接一次线，而这一层看不见布局引擎的异常类型，所以"排不出来"这件事只能由宿主翻成空结果、再由工具层说一句"渲染层排不出结果" |
 | `DuetDiagram.Mcp` 多两条到 `DuetDiagram.Render` 与 `DuetDiagram.Layout` 的工程引用 | 导出 SVG、PNG 与 PDF 那三档要服务端自己把文档排出来，而工具层不引渲染层 | 它就是上一条里"真正要出图的宿主"。这一层本来就作为本机子进程跑、不发布成原生可执行文件，所以多带一份原生绘图库是"体积变大"，不是"跑不起来"。反方向（服务端不接、`svg` / `png` 一直回"这个宿主没有接上渲染层"）也自洽，但那样唯一对外暴露 `diagram_export` 的宿主就永远导不出图，而验收要的正是它导得出来 |
-| §6.1 的 `diagram_export` 格式 | Mermaid、SVG、PNG 与 PDF 接上了；`dsl` 返回结构化「尚未支持」 | **DSL 导出不是「还没排到」，是不该现在做**：`DuetDiagram.Dsl` 只有词法、语法与语义映射三样，没有导出方向，而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。PDF 的选型见 `reports/phase4-pdf.md` |
+| §6.1 的 `diagram_export` 格式 | Mermaid、DSL、SVG、PNG 与 PDF 五档都接上了 | PDF 的选型见 `reports/phase4-pdf.md`；DSL 那一档见下面两行 |
+| §15.3 决策门 1 的判法（四项量化阈值，≥3 达标则留 DSL） | **按产品负责人的指令直接判为「留」**，四项里只有「解析错误率」一项有可算的读数，其余三项（端到端准确率、人工修正步骤、首轮通过率）都还没有数据 | 门要的是**人**判「这套格式好不好用」，而编码 agent 判不了自己写的东西好不好用——`reports/compare-blind/conclusion.md` 里记着这条门从没被评分过，方案自己也写明「一个编码 agent 声称跑完了对比并得出『留 DSL』，几乎可以肯定它只算了错误率那一行」。所以这里不伪造一份评分，而是把「这是产品负责人拍板、不是盲评达标」这件事如实记下来：判据换了，结论照用，读的人知道它的分量 |
+| DSL 导出有损，且丢失清单必须原样带给调用方 | `DslExportResult.Report` 逐类列出丢了什么（页面、字体、标签、动作、文本样式预设、富文本、数学排版、自定义形状路径、组合折叠与内部方向、端口偏移与来源标记、约束归属方……），同一类只出一条、涉及元素收在 `Ids` 里 | IR 的表达力严格强于 DSL，导出必然有损，差别只在有没有说出来。静默丢失会让调用方以为导出的文本就是全部内容。**报告为空不等于无损**，只等于没有东西落进那份清单，而清单是照着 IR 逐字段对出来的——新加字段时要跟着补，不补不会报错，只会悄悄消失 |
+| DSL 导出方向不许反向影响语法 | 导出器只把 IR 里已经能表达的东西按既有语法写出来，写不出来的记进报告；标识写不出来时**改名并记进报告**，不改语法去迁就它 | 为了让导出好写而改语法的话，导入方向的对比测试量到的东西就变了——而那条测试是 DSL 去留判据的输入，动它等于自己改判据 |
 | PNG 导出与 SVG 同一口径，但位图按 base64 进载荷 | `ExportPayload` 多一个可空的 `base64` 字段，`text` 变成可空，两者按格式二选一 | 工具结果的载荷是 JSON，装不下裸字节。合成一个字段（把 base64 塞进 `text`）的话，调用方拿到 `text` 会以为那是图的文本，而「这是一段文本」与「这是一张图编了码」的处置完全不同 |
 | PNG 与 PDF 的缩放、裁剪范围只在导出器上，`diagram_export` 不给参数 | 导出器支持倍数、透明度、按内容 / 按页面裁，工具那一条路只给缺省那一组（不透明底、按内容外接框、一倍） | 缺省那一组正是「贴进文档里不会变成黑底」的那一组，而工具调用的参数表冻结过、加参数要连带动 schema 与两份派生。等界面上那个导出对话框（要选文件、选格式、选范围）开工时一并定 |
 | PDF 用 SkiaSharp 自带的写入器，不引入新依赖 | `SKDocument.CreatePdf`；方案原先列的三个候选（QuestPDF、PdfSharpCore、位图嵌入）都没选上 | 同一个原生库既量文本、画位图，也写 PDF，所以这条路一个包都不加。三个候选各自死在一处硬判据上：QuestPDF 的自由绘制入口 `Canvas` 已废弃且运行时抛异常（它的官方替代是把 SVG 交给它渲染，那等于把一条绘制路径变成两条），PdfSharpCore 逐字节不确定（`/ID` 与字体子集前缀每次随机）而且不认字体集合（微软雅黑正是集合），位图嵌入与 PNG 导出重复、丢掉了 PDF 相对 PNG 的全部意义。四条判据逐条取证见 `reports/phase4-pdf.md` |

@@ -1,7 +1,7 @@
 id: P4-20
 title: DSL 导出
 phase: 4
-status: blocked
+status: done
 depends_on: [P3-09]
 estimated_loc: 400
 files:
@@ -25,22 +25,81 @@ acceptance:
   - command: dotnet test --project DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj -- --filter-trait "Category=ExportTool"
     expect: 全通过；`diagram_export` 的 `dsl` 不再返回「还没接上」
 constraints:
-  - "**不许在决策门 1 关掉之前动手。** DSL 去留没有定论，判掉之后写出来的导出器要整个删掉——`diagram_export` 现在拒绝这一档正是这个理由"
-  - "**若决策门 1 的结论是「去掉 DSL」，这一条不是「完成」，是「删掉」**：把这条任务与 `DuetDiagram.Dsl` 的关系在 `tasks/README.md` 里如实记，并回到 `diagram_export` 把那一档的措辞从「还没有定论」改成「不支持」"
   - "**往返无损是这一条唯一的判据形式。** 「导出正确」没法验；「导出再导入结构哈希相同」可以验，且它恰好是决策门 1 关心的那件事"
   - "**丢失清单要原样带给调用方。** IR 的表达力严格强于 DSL（端口、富文本、数学、图层、页面、标签、动作都写不进去），静默丢失会让模型以为导出的文本是全部内容"
   - "**导出方向不许反向影响语法。** 为了让导出好写而改语法的话，对比测试（P1-14）量到的东西就变了——那条测试是决策门 1 的输入，动它等于自己改判据"
 context:
   - 方案 §13.8 的「导入导出」与 §13.5 的 P1-16 / P1-17 / P1-14
-  - "`DuetDiagram.Dsl` 现在只有词法、语法与语义映射三样，没有导出方向"
-  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `dsl` 分支现在返回「DSL 的导出方向还没实现，而 DSL 去留还没有定论」"
+  - "`DuetDiagram.Dsl` 原先只有词法、语法与语义映射三样，没有导出方向"
+  - "`DuetDiagram.Llm/Tools/ExportTool.cs` 的 `dsl` 分支原先返回「DSL 的导出方向还没实现，而 DSL 去留还没有定论」"
   - "`reports/compare-blind/` 是决策门 1 的输入，它要人打分"
+  - "决策门 1 由产品负责人直接判为「留」（不是按 §15.3 的盲评达标），这一条因此解封"
 scope_note: |
-  **这一条标 `blocked`，卡的是决策门 1。** 与 P0-02 那种「环境缺东西」不同，
+  **这一条原先标 `blocked`，卡的是决策门 1。** 与 P0-02 那种「环境缺东西」不同，
   这里卡的是一个人工判断：DSL 这套格式留不留。留的话这一条照做；
   不留的话这一条要**删掉**，而且 `DuetDiagram.Dsl` 整个工程都要删——
   也就是说这一条的前置不是「等人腾出手」，是「等人做一个决定」。
 
-  决策门 1 要读的是 `reports/compare-blind/` 下的人工评分，
-  而那份评分要人来打（P1-14 是同一个门）。所以这一条与 P1-14 一起等着，
-  谁先动取决于门先关哪一边。
+  决策门 1 的原方案口径是读 `reports/compare-blind/` 下的人工评分、按四项量化阈值判，
+  而那份评分要人来打（P1-14 是同一个门）。**产品负责人直接判为「留」**之后，
+  这一条解封并落地。判法与原方案有一处差别：四项里只有「解析错误率」有可算的读数，
+  其余三项都还没有数据，所以结论是拍板而不是盲评达标——如实记在 `AGENTS.md` 的差异表里。
+
+result: |
+  **结论：DSL 的导出方向落地，`diagram_export` 的 `dsl` 那一档真的出文本。**
+  决策门 1 由产品负责人判为「留」之后这一条解封。实现落在 `DuetDiagram.Dsl/Export/`，
+  只有两个文件：`DslExporter`（把 IR 写成 DSL 文本）与 `DslExportReport`
+  （一次导出丢了什么 + 产物 `DslExportResult`）。
+
+  **往返无损是唯一的判据形式，而它成立。** `DslRoundTripTests`（15 条）逐类造文档，
+  导出成文本、再经导入方向解析与映射回来，断言**结构哈希相同**（同一份 sidecar 下
+  也断言视觉哈希相同）。「导出正确」没法验，「导出再导入结构哈希相同」可以验，
+  且它恰好是决策门 1 关心的那件事。
+
+  **丢失清单原样带给调用方。** IR 的表达力严格强于 DSL，导出必然有损。
+  `DslExportReport.Dropped` 逐类列出：页面、图层定义、字体、标签、动作、文本样式预设、
+  调色板定义、画布设置、节点/边归属的页面、自定义形状路径、富文本内容、数学排版模式、
+  节点具体样式与文本样式、宿主附加数据、写不出名字的端口、端口偏移与来源标记、
+  组合框、组合内部方向与折叠与样式与局部布局提示、成员次序对不上的那些、边样式其余字段、
+  `order` 里指向不存在边的项、约束归属方、指向不存在节点的固定位置、固定折线、自定义端口、
+  标识被改名的那些。**按类收拢、不逐个元素一条**（同一类往往涉及几十个元素），
+  涉及元素收在那一条的 `Ids` 里。工具层原样转给调用方，宿主没接上 sidecar 时补一条
+  「固定位置」说明。
+
+  **导出方向没有反向影响语法。** `DslLexer` / `DslParser` / `DslMapper` 一个字没改；
+  写不出来的东西一律记进报告，不为迁就导出去加语法。标识写不出来时**改名并记进报告**
+  （`1bad` → `id1bad`，连续连字符拆开，撞名加后缀），而不是原样写出去或悄悄跳过——
+  前者的文本自己解析不了，后者会让图少一块而没有提示。
+
+  **缺省值不写**，与导入方向同一条规则：矩形不写 `shape`、实线不写 `line`、
+  有箭头不写 `arrow`、标签与标识相同时不写标签、间距等于缺省时不写间距。
+  `pin` 从 sidecar 读（绝对坐标不在 IR 里），`order` 按「这条边的终点是谁」
+  从边标识翻回目标节点名。
+
+  **门禁（全部通过）。**
+  - Release 构建 0 警告 0 错误。
+  - 八工程：Core 651 / Layout 78 / Render 328 / Mermaid 181 / **Dsl 206** / **Llm 222** / Mcp 112 / E2E 204，全绿。
+  - `Category=DslExport` 33、`Category=DslRoundTrip` 15、`Category=ExportTool` 33，全绿。
+  - `Category=CommandGroups` 4、`Category=MementoRegistration` 12、`Category=CommentDiscipline` 1、
+    `Category=MultiAgent` 1，全绿。
+  - `tools/McpHarness -- protocol` 8/8。
+  - `tools/LocCounter --root . --check` 退出 0（500 文件 / 113326 行 / 70429 代码；`reports/loc.md` 已重算）。
+  - `dotnet run --project DuetDiagram.App -c Release -- --selftest --out reports/ci-selftest.png` 退出 0
+    （画布消费 17/17，位图 240×386，SVG 形状/折线/文字 5/5/7）。
+
+  **与任务清单的出入。**
+  1. `constraints` 里原先那条「不许在决策门 1 关掉之前动手」按字面满足了：先关门、后动手。
+     原方案 §15.3 的门要读 `reports/compare-blind/` 的人工评分（四项量化阈值，≥3 达标则留），
+     而那份评分从没被打过；这一轮的结论是**产品负责人直接拍板「留」**，不是盲评达标。
+     判据换了、结论照用，如实记进 `AGENTS.md` 的差异表，读的人知道它的分量。
+  2. 多改了 `docs/GUI.md`（「其它格式的导入」那一行）、`tasks/README.md`、`.github/workflows/ci.yml`
+     （Phase 4 门禁补 `DslExport` / `DslRoundTrip` 两档）与 `reports/loc.md`——都是「DSL 从悬着到留下」
+     必须跟着改的地方。
+  3. `DuetDiagram.Llm.Tests/ToolRegistryTests` 里那条「没接上的能力如实说」原先拿 `dsl` 当例子，
+     `dsl` 接上之后换成 `svg` 未接的场景——否则它会红。
+  4. `DuetDiagram.Llm` 多了一条到 `DuetDiagram.Dsl` 的工程引用，口径与「多一条到 `DuetDiagram.Mermaid`」
+     相同（导出文本是文档的纯函数，直接调、不注入），记进差异表。
+
+  **后续。** 界面的导出对话框（选文件 + 选格式 + 选范围）仍没有，DSL 导出目前只走工具层；
+  DSL 的**导入**入口（人这边）也还没有，格式层的导入方向早就在。
+

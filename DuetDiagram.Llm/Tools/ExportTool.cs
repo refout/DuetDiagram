@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Dsl.Export;
 using DuetDiagram.Mermaid.Export;
 
 namespace DuetDiagram.Llm.Tools;
@@ -72,15 +73,13 @@ internal static class ExportTool
         {
             "mermaid" => Mermaid(context, args.PageId),
 
+            "dsl" => Dsl(context, args.PageId),
+
             "svg" => Svg(context, args.PageId),
 
             "png" => Png(context, args.PageId),
 
             "pdf" => Pdf(context, args.PageId),
-
-            // 这一条不是「还没排到」，是**不该现在做**：DSL 的导出方向还没有实现，
-            // 而 DSL 去留那个决策门还开着——判掉之后写出来的导出器要整个删掉。
-            "dsl" => NotYet("dsl", "DSL 的导出方向还没实现，而 DSL 去留还没有定论"),
 
             _ => ActionDispatch.Reject(
                 $"{args.Format} 不是它认得的导出格式",
@@ -101,6 +100,51 @@ internal static class ExportTool
         var message = result.Report.Dropped.Count == 0
             ? pageId is null ? "已导出 Mermaid 文本" : $"已导出 {pageId} 这一页的 Mermaid 文本"
             : $"已导出 Mermaid 文本，有 {result.Report.Dropped.Count} 类内容写不进去，见 dropped";
+
+        return ToolResult.Ok(
+            JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
+            message);
+    }
+
+    /// <summary>
+    /// 导出 DSL。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与 Mermaid 那一条同一口径：DSL 导出器只吃文档、只依赖 Core，所以直接调，
+    /// 不绕注入那一道。按页导出也是先拿一份投影再导——DSL 描述的是图，
+    /// 不认识"页"这个概念，而"这一页上有谁"那套口径在 Core 里只有一份。
+    /// </para>
+    /// <para>
+    /// **固定位置写不出来，这一层要说出来。** 绝对坐标在人工产物的 sidecar 里，
+    /// 而这一层只拿到固定的节点标识、拿不到坐标。少了它们，用户拖过的位置
+    /// 会回到自动结果——那是要付的代价，但必须说清付了什么。
+    /// </para>
+    /// </remarks>
+    private static ToolResult Dsl(DiagramToolContext context, string? pageId)
+    {
+        var document = PageMembership.Project(context.Document, pageId);
+        var result = DslExporter.Export(document);
+
+        var dropped = result.Report.Dropped;
+
+        if (context.PinnedNodes.Count > 0)
+        {
+            dropped =
+            [
+                .. dropped,
+                new DroppedFeature(
+                    "固定位置",
+                    [.. context.PinnedNodes],
+                    "固定坐标在人工产物里，这一层只拿到标识、拿不到坐标，pin 写不出来。"),
+            ];
+        }
+
+        var payload = new ExportPayload("dsl", result.Text, dropped);
+
+        var message = dropped.Count == 0
+            ? pageId is null ? "已导出 DSL 文本" : $"已导出 {pageId} 这一页的 DSL 文本"
+            : $"已导出 DSL 文本，有 {dropped.Count} 类内容写不进去，见 dropped";
 
         return ToolResult.Ok(
             JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
@@ -227,7 +271,7 @@ internal static class ExportTool
         ToolErrorCodes.NotSupported,
         $"这个宿主没有接上渲染层，导出不了 {format}",
         "format",
-        "这个宿主现在能用的格式：mermaid"));
+        "这个宿主现在能用的格式：mermaid、dsl"));
 
     /// <summary>
     /// 渲染层拿到了文档却排不出结果。
@@ -241,10 +285,4 @@ internal static class ExportTool
         $"渲染层拿到了这份文档却排不出结果，导不了 {format}",
         "format",
         "先让这份文档能排出来——布局问题可以用 diagram_validate 查"));
-
-    private static ToolResult NotYet(string format, string missing) => ToolResult.Fail(ToolError.Of(
-        ToolErrorCodes.NotSupported,
-        $"导出成 {format} 还没接上：{missing}",
-        "format",
-        $"现在能用的格式：mermaid"));
 }

@@ -7,7 +7,7 @@ using Xunit;
 namespace DuetDiagram.Llm.Tests;
 
 /// <summary>
-/// 导出：Mermaid 的文本与丢失清单、还没接上的那几种格式、以及它不改文档。
+/// 导出：Mermaid 与 DSL 的文本与丢失清单，以及它不改文档。
 /// </summary>
 public sealed class ExportToolTests
 {
@@ -508,23 +508,85 @@ public sealed class ExportToolTests
 
     #endregion
 
-    #region 还没接上的那几种
+    #region DSL
 
-    [Theory]
-    [InlineData("dsl")]
+    [Fact]
     [Trait("Category", "ExportTool")]
-    public void Formats_without_an_implementation_say_so(string format)
+    public void Dsl_export_returns_the_text()
     {
         var registry = Harness.Registry(new DiagramDocument("doc"));
 
-        var result = Harness.Invoke(registry, DiagramToolset.Export, $$"""{"format":"{{format}}"}""");
+        Harness.Edit(registry, """{"action":"add-node","id":"start","label":"开始"}""");
+        Harness.Edit(registry, """{"action":"add-node","id":"check","label":"校验"}""");
+        Harness.Edit(registry, """{"action":"connect-edge","id":"e1","from":"start","to":"check"}""");
 
-        result.IsSuccess.Should().BeFalse();
-        Harness.CodeOf(result).Should().Be(ToolErrorCodes.NotSupported);
-        result.Errors[0].Parameter.Should().Be("format");
-        result.Errors[0].Message.Should().Contain(format);
-        result.Errors[0].Expected.Should().Contain("mermaid", "要说清现在能用的是哪一种");
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl"}""");
+
+        result.IsSuccess.Should().BeTrue();
+
+        var text = result.Data!.Value.GetProperty("text").GetString()!;
+
+        text.Should().Contain("dsl 1").And.Contain("start").And.Contain("check");
+        text.Should().Contain("start -> check", "连线是导出方向必须保住的那一部分");
+        result.Data!.Value.GetProperty("format").GetString().Should().Be("dsl");
     }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Two_dsl_exports_of_the_same_document_are_byte_identical()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        Harness.Edit(registry, """{"action":"add-node","id":"b"}""");
+        Harness.Edit(registry, """{"action":"add-node","id":"a"}""");
+
+        var first = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl"}""");
+        var second = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl"}""");
+
+        second.Data!.Value.GetRawText().Should().Be(first.Data!.Value.GetRawText());
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void A_plain_graph_exports_without_a_dropped_list()
+    {
+        // DSL 能完整表达一张普通流程图，所以这一份的丢失清单是空的。
+        // 空清单不等于"无损"这条一般命题，只等于这张图上没有东西落进已知的清单。
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        Harness.Edit(registry, """{"action":"add-node","id":"a","label":"甲"}""");
+        Harness.Edit(registry, """{"action":"add-node","id":"b","label":"乙"}""");
+        Harness.Edit(registry, """{"action":"connect-edge","id":"e1","from":"a","to":"b","label":"是"}""");
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl"}""");
+
+        result.Data!.Value.GetProperty("dropped").GetArrayLength().Should().Be(0);
+        result.Message.Should().NotContain("写不进去");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Dsl_export_says_the_pinned_positions_could_not_be_written()
+    {
+        // 固定坐标在人工产物里，工具层只拿到标识、拿不到坐标。少了它们，
+        // 用户拖过的位置会回到自动结果——那是要付的代价，但必须说清付了什么。
+        var registry = Harness.Registry(new DiagramDocument("doc"), pinned: ["check"]);
+
+        Harness.Edit(registry, """{"action":"add-node","id":"check","label":"校验"}""");
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl"}""");
+
+        var features = result.Data!.Value.GetProperty("dropped").EnumerateArray()
+            .Select(item => item.GetProperty("feature").GetString())
+            .ToList();
+
+        features.Should().Contain("固定位置");
+        result.Message.Should().Contain("写不进去");
+    }
+
+    #endregion
+
+    #region 格式与页面
 
     [Fact]
     [Trait("Category", "ExportTool")]

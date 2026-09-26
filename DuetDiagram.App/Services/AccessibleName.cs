@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Automation;
+using DuetDiagram.App.Resources;
 
 namespace DuetDiagram.App.Services;
 
@@ -66,6 +67,6 @@ internal static class AccessibleName
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        return $"{entry.Group}：{entry.Label}";
+        return Strings.EntryName(MenuGroups.Display(entry.Group), entry.Label);
     }
 }

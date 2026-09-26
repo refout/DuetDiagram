@@ -48,6 +48,18 @@
   </ItemGroup>
 
   <!--
+    第二语言那一份资源要嵌进主程序集，不能进卫星程序集。这一份程序集在不变量全球化下运行，
+    具名文化建不出来，卫星程序集也就永远选不出来——那样它是一份死重量。
+    中性资源不用声明，按名字自动嵌进主程序集。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.en.resx">
+      <WithCulture>false</WithCulture>
+      <LogicalName>DuetDiagram.App.Resources.Strings.en.resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
     模板文件要显式声明跟着构建输出走。不声明的话开发机上一切正常（跑的是源码目录），
     发布之后模板列表是空的，而那种空看起来像"这一轮没做"。
     写成 Content 而不是嵌入资源：模板是给人看的、可手改的文件，嵌入之后改一个要重新编译，

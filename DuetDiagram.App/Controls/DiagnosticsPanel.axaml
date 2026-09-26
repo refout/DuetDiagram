@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DuetDiagram.App.ViewModels"
              x:Class="DuetDiagram.App.Controls.DiagnosticsPanel"
+             xmlns:res="using:DuetDiagram.App.Resources"
              x:DataType="vm:CanvasViewModel">
 
   <!--
@@ -29,7 +30,7 @@
               Padding="8,2"
               Click="OnClose"
               AutomationProperties.Name="关闭性能诊断面板"
-              Content="关闭" />
+              Content="{x:Static res:Strings.DiagnosticsClose}" />
     </StackPanel>
   </Border>
 </UserControl>

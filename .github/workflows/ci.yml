@@ -368,6 +368,14 @@ jobs:
       - name: 无障碍门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Accessibility"
 
+      # i18n：界面文字来自资源文件、换一种语言真的会变、从右到左不破版。
+      # 这一条同时管住"不许退回硬编码"——新加一条条目时忘了写键，屏幕上照样有字，
+      # 而它不会跟着语言变，只有源码扫描那两条拦得住。
+      # 语言是显式代码指定的，不是切运行期文化：这一份程序集在不变量全球化下运行，
+      # 具名文化建不出来，卫星程序集永远选不出来。见 reports/phase5-i18n.md
+      - name: i18n 门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=I18n"
+
       # 跨进程所有权：独占、只读退档、心跳过期判定与"抢占前先试删锁文件"。
       # 句柄是判据、心跳是补充——把心跳过期直接当成可抢占会撕掉一个活着进程正在写的文档。
       - name: 文档所有权门禁

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DuetDiagram.App.ViewModels"
              x:Class="DuetDiagram.App.Controls.PalettePanel"
+             xmlns:res="using:DuetDiagram.App.Resources"
              x:DataType="vm:PalettePanelViewModel">
 
   <!--
@@ -17,7 +18,7 @@
                  FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#2b3440"
-                 Text="调色板" />
+                 Text="{x:Static res:Strings.PanelPaletteTitle}" />
 
       <TextBlock DockPanel.Dock="Top"
                  Margin="0,6,0,0"

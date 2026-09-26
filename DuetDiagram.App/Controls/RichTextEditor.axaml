@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="DuetDiagram.App.Controls.RichTextEditor">
+             x:Class="DuetDiagram.App.Controls.RichTextEditor"
+             xmlns:res="using:DuetDiagram.App.Resources">
   <!--
     就地编辑一个节点的标签。它盖在节点上，位置与尺寸取排版结果那一块。
     控件自己不改文档：改字、套样式、退出提交三件事各自报到状态对象上，
@@ -34,10 +35,10 @@
                 Focusable="False" />
         <TextBox x:Name="FontSizeBox"
                  Width="52"
-                 PlaceholderText="字号" />
+                 PlaceholderText="{x:Static res:Strings.RichTextSize}" />
         <TextBox x:Name="ColorBox"
                  Width="76"
-                 PlaceholderText="颜色" />
+                 PlaceholderText="{x:Static res:Strings.RichTextColor}" />
       </StackPanel>
 
       <!--
@@ -59,8 +60,8 @@
       <StackPanel Orientation="Horizontal"
                   Spacing="8"
                   HorizontalAlignment="Right">
-        <Button x:Name="CancelButton" Content="取消" />
-        <Button x:Name="CommitButton" Content="完成" />
+        <Button x:Name="CancelButton" Content="{x:Static res:Strings.RichTextCancel}" />
+        <Button x:Name="CommitButton" Content="{x:Static res:Strings.RichTextCommit}" />
       </StackPanel>
     </StackPanel>
   </Border>

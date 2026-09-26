@@ -163,6 +163,22 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<TextPresetPanel>().Single();
     }
 
+    /// <summary>窗口里那个形状面板。</summary>
+    public static ShapeLibraryPanel Shapes(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<ShapeLibraryPanel>().Single();
+    }
+
+    /// <summary>窗口里那个模板面板。</summary>
+    public static TemplatePanel Templates(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<TemplatePanel>().Single();
+    }
+
     /// <summary>窗口里那条工具栏。</summary>
     public static DiagramToolBar ToolBar(Window window)
     {

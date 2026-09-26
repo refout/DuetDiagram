@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Logging;
@@ -68,7 +69,7 @@ public sealed partial class DiffSidebar : UserControl
     private void SetExpanded(bool expanded)
     {
         _details.IsVisible = expanded;
-        _toggle.Content = expanded ? "收起" : "展开";
+        _toggle.Content = expanded ? Strings.DiffCollapse : Strings.DiffExpand;
 
         // 按钮上写的是"展开/收起"，名字要说清展开的是什么：这一栏上只有一颗按钮，
         // 只念"展开"的话，用户不知道展开出来的是明细还是别的什么。
@@ -84,8 +85,8 @@ public sealed partial class DiffSidebar : UserControl
 
         if (entries.Count == 0)
         {
-            _header.Text = "变更";
-            _summary.Text = "暂无变更";
+            _header.Text = Strings.DiffTitle;
+            _summary.Text = Strings.DiffEmpty;
             _details.Text = string.Empty;
 
             return;
@@ -93,7 +94,7 @@ public sealed partial class DiffSidebar : UserControl
 
         var last = entries[^1];
 
-        _header.Text = $"变更 · v{last.Version}";
+        _header.Text = $"{Strings.DiffTitle} · v{last.Version}";
         _summary.Text = Describe(last);
         _details.Text = Details(last);
     }

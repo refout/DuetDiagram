@@ -1,3 +1,5 @@
+using DuetDiagram.App.Resources;
+
 namespace DuetDiagram.App.Services;
 
 /// <summary>
@@ -26,16 +28,16 @@ internal static class ContextEntries
         registry.Add(new MenuEntry(
             "group.create-group",
             MenuGroups.Group,
-            "建分组",
+            "menu.group.create-group",
             null,
             MenuSurface.Context,
-            context => MenuRefusals.WriteToSelection(context, "要包进分组的元素"),
+            context => MenuRefusals.WriteToSelection(context, Strings.RefusalCreateGroup),
             context => context.Session.CreateGroup(context.Selected)));
 
         registry.Add(new MenuEntry(
             "group.create-lane",
             MenuGroups.Group,
-            "建泳道",
+            "menu.group.create-lane",
             null,
             MenuSurface.Context,
 
@@ -47,25 +49,25 @@ internal static class ContextEntries
         registry.Add(new MenuEntry(
             "group.create-subflow",
             MenuGroups.Group,
-            "建子流程",
+            "menu.group.create-subflow",
             null,
             MenuSurface.Context,
-            context => MenuRefusals.WriteToSelection(context, "要包进子流程的元素"),
+            context => MenuRefusals.WriteToSelection(context, Strings.RefusalCreateSubflow),
             context => context.Session.CreateSubflow(context.Selected)));
 
         registry.Add(new MenuEntry(
             "group.create-combo",
             MenuGroups.Group,
-            "建组合框",
+            "menu.group.create-combo",
             null,
             MenuSurface.Context,
-            context => MenuRefusals.WriteToSelection(context, "要圈进框里的元素"),
+            context => MenuRefusals.WriteToSelection(context, Strings.RefusalCreateCombo),
             context => context.Session.CreateCombo(context.Selected)));
 
         registry.Add(new MenuEntry(
             "group.dissolve",
             MenuGroups.Group,
-            "解散这一组",
+            "menu.group.dissolve",
             null,
             MenuSurface.Context,
             context => MenuRefusals.ReadOnly(context) ?? Dissolvable(context),
@@ -84,5 +86,5 @@ internal static class ContextEntries
         && context.Session.Document.Composites.Any(
             composite => string.Equals(composite.Id, target, StringComparison.Ordinal))
             ? null
-            : "这一条要对准一个组合右键";
+            : Strings.RefusalDissolve;
 }

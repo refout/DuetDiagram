@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 
 namespace DuetDiagram.App.Controls;
@@ -44,10 +45,11 @@ public sealed partial class DiagramMenuBar : UserControl
                 continue;
             }
 
-            var top = new MenuItem { Header = group };
+            var header = MenuGroups.Display(group);
+            var top = new MenuItem { Header = header };
 
             // 顶级菜单的名字就是档名，屏幕上看得见，阅读器也念得出来。
-            AccessibleName.Set(top, group);
+            AccessibleName.Set(top, header);
 
             foreach (var entry in entries)
             {
@@ -157,7 +159,7 @@ public sealed partial class DiagramMenuBar : UserControl
         entry.Shortcut is { Length: > 0 } shortcut ? KeyGesture.Parse(shortcut) : null;
 
     private static string? Shortcut(MenuEntry entry) =>
-        entry.Shortcut is { Length: > 0 } shortcut ? $"{entry.Label}（{shortcut}）" : null;
+        entry.Shortcut is { Length: > 0 } shortcut ? Strings.MenuShortcut(entry.Label, shortcut) : null;
 
     private void InitializeComponent()
     {

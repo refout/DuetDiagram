@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
-| DuetDiagram.App | 70 | 18163 | 10302 | 4855 | 3006 |
+| DuetDiagram.App | 71 | 18486 | 10448 | 4930 | 3108 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18415 | 10380 | 5360 | 2675 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 29 | 9006 | 5795 | 1317 | 1894 |
+| DuetDiagram.E2E.Tests | 30 | 9619 | 6218 | 1404 | 1997 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
 | tools | 44 | 12384 | 8357 | 1973 | 2054 |
-| **合计** | **508** | **116789** | **72555** | **24598** | **19636** |
+| **合计** | **510** | **117725** | **73124** | **24760** | **19841** |
 
 ## 明细
 
@@ -42,9 +42,9 @@
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
 | DiagramCanvas.cs | 879 |
-| DiagramMenuBar.axaml.cs | 96 |
-| DiagramToolBar.axaml.cs | 107 |
-| DiffSidebar.axaml.cs | 110 |
+| DiagramMenuBar.axaml.cs | 98 |
+| DiagramToolBar.axaml.cs | 108 |
+| DiffSidebar.axaml.cs | 111 |
 | HighlightOverlay.cs | 17 |
 | ImportDialog.axaml.cs | 47 |
 | LayerPanel.axaml.cs | 293 |
@@ -73,11 +73,12 @@
 | MainWindow.axaml.cs | 416 |
 | Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
+| Strings.cs | 127 |
 | SampleDiagram.cs | 80 |
 | SelfTest.cs | 224 |
-| AccessibleName.cs | 23 |
+| AccessibleName.cs | 24 |
 | ConstraintEditorBinder.cs | 119 |
-| ContextEntries.cs | 53 |
+| ContextEntries.cs | 54 |
 | DiagramSession.cs | 1347 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
@@ -86,7 +87,7 @@
 | FieldEditBinder.cs | 277 |
 | ImportService.cs | 79 |
 | MenuEntries.cs | 193 |
-| MenuRegistry.cs | 101 |
+| MenuRegistry.cs | 114 |
 | StartupProbe.cs | 164 |
 | TemplateCatalog.cs | 73 |
 | WorkspaceRegistry.cs | 94 |
@@ -331,7 +332,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| AccessibilityTests.cs | 321 |
+| AccessibilityTests.cs | 324 |
 | CanvasSmokeTests.cs | 202 |
 | CompositeDragTests.cs | 158 |
 | ConnectTests.cs | 86 |
@@ -341,14 +342,15 @@
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 203 |
+| HeadlessFixture.cs | 213 |
 | HighlightTests.cs | 70 |
+| I18nTests.cs | 409 |
 | ImportTests.cs | 375 |
 | LayerPanelTests.cs | 357 |
 | LayerVisibilityTests.cs | 154 |
 | LayoutFailureTests.cs | 217 |
 | MarqueeTests.cs | 269 |
-| MenuBarTests.cs | 131 |
+| MenuBarTests.cs | 132 |
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
 | PageTabsTests.cs | 233 |

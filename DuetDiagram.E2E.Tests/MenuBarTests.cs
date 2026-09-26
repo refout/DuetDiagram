@@ -31,7 +31,9 @@ public sealed class MenuBarTests
         {
             var window = HeadlessFixture.Open();
 
-            HeadlessFixture.MenuBar(window).TopLevels.Should().Equal(MenuGroups.MenuOrder);
+            // 顶级菜单显示的是档名，而 MenuOrder 装的是档的标识——两者按 Display 对应。
+            HeadlessFixture.MenuBar(window).TopLevels
+                .Should().Equal(MenuGroups.MenuOrder.Select(MenuGroups.Display));
 
             var expected = MenuGroups.MenuOrder
                 .SelectMany(group => MenuRegistry.Default.On(MenuSurface.Menu, group))

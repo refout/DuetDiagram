@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  中性资源。它装的是中文，也是缺键时回落的那一份。
+  第二语言在 Strings.en.resx 里，按 Strings.Language 显式选——不走运行期文化，
+  这一份程序集在不变量全球化下运行，具名文化建不出来，卫星程序集永远选不出来。
+  键是接口：加一条界面文字就加一个键，不把整句话拼出来塞进一个键。
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="menu.groupname.file" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="menu.groupname.edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="menu.groupname.align" xml:space="preserve">
+    <value>对齐</value>
+  </data>
+  <data name="menu.groupname.layout" xml:space="preserve">
+    <value>布局</value>
+  </data>
+  <data name="menu.groupname.view" xml:space="preserve">
+    <value>视图</value>
+  </data>
+  <data name="menu.groupname.export" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="menu.groupname.group" xml:space="preserve">
+    <value>组合</value>
+  </data>
+
+  <data name="menu.file.new-window" xml:space="preserve">
+    <value>新建窗口</value>
+  </data>
+  <data name="menu.file.import" xml:space="preserve">
+    <value>导入 Mermaid…</value>
+  </data>
+  <data name="menu.file.save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="menu.file.save-template" xml:space="preserve">
+    <value>存为模板</value>
+  </data>
+  <data name="menu.edit.undo" xml:space="preserve">
+    <value>撤销</value>
+  </data>
+  <data name="menu.edit.redo" xml:space="preserve">
+    <value>重做</value>
+  </data>
+  <data name="menu.edit.delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="menu.edit.select-all" xml:space="preserve">
+    <value>全选</value>
+  </data>
+  <data name="menu.edit.select-none" xml:space="preserve">
+    <value>清空选择</value>
+  </data>
+  <data name="menu.align.same-rank" xml:space="preserve">
+    <value>同层</value>
+  </data>
+  <data name="menu.align.align" xml:space="preserve">
+    <value>对齐</value>
+  </data>
+  <data name="menu.layout.direction-lr" xml:space="preserve">
+    <value>从左到右</value>
+  </data>
+  <data name="menu.layout.direction-tb" xml:space="preserve">
+    <value>从上到下</value>
+  </data>
+  <data name="menu.layout.direction-rl" xml:space="preserve">
+    <value>从右到左</value>
+  </data>
+  <data name="menu.layout.direction-bt" xml:space="preserve">
+    <value>从下到上</value>
+  </data>
+  <data name="menu.layout.spacing-tight" xml:space="preserve">
+    <value>收紧间距</value>
+  </data>
+  <data name="menu.layout.spacing-loose" xml:space="preserve">
+    <value>放宽间距</value>
+  </data>
+  <data name="menu.layout.relayout" xml:space="preserve">
+    <value>重排</value>
+  </data>
+  <data name="menu.view.diagnostics" xml:space="preserve">
+    <value>性能诊断面板</value>
+  </data>
+  <data name="menu.export.dialog" xml:space="preserve">
+    <value>导出…</value>
+  </data>
+  <data name="menu.group.create-group" xml:space="preserve">
+    <value>建分组</value>
+  </data>
+  <data name="menu.group.create-lane" xml:space="preserve">
+    <value>建泳道</value>
+  </data>
+  <data name="menu.group.create-subflow" xml:space="preserve">
+    <value>建子流程</value>
+  </data>
+  <data name="menu.group.create-combo" xml:space="preserve">
+    <value>建组合框</value>
+  </data>
+  <data name="menu.group.dissolve" xml:space="preserve">
+    <value>解散这一组</value>
+  </data>
+
+  <data name="menu.shortcut" xml:space="preserve">
+    <value>{0}（{1}）</value>
+  </data>
+  <data name="menu.entry-name" xml:space="preserve">
+    <value>{0}：{1}</value>
+  </data>
+
+  <data name="menu.refusal.undo" xml:space="preserve">
+    <value>没有可撤销的操作</value>
+  </data>
+  <data name="menu.refusal.redo" xml:space="preserve">
+    <value>没有可重做的操作</value>
+  </data>
+  <data name="menu.refusal.delete" xml:space="preserve">
+    <value>先选中要删的元素</value>
+  </data>
+  <data name="menu.refusal.select-all" xml:space="preserve">
+    <value>文档里还没有元素</value>
+  </data>
+  <data name="menu.refusal.select-none" xml:space="preserve">
+    <value>现在没有选中东西</value>
+  </data>
+  <data name="menu.refusal.align" xml:space="preserve">
+    <value>先选中两个以上节点</value>
+  </data>
+  <data name="menu.refusal.save-no-file" xml:space="preserve">
+    <value>这份文档没有文件，存不了</value>
+  </data>
+  <data name="menu.refusal.save-template" xml:space="preserve">
+    <value>先选中要存成模板的元素</value>
+  </data>
+  <data name="menu.refusal.create-group" xml:space="preserve">
+    <value>先选中要包进分组的元素</value>
+  </data>
+  <data name="menu.refusal.create-subflow" xml:space="preserve">
+    <value>先选中要包进子流程的元素</value>
+  </data>
+  <data name="menu.refusal.create-combo" xml:space="preserve">
+    <value>先选中要圈进框里的元素</value>
+  </data>
+  <data name="menu.refusal.dissolve" xml:space="preserve">
+    <value>这一条要对准一个组合右键</value>
+  </data>
+  <data name="menu.refusal.export" xml:space="preserve">
+    <value>界面上的导出还没接上：要选文件、选格式、选范围，那三样在后面的任务里</value>
+  </data>
+
+  <data name="panel.layers.title" xml:space="preserve">
+    <value>图层</value>
+  </data>
+  <data name="panel.shapes.title" xml:space="preserve">
+    <value>形状</value>
+  </data>
+  <data name="panel.templates.title" xml:space="preserve">
+    <value>模板</value>
+  </data>
+  <data name="panel.palette.title" xml:space="preserve">
+    <value>调色板</value>
+  </data>
+  <data name="panel.presets.title" xml:space="preserve">
+    <value>文本预设</value>
+  </data>
+  <data name="panel.properties.empty" xml:space="preserve">
+    <value>在画布上点一个节点，这里显示它的属性。按住 Ctrl 或 Shift 点可以多选。</value>
+  </data>
+  <data name="panel.templates.empty" xml:space="preserve">
+    <value>模板目录里没有可用的模板。</value>
+  </data>
+  <data name="panel.templates.failures" xml:space="preserve">
+    <value>这几个文件读不出来：</value>
+  </data>
+
+  <data name="canvas.empty" xml:space="preserve">
+    <value>没有可显示的内容</value>
+  </data>
+  <data name="diff.title" xml:space="preserve">
+    <value>变更</value>
+  </data>
+  <data name="diff.empty" xml:space="preserve">
+    <value>暂无变更</value>
+  </data>
+  <data name="diff.expand" xml:space="preserve">
+    <value>展开</value>
+  </data>
+  <data name="diff.collapse" xml:space="preserve">
+    <value>收起</value>
+  </data>
+
+  <data name="richtext.size" xml:space="preserve">
+    <value>字号</value>
+  </data>
+  <data name="richtext.color" xml:space="preserve">
+    <value>颜色</value>
+  </data>
+  <data name="richtext.cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="richtext.commit" xml:space="preserve">
+    <value>完成</value>
+  </data>
+
+  <data name="import.title" xml:space="preserve">
+    <value>导入</value>
+  </data>
+  <data name="import.close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+
+  <data name="layout.failure.title" xml:space="preserve">
+    <value>布局失败</value>
+  </data>
+  <data name="layout.failure.retry" xml:space="preserve">
+    <value>重试</value>
+  </data>
+  <data name="layout.failure.manual" xml:space="preserve">
+    <value>手动布局</value>
+  </data>
+  <data name="layout.failure.simplify" xml:space="preserve">
+    <value>简化图</value>
+  </data>
+
+  <data name="sidecar.title" xml:space="preserve">
+    <value>人工调整无法读取</value>
+  </data>
+  <data name="sidecar.body" xml:space="preserve">
+    <value>固定位置与折点存在的那份文件损坏了。可以从备份恢复，也可以放弃这些人工调整。</value>
+  </data>
+  <data name="sidecar.restore" xml:space="preserve">
+    <value>从备份恢复</value>
+  </data>
+  <data name="sidecar.discard" xml:space="preserve">
+    <value>放弃人工调整</value>
+  </data>
+
+  <data name="diagnostics.close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+</root>

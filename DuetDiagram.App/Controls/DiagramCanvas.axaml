@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DuetDiagram.App.ViewModels"
              x:Class="DuetDiagram.App.Controls.DiagramCanvas"
+             xmlns:res="using:DuetDiagram.App.Resources"
              x:DataType="vm:CanvasViewModel"
              Focusable="True"
              ClipToBounds="True"
@@ -20,6 +21,6 @@
                VerticalAlignment="Center"
                FontSize="13"
                Foreground="#8a94a3"
-               Text="没有可显示的内容" />
+               Text="{x:Static res:Strings.CanvasEmpty}" />
   </Panel>
 </UserControl>

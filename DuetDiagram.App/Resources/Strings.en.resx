@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  第二语言。它**不进卫星程序集**（见项目文件里的 WithCulture），而是嵌进主程序集，
+  按 Strings.Language 显式选——不变量全球化下 CultureInfo 建不出具名文化，
+  卫星程序集永远选不出来。
+  它的作用是证明「界面文字真的来自资源」：换语言之后文字真的变，才说明它不是硬编码的。
+  缺的键回落中性资源，所以这里允许不齐。
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="menu.groupname.file" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="menu.groupname.edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="menu.groupname.align" xml:space="preserve">
+    <value>Align</value>
+  </data>
+  <data name="menu.groupname.layout" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="menu.groupname.view" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="menu.groupname.export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="menu.groupname.group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+
+  <data name="menu.file.new-window" xml:space="preserve">
+    <value>New window</value>
+  </data>
+  <data name="menu.file.import" xml:space="preserve">
+    <value>Import Mermaid…</value>
+  </data>
+  <data name="menu.file.save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="menu.file.save-template" xml:space="preserve">
+    <value>Save as template</value>
+  </data>
+  <data name="menu.edit.undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="menu.edit.redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="menu.edit.delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="menu.edit.select-all" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="menu.edit.select-none" xml:space="preserve">
+    <value>Clear selection</value>
+  </data>
+  <data name="menu.align.same-rank" xml:space="preserve">
+    <value>Same rank</value>
+  </data>
+  <data name="menu.align.align" xml:space="preserve">
+    <value>Align</value>
+  </data>
+  <data name="menu.layout.direction-lr" xml:space="preserve">
+    <value>Left to right</value>
+  </data>
+  <data name="menu.layout.direction-tb" xml:space="preserve">
+    <value>Top to bottom</value>
+  </data>
+  <data name="menu.layout.direction-rl" xml:space="preserve">
+    <value>Right to left</value>
+  </data>
+  <data name="menu.layout.direction-bt" xml:space="preserve">
+    <value>Bottom to top</value>
+  </data>
+  <data name="menu.layout.spacing-tight" xml:space="preserve">
+    <value>Tighten spacing</value>
+  </data>
+  <data name="menu.layout.spacing-loose" xml:space="preserve">
+    <value>Loosen spacing</value>
+  </data>
+  <data name="menu.layout.relayout" xml:space="preserve">
+    <value>Re-layout</value>
+  </data>
+  <data name="menu.view.diagnostics" xml:space="preserve">
+    <value>Performance diagnostics</value>
+  </data>
+  <data name="menu.export.dialog" xml:space="preserve">
+    <value>Export…</value>
+  </data>
+  <data name="menu.group.create-group" xml:space="preserve">
+    <value>Create group</value>
+  </data>
+  <data name="menu.group.create-lane" xml:space="preserve">
+    <value>Create lane</value>
+  </data>
+  <data name="menu.group.create-subflow" xml:space="preserve">
+    <value>Create subflow</value>
+  </data>
+  <data name="menu.group.create-combo" xml:space="preserve">
+    <value>Create frame</value>
+  </data>
+  <data name="menu.group.dissolve" xml:space="preserve">
+    <value>Dissolve this group</value>
+  </data>
+  <data name="menu.shortcut" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="menu.entry-name" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+
+  <data name="menu.refusal.undo" xml:space="preserve">
+    <value>Nothing to undo</value>
+  </data>
+  <data name="menu.refusal.redo" xml:space="preserve">
+    <value>Nothing to redo</value>
+  </data>
+  <data name="menu.refusal.delete" xml:space="preserve">
+    <value>Select something to delete first</value>
+  </data>
+  <data name="menu.refusal.select-all" xml:space="preserve">
+    <value>The document has no elements yet</value>
+  </data>
+  <data name="menu.refusal.select-none" xml:space="preserve">
+    <value>Nothing is selected</value>
+  </data>
+  <data name="menu.refusal.align" xml:space="preserve">
+    <value>Select at least two nodes first</value>
+  </data>
+  <data name="menu.refusal.save-no-file" xml:space="preserve">
+    <value>This document has no file, so it cannot be saved</value>
+  </data>
+  <data name="menu.refusal.save-template" xml:space="preserve">
+    <value>Select the elements to save as a template first</value>
+  </data>
+  <data name="menu.refusal.create-group" xml:space="preserve">
+    <value>Select the elements to put in the group first</value>
+  </data>
+  <data name="menu.refusal.create-subflow" xml:space="preserve">
+    <value>Select the elements to put in the subflow first</value>
+  </data>
+  <data name="menu.refusal.create-combo" xml:space="preserve">
+    <value>Select the elements to enclose first</value>
+  </data>
+  <data name="menu.refusal.dissolve" xml:space="preserve">
+    <value>This one needs a right-click on a group</value>
+  </data>
+
+  <data name="panel.layers.title" xml:space="preserve">
+    <value>Layers</value>
+  </data>
+  <data name="panel.shapes.title" xml:space="preserve">
+    <value>Shapes</value>
+  </data>
+  <data name="panel.templates.title" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="panel.palette.title" xml:space="preserve">
+    <value>Palette</value>
+  </data>
+  <data name="panel.presets.title" xml:space="preserve">
+    <value>Text presets</value>
+  </data>
+  <data name="panel.properties.empty" xml:space="preserve">
+    <value>Click a node on the canvas to see its properties here. Hold Ctrl or Shift to select more.</value>
+  </data>
+  <data name="panel.templates.empty" xml:space="preserve">
+    <value>No usable templates in the template folder.</value>
+  </data>
+  <data name="panel.templates.failures" xml:space="preserve">
+    <value>These files could not be read:</value>
+  </data>
+
+  <data name="canvas.empty" xml:space="preserve">
+    <value>Nothing to display</value>
+  </data>
+  <data name="diff.title" xml:space="preserve">
+    <value>Changes</value>
+  </data>
+  <data name="diff.empty" xml:space="preserve">
+    <value>No changes yet</value>
+  </data>
+  <data name="diff.expand" xml:space="preserve">
+    <value>Expand</value>
+  </data>
+  <data name="diff.collapse" xml:space="preserve">
+    <value>Collapse</value>
+  </data>
+
+  <data name="richtext.size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="richtext.color" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="richtext.cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="richtext.commit" xml:space="preserve">
+    <value>Done</value>
+  </data>
+
+  <data name="import.title" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="import.close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+
+  <data name="layout.failure.title" xml:space="preserve">
+    <value>Layout failed</value>
+  </data>
+  <data name="layout.failure.retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="layout.failure.manual" xml:space="preserve">
+    <value>Manual layout</value>
+  </data>
+  <data name="layout.failure.simplify" xml:space="preserve">
+    <value>Simplify</value>
+  </data>
+
+  <data name="sidecar.title" xml:space="preserve">
+    <value>Manual adjustments cannot be read</value>
+  </data>
+  <data name="sidecar.body" xml:space="preserve">
+    <value>The file holding pinned positions and bend points is damaged. You can restore it from the backup, or discard those manual adjustments.</value>
+  </data>
+  <data name="sidecar.restore" xml:space="preserve">
+    <value>Restore from backup</value>
+  </data>
+  <data name="sidecar.discard" xml:space="preserve">
+    <value>Discard manual adjustments</value>
+  </data>
+
+  <data name="diagnostics.close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+</root>

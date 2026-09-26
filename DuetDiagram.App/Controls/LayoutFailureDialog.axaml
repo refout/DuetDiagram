@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="DuetDiagram.App.Controls.LayoutFailureDialog">
+             x:Class="DuetDiagram.App.Controls.LayoutFailureDialog"
+             xmlns:res="using:DuetDiagram.App.Resources">
   <!--
     布局彻底失败时浮出来的提示。三个选项：重试、手动布局、简化图。
     画面不清空——保留上一次成功的布局，清空会让用户以为图丢了。
@@ -15,7 +16,7 @@
       <TextBlock FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#c4314b"
-                 Text="布局失败" />
+                 Text="{x:Static res:Strings.LayoutFailureTitle}" />
       <TextBlock x:Name="DetailText"
                  Margin="0,6,0,0"
                  FontSize="12"
@@ -27,13 +28,13 @@
                   Spacing="8">
         <Button x:Name="RetryButton"
                 AutomationProperties.Name="重试布局"
-                Content="重试" />
+                Content="{x:Static res:Strings.LayoutFailureRetry}" />
         <Button x:Name="ManualButton"
                 AutomationProperties.Name="改为手动摆放"
-                Content="手动布局" />
+                Content="{x:Static res:Strings.LayoutFailureManual}" />
         <Button x:Name="SimplifyButton"
                 AutomationProperties.Name="简化这张图"
-                Content="简化图" />
+                Content="{x:Static res:Strings.LayoutFailureSimplify}" />
       </StackPanel>
     </StackPanel>
   </Border>

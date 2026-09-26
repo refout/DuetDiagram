@@ -896,6 +896,21 @@ P5-05 无障碍：键盘与读屏 ── P5-06 i18n 预留 ──┘
 真正按键的 `DefaultMenuInteractionHandler` 看的是被聚焦的 `MenuItem`（`IsTopLevel && HasSubMenu` 才展开），
 给 `Menu` 加 `Focusable="True"` 也没用，所以判据落在顶级菜单项上。其余 `pending`。
 
+**P5-06 已落地**：`Category=I18n` 十条用例全绿，`DuetDiagram.E2E.Tests` 从 214 条涨到 **224 条**
+（失败 0）；界面文字收进 `DuetDiagram.App/Resources/Strings.resx`（中性，中文）与 `Strings.en.resx`
+（嵌主程序集，不走卫星），语言由 `Strings.Language` 显式指定；菜单的**档名与档标识拆开**
+（`MenuGroups.Display`）——原来"编辑"这两个字同时当身份与显示文字用，换语言就找不到自己了；
+标记里用 `{x:Static res:Strings.Xxx}`，实测成员名写错是**构建错误**（不是运行期反射）；
+RTL 验的是"同一份布局绕竖中线翻过来"，逐块比尺寸与位置；验报告 `reports/phase5-i18n.md`、
+做法与遗留清单 `docs/Internationalization.md`。
+顺带查实一件硬约束——**不变量全球化让"按文化切语言"物理上做不到**：
+`InvariantGlobalization=true` 写在根目录构建属性里（全仓生效），实测 `new CultureInfo("en-US")`
+直接抛 `CultureNotFoundException`，`CurrentUICulture` 永远是不变量，卫星程序集永远选不出来。
+所以卡里那句"切换文化后…来自资源"改成了切显式语言代码，第二个语言也改成嵌主程序集。
+**界面文字只迁了一部分**：75 条键已迁（菜单这一条链 + 各面板静态标题 + 四个对话框），
+而 `DuetDiagram.App` 里带中文的字符串字面量有 1125 处（去掉异常消息 936、再去掉装置输出 778），
+卡里 `estimated_loc: 260` 覆盖不了，按仓里已有的「收窄 + 记下理由」先例收窄，其余逐类列在文档里。其余 `pending`。
+
 **六条判据里四条是装置能量、两条要人。** 布局评分、1000 节点流畅、内存、冷启动都能用装置量
 （与 P4-21 的覆盖装置、P4-22 的四条判据同一条口径：装置比数字重要）；**「WCAG AA」是唯一一条装置只能判一半的**——
 这一条交付的是可机验的底座（名字 + 键盘），对比度、读屏实际体验、焦点可见性
@@ -912,7 +927,7 @@ P5-05 无障碍：键盘与读屏 ── P5-06 i18n 预留 ──┘
 | 内存 < 500MB | P5-03 | `tools/MemBudget` 载入大文档 + 1000 节点场景的峰值工作集 < 500MB，逐档列在报告里。实测 139.1 ~ 141.5MB，验报告 `reports/phase5-memory.md` |
 | 冷启动 ≤ 2s | P5-04 | `tools/StartupBench` 从进程启动到首帧可交互 ≤ 2s，逐阶段耗时列在报告里。实测默认文档 1580.3ms、200 节点文档 1634.8ms，验报告 `reports/phase5-startup.md` |
 | WCAG AA | P5-05 | 每个交互控件有可访问名称、键盘可达；装置验这一半（`Category=Accessibility` 十条，名字 50 处、焦点号四段），对比度、读屏体验与焦点可见性要真人验（未验）。验报告 `reports/phase5-accessibility.md` |
-| i18n 预留 | P5-06 | 界面硬字符串迁到资源文件，主程序不再有散落可见字面量；切换文化与 RTL 不破版 |
+| i18n 预留 | P5-06 | 界面硬字符串迁到资源文件，主程序不再有散落的可见中文字面量；切换文化与 RTL 不破版。**部分达成**：机制 + 菜单这一条链 + 面板标题 + 对话框共 75 条键已迁，语言按显式代码切（不变量全球化下按文化切做不到），RTL 逐块验镜像；其余约 700 处列在 `docs/Internationalization.md` 的遗留表里。验报告 `reports/phase5-i18n.md` |
 
 **六条判据目前一条都没有出口**（Phase 4 没碰过打磨），所以 P5-01 ~ P5-07 是从零搭装置与底座，
 不是给已有功能加验收。

@@ -1,3 +1,4 @@
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Model;
@@ -19,16 +20,20 @@ internal static class MenuRefusals
         context.IsReadOnly ? ErrorPresenterTable.For(ErrorCodes.DocumentReadOnly).Message : null;
 
     /// <summary>没选中东西时，这条做不了。</summary>
-    public static string? NoSelection(MenuContext context, string what) =>
-        context.HasSelection ? null : $"先选中{what}";
+    /// <remarks>
+    /// 理由整句由调用方给，不在这里拼"先选中"加一个宾语：拼出来的话，
+    /// 换一种语序（宾语在前）就拼不成句子了，而语序正是翻译要改的东西。
+    /// </remarks>
+    public static string? NoSelection(MenuContext context, string reason) =>
+        context.HasSelection ? null : reason;
 
     /// <summary>既要能写、又要有选中，两样都挡住。</summary>
-    public static string? WriteToSelection(MenuContext context, string what) =>
-        ReadOnly(context) ?? NoSelection(context, what);
+    public static string? WriteToSelection(MenuContext context, string reason) =>
+        ReadOnly(context) ?? NoSelection(context, reason);
 
     /// <summary>既要能写、又要选中至少两个元素。对齐与同层都至少两个成员。</summary>
-    public static string? WriteToGroup(MenuContext context, string what) =>
-        ReadOnly(context) ?? (context.Selected.Count < 2 ? $"先选中两个以上{what}" : null);
+    public static string? WriteToGroup(MenuContext context, string reason) =>
+        ReadOnly(context) ?? (context.Selected.Count < 2 ? reason : null);
 }
 
 /// <summary>文件那一档。这一轮有"再开一个窗口"、"存盘"、"存为模板"与"导入"四件。</summary>
@@ -39,7 +44,7 @@ internal static class FileEntries
         registry.Add(new MenuEntry(
             "file.new-window",
             MenuGroups.File,
-            "新建窗口",
+            "menu.file.new-window",
             "Ctrl+N",
             MenuSurface.Menu,
             _ => null,
@@ -50,7 +55,7 @@ internal static class FileEntries
         registry.Add(new MenuEntry(
             "file.import",
             MenuGroups.File,
-            "导入 Mermaid…",
+            "menu.file.import",
             null,
             MenuSurface.Menu,
             MenuRefusals.ReadOnly,
@@ -59,12 +64,12 @@ internal static class FileEntries
         registry.Add(new MenuEntry(
             "file.save",
             MenuGroups.File,
-            "保存",
+            "menu.file.save",
             "Ctrl+S",
             MenuSurface.Menu,
             context => context.IsReadOnly
                 ? ErrorPresenterTable.For(ErrorCodes.DocumentReadOnly).Message
-                : context.Window.DocumentPath is null ? "这份文档没有文件，存不了" : null,
+                : context.Window.DocumentPath is null ? Strings.RefusalSaveNoFile : null,
             context => context.Window.Save()));
 
         // 「存为模板」与「保存」都写文件，但写的是两样东西：一个是这份文档，一个是可复用的一段。
@@ -73,10 +78,10 @@ internal static class FileEntries
         registry.Add(new MenuEntry(
             "file.save-template",
             MenuGroups.File,
-            "存为模板",
+            "menu.file.save-template",
             null,
             MenuSurface.Menu,
-            context => MenuRefusals.WriteToSelection(context, "要存成模板的元素"),
+            context => MenuRefusals.WriteToSelection(context, Strings.RefusalSaveTemplate),
             context => context.Window.Templates.SaveSelection()));
     }
 }
@@ -89,46 +94,46 @@ internal static class EditEntries
         registry.Add(new MenuEntry(
             "edit.undo",
             MenuGroups.Edit,
-            "撤销",
+            "menu.edit.undo",
             "Ctrl+Z",
             MenuSurface.Both,
-            context => context.CanUndo ? null : "没有可撤销的操作",
+            context => context.CanUndo ? null : Strings.RefusalUndo,
             context => context.Session.Undo()));
 
         registry.Add(new MenuEntry(
             "edit.redo",
             MenuGroups.Edit,
-            "重做",
+            "menu.edit.redo",
             "Ctrl+Y",
             MenuSurface.Both,
-            context => context.CanRedo ? null : "没有可重做的操作",
+            context => context.CanRedo ? null : Strings.RefusalRedo,
             context => context.Session.Redo()));
 
         registry.Add(new MenuEntry(
             "edit.delete",
             MenuGroups.Edit,
-            "删除",
+            "menu.edit.delete",
             "Delete",
             MenuSurface.Both | MenuSurface.Context,
-            context => MenuRefusals.WriteToSelection(context, "要删的元素"),
+            context => MenuRefusals.WriteToSelection(context, Strings.RefusalDelete),
             context => context.Session.DeleteSelection()));
 
         registry.Add(new MenuEntry(
             "edit.select-all",
             MenuGroups.Edit,
-            "全选",
+            "menu.edit.select-all",
             "Ctrl+A",
             MenuSurface.Both | MenuSurface.Context,
-            context => context.Session.AllNodeIds.Count == 0 ? "文档里还没有元素" : null,
+            context => context.Session.AllNodeIds.Count == 0 ? Strings.RefusalSelectAll : null,
             context => context.Session.SetSelection(context.Session.AllNodeIds)));
 
         registry.Add(new MenuEntry(
             "edit.select-none",
             MenuGroups.Edit,
-            "清空选择",
+            "menu.edit.select-none",
             null,
             MenuSurface.Both | MenuSurface.Context,
-            context => context.HasSelection ? null : "现在没有选中东西",
+            context => context.HasSelection ? null : Strings.RefusalSelectNone,
             context => context.Session.SetSelection([])));
     }
 }
@@ -141,19 +146,19 @@ internal static class AlignEntries
         registry.Add(new MenuEntry(
             "align.same-rank",
             MenuGroups.Align,
-            "同层",
+            "menu.align.same-rank",
             null,
             MenuSurface.Both,
-            context => MenuRefusals.WriteToGroup(context, "节点"),
+            context => MenuRefusals.WriteToGroup(context, Strings.RefusalAlign),
             context => context.Session.AddConstraint(LayoutConstraintSpec.SameRank(context.Selected))));
 
         registry.Add(new MenuEntry(
             "align.align",
             MenuGroups.Align,
-            "对齐",
+            "menu.align.align",
             null,
             MenuSurface.Both,
-            context => MenuRefusals.WriteToGroup(context, "节点"),
+            context => MenuRefusals.WriteToGroup(context, Strings.RefusalAlign),
             context => context.Session.AddConstraint(LayoutConstraintSpec.Align(context.Selected))));
     }
 }
@@ -163,15 +168,15 @@ internal static class LayoutEntries
 {
     public static void Register(MenuRegistry registry)
     {
-        AddDirection(registry, "lr", "从左到右", Direction.LR);
-        AddDirection(registry, "tb", "从上到下", Direction.TB);
-        AddDirection(registry, "rl", "从右到左", Direction.RL);
-        AddDirection(registry, "bt", "从下到上", Direction.BT);
+        AddDirection(registry, "lr", "menu.layout.direction-lr", Direction.LR);
+        AddDirection(registry, "tb", "menu.layout.direction-tb", Direction.TB);
+        AddDirection(registry, "rl", "menu.layout.direction-rl", Direction.RL);
+        AddDirection(registry, "bt", "menu.layout.direction-bt", Direction.BT);
 
         registry.Add(new MenuEntry(
             "layout.spacing-tight",
             MenuGroups.Layout,
-            "收紧间距",
+            "menu.layout.spacing-tight",
             null,
             MenuSurface.Both,
             MenuRefusals.ReadOnly,
@@ -180,7 +185,7 @@ internal static class LayoutEntries
         registry.Add(new MenuEntry(
             "layout.spacing-loose",
             MenuGroups.Layout,
-            "放宽间距",
+            "menu.layout.spacing-loose",
             null,
             MenuSurface.Both,
             MenuRefusals.ReadOnly,
@@ -189,18 +194,18 @@ internal static class LayoutEntries
         registry.Add(new MenuEntry(
             "layout.relayout",
             MenuGroups.Layout,
-            "重排",
+            "menu.layout.relayout",
             "F5",
             MenuSurface.Both,
             _ => null,
             context => context.Session.RetryLayout()));
     }
 
-    private static void AddDirection(MenuRegistry registry, string id, string label, Direction direction) =>
+    private static void AddDirection(MenuRegistry registry, string id, string labelKey, Direction direction) =>
         registry.Add(new MenuEntry(
             $"layout.direction-{id}",
             MenuGroups.Layout,
-            label,
+            labelKey,
             null,
             MenuSurface.Both,
             MenuRefusals.ReadOnly,
@@ -215,7 +220,7 @@ internal static class ViewEntries
         registry.Add(new MenuEntry(
             "view.diagnostics",
             MenuGroups.View,
-            "性能诊断面板",
+            "menu.view.diagnostics",
             "Ctrl+Shift+P",
             MenuSurface.Menu,
             _ => null,
@@ -241,15 +246,13 @@ internal static class ViewEntries
 /// </remarks>
 internal static class ExportEntries
 {
-    private const string Reason = "界面上的导出还没接上：要选文件、选格式、选范围，那三样在后面的任务里";
-
     public static void Register(MenuRegistry registry) =>
         registry.Add(new MenuEntry(
             "export.dialog",
             MenuGroups.Export,
-            "导出…",
+            "menu.export.dialog",
             null,
             MenuSurface.Both,
-            _ => Reason,
+            _ => Strings.RefusalExport,
             _ => { }));
 }

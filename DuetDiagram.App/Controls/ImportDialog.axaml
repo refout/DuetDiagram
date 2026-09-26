@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="DuetDiagram.App.Controls.ImportDialog">
+             x:Class="DuetDiagram.App.Controls.ImportDialog"
+             xmlns:res="using:DuetDiagram.App.Resources">
   <!--
     一次导入之后摆出来的那张单子：导了哪个文件、导进去多少、以及哪些地方与原文对不上。
     它只是一个报告面板，不认识会话也不认识文档——导不导、导完怎么办都由宿主去办。
@@ -15,7 +16,7 @@
       <TextBlock FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#2b3a4d"
-                 Text="导入" />
+                 Text="{x:Static res:Strings.ImportTitle}" />
       <TextBlock x:Name="FileText"
                  Margin="0,6,0,0"
                  FontSize="12"
@@ -56,7 +57,7 @@
                   Spacing="8">
         <Button x:Name="CloseButton"
                 AutomationProperties.Name="关闭导入报告"
-                Content="关闭" />
+                Content="{x:Static res:Strings.ImportClose}" />
       </StackPanel>
     </StackPanel>
   </Border>

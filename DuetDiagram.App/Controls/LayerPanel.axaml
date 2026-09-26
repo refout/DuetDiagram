@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DuetDiagram.App.ViewModels"
+             xmlns:res="using:DuetDiagram.App.Resources"
              x:Class="DuetDiagram.App.Controls.LayerPanel"
              x:DataType="vm:LayerPanelViewModel">
 
@@ -18,7 +19,7 @@
                  FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#2b3440"
-                 Text="图层" />
+                 Text="{x:Static res:Strings.PanelLayersTitle}" />
 
       <!--
         改不动时先把原因写在列表之前。开关全灰着而不说一句的话，

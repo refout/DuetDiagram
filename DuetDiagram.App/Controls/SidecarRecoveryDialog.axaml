@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="DuetDiagram.App.Controls.SidecarRecoveryDialog">
+             x:Class="DuetDiagram.App.Controls.SidecarRecoveryDialog"
+             xmlns:res="using:DuetDiagram.App.Resources">
   <!--
     人工产物（user.json）损坏时的恢复提示。两个选项：从备份恢复、放弃人工调整。
     这是 sidecar 五级恢复里需要用户决策的两级之一。
@@ -15,22 +16,22 @@
       <TextBlock FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#b7791f"
-                 Text="人工调整无法读取" />
+                 Text="{x:Static res:Strings.SidecarTitle}" />
       <TextBlock x:Name="DetailText"
                  Margin="0,6,0,0"
                  FontSize="12"
                  Foreground="#5b6675"
                  TextWrapping="Wrap"
-                 Text="固定位置与折点存在的那份文件损坏了。可以从备份恢复，也可以放弃这些人工调整。" />
+                 Text="{x:Static res:Strings.SidecarBody}" />
       <StackPanel Margin="0,10,0,0"
                   Orientation="Horizontal"
                   Spacing="8">
         <Button x:Name="RestoreButton"
                 AutomationProperties.Name="从备份恢复人工调整"
-                Content="从备份恢复" />
+                Content="{x:Static res:Strings.SidecarRestore}" />
         <Button x:Name="DiscardButton"
                 AutomationProperties.Name="放弃人工调整"
-                Content="放弃人工调整" />
+                Content="{x:Static res:Strings.SidecarDiscard}" />
       </StackPanel>
     </StackPanel>
   </Border>

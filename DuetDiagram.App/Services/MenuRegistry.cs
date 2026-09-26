@@ -1,3 +1,4 @@
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.ViewModels;
 
 namespace DuetDiagram.App.Services;
@@ -34,10 +35,15 @@ public enum MenuSurface
 /// **不能点的时候要给一句理由，不许只是灰掉。** 灰掉而不说为什么，用户会以为程序坏了；
 /// 而"为什么不能点"这件事只有这一条自己知道——判据写在这里，理由也就只能写在这里。
 /// </para>
+/// <para>
+/// **字与标识分开。** <see cref="Id"/> 与 <see cref="Group"/> 是稳定标识，用例按它们找控件、
+/// 注册表按它们分组，都不随语言变；<see cref="LabelKey"/> 是资源键，显示出来的字由它取。
+/// 把显示的字当标识用的话，换一种语言就找不到自己了。
+/// </para>
 /// </remarks>
 /// <param name="Id">稳定标识。用例按它找控件，所以它不随显示名变化。</param>
 /// <param name="Group">归在哪一档，取值见 <see cref="MenuGroups"/>。</param>
-/// <param name="Label">界面上显示的字。</param>
+/// <param name="LabelKey">这一条的字在资源里的键。</param>
 /// <param name="Shortcut">快捷键的显示写法。没有绑定的条目传空。</param>
 /// <param name="Surface">出现在工具栏、菜单，还是两处都有。</param>
 /// <param name="Refusal">此刻不能点的理由；能点时返回空。</param>
@@ -45,12 +51,15 @@ public enum MenuSurface
 public sealed record MenuEntry(
     string Id,
     string Group,
-    string Label,
+    string LabelKey,
     string? Shortcut,
     MenuSurface Surface,
     Func<MenuContext, string?> Refusal,
     Action<MenuContext> Run)
 {
+    /// <summary>界面上显示的字。按当前语言取。</summary>
+    public string Label => Strings.Get(LabelKey);
+
     /// <summary>此刻能不能点。</summary>
     public bool IsEnabled(MenuContext context) => Refusal(context) is null;
 }
@@ -113,27 +122,33 @@ public sealed class MenuContext
 }
 
 /// <summary>
-/// 档的名字。工具栏上从左到右的那几档，与菜单栏上那几个顶级菜单，都取这里的常量。
+/// 档的标识。工具栏上从左到右的那几档，与菜单栏上那几个顶级菜单，都取这里的常量。
 /// </summary>
 /// <remarks>
+/// <para>
 /// 写成字面量的话，注册时写错一个字不会报错——那条条目会落进一个不存在的档里，
 /// 而它只是**不显示**，看起来像"这一轮没做"。
+/// </para>
+/// <para>
+/// **这一组是标识不是文字。** 注册表按它们分组、用例按它们找控件，所以它们不随语言变；
+/// 屏幕上显示的那几个字由 <see cref="Display"/> 从资源里取。
+/// </para>
 /// </remarks>
 public static class MenuGroups
 {
-    public const string File = "文件";
-    public const string Edit = "编辑";
-    public const string Align = "对齐";
-    public const string Layout = "布局";
-    public const string View = "视图";
-    public const string Export = "导出";
+    public const string File = "file";
+    public const string Edit = "edit";
+    public const string Align = "align";
+    public const string Layout = "layout";
+    public const string View = "view";
+    public const string Export = "export";
 
     /// <summary>只出现在右键菜单里的一档：四类组合、解散、以及它们那几样。</summary>
     /// <remarks>
     /// 单独一档而不是混进「编辑」：这几条只在右键时出现（菜单栏与工具栏上都没有它们），
     /// 混进「编辑」的话，菜单栏上会多出四条平时点不动的条目。
     /// </remarks>
-    public const string Group = "组合";
+    public const string Group = "group";
 
     /// <summary>工具栏上从左到右的档。只有菜单里出现的那两档不在其中。</summary>
     public static IReadOnlyList<string> ToolBarOrder { get; } = [Edit, Align, Layout, Export];
@@ -149,6 +164,23 @@ public static class MenuGroups
     /// 而它只在右键时才有意义。
     /// </remarks>
     public static IReadOnlyList<string> ContextOrder { get; } = [Edit, Group];
+
+    /// <summary>某一档在界面上显示的字，按当前语言取。</summary>
+    /// <remarks>
+    /// 认不出的标识直接抛：不抛的话它会在界面上显示成一个空档，
+    /// 而空档看起来像"这一档没有条目"，实际是标识写错了。
+    /// </remarks>
+    public static string Display(string id) => id switch
+    {
+        File => Strings.MenuGroupFile,
+        Edit => Strings.MenuGroupEdit,
+        Align => Strings.MenuGroupAlign,
+        Layout => Strings.MenuGroupLayout,
+        View => Strings.MenuGroupView,
+        Export => Strings.MenuGroupExport,
+        Group => Strings.MenuGroupGroup,
+        _ => throw new ArgumentException($"不存在的档：{id}", nameof(id)),
+    };
 }
 
 /// <summary>

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 
 namespace DuetDiagram.App.Controls;
@@ -163,7 +164,7 @@ public sealed partial class DiagramToolBar : UserControl
     }
 
     private static string? Shortcut(MenuEntry entry) =>
-        entry.Shortcut is { Length: > 0 } shortcut ? $"{entry.Label}（{shortcut}）" : null;
+        entry.Shortcut is { Length: > 0 } shortcut ? Strings.MenuShortcut(entry.Label, shortcut) : null;
 
     private static Control Separator() => new Border
     {

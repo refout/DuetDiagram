@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DuetDiagram.App.ViewModels"
              x:Class="DuetDiagram.App.Controls.TemplatePanel"
+             xmlns:res="using:DuetDiagram.App.Resources"
              x:DataType="vm:TemplatePanelViewModel">
 
   <!--
@@ -17,7 +18,7 @@
                  FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#2b3440"
-                 Text="模板" />
+                 Text="{x:Static res:Strings.PanelTemplatesTitle}" />
 
       <TextBlock DockPanel.Dock="Top"
                  Margin="0,6,0,0"
@@ -51,7 +52,7 @@
                  FontSize="11"
                  Foreground="#7a8492"
                  TextWrapping="Wrap"
-                 Text="模板目录里没有可用的模板。"
+                 Text="{x:Static res:Strings.PanelTemplatesEmpty}"
                  IsVisible="False" />
 
       <ScrollViewer Margin="0,8,0,0"
@@ -70,7 +71,7 @@
                      FontWeight="SemiBold"
                      Foreground="#8a6d1f"
                      TextWrapping="Wrap"
-                     Text="这几个文件读不出来："
+                     Text="{x:Static res:Strings.PanelTemplatesFailures}"
                      IsVisible="False" />
 
           <StackPanel x:Name="Failures" Spacing="2" />

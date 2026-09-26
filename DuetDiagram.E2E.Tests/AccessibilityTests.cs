@@ -7,6 +7,7 @@ using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using DuetDiagram.App;
 using DuetDiagram.App.Controls;
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 using FluentAssertions;
 using Xunit;
@@ -300,7 +301,9 @@ public sealed class AccessibilityTests
                     ?? throw new InvalidOperationException($"工具栏上没有 {entry.Id}");
 
                 AutomationProperties.GetName(button)
-                    .Should().Be($"{entry.Group}：{entry.Label}", $"工具栏上看不见档名，{entry.Id} 的名字要自己带上");
+                    .Should().Be(
+                        Strings.EntryName(MenuGroups.Display(entry.Group), entry.Label),
+                        $"工具栏上看不见档名，{entry.Id} 的名字要自己带上");
             }
 
             foreach (var entry in MenuRegistry.Default.On(MenuSurface.Menu, MenuGroups.MenuOrder))
@@ -316,7 +319,7 @@ public sealed class AccessibilityTests
             var tops = body.Items.OfType<MenuItem>().ToList();
 
             tops.Select(item => item.Header?.ToString())
-                .Should().Equal(MenuGroups.MenuOrder, "顶级菜单从左到右就是这几档");
+                .Should().Equal(MenuGroups.MenuOrder.Select(MenuGroups.Display), "顶级菜单从左到右就是这几档");
 
             foreach (var top in tops)
             {

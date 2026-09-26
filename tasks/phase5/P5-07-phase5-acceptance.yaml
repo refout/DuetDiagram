@@ -1,0 +1,38 @@
+id: P5-07
+title: Phase 5 收尾——六条判据与真人验收
+phase: 5
+status: pending
+depends_on: [P5-01, P5-02, P5-03, P5-04, P5-05, P5-06]
+estimated_loc: 300
+files:
+  create:
+    - reports/phase5.md
+  modify:
+    - AGENTS.md
+    - tasks/README.md
+    - reports/loc.md
+acceptance:
+  - command: dotnet test --project tools/LayoutScore -c Release
+    expect: 退出码 0；布局评分 ≥ 85
+  - command: dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-frames --nodes 1000 --frames 120
+    expect: 帧率 ≥ 30 FPS 且剔除率 > 80%
+  - command: dotnet run --project tools/MemBudget -c Release
+    expect: 退出码 0；峰值工作集 < 500MB
+  - command: dotnet run --project tools/StartupBench -c Release
+    expect: 退出码 0；冷启动 ≤ 2s
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Accessibility"
+    expect: 全通过；WCAG AA 的底座（键盘可达 + 可访问名称）齐备
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误；i18n 资源字符串预留完成
+  - command: dotnet run --project tools/LocCounter -c Release -- --root "$PWD" --check
+    expect: 退出码 0；reports/loc.md 与代码一致
+constraints:
+  - "**六条判据逐条指向证据，不许只写「已通过」。** 布局评分、1000 节点流畅、内存、冷启动、WCAG AA、i18n 各自由哪个装置或哪份报告验的，写清楚"
+  - "**能机验的与要人验的分开列。** 评分/帧率/内存/启动/键盘这些装置能判；对比度与读屏实际体验要真人，记成「未验」而不是「通过」"
+  - "**跨机器与跨平台没做的那几条要如实列。** 原生发布的冷启动与内存只有带 C++ 工具链的运行器才真量过；RTL 与读屏只验了不破版，没验真人能读顺"
+  - "**CI 要把 Phase 5 新增的门禁补上。** 布局评分、内存、冷启动、无障碍、i18n 这些装置各自退化时不会让别的测试变红，要单列成步骤"
+  - "**报告里要写明哪几条只有自建用例、没有真人用过。** 与 P4-22 同一条口径"
+context:
+  - 方案 §14.3 的 Phase 5 六条判据与 §13.9 的打磨范围
+  - "这一条与 P4-22 同一条职责：核的是六条判据在这套实现上到底有没有出口，没有出口的那条如实记成「没出口」"
+  - "reports/phase4.md 是它的直接先例（逐条判据 + 谁验的 + 遗留那份格式）"

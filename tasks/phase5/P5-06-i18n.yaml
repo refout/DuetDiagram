@@ -1,0 +1,24 @@
+id: P5-06
+title: i18n 资源字符串预留与 RTL
+phase: 5
+status: pending
+depends_on: [P4-01, P4-22]
+estimated_loc: 260
+files:
+  create:
+    - DuetDiagram.App/Resources/Strings.resx
+    - DuetDiagram.App/Resources/Strings.zh-CN.resx
+    - docs/Internationalization.md
+acceptance:
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误；所有界面硬字符串迁到资源文件，主程序不再有散落的可见中文字面量
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=I18n"
+    expect: 全通过；切换文化后菜单与面板标题来自资源、RTL 布局不破版
+constraints:
+  - "**只做预留，不做完整翻译。** 方案 §13.9 写的是「i18n 预留」，不是「多语言」；这一条把字符串抽出来、留一个 zh-CN 资源，不要求把英文 etc 补齐"
+  - "**RTL 只验不破版。** 阿拉伯语等从右到左的布局下，面板与画布不能错位、不能裁切"
+  - "**资源键是接口。** 加一个界面字符串就加一个键，不能把整句拼出来塞进一个键，否则翻译者拿不到可翻的粒度"
+context:
+  - 方案 §14.3 的 Phase 5 判据「i18n 预留」与 §13.9、§二十
+  - "P4-01 的菜单栏与工具栏已经把条目收进注册表，这一条把条目的可见文字从代码里抽到资源文件"
+  - "P4-22 的报告里把「跨平台与跨语言没验」列为遗留，这一条是对应的收口项之一"

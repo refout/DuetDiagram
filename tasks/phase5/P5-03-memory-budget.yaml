@@ -1,0 +1,24 @@
+id: P5-03
+title: 内存预算取证
+phase: 5
+status: pending
+depends_on: [P2-02, P2-03, P4-22]
+estimated_loc: 220
+files:
+  create:
+    - tools/MemBudget/MemBudget.csproj
+    - tools/MemBudget/Program.cs
+    - reports/phase5-memory.md
+acceptance:
+  - command: dotnet run --project tools/MemBudget -c Release
+    expect: 退出码 0；载入大文档 + 1000 节点场景的峰值工作集 < 500MB，逐档内存都列在报告里
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**量的必须是真实工作集，不是 GC 的已提交字节。** 用进程级的工作集读数（或 dotnet 的 GC 总内存），并且要说明测量时机（稳态、载入后、滚动后）"
+  - "**与渲染/序列化各自的内存坑对照。** 重点核 P2-03 的四叉树与 P1 的版本日志环形缓冲是否真的有界，而不是只看总数好看"
+  - "**装置不进 sln**（与 LayoutScore、CoverageAudit 同口径）"
+context:
+  - 方案 §14.3 的 Phase 5 判据「内存 < 500MB」
+  - "P1 的 VersionLog 限制 100 条 + IsBulkChange，P2-03 的视口索引是有界的，但都没有一份独立的取证把「大文档下到底占多少」数出来"
+  - "这一条与 P5-02 共用 1000 节点场景的语料与载入方式"

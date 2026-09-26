@@ -1,0 +1,25 @@
+id: P5-04
+title: 冷启动取证
+phase: 5
+status: pending
+depends_on: [P1-03, P4-22, DuetDiagram.App]
+estimated_loc: 200
+files:
+  create:
+    - tools/StartupBench/StartupBench.csproj
+    - tools/StartupBench/Program.cs
+    - reports/phase5-startup.md
+acceptance:
+  - command: dotnet run --project tools/StartupBench -c Release
+    expect: 退出码 0；从进程启动到首帧可交互 ≤ 2s，逐阶段耗时（加载、反序列化、首布局、首渲染）列在报告里
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**量的必须是「可交互」那一段，不是「进程起来」。** 到首帧画完、能收指针输入为止；只量到 main 返回或窗口 Show 是假的快"
+  - "**区分冷启动与热路径。** 重点在反序列化（P1 的 Sidecar / 快照）与首布局（P2-02）这两段，报告要能逐段追"
+  - "**跨机器照实记。** 机械硬盘与固态、带不带动画的首次字体加载，差很多，报告写清测量环境"
+  - "**装置不进 sln**"
+context:
+  - 方案 §14.3 的 Phase 5 判据「冷启动 ≤ 2s」
+  - "P1-03 的序列化与 P2-02 的布局是冷启动的两个大头，这一条给它们一个独立的取证出口"
+  - "界面程序的原生发布（app-and-aot 那一组）是冷启动的更真实载体，但本机缺 C++ 工具链，先走装置量"

@@ -1,7 +1,7 @@
 id: P4-22
 title: Phase 4 收尾——四条判据与端到端
 phase: 4
-status: pending
+status: done
 depends_on: [P4-01, P4-02, P4-03, P4-04, P4-05, P4-06, P4-07, P4-08, P4-09, P4-10, P4-11, P4-12, P4-13, P4-14, P4-15, P4-16, P4-17, P4-18, P4-19, P4-21]
 estimated_loc: 420
 files:
@@ -44,3 +44,26 @@ scope_note: |
   **Phase 5 的任务 YAML 由这一条结束时产出**（方案 §13.6 的约定）。
   所以这一条还要顺带看一眼：Phase 5 的六条判据（布局评分、1000 节点流畅、内存、
   冷启动、无障碍、i18n）在这套实现上各需要什么前置，哪些已经被 Phase 4 顺带做了。
+
+result: |
+  **四条判据逐条指向证据（详见 `reports/phase4.md`）：**
+
+  1. draw.io 覆盖 ≥ 85% → P4-21 的 `tools/CoverageAudit`：本轮 86.3%（有 88 / 部分 13 / 无 16，共 117），加权 80.8%。分母写死在 `Matrix.cs`，来自 draw.io 公开能力面，每条带证据或理由。这是一份自审计，不是人的判断。
+  2. 组合全部可用 → P4-05 + P4-06：框选右键建四类组合各一条端到端用例；`Category=Composite`（17）/ `CompositeTool`（13）/ `CompositeFrame`（6）/ `CompositeDrag`（E2E）守着。
+  3. 图层/页面/形状库/模板可用 → P4-02/03/04/09/10/11：六类各有一组分类门禁（`LayerPanel` 15、`LayerVisibility` 8、`PageTabs` 10、`PageMembership` 17、`ShapeLibrary` 5、`ShapeRegistry` 7、`PathShape` 27、`Template` 36 等），CI 已单列成步骤。
+  4. 富文本与数学正确 → P4-12~15：`RichText` 31、`RichTextLayout` 18、`RichTextEditor` 7、`TextPreset` 16、`MathTypesetting` 18 等；数学边界是「清单外一律结构化错误」而非「画得对」。
+  5. 导入导出无损 → P4-16~19：`SvgExport` 13、`BitmapExport` 24、`PdfExport` 22、`RoundTrip` 11、`Import`（Core 27 + E2E 15）、`MermaidImport` 27 等；两条 L3 端到端场景各有 `Category=Phase4Scenario` 用例（导入 500 节点渲染 < 2s 且可点击；导出 SVG 合法、带 viewBox、每条指令都落成一个元素）。
+
+  **只有自建用例、没有真人用过的那几条：** 四条判据（组合、图层/页面/形状库/模板、富文本/数学、导入导出）目前**全部**是自建用例验的，没有任何一条是真人通过 GUI 实际用过的——没人框选建过组合、没人从形状库拖过形状、没人套过模板翻过页、没人敲过富文本写过分式、没人真的导入自己的 Mermaid、没人真的把图导出去给同事。与 P1-14 / P2-13 / P3-16 同一类：装置齐了不等于测过了。
+
+  **跨机器与跨平台没做（如实列，不写成通过）：**
+  - 原生发布（`dotnet publish DuetDiagram.App`）在本机停在 `Platform linker not found`（缺 MSVC C++ workload，与 P0-02 同一处），所以「导出的 PDF 库在原生编译后可用」这条判据的落点没跑成；界面程序原生发布同理，CI 的 app-and-aot 只在带 C++ 工具链的运行器上才真跑得通。
+  - PDF 若改走位图嵌入支线，那一档的「矢量」没验（选型默认走 SkiaSharp 矢量写入器）。
+  - GUI 全部在 Windows 验，Linux/macOS 没人起过窗口；跨平台字体回退与渲染后端没验。
+  - 界面上的导出对话框仍是占位（P4-16 已知），「导出 SVG」那条端到端走的是与界面同一份绘制列表的管线（直接 `SvgExporter` 消费窗口 DrawList），没点开导出对话框。
+
+  **门禁补上了：** CI 的 `build-and-test` 新增「Phase 4 门禁」一步，把形状库/模板/富文本/数学/导出/导入/图层/页面 15 个分类逐个 `--filter-trait` 跑；`app-and-aot` 新增「Phase 4 界面门禁」一步，把 `ShapeLibrary`/`RichTextEditor`/`LayerPanel`/`PageTabs`/`Import` 五个 E2E 分类单列。这些分类退化时不会让别的测试变红，所以之前缺这道。
+
+  **Phase 5 任务 YAML 已产出**（`tasks/phase5/`，P5-01 ~ P5-07），见 `tasks/README.md` 的 DAG 与 DoD 映射表。六条 Phase 5 判据里四条能机验（布局评分、1000 节点流畅、内存、冷启动，各有装置）、两条要人（WCAG AA 的对比度与读屏体验、RTL 真人走查），后者在 P5 的报告里要如实记成「未验」。
+
+  **本地门禁结果：** `dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误；E2E 全量 204/0（`Category=Phase4Scenario` 2/0）；15 个 Phase 4 分类门禁全过；`CoverageAudit` 86.3% 退出 0；`LocCounter --check` 退出 0。`dotnet publish DuetDiagram.App` 本机因缺 C++ 工具链未跑（记遗留，CI 的 app-and-aot 在带工具链运行器上跑）。

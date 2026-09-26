@@ -1,0 +1,22 @@
+id: P5-02
+title: 1000 节点流畅性取证
+phase: 5
+status: pending
+depends_on: [P2-03, P4-22]
+estimated_loc: 180
+files:
+  create:
+    - reports/phase5-fluency.md
+acceptance:
+  - command: dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-frames --nodes 1000 --frames 120
+    expect: 报告帧率 ≥ 30 FPS 且虚拟化剔除率 > 80%，退出码 0
+  - command: dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-drag --nodes 1000 --samples 200
+    expect: 拖拽单帧中位 ≤ 16ms
+constraints:
+  - "**判据用已有的基准命令量，不要另造一套。** P2-03 已经落地了 --benchmark-frames 与 --benchmark-drag，这一条是把它们从「Phase 2 的取证」提升成「Phase 5 的常驻门禁」"
+  - "**报告要写明量的哪一段。** 帧率取稳态帧的中位还是均值、剔除率取指令计数还是面积覆盖，口径写死在报告里，免得改一处常数就改了结论"
+  - "**跨机器那一条照实记。** 本机若不是带独显的运行器，软件光栅化的帧率数字不代表最终用户体验，记成「本机值」而不是「产品保证值」"
+context:
+  - 方案 §14.3 的 Phase 5 判据「1000 节点流畅」
+  - "P2-03 的虚拟化与换档已经过 Phase 2 门禁，这一条补的是「1000 节点这一档的常驻取证」与遗留登记"
+  - "CI 的 app-and-aot 那一组已经在跑这两个基准，这一条把它们写进 Phase 5 的 DoD 表"

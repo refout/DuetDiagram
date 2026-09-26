@@ -1,0 +1,34 @@
+id: P5-05
+title: 无障碍——键盘导航与屏幕阅读器
+phase: 5
+status: pending
+depends_on: [P4-01, P4-03, P4-04, P4-07, P4-09, P4-11, P4-14]
+estimated_loc: 320
+files:
+  create:
+    - DuetDiagram.E2E.Tests/AccessibilityTests.cs
+  modify:
+    - DuetDiagram.App/Controls/ToolBar.axaml
+    - DuetDiagram.App/Controls/DiagramMenuBar.axaml
+    - DuetDiagram.App/Controls/LayerPanel.axaml
+    - DuetDiagram.App/Controls/PageTabs.axaml
+    - DuetDiagram.App/Controls/PalettePanel.axaml
+    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml
+    - DuetDiagram.App/Controls/TemplatePanel.axaml
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Accessibility"
+    expect: 全通过；每个面板都能用键盘聚焦与操作，画布的关键操作有可访问名称
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**每个交互控件都要有 AutomationProperties.Name。** 屏幕阅读器读的是名字不是坐标，没有名字的控件等于不存在"
+  - "**键盘可达的判据从绘制列表来、不从视觉树次序来。** 焦点顺序要跟着功能分组走，不能按控件在文件里的先后排"
+  - "**不能为了过检而加空名字。** 名字要说出这个控件是干嘛的，而不是「按钮」三个字"
+context:
+  - 方案 §14.3 的 Phase 5 判据「WCAG AA」与 §13.9 的无障碍、§二十 的资源字符串
+  - "P4-01 ~ P4-14 的面板与画布都落了界面，但没有任何一条给它们加过可访问名称或键盘入口"
+  - "这一条与 P5-06 同一条口径，先打通键盘与名字，再核对比度与焦点可见性"
+scope_note: |
+  **WCAG AA 是人工验收项，不是装置能判到底的。** 装置能验的是「每个控件都有名字、键盘能到达」，
+  而「对比度够不够、读屏软件实际读得顺不顺」要真人用读屏软件走一遍。
+  所以这一条交付的是可机验的底座，结论里要写明哪些只能等人。

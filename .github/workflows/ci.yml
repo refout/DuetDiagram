@@ -226,6 +226,30 @@ jobs:
       - name: 多 agent 并发门禁
         run: dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=MultiAgent"
 
+      # Phase 4 新增门禁：形状库、模板、富文本、数学、导出、导入、图层、页面。
+      # 这些分类各自退化的表现都是「某项功能悄悄不能用」，而别的测试不会变红，
+      # 所以单列出来——只加测试工程的话，它们退化了不会让别的测试变红。
+      - name: Phase 4 门禁（形状库/模板/富文本/数学/导出/导入/图层/页面）
+        run: |
+          gate() { dotnet test --project "$1" -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=$2" || STATUS=1; }
+          STATUS=0
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj Template
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj RichText
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj TextPreset
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj LayerVisibility
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj PageMembership
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj ShapeRegistry
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj PathShape
+          gate DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj RoundTrip
+          gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj RichTextLayout
+          gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj MathTypesetting
+          gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj SvgExport
+          gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj BitmapExport
+          gate DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj PdfExport
+          gate DuetDiagram.Mermaid.Tests/DuetDiagram.Mermaid.Tests.csproj MermaidImport
+          gate DuetDiagram.Llm.Tests/DuetDiagram.Llm.Tests.csproj ExportTool
+          exit $STATUS
+
       # 上面那些都是进程内建的客户端。这一条拿**真的可执行文件**把同一张清单再跑一遍：
       # 拉子进程走标准输入输出、带参数起网络服务端再连上去。命令行那条通路（参数解析、
       # 端口、日志改道）只有真的起一次才发现，而它一条用例都没有。
@@ -320,6 +344,19 @@ jobs:
       # 只读那一份要逐个写入口都禁掉——留一个能点的按钮就是一个能造成损坏的入口。
       - name: 多窗口门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=MultiWindow"
+
+      # Phase 4 界面侧门禁：形状库面板、富文本编辑器、图层面板、页面标签、导入端到端。
+      # 这几样退化的表现是「面板里少一项、或某项操作点了没反应」，全项目跑一遍也只红这一组。
+      - name: Phase 4 界面门禁（形状库/富文本/图层/页面/导入）
+        run: |
+          gate() { dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=$1" || STATUS=1; }
+          STATUS=0
+          gate ShapeLibrary
+          gate RichTextEditor
+          gate LayerPanel
+          gate PageTabs
+          gate Import
+          exit $STATUS
 
       # 跨进程所有权：独占、只读退档、心跳过期判定与"抢占前先试删锁文件"。
       # 句柄是判据、心跳是补充——把心跳过期直接当成可抢占会撕掉一个活着进程正在写的文档。

@@ -12,7 +12,7 @@
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 9 | 2553 | 1523 | 654 | 376 |
 | DuetDiagram.Dsl.Tests | 7 | 2340 | 1707 | 243 | 390 |
-| DuetDiagram.E2E.Tests | 27 | 8268 | 5335 | 1173 | 1760 |
+| DuetDiagram.E2E.Tests | 28 | 8483 | 5464 | 1221 | 1798 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4821 | 2622 | 1524 | 675 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
 | tools | 39 | 10110 | 6906 | 1531 | 1673 |
-| **合计** | **495** | **111375** | **69089** | **23551** | **18735** |
+| **合计** | **496** | **111590** | **69218** | **23599** | **18773** |
 
 ## 明细
 
@@ -346,6 +346,7 @@
 | MultiWindowTests.cs | 259 |
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
+| Phase4ScenarioTests.cs | 129 |
 | PropertyPanelTests.cs | 167 |
 | RichTextEditorTests.cs | 344 |
 | ShapeLibraryTests.cs | 112 |

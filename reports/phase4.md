@@ -1,0 +1,130 @@
+# P4-22 Phase 4 收尾 — 四条判据与端到端
+
+任务 `tasks/phase4/P4-22-phase4-acceptance.yaml`，依赖 P4-01 ~ P4-21（P4-20 除外）。状态 `done`。
+
+方案 §14.3 的 Phase 4 四条判据逐条在这套实现上验一遍，**每一条都注明是谁验的、靠哪条命令或哪份报告验的**。
+与 P1-14 的人工评分、P2-13 的真人数据、P3-16 的真实代理同一句老话：
+**装置齐了不等于测过了**——四条判据目前都是自建用例验的，没有真人用 GUI 跑过一遍。
+
+## 四条判据各自的证据落点
+
+| # | 判据（§14.3） | 落在 | 谁验的 | 怎么复跑 |
+|---|---|---|---|---|
+| 1 | draw.io 覆盖 ≥ 85% | P4-21 | 取证装置（非人工） | `dotnet run --project tools/CoverageAudit -c Release` |
+| 2 | 组合全部可用 | P4-05 + P4-06 | 单元 + 端到端用例 | `dotnet test … --filter-trait "Category=Composite"`（Core）、`Category=CompositeFrame`（Render）、`CompositeDragTests`（E2E） |
+| 3 | 图层 / 页面 / 形状库 / 模板可用 | P4-02 + P4-03 + P4-04 + P4-09 + P4-10 + P4-11 | 单元 + 端到端用例 | 见下，六类各有分类门禁 |
+| 4 | 富文本与数学正确 | P4-12 ~ P4-15 | 单元 + 端到端用例 | 见下，七类各有分类门禁 |
+| 5 | 导入导出无损 | P4-16 ~ P4-19 | 单元 + 端到端用例 | 见下，九类各有分类门禁 |
+
+下面逐条展开：验的是什么、断言写死在哪、哪些还只是装置没真人用过。
+
+## 判据 1：draw.io 覆盖 ≥ 85%
+
+**结论：86.3%（有 88 / 部分 13 / 无 16，共 117），加权口径 80.8%，达到阈值。**
+
+- 验的是 `tools/CoverageAudit`：分母写死在 `tools/CoverageAudit/Matrix.cs`，来自 draw.io 公开能力面
+  （形状 / 连线 / 容器 / 文本 / 导出格式 / 布局 / 编辑交互 / 画布与页面 / 协作与版本 / 面板与工具栏），取数时间 2026-09。
+  每条要么指向一份证据（仓库文件 + 可复跑命令），要么写明为什么不做。
+- 装置不进 `DuetDiagram.slnx`（与 `tools/LocCounter` 同口径），跑完核对证据文件是否真在仓库里、算覆盖率、
+  退出码 0 表示 ≥ 85%。`--list-missing` 列出 16 条「无」及理由。
+- 结论与证据分两份在 `reports/phase4-drawio-coverage.md`。
+- **这是一份自审计，不是人的判断。** 数字能不能信，取决于分母取的是不是真实能力面——所以装置比数字重要：
+  换一个人跑同一个装置应当得到同一个数。16 条「无」是 Phase 5 打磨的输入（列表、渐变/阴影、图片嵌入、draw.io 格式互通最值得补）。
+
+## 判据 2：组合全部可用
+
+**结论：四类组合（分组 / 泳道 / 子流程 / 组合节点）都落了界面入口与渲染消费，命令层在 P3-03 就齐了。**
+
+- 建组合：框选 + 右键菜单建四类组合，各一条端到端用例（`DuetDiagram.E2E.Tests/CompositeDragTests.cs`）。
+- 渲染 / 命中 / 拖动：组合框画得出来、点得中、拖得动，松手算一次操作。
+- 单测覆盖：`Category=Composite`（Core 17）、`Category=CompositeTool`（Core 13）、`Category=CompositeFrame`（Render 6）；
+  端到端 `Category=CompositeDrag`（E2E）。
+- **只有自建用例，没有真人用过**：没有人真的在 GUI 里框选一堆节点建过泳道再拖。
+
+## 判据 3：图层 / 页面 / 形状库 / 模板可用
+
+**结论：四样各有面板入口、一条命令层入口、一条端到端用例，操作发命令、撤销能还原。**
+
+| 子项 | 任务 | 分类门禁（怎么复跑） |
+|---|---|---|
+| 图层（可见 / 锁定 / 渲染消费） | P4-02 + P4-03 | `Category=LayerVisibility`（Core 8）、`Category=LayerPanel`（E2E 15）、`Category=LayerRender`（E2E 22） |
+| 页面（归属 / 翻页 / 标签） | P4-04 | `Category=PageMembership`（Core 17）、`Category=PageTabs`（E2E 10）、`Category=PageRender`（Render 6） |
+| 形状库（提供者 / 自定义形状路径） | P4-09 + P4-10 | `Category=ShapeLibrary`（E2E 5）、`Category=ShapeRegistry`（Core 7）、`Category=PathShape`（Core 27）、`Category=CustomShape`（Render 6） |
+| 模板（库 / 应用） | P4-11 | `Category=Template`（Core 36）、`Category=PalettePanel`（E2E 4） |
+
+- 模板落地是**一条命令**（`insert-template`）整体拼入、撤销整份退回；标识冲突消解复用 `TemplateInstantiator`，引用跟着改。
+- **只有自建用例，没有真人用过**：没有人真的从形状库拖一个形状、套一个模板、翻一页。
+
+## 判据 4：富文本与数学正确
+
+**结论：内容模型、排版、编辑界面、数学排版四样各自有可数的不变量。**
+
+| 子项 | 任务 | 分类门禁（怎么复跑） |
+|---|---|---|
+| 富文本内容模型 | P4-12 | `Category=RichText`（Core 31）、`Category=TextPreset`（Core 16） |
+| 富文本排版与渲染 | P4-13 | `Category=RichTextLayout`（Render 18）、`Category=TextMeasurement`（Render 4） |
+| 富文本编辑界面 | P4-14 | `Category=RichTextEditor`（E2E 7） |
+| 数学排版 | P4-15 | `Category=MathTypesetting`（Render 18）、`Category=MathSnapshot`（Render 5） |
+
+- 富文本：纯文本与富文本共用一份定位；行高取行内最高 run、片段高度取行高、确定性（同内容逐字相同）。
+- 数学：**核心是边界不是能力**——支持的集合有清单，清单外一律结构化错误（`MATH_SYNTAX_INVALID`）。
+  符号表 / 函数表 / 间距表里的**每一个名字**都排一遍（只验样例的话，往表里加一个拼错的名字不会有人发现）。
+  选型的结论是不引第三方库（现成的库自带字体加载，会破坏「公式与正文同字体」这条约束）。
+- **只有自建用例，没有真人用过**：没有人真的双击节点敲一段富文本、写一条带 `\frac` 的公式。
+
+## 判据 5：导入导出无损
+
+**结论：四种导出（Mermaid / SVG / PNG / PDF）与一种导入（Mermaid 文件）各自有无损口径；两条 L3 端到端场景各有用例。**
+
+| 子项 | 任务 | 分类门禁（怎么复跑） |
+|---|---|---|
+| SVG 导出 | P4-16 | `Category=SvgExport`（Render 13） |
+| PNG 导出 | P4-17 | `Category=BitmapExport`（Render 24） |
+| PDF 导出 | P4-18 | `Category=PdfExport`（Render 22） |
+| Mermaid 导出 | P4-09 起 | `Category=MermaidExport`（Mermaid 29）、`Category=ExportTool`（Llm 30） |
+| 往返无损 | — | `Category=RoundTrip`（Core 11）、`Category=MermaidRoundTrip`（Mermaid 7） |
+| 导入（Mermaid 文件） | P4-19 | `Category=Import`（Core 27 + E2E 15）、`Category=MermaidImport`（Mermaid 27） |
+
+- SVG：`SvgExporter` 只消费**绘制列表**、不重新遍历文档；每一类绘制指令都有对应元素，漏一类就少画一样。
+  文字交 `<text>` 而不是路径（换来可搜索、可在 draw.io 里改），代价（对方缺字体时按回退字体排）随导出结果一起交给调用方。
+- PNG：同一份绘制列表逐像素可复现；离屏渲染，不经过窗口平台（喂它的是 MCP 服务端）。
+- PDF：同一批列表逐字节可复现且是**矢量**（用 SkiaSharp 自带写入器，一个包都不加）。
+- 导入：整份算 `ImportFragmentCommand` 一次，撤销一次整份退回；标识冲突消解复用 `TemplateInstantiator`。
+- 两条 L3 场景新增端到端用例（`DuetDiagram.E2E.Tests/Phase4ScenarioTests.cs`，`Category=Phase4Scenario`）：
+  - 「大型架构图」：导入 500 节点 Mermaid，导入落地到首帧渲染 **< 2s**，且导入的图点得中（命中与画布接上了）；
+  - 「协作导出」：窗口画布的绘制列表导出成 SVG，文件合法、带 viewBox（别人能打开）、每条指令都落成一个元素（无损）。
+
+**未接上的那一处（如实记，不写成通过）：** 界面上的导出对话框仍是占位（P4-16 已知，要选文件 / 选格式 / 选范围三样），
+所以「导出 SVG」这条端到端走的是与界面同一份绘制列表的管线（`SvgExporter` 直接消费窗口 `DrawList`），
+而不是点开导出对话框——对话框那一步还没有。工具层那一条 `diagram_export` 的 `svg` 分支是生产路径，已经接上。
+
+## 只有自建用例、没有真人用过的那几条
+
+四条判据（组合、图层/页面/形状库/模板、富文本/数学、导入导出）目前**全部**是自建用例验的。
+没有任何一条是真人通过 GUI 实际用过的：没人框选建过组合、没人从形状库拖过形状、没人套过模板翻过页、
+没人敲过富文本写过分式、没人真的导入一份自己的 Mermaid 文件、没人真的把图导出去给同事。
+这与 P1-14（人工评分）、P2-13（真人数据）、P3-16（真实代理）同一类：**装置齐了不等于测过了**。
+这一条里四条判据的「通过」都该读成「装置验过了」，不是「人验过了」。要人看着跑的，留给 Phase 5 的真人验收。
+
+## 跨机器与跨平台没做的那几条
+
+1. **原生发布只在带 C++ 工具链的机器上验过。** `dotnet publish DuetDiagram.App` 在本机停在
+   `Platform linker not found`（缺 MSVC C++  workload，与 P0-02 同一处环境缺口）。所以「导出的 PDF 库在原生编译后可用」
+   这条判据的落点（`DuetDiagram.AotSmokeTest` 真走完整链路写一份 PDF）**没跑成**——写进 P4-18 的差异表，照实记成未验。
+   界面程序的原生发布同样是这条门禁，CI 的 `app-and-aot` 那一组也只在带 C++ 工具链的运行器上才真跑得通。
+2. **PDF「矢量」那条在选 bitmap 嵌入的支线上没验。** 选型结论走的是 SkiaSharp 矢量写入器，所以默认是矢量；
+   但若有人改走位图嵌入，那一档的「矢量」就丢了——目前没有用例覆盖「选了位图嵌入」那条，记在这里。
+3. **GUI 全部在 Windows 上验。** 端到端与界面栈自检都在 CI 的 `app-and-aot`（windows-latest）那一组；
+   Linux / macOS 上没人起过窗口，跨平台的一致性（字体回退、渲染后端）没验。
+4. **draw.io 覆盖率是一份自审计。** 见判据 1：数字来自固定的分母与证据文件，不是人的判断；换人或换时间（draw.io 升级）
+   要重跑装置才更新，目前只有 2026-09 这一份取数。
+
+## 遗留
+
+1. **四条判据都缺真人验收**（上面「只有自建用例」一节）。Phase 5 应安排人工走查。
+2. **界面导出对话框仍是占位**（P4-16 已知）。导出那条路在界面上还没有入口，真人想导出得走工具层或等这条补上。
+3. **原生发布在本机没跑成**（上面第 1 条）。带 C++ 工具链的机器上跑一次 `dotnet publish DuetDiagram.App` 与
+   `DuetDiagram.AotSmokeTest` 才能把这条判据真正落地；否则「导出/渲染在原生编译下可用」只是分析器层面的结论。
+4. **Phase 5 的任务 YAML 由这一条顺带产出**（`tasks/phase5/`，见 `tasks/README.md` 的 DAG）。
+   六条 Phase 5 判据（布局评分 ≥ 85、1000 节点流畅、内存 < 500MB、冷启动 ≤ 2s、WCAG AA、i18n 预留）各归到任务，
+   哪些被 Phase 4 顺带做了也在各自的 `context` 里写明了。

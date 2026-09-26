@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>LayoutScore</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    布局质量评分装置。它把布局引擎跑在种子语料上，按写死的四个维度给分，
+    印综合分与逐条明细，退出码表达是否达到阈值。
+
+    引用的是**产品里那份布局引擎**而不是另抄一份：抄一份出来，量到的就是抄件的行为，
+    而「算出来的图好不好看」这个问题必须落在真引擎上。它是调查装置而不是产品的一部分，
+    因此不进解决方案文件。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../DuetDiagram.Core/DuetDiagram.Core.csproj" />
+    <ProjectReference Include="../../DuetDiagram.Layout/DuetDiagram.Layout.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -34,6 +34,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/UserStudy` | 用户测试的量表、拉丁方顺序分配、录入模板、四条统计判定与结论换算（不进 sln） | 已落地；真人数据未收 |
 | `tools/McpHarness` | MCP 的协议层验收装置：拿真的服务端可执行文件把八条判据逐条跑一遍，另印出接真实代理要用的命令行（不进 sln） | Phase 3 P3-16 已落地 |
 | `tools/CoverageAudit` | draw.io 覆盖率取证装置：分母写死在 `Matrix.cs`（来自 draw.io 公开能力面，取数时间 2026-09），每条判定带证据或理由，印逐档计数与覆盖率，`--list-missing` 列全部「无」（不进 sln） | Phase 4 P4-21 已落地（覆盖率 86.3%，≥ 85%） |
+| `tools/LayoutScore` | 布局质量评分装置：语料写死在 `Corpus.cs`，四个维度与权重写死在 `Rubric.cs`，跑产品里那份布局引擎，印逐图分数与原始数；几何自检先验一遍交叉判定；`--dump` 印坐标与折线，`--ratings` 与人工评分对照（不进 sln） | Phase 5 P5-01 已落地（综合分 96.6，≥ 85）；带环的图排不出来，见 `reports/phase5-layout-score.md` |
 | `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid 与自有 DSL 直接调、SVG 与 PNG 与 PDF 走宿主喂进来的渲染器，位图与 PDF 按 base64 进载荷）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；P4-16 让 `diagram_export` 的 `svg` 真的出图；P4-17 让 `png` 也出图；P4-18 让 `pdf` 也出图（选型见 `reports/phase4-pdf.md`）；P4-20 让 `dsl` 也出文本，并为此引了 DSL 那一层；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误；导出 SVG、PNG 与 PDF 那一侧的渲染接线（把文档排出来再交给导出器，三个导出器共用一次"排出来"；排不出结果时如实说） | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；P4-16 引了渲染层与布局引擎，只为导出 SVG 那一档；P4-17 让同一个入口也出 PNG，两条渲染接线收成一个 `DocumentRendering`；P4-18 让同一个入口再出 PDF，并按文档自己声明的页序一页一张纸；跨机器传输（TLS、多实例共享变化源）未开工 |
@@ -60,6 +61,10 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 `P4-22`（Phase 4 收尾——四条判据与端到端，验报告 `reports/phase4.md`、两条 L3 端到端用例 `Category=Phase4Scenario`、CI 补 Phase 4 门禁、并产出 Phase 5 任务 YAML）已落地**（`done`），
 其余 `pending`。
 **Phase 5 的任务集（`P5-01` ~ `P5-07`）由 P4-22 顺带产出**，见 `tasks/README.md` 的 DAG 与 `tasks/phase5/`。
+其中 **`P5-01`（布局质量评分装置与基准）已落地**：`tools/LayoutScore` 跑出综合分 96.6 ≥ 85，
+验报告 `reports/phase5-layout-score.md`；顺带记下一个发现——**带环的图布局引擎直接抛异常**
+（去环那一步给反向边起名，而图没开多图模式），流程图上"重试"就是一条回边，
+修它不在这一条范围内，如实记在报告里。其余 Phase 5 任务 `pending`。
 **决策门 1（DSL 去留）已按产品负责人的指令判为「留」**，P4-20 因此解封；
 这与方案 §15.3 的原始口径有一处差别，记在下面的差异表里。
 决策门 2（布局引擎主选）仍然开着，卡在 `reports/compare-blind/` 的人工评分上——
@@ -540,6 +545,11 @@ dotnet run --project tools/UserStudy -c Release -- analyze
 
 # LOC 一致性
 dotnet run --project tools/LocCounter -- --root . --check
+
+# 布局质量评分：语料写死、四个维度写死、跑产品里那份布局引擎。
+# 退出码 0 达标 / 1 低于阈值 / 2 装置自己不可信（几何自检没过，或排不出来的超过三分之一）。
+# 带环的图目前排不出来，装置把它单列在最前面且不计入综合分，见 reports/phase5-layout-score.md
+dotnet run --project tools/LayoutScore -c Release
 
 # 任务 YAML 必须能被解析。它们是给 agent 读的，读不了等于任务不存在——
 # 已经踩过两次（未加引号的冒号加空格、未加引号的引号），两次都是整个文件静默失效

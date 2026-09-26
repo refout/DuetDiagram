@@ -93,7 +93,13 @@ public sealed partial class DiagramToolBar : UserControl
 
             // 能点时把快捷键那条提示也撤掉：留着一句"现在不能点"的旧提示，
             // 而按钮明明是亮的，用户会以为提示没刷新。
-            ToolTip.SetTip(button, reason ?? Shortcut(entry));
+            var tip = reason ?? Shortcut(entry);
+
+            ToolTip.SetTip(button, tip);
+
+            // 阅读器读的是自动化说明，不是提示条。两处各算一遍的话，
+            // 看得见提示的人和用阅读器的人会听到两句不同的话。
+            AccessibleName.Set(button, AccessibleName.ForEntry(entry), tip);
         }
     }
 

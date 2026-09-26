@@ -28,6 +28,7 @@
       <Button HorizontalAlignment="Right"
               Padding="8,2"
               Click="OnClose"
+              AutomationProperties.Name="关闭性能诊断面板"
               Content="关闭" />
     </StackPanel>
   </Border>

@@ -46,6 +46,9 @@ public sealed partial class DiagramMenuBar : UserControl
 
             var top = new MenuItem { Header = group };
 
+            // 顶级菜单的名字就是档名，屏幕上看得见，阅读器也念得出来。
+            AccessibleName.Set(top, group);
+
             foreach (var entry in entries)
             {
                 var item = Item(entry);
@@ -76,7 +79,13 @@ public sealed partial class DiagramMenuBar : UserControl
 
             // 理由挂在提示上，不塞进项的字里。塞进去的话，一个禁用的项会显示成
             // 一整句话，菜单会被撑得没法看——而"为什么不能点"这件事只在悬停时才需要。
-            ToolTip.SetTip(item, reason ?? Shortcut(entry));
+            var tip = reason ?? Shortcut(entry);
+
+            ToolTip.SetTip(item, tip);
+
+            // 菜单项的名字用条目自己的字：档名已经由上一级菜单念出来了，
+            // 再拼一遍的话阅读器会念成"对齐 菜单，对齐：同层"。
+            AccessibleName.Set(item, entry.Label, tip);
         }
     }
 

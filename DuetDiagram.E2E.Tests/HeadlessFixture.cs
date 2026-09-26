@@ -147,6 +147,22 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<PageTabs>().Single();
     }
 
+    /// <summary>窗口里那个调色板面板。</summary>
+    public static PalettePanel Palette(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<PalettePanel>().Single();
+    }
+
+    /// <summary>窗口里那个文本预设面板。</summary>
+    public static TextPresetPanel Presets(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<TextPresetPanel>().Single();
+    }
+
     /// <summary>窗口里那条工具栏。</summary>
     public static DiagramToolBar ToolBar(Window window)
     {

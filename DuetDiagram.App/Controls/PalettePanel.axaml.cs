@@ -27,6 +27,17 @@ namespace DuetDiagram.App.Controls;
 /// </remarks>
 public sealed partial class PalettePanel : UserControl
 {
+    /// <summary>
+    /// 这个面板里焦点次序的起点。
+    /// </summary>
+    /// <remarks>
+    /// 默认次序是"控件在视觉树里的先后"，而这份界面标记把底部那一块声明在清单之前，
+    /// 于是 Tab 会先落到"新建/删除"上，再落到条目清单上——用户得先跳过一排
+    /// "对谁做事"的按钮，才能走到"对谁"。这里显式给号：清单在前，底部在后。
+    /// 四个面板各占一段互不重叠的号段，免得面板之间互相插队。
+    /// </remarks>
+    private const int TabBase = 2000;
+
     private PalettePanelViewModel? _built;
     private string? _editorFor;
     private StackPanel? _editor;
@@ -81,13 +92,21 @@ public sealed partial class PalettePanel : UserControl
     {
         Rows.Children.Clear();
 
-        foreach (var row in model.Rows)
+        for (var index = 0; index < model.Rows.Count; index++)
         {
-            Rows.Children.Add(EntryRow(model, row));
+            Rows.Children.Add(EntryRow(model, model.Rows[index], index));
         }
     }
 
-    private Control EntryRow(PalettePanelViewModel model, PaletteRowViewModel row)
+    /// <summary>
+    /// 清单里的一行。
+    /// </summary>
+    /// <remarks>
+    /// **行是一颗按钮，不是一块能点的画布。** 做成"一块面板加一个按下处理器"的话，
+    /// 鼠标点得到而键盘到不了——Tab 走不进来，回车也没人接。按钮自带聚焦、
+    /// 回车与空格激活、以及焦点框，那三样正是键盘用户要靠的东西。
+    /// </remarks>
+    private Control EntryRow(PalettePanelViewModel model, PaletteRowViewModel row, int index)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
 
@@ -129,12 +148,32 @@ public sealed partial class PalettePanel : UserControl
         name.Margin = new Thickness(8, 0, 0, 0);
         users.Margin = new Thickness(8, 0, 0, 0);
 
-        AutomationProperties.SetAutomationId(grid, $"palette.entry.{row.Name}");
-        ToolTip.SetTip(grid, $"{row.Name}——点一下选中它，下面就能改它的成员。");
+        // 底色、描边与留白都去掉：这一行的样子还是原来那样，只是外面多了一层能聚焦的按钮。
+        var button = new Button
+        {
+            Content = grid,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            TabIndex = TabBase + index,
+        };
 
-        // 当前行带一个记号，与图层面板同一套读法。
-        grid.Cursor = new Cursor(StandardCursorType.Hand);
-        grid.PointerPressed += (_, _) => model.Select(row.Name);
+        AutomationProperties.SetAutomationId(button, $"palette.entry.{row.Name}");
+        ToolTip.SetTip(button, $"{row.Name}——点一下选中它，下面就能改它的成员。");
+
+        // 行上只写着令牌名，所以名字要说明"选中它"这件事：只念一个令牌名的话，
+        // 用户听不出按下去会发生什么。
+        AccessibleName.Set(
+            button,
+            $"选中调色板条目「{row.Name}」",
+            row.ReferrersNote.Length > 0
+                ? $"{row.ReferrersNote}。选中它之后下面能改它的成员。"
+                : "选中它之后下面能改它的成员。");
+
+        button.Click += (_, _) => model.Select(row.Name);
 
         // 行不是可通知对象：清单的每一行本来就随 Rows / SelectedName 整批重铺，
         // 不必为"选中记号"一件事给行加一层通知。
@@ -144,7 +183,7 @@ public sealed partial class PalettePanel : UserControl
         name.FontWeight = selected ? FontWeight.SemiBold : FontWeight.Normal;
         users.Text = row.ReferrersNote;
 
-        return grid;
+        return button;
     }
 
     #endregion
@@ -160,19 +199,23 @@ public sealed partial class PalettePanel : UserControl
             FontSize = 12,
             Padding = new Thickness(6, 3),
             PlaceholderText = "新令牌名",
+            TabIndex = TabBase + 900,
         };
 
         AutomationProperties.SetAutomationId(newName, "palette.new-name");
         ToolTip.SetTip(newName, "要新建的令牌名。不许为空，也不许与已有的重名。");
+        AccessibleName.Set(newName, "新令牌名", "要新建的令牌名。不许为空，也不许与已有的重名。");
 
         var define = new Button
         {
             Content = "新建",
             FontSize = 12,
             Padding = new Thickness(8, 2),
+            TabIndex = TabBase + 901,
         };
 
         AutomationProperties.SetAutomationId(define, "palette.define");
+        AccessibleName.Set(define, "新建调色板令牌", "用左边那个名字建一个新令牌，建好之后在下面逐个成员填。");
 
         define.Click += (_, _) =>
         {
@@ -207,10 +250,12 @@ public sealed partial class PalettePanel : UserControl
             FontSize = 12,
             Padding = new Thickness(8, 2),
             HorizontalAlignment = HorizontalAlignment.Left,
+            TabIndex = TabBase + 990,
         };
 
         AutomationProperties.SetAutomationId(remove, "palette.remove");
         ToolTip.SetTip(remove, "删掉选中的条目。还有元素在用它的时候会先把名单列出来。");
+        AccessibleName.Set(remove, "删除选中的调色板令牌", "还有元素在用它的时候会先把名单列出来，不会直接删掉。");
 
         remove.Click += (_, _) => model.RemoveSelected();
 
@@ -249,13 +294,13 @@ public sealed partial class PalettePanel : UserControl
             return;
         }
 
-        foreach (var field in model.EditorFields)
+        for (var index = 0; index < model.EditorFields.Count; index++)
         {
-            _editor.Children.Add(EditorRow(field));
+            _editor.Children.Add(EditorRow(model, model.EditorFields[index], index));
         }
     }
 
-    private Control EditorRow(PaletteFieldViewModel field)
+    private Control EditorRow(PalettePanelViewModel model, PaletteFieldViewModel field, int index)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("64,*") };
 
@@ -273,9 +318,18 @@ public sealed partial class PalettePanel : UserControl
             FontSize = 12,
             Padding = new Thickness(6, 3),
             PlaceholderText = "没有设置",
+            TabIndex = TabBase + 950 + index,
         };
 
         AutomationProperties.SetAutomationId(box, $"palette.{field.Field}");
+
+        // 名字里带上条目名与成员名。编辑器里几个框长得一样，只叫"填充"、"描边"的话
+        // 用户分不出改的是哪个条目上的那一项——而屏幕上靠"就在选中那一行下面"来分辨，
+        // 这个线索阅读器听不到。
+        AccessibleName.Set(
+            box,
+            $"调色板条目「{model.SelectedName}」的{field.Label}",
+            "回车或离开这一栏就提交。留空表示这一项没有设置。");
 
         // 与属性面板的文本框同一套提交时机：回车或焦点离开。
         box.LostFocus += (_, _) => field.Commit(box.Text is { Length: > 0 } text ? text : null);

@@ -118,7 +118,19 @@ public sealed partial class DiagramCanvas : UserControl
     private int _bendSegment;
     private DrawPoint _bendStart;
 
-    public DiagramCanvas() => InitializeComponent();
+    public DiagramCanvas()
+    {
+        InitializeComponent();
+
+        // 画布是一整块自绘的区域：屏幕阅读器看不到里面画了什么，能读的只有这一句。
+        // 所以名字与说明要把"这块地方是什么、键盘在这儿能做什么"讲全——
+        // 只给一个名字的话，Tab 到这里的用户听到的是一个没有内容的空白区域。
+        AccessibleName.Set(
+            this,
+            "图画布",
+            "图就画在这里。空格加左键拖动是平移，滚轮缩放，双击节点改标签，右键出菜单。"
+            + "撤销、重做、删除、重排与性能诊断面板在菜单栏和工具栏上，各带快捷键。");
+    }
 
     /// <summary>
     /// 最近一帧执行掉的绘制指令条数。
@@ -1039,6 +1051,10 @@ public sealed partial class DiagramCanvas : UserControl
             };
 
             AutomationProperties.SetAutomationId(item, $"context.{entry.Id}");
+
+            // 右键菜单里档名看不见，所以名字要带上档名；点不动的理由进说明，
+            // 不进名字——名字里混一句"先选中要删的元素"会让这一项听起来像在报错。
+            AccessibleName.Set(item, AccessibleName.ForEntry(entry), reason);
 
             var chosen = entry;
 

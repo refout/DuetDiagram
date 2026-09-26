@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
+using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 
 namespace DuetDiagram.App.Controls;
@@ -118,6 +119,22 @@ public sealed partial class RichTextEditor : UserControl
         AutomationProperties.SetAutomationId(ErrorText, "richtext.error");
         AutomationProperties.SetAutomationId(CancelButton, "richtext.cancel");
         AutomationProperties.SetAutomationId(CommitButton, "richtext.commit");
+
+        // 名字要说清是对"选中的那一段"做样式。四颗按钮上只有一个字母，
+        // 读出来就是"B"、"I"——不知道它改的是这一段文字还是整个节点。
+        //
+        // 这四颗按钮是刻意不接收焦点的（见界面标记里的说明）：样式按钮读的是编辑框
+        // 此刻的选区，而选区是编辑框上的活状态，焦点一挪走就读不到了。代价是它们
+        // 只能用指针按——这一条留给人工验收，装置这边只保证它们有名字。
+        AccessibleName.Set(BoldButton, "把选中的文字加粗", "只对编辑框里选中的那一段生效。");
+        AccessibleName.Set(ItalicButton, "把选中的文字变成斜体", "只对编辑框里选中的那一段生效。");
+        AccessibleName.Set(UnderlineButton, "给选中的文字加下划线", "只对编辑框里选中的那一段生效。");
+        AccessibleName.Set(StrikethroughButton, "给选中的文字加删除线", "只对编辑框里选中的那一段生效。");
+        AccessibleName.Set(FontSizeBox, "选中文字的字号", "填一个数字，回车生效。");
+        AccessibleName.Set(ColorBox, "选中文字的颜色", "填一个颜色，回车生效。");
+        AccessibleName.Set(TextArea, "节点标签的文字", "回车换段，Esc 取消这次编辑。");
+        AccessibleName.Set(CancelButton, "取消这次编辑", "改动丢掉，文档不动。");
+        AccessibleName.Set(CommitButton, "完成这次编辑", "把改好的文字与样式写进文档，进一条历史。");
     }
 
     /// <summary>用户按了取消。草稿丢掉，文档不动。</summary>

@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
-| DuetDiagram.App | 69 | 17795 | 10136 | 4695 | 2964 |
+| DuetDiagram.App | 70 | 18163 | 10302 | 4855 | 3006 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18415 | 10380 | 5360 | 2675 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 28 | 8483 | 5464 | 1221 | 1798 |
+| DuetDiagram.E2E.Tests | 29 | 9006 | 5795 | 1317 | 1894 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
 | tools | 44 | 12384 | 8357 | 1973 | 2054 |
-| **合计** | **506** | **115898** | **72058** | **24342** | **19498** |
+| **合计** | **508** | **116789** | **72555** | **24598** | **19636** |
 
 ## 明细
 
@@ -41,24 +41,24 @@
 | App.axaml.cs | 19 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 870 |
-| DiagramMenuBar.axaml.cs | 93 |
-| DiagramToolBar.axaml.cs | 105 |
-| DiffSidebar.axaml.cs | 105 |
+| DiagramCanvas.cs | 879 |
+| DiagramMenuBar.axaml.cs | 96 |
+| DiagramToolBar.axaml.cs | 107 |
+| DiffSidebar.axaml.cs | 110 |
 | HighlightOverlay.cs | 17 |
 | ImportDialog.axaml.cs | 47 |
-| LayerPanel.axaml.cs | 271 |
+| LayerPanel.axaml.cs | 293 |
 | LayoutFailureDialog.axaml.cs | 29 |
-| PageTabs.axaml.cs | 133 |
-| PalettePanel.axaml.cs | 246 |
+| PageTabs.axaml.cs | 144 |
+| PalettePanel.axaml.cs | 274 |
 | PropertyPanel.axaml.cs | 80 |
-| RichTextEditor.axaml.cs | 181 |
-| ShapeLibraryPanel.axaml.cs | 88 |
+| RichTextEditor.axaml.cs | 191 |
+| ShapeLibraryPanel.axaml.cs | 92 |
 | ShapePreview.cs | 44 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
 | StatusBar.axaml.cs | 72 |
-| TemplatePanel.axaml.cs | 123 |
-| TextPresetPanel.axaml.cs | 233 |
+| TemplatePanel.axaml.cs | 127 |
+| TextPresetPanel.axaml.cs | 270 |
 | FrameBenchmark.cs | 375 |
 | ConnectSession.cs | 19 |
 | ConstraintGestures.cs | 97 |
@@ -75,14 +75,15 @@
 | ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 80 |
 | SelfTest.cs | 224 |
-| ConstraintEditorBinder.cs | 117 |
+| AccessibleName.cs | 23 |
+| ConstraintEditorBinder.cs | 119 |
 | ContextEntries.cs | 53 |
 | DiagramSession.cs | 1347 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 81 |
-| FieldEditBinder.cs | 271 |
+| FieldEditBinder.cs | 277 |
 | ImportService.cs | 79 |
 | MenuEntries.cs | 193 |
 | MenuRegistry.cs | 101 |
@@ -330,6 +331,7 @@
 
 | 文件 | 代码 |
 |---|---:|
+| AccessibilityTests.cs | 321 |
 | CanvasSmokeTests.cs | 202 |
 | CompositeDragTests.cs | 158 |
 | ConnectTests.cs | 86 |
@@ -339,7 +341,7 @@
 | DragTests.cs | 121 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 193 |
+| HeadlessFixture.cs | 203 |
 | HighlightTests.cs | 70 |
 | ImportTests.cs | 375 |
 | LayerPanelTests.cs | 357 |

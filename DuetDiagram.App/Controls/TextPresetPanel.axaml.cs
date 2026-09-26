@@ -27,6 +27,17 @@ namespace DuetDiagram.App.Controls;
 /// </remarks>
 public sealed partial class TextPresetPanel : UserControl
 {
+    /// <summary>
+    /// 这个面板里焦点次序的起点。
+    /// </summary>
+    /// <remarks>
+    /// 默认次序是"控件在视觉树里的先后"，而这份界面标记把底部那一块声明在清单之前，
+    /// 于是 Tab 会先落到"新建/应用/删除"上，再落到预设清单上——用户得先跳过一排
+    /// "对谁做事"的按钮，才能走到"对谁"。这里显式给号：清单在前，底部在后。
+    /// 四个面板各占一段互不重叠的号段，免得面板之间互相插队。
+    /// </remarks>
+    private const int TabBase = 3000;
+
     private TextPresetPanelViewModel? _built;
     private string? _editorFor;
     private StackPanel? _editor;
@@ -81,13 +92,21 @@ public sealed partial class TextPresetPanel : UserControl
     {
         Rows.Children.Clear();
 
-        foreach (var row in model.Rows)
+        for (var index = 0; index < model.Rows.Count; index++)
         {
-            Rows.Children.Add(PresetRow(model, row));
+            Rows.Children.Add(PresetRow(model, model.Rows[index], index));
         }
     }
 
-    private Control PresetRow(TextPresetPanelViewModel model, TextPresetRowViewModel row)
+    /// <summary>
+    /// 清单里的一行。
+    /// </summary>
+    /// <remarks>
+    /// **行是一颗按钮，不是一块能点的画布。** 做成"一块面板加一个按下处理器"的话，
+    /// 鼠标点得到而键盘到不了——Tab 走不进来，回车也没人接。按钮自带聚焦、
+    /// 回车与空格激活、以及焦点框，那三样正是键盘用户要靠的东西。
+    /// </remarks>
+    private Control PresetRow(TextPresetPanelViewModel model, TextPresetRowViewModel row, int index)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
 
@@ -113,11 +132,30 @@ public sealed partial class TextPresetPanel : UserControl
 
         summary.Margin = new Thickness(8, 0, 0, 0);
 
-        AutomationProperties.SetAutomationId(grid, $"textpreset.entry.{row.Id}");
-        ToolTip.SetTip(grid, $"{row.Name}（{row.Summary}）——点一下选中它，下面就能改它的成员。");
+        // 底色、描边与留白都去掉：这一行的样子还是原来那样，只是外面多了一层能聚焦的按钮。
+        var button = new Button
+        {
+            Content = grid,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Cursor = new Cursor(StandardCursorType.Hand),
+            TabIndex = TabBase + index,
+        };
 
-        grid.Cursor = new Cursor(StandardCursorType.Hand);
-        grid.PointerPressed += (_, _) => model.Select(row.Id);
+        AutomationProperties.SetAutomationId(button, $"textpreset.entry.{row.Id}");
+        ToolTip.SetTip(button, $"{row.Name}（{row.Summary}）——点一下选中它，下面就能改它的成员。");
+
+        // 行上只写着预设名，所以名字要说明"选中它"这件事：只念一个预设名的话，
+        // 用户听不出按下去会发生什么。
+        AccessibleName.Set(
+            button,
+            $"选中文本预设「{row.Name}」",
+            $"这个预设的内容：{row.Summary}。选中它之后下面能改它的成员。");
+
+        button.Click += (_, _) => model.Select(row.Id);
 
         // 行不是可通知对象：清单的每一行本来就随 Rows / SelectedId 整批重铺，
         // 不必为"选中记号"一件事给行加一层通知。
@@ -127,7 +165,7 @@ public sealed partial class TextPresetPanel : UserControl
         name.FontWeight = selected ? FontWeight.SemiBold : FontWeight.Normal;
         summary.Text = row.Summary;
 
-        return grid;
+        return button;
     }
 
     #endregion
@@ -143,19 +181,23 @@ public sealed partial class TextPresetPanel : UserControl
             FontSize = 12,
             Padding = new Thickness(6, 3),
             PlaceholderText = "新预设名",
+            TabIndex = TabBase + 900,
         };
 
         AutomationProperties.SetAutomationId(newName, "textpreset.new-name");
         ToolTip.SetTip(newName, "要新建的预设名。不许为空。样式建好之后在下面逐个成员填。");
+        AccessibleName.Set(newName, "新预设名", "要新建的预设名。不许为空。样式建好之后在下面逐个成员填。");
 
         var define = new Button
         {
             Content = "新建",
             FontSize = 12,
             Padding = new Thickness(8, 2),
+            TabIndex = TabBase + 901,
         };
 
         AutomationProperties.SetAutomationId(define, "textpreset.define");
+        AccessibleName.Set(define, "新建文本预设", "用左边那个名字建一个新预设，建好之后在下面逐个成员填。");
 
         define.Click += (_, _) =>
         {
@@ -190,12 +232,17 @@ public sealed partial class TextPresetPanel : UserControl
             FontSize = 12,
             Padding = new Thickness(8, 2),
             HorizontalAlignment = HorizontalAlignment.Left,
+            TabIndex = TabBase + 980,
         };
 
         AutomationProperties.SetAutomationId(apply, "textpreset.apply");
         ToolTip.SetTip(apply,
             "把这个预设应用到画布上选中的节点。多选也算一次操作，撤销按一次全部还原。"
             + "预设里没声明的成员保持元素自己现在的值——是叠加，不是替换。");
+        AccessibleName.Set(
+            apply,
+            "把这个文本预设应用到画布上选中的节点",
+            "多选也算一次操作，撤销按一次全部还原。预设里没声明的成员保持元素自己现在的值。");
 
         apply.Click += (_, _) => model.ApplyToSelection();
 
@@ -212,12 +259,17 @@ public sealed partial class TextPresetPanel : UserControl
             FontSize = 12,
             Padding = new Thickness(8, 2),
             HorizontalAlignment = HorizontalAlignment.Left,
+            TabIndex = TabBase + 990,
         };
 
         AutomationProperties.SetAutomationId(remove, "textpreset.remove");
         ToolTip.SetTip(remove,
             "删掉选中的预设。已经应用过的样式原样长在各节点上——应用是按值抄过去的，"
             + "所以删除不需要先问「谁在用」。");
+        AccessibleName.Set(
+            remove,
+            "删除选中的文本预设",
+            "已经应用过的样式原样长在各节点上，删掉预设不会把它们收回去。");
 
         remove.Click += (_, _) => model.RemoveSelected();
 
@@ -256,13 +308,13 @@ public sealed partial class TextPresetPanel : UserControl
             return;
         }
 
-        foreach (var field in model.EditorFields)
+        for (var index = 0; index < model.EditorFields.Count; index++)
         {
-            _editor.Children.Add(EditorRow(field));
+            _editor.Children.Add(EditorRow(model, model.EditorFields[index], index));
         }
     }
 
-    private Control EditorRow(PaletteFieldViewModel field)
+    private Control EditorRow(TextPresetPanelViewModel model, PaletteFieldViewModel field, int index)
     {
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("64,*") };
 
@@ -280,9 +332,22 @@ public sealed partial class TextPresetPanel : UserControl
             FontSize = 12,
             Padding = new Thickness(6, 3),
             PlaceholderText = "没有设置",
+            TabIndex = TabBase + 950 + index,
         };
 
         AutomationProperties.SetAutomationId(box, $"textpreset.{field.Field}");
+
+        // 名字里带上预设名与成员名。编辑器里几个框长得一样，只叫"字号"、"颜色"的话
+        // 用户分不出改的是哪个预设上的那一项——而屏幕上靠"就在选中那一行下面"来分辨，
+        // 这个线索阅读器听不到。
+        var preset = model.Rows
+            .FirstOrDefault(row => string.Equals(row.Id, model.SelectedId, StringComparison.Ordinal))
+            ?.Name ?? model.SelectedId ?? string.Empty;
+
+        AccessibleName.Set(
+            box,
+            $"文本预设「{preset}」的{field.Label}",
+            "回车或离开这一栏就提交。留空表示这一项没有设置。");
 
         // 与调色板编辑器同一套提交时机：回车或焦点离开。
         box.LostFocus += (_, _) => field.Commit(box.Text is { Length: > 0 } text ? text : null);

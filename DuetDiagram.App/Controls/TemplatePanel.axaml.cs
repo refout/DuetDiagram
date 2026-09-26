@@ -123,6 +123,13 @@ public sealed partial class TemplatePanel : UserControl
         AutomationProperties.SetAutomationId(button, $"template.entry.{row.Name}");
         ToolTip.SetTip(button, $"放入模板 {row.Name}（{row.Summary}）。整份算一次操作，撤销按一次全部退回。");
 
+        // 按钮上写着模板名与一句话摘要，名字要说的是"按下去做什么"：
+        // 只念模板名的话，用户听不出这一下会把内容拼进当前文档。
+        AccessibleName.Set(
+            button,
+            $"放入模板「{row.Name}」",
+            $"{row.Summary}。整份算一次操作，撤销按一次全部退回。");
+
         button.Click += (_, _) => row.Apply();
 
         return button;

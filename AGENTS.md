@@ -22,8 +22,8 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `DuetDiagram.Dsl` | 自有 DSL 的词法、语法、语义映射，以及导出方向（把 IR 写成 DSL 文本，写不出来的记进丢失清单） | Phase 1 P1-16 / P1-17 已落地；P4-20 加了导出方向（`Export/DslExporter.cs`），决策门 1 判为「留」 |
 | `DuetDiagram.Dsl.Tests` | 词法/语法/映射用例与冻结语料回归；导出方向的逐类用例与往返无损用例 | 已落地；P4-20 加了 `Category=DslExport` / `DslRoundTrip` |
 | `DuetDiagram.AotSmokeTest` | 原生编译冒烟（多态 Memento + IR 往返、形状表、布局引擎、渲染层与 PDF 导出） | 已落地（本机缺 C++ 工作负载，未完成发布）；P4-18 把渲染层纳进来并真的走完整链路写一份 PDF——"选中的 PDF 库在原生编译后可用"那条判据的落点 |
-| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器、导入 Mermaid（选一份文件当成片段拼进当前文档，报告面板摆出诊断与有意的取舍） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数；P4-17 让自检存盘的那份位图改走导出器（离屏渲染那一步留着，只为回答"画布把指令消费完了没有"），界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里；P4-19 加了导入 Mermaid 那一档，并为此引了格式那一层——选文件那一层在无头模式下打不开，能验的那一段全在 `MainWindow.Import(路径)` 里）；P4-22 的两条 L3 端到端用例复用主窗口导入入口与画布绘制列表导出（界面上的导出对话框仍是占位，见 `reports/phase4.md`） |
-| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 / P4-19 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层；P4-19 的导入走主窗口那个公开入口，选文件那一层进不来）；P4-22 加了两条 L3 端到端用例（`Category=Phase4Scenario`：导入 500 节点渲染 < 2s 且可点击、导出 SVG 合法且无损） |
+| `DuetDiagram.App` | 界面主程序：画布、视口变换、状态栏、布局失败提示、布局约束入口、多窗口与只读呈现、帧率基准、菜单栏与工具栏（条目按注册表组织）、图层面板与图层开关的写入口、页面标签栏与翻页、框选与右键菜单、组合的选中与拖动、调色板面板、文本预设面板与应用入口、形状面板、模板面板、就地编辑标签的编辑器、导入 Mermaid（选一份文件当成片段拼进当前文档，报告面板摆出诊断与有意的取舍） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地，含自检模式与 `--open`；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-10 / P4-11 / P4-12 / P4-13 已落地（P4-10 只改了画布的几何取用与错误呈现表，路径字段还没有编辑器；P4-12 只加了错误呈现表的 `RICH_TEXT_MISMATCH` 一条与面板上的隐藏说明；P4-14 加了双击进编辑的编辑器与草稿会话，段落级对齐与列表仍没有入口；P4-16 让自检把同一份绘制列表也导一遍 SVG 并逐类核对元素数；P4-17 让自检存盘的那份位图改走导出器（离屏渲染那一步留着，只为回答"画布把指令消费完了没有"），界面上的导出入口仍是占位——它要选文件、选格式、选范围三样，那三样在后面的任务里；P4-19 加了导入 Mermaid 那一档，并为此引了格式那一层——选文件那一层在无头模式下打不开，能验的那一段全在 `MainWindow.Import(路径)` 里）；P4-22 的两条 L3 端到端用例复用主窗口导入入口与画布绘制列表导出（界面上的导出对话框仍是占位，见 `reports/phase4.md`）；P5-05 给每个交互控件补了可访问名称与显式焦点号（`Services/AccessibleName.cs` 是唯一入口，名字为空即抛，焦点号分四段） |
+| `DuetDiagram.E2E.Tests` | 无头模式下的端到端用例（起窗口、送输入、抓一帧、比像素） | Phase 2 P2-02 / P2-03 / P2-07 / P2-08 / P2-10 / P2-11 / P2-12 已落地；Phase 4 P4-01 / P4-02 / P4-03 / P4-04 / P4-05 / P4-06 / P4-07 / P4-08 / P4-09 / P4-11 / P4-12 / P4-14 / P4-19 已落地（P4-10 只到绘制列表与 IR 层，没有端到端覆盖；P4-12 只到 IR 与命令层；P4-19 的导入走主窗口那个公开入口，选文件那一层进不来）；P4-22 加了两条 L3 端到端用例（`Category=Phase4Scenario`：导入 500 节点渲染 < 2s 且可点击、导出 SVG 合法且无损）；P5-05 加了 `Category=Accessibility`（十条：名字齐不齐、名字说得出是哪一个、键盘可达、焦点顺序跟着功能分组、Tab 走遍每一块面板、菜单能键盘展开） |
 | `DuetDiagram.Benchmarks` | 性能基线 | Phase 0b 已落地 |
 | `docs/` | 架构、IR Schema、渲染管线、错误码、命令清单 | 已落地 |
 | `tasks/` | 面向 coding agent 的任务 YAML | 已落地 |
@@ -83,6 +83,16 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 逐段读数由界面自己写文件（`DuetDiagram.App --startup-probe <路径>`），验报告 `reports/phase5-startup.md`；
 顺带记下——最大两块不是我们的代码（平台初始化与窗口上屏合计占总时长一半，三个场景几乎一样），
 而「文档」那一列在不同场景之间不可比（同一批代码路径只是被记在了不同的段里）。
+其中 **`P5-05`（无障碍——键盘导航与屏幕阅读器）已落地**：`Category=Accessibility` 十条用例全绿，
+`DuetDiagram.E2E.Tests` 从 204 条涨到 214 条（失败 0）；
+命名收成一条路——`DuetDiagram.App/Services/AccessibleName.cs` 的 `Set`（**名字为空就抛异常**，
+所以「每个控件都有名字」不会悄悄失效），落点共 50 处（42 处在代码里，七块面板的控件是在代码里搭的；
+8 处在标记里）；焦点号显式给四段（图层 `1000` / 调色板 `2000` / 文本预设 `3000` / 标签栏 `4000`），
+因为这几份标记把底部那一块声明在列表**之前**；调色板与文本预设的条目行从 `Grid` + `PointerPressed`
+改成可聚焦的 `Button`；验报告 `reports/phase5-accessibility.md`。
+顺带查实——**菜单容器自己不收焦点**：`MenuBase.OnKeyDown` 是空实现，真正按键的
+`DefaultMenuInteractionHandler` 看的是被聚焦的 `MenuItem`（`IsTopLevel && HasSubMenu` 才展开），
+给 `Menu` 加 `Focusable="True"` 也没用。**对比度、读屏实际体验、焦点可见性三项未验**（要真人 / 要最终渲染颜色）。
 其余 Phase 5 任务 `pending`。
 **决策门 1（DSL 去留）已按产品负责人的指令判为「留」**，P4-20 因此解封；
 这与方案 §15.3 的原始口径有一处差别，记在下面的差异表里。
@@ -590,6 +600,11 @@ dotnet run --project tools/MemBudget -c Release
 # 窗口会真的弹出来，画完首帧立刻关掉；逐段读数由界面自己写文件，见 reports/phase5-startup.md
 dotnet run --project tools/StartupBench -c Release
 
+# 无障碍：每个交互控件都有可访问名称、名字说得出是哪一个、键盘到得了、Tab 走遍每一块面板、
+# 菜单能键盘展开。判据从注册表与行数据来，不从视觉树次序来——后者会在加一个控件时静默错位。
+# 对比度、读屏实际体验与焦点可见性装置判不了，见 reports/phase5-accessibility.md
+dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Accessibility"
+
 # 任务 YAML 必须能被解析。它们是给 agent 读的，读不了等于任务不存在——
 # 已经踩过两次（未加引号的冒号加空格、未加引号的引号），两次都是整个文件静默失效
 python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in glob.glob('tasks/**/*.yaml',recursive=True)]; print('ok')"
@@ -610,7 +625,7 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 `LayerVisibility`、`LayerRender`、`LayerPanel`、`PageMembership`、`PageRender`、`PageTabs`、
 `Canvas`、`Diagnostics`、`PropertyPanel`、`HitTest`、`Drag`、`Connect`、`EdgeEdit`、`EdgeField`、
 `Highlight`、`ErrorPresentation`、`LayoutFailure`、`ConstraintEditor`、`MultiWindow`、`DocumentLock`、
-`CompositeFrame`、`PalettePanel`、`TextPreset`、`Marquee`、`ContextMenu`、`ToolBar`、`MenuBar`、
+`CompositeFrame`、`PalettePanel`、`TextPreset`、`Marquee`、`ContextMenu`、`ToolBar`、`MenuBar`、`Accessibility`、
 `MermaidLexing`、`MermaidParsing`、`MermaidCorpus`、`MermaidImport`、`MermaidExport`、`MermaidRoundTrip`、
 `DslLexing`、`DslParsing`、`DslCorpus`、`DslMapping`、`DslLayoutIntent`、
 `ToolRegistry`、`ToolSchema`、`ContextSummary`、`ToolDispatch`、`StyleWhitelist`、

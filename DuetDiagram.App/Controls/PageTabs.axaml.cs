@@ -25,6 +25,17 @@ namespace DuetDiagram.App.Controls;
 /// </remarks>
 public sealed partial class PageTabs : UserControl
 {
+    /// <summary>
+    /// 这条标签栏里焦点次序的起点。
+    /// </summary>
+    /// <remarks>
+    /// 默认次序是"控件在视觉树里的先后"，而这份界面标记把新建与删页声明在页签之前，
+    /// 于是 Tab 会先落到"新建/删掉这一页"上，再落到页签上——用户得先跳过
+    /// 一排"对哪一页做事"的按钮，才能走到"哪一页"。这里显式给号：页签在前，动页在后。
+    /// 与左栏几个面板各占一段互不重叠的号段，免得面板之间互相插队。
+    /// </remarks>
+    private const int TabBase = 4000;
+
     private PageTabsViewModel? _built;
 
     public PageTabs() => InitializeComponent();
@@ -66,18 +77,19 @@ public sealed partial class PageTabs : UserControl
     {
         Tabs.Children.Clear();
 
-        foreach (var tab in model.Tabs)
+        for (var index = 0; index < model.Tabs.Count; index++)
         {
-            Tabs.Children.Add(Tab(model, tab));
+            Tabs.Children.Add(Tab(model, model.Tabs[index], index));
         }
     }
 
-    private static Control Tab(PageTabsViewModel model, PageTabViewModel tab)
+    private static Control Tab(PageTabsViewModel model, PageTabViewModel tab, int index)
     {
         var button = new Button
         {
             FontSize = 12,
             Padding = new Thickness(10, 3),
+            TabIndex = TabBase + index,
         };
 
         AutomationProperties.SetAutomationId(button, $"page.tab.{tab.Id}");
@@ -94,6 +106,13 @@ public sealed partial class PageTabs : UserControl
                 button.Content = tab.IsCurrent ? $"● {title}" : title;
                 button.FontWeight = tab.IsCurrent ? FontWeight.SemiBold : FontWeight.Normal;
                 button.IsEnabled = !tab.IsCurrent;
+
+                // 页签上只有页名，没有"这是第几页"。名字里补上页数：
+                // 一屏上有好几格，只念页名的话，重名或留空的两页读起来一模一样。
+                AccessibleName.Set(
+                    button,
+                    $"第 {index + 1} 页「{title}」",
+                    tab.IsCurrent ? "正在看这一页。" : "翻到这一页。翻页会重新算一次布局。");
             },
             nameof(PageTabViewModel.IsCurrent),
             nameof(PageTabViewModel.Name));
@@ -109,21 +128,26 @@ public sealed partial class PageTabs : UserControl
 
     private void BuildActions(PageTabsViewModel model)
     {
+        // 动页的那几颗排在页签之后：先挑页，再对它做事。
+        const int tab = TabBase + 900;
+
         var name = new TextBox
         {
             FontSize = 12,
             Padding = new Thickness(6, 3),
             Width = 110,
             PlaceholderText = "新页的名字",
+            TabIndex = tab + 1,
         };
 
         AutomationProperties.SetAutomationId(name, "page.new-name");
         ToolTip.SetTip(name, "新的一页叫什么，可以留空——留空时标签上显示页面标识。");
+        AccessibleName.Set(name, "新页的名字", "新的一页叫什么，可以留空——留空时标签上显示页面标识。");
 
-        var create = Button("page.new", "新建");
+        var create = Button("page.new", "新建页面", "新建", tab + 2);
         create.Click += (_, _) => model.Create(name.Text);
 
-        var delete = Button("page.delete", "删掉这一页");
+        var delete = Button("page.delete", "删掉当前这一页", "删掉这一页", tab + 3);
         ToolTip.SetTip(delete, "删页不是删元素：这一页上的元素退回缺省页（次序最小的那一页）而不是跟着删。");
         delete.Click += (_, _) => model.DeleteCurrent();
 
@@ -150,16 +174,18 @@ public sealed partial class PageTabs : UserControl
             nameof(PageTabsViewModel.CurrentElementCount));
     }
 
-    private static Button Button(string id, string content)
+    private static Button Button(string id, string name, string content, int tab)
     {
         var button = new Button
         {
             Content = content,
             FontSize = 12,
             Padding = new Thickness(8, 2),
+            TabIndex = tab,
         };
 
         AutomationProperties.SetAutomationId(button, id);
+        AccessibleName.Set(button, name);
 
         return button;
     }

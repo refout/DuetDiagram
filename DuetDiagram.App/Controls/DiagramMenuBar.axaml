@@ -5,6 +5,14 @@
     顶级菜单与下面的项都在代码里按注册表搭出来（见 .axaml.cs）。
     这一层只给一个空的菜单容器。
   -->
+  <!--
+    菜单容器自己也要有名字：阅读器把菜单栏当成一整块来读，只念里面的项而不说
+    "这是一个菜单"的话，用户不知道手上这一块是什么。
+
+    容器自己不收焦点——收的是它里面的顶级菜单项，方向键与回车在那几项上生效
+    （见 DefaultMenuInteractionHandler：它按焦点所在的那一项判断，落在容器上时什么都不做）。
+  -->
   <Menu Name="Body"
+        AutomationProperties.Name="主菜单"
         VerticalAlignment="Center" />
 </UserControl>

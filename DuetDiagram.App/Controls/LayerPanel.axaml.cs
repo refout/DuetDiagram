@@ -32,6 +32,17 @@ public sealed partial class LayerPanel : UserControl
     /// <summary>列表上方那一行表头，标明每列是什么。</summary>
     private static readonly string[] Header = ["显示", "锁定", "名字", "元素"];
 
+    /// <summary>
+    /// 这个面板里焦点次序的起点。
+    /// </summary>
+    /// <remarks>
+    /// 默认次序是"控件在视觉树里的先后"，而这份界面标记把底部那一块声明在列表之前，
+    /// 于是 Tab 会先落在"新建/改名/移入"上，再落到图层列表上——用户得先跳过一排
+    /// "对谁做事"的按钮，才能走到"对谁"。这里显式给号：列表在前，底部在后。
+    /// 四个面板各占一段互不重叠的号段，免得面板之间互相插队。
+    /// </remarks>
+    private const int TabBase = 1000;
+
     private LayerPanelViewModel? _built;
 
     public LayerPanel() => InitializeComponent();
@@ -74,9 +85,9 @@ public sealed partial class LayerPanel : UserControl
         Rows.Children.Clear();
         Rows.Children.Add(HeaderRow());
 
-        foreach (var row in model.Rows)
+        for (var index = 0; index < model.Rows.Count; index++)
         {
-            Rows.Children.Add(LayerRow(model, row));
+            Rows.Children.Add(LayerRow(model, model.Rows[index], index));
         }
     }
 
@@ -107,13 +118,18 @@ public sealed partial class LayerPanel : UserControl
         return grid;
     }
 
-    private static Control LayerRow(LayerPanelViewModel model, LayerRowViewModel row)
+    private static Control LayerRow(LayerPanelViewModel model, LayerRowViewModel row, int index)
     {
         var grid = NewGrid();
+
+        // 一行的四个可聚焦控件连着占四个号，行与行之间隔开十号：
+        // 次序就是"逐行看下去"，而每行内部是显示、锁定、上移、下移。
+        var tab = TabBase + (index * 10);
 
         var visible = new CheckBox
         {
             VerticalAlignment = VerticalAlignment.Center,
+            TabIndex = tab + 1,
         };
 
         AutomationProperties.SetAutomationId(visible, $"layer.visible.{row.Id}");
@@ -122,6 +138,7 @@ public sealed partial class LayerPanel : UserControl
         var locked = new CheckBox
         {
             VerticalAlignment = VerticalAlignment.Center,
+            TabIndex = tab + 2,
         };
 
         AutomationProperties.SetAutomationId(locked, $"layer.locked.{row.Id}");
@@ -142,8 +159,8 @@ public sealed partial class LayerPanel : UserControl
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var up = Stepper(model, row, delta: -1);
-        var down = Stepper(model, row, delta: +1);
+        var up = Stepper(model, row, delta: -1, tab + 3);
+        var down = Stepper(model, row, delta: +1, tab + 4);
 
         Place(grid, visible, 0);
         Place(grid, locked, 1);
@@ -183,6 +200,14 @@ public sealed partial class LayerPanel : UserControl
                 name.Text = row.IsCurrent ? $"● {row.Name}" : row.Name;
                 name.FontWeight = row.IsCurrent ? FontWeight.SemiBold : FontWeight.Normal;
                 name.Foreground = row.IsCurrent ? PanelPalette.Body : PanelPalette.Label;
+
+                // 可访问名称里带着图层名。一屏上有好几行，四颗控件只叫"显示"、"锁定"的话，
+                // 阅读器念出来的是三组一模一样的勾选框，用户分不出手上这一颗属于哪一层。
+                // 名字挂在同一个订阅上，所以图层改名之后不会停在旧名字上。
+                AccessibleName.Set(visible, $"「{row.Name}」这一层画不画", Tip(visible));
+                AccessibleName.Set(locked, $"「{row.Name}」这一层改不改得动", Tip(locked));
+                AccessibleName.Set(up, $"把「{row.Name}」往上挪一位", Tip(up));
+                AccessibleName.Set(down, $"把「{row.Name}」往下挪一位", Tip(down));
             },
             nameof(LayerRowViewModel.Name),
             nameof(LayerRowViewModel.IsCurrent));
@@ -211,7 +236,7 @@ public sealed partial class LayerPanel : UserControl
     }
 
     /// <summary>往上或往下挪一格的那个按钮。</summary>
-    private static Button Stepper(LayerPanelViewModel model, LayerRowViewModel row, int delta)
+    private static Button Stepper(LayerPanelViewModel model, LayerRowViewModel row, int delta, int tab)
     {
         var button = new Button
         {
@@ -219,6 +244,7 @@ public sealed partial class LayerPanel : UserControl
             FontSize = 11,
             Padding = new Thickness(6, 0),
             VerticalAlignment = VerticalAlignment.Center,
+            TabIndex = tab,
         };
 
         // 按钮作用的是"这一行"，但改的是当前图层——点之前先把它定为当前图层，
@@ -255,12 +281,16 @@ public sealed partial class LayerPanel : UserControl
 
     private void BuildFooter(LayerPanelViewModel model)
     {
-        var newName = Box("layer.new-name", "新图层的名字，可以留空之后再改。");
-        var create = Button("layer.new", "新建");
+        // 底部这一段排在列表之后：先挑层，再对它做事。号段从 900 起，
+        // 与上面的行拉开足够距离，中间再加行也不会插到前面去。
+        const int tab = TabBase + 900;
+
+        var newName = Box("layer.new-name", "新图层的名字", "新图层的名字，可以留空之后再改。", tab + 1);
+        var create = Button("layer.new", "新建图层", "新建", tab + 2);
         create.Click += (_, _) => model.Create(newName.Text);
 
-        var renameName = Box("layer.rename-name", "把当前图层改成这个名字。");
-        var rename = Button("layer.rename", "改名");
+        var renameName = Box("layer.rename-name", "当前图层的新名字", "把当前图层改成这个名字。", tab + 3);
+        var rename = Button("layer.rename", "给当前图层改名", "改名", tab + 4);
         rename.Click += (_, _) => model.Rename(renameName.Text);
 
         var note = new TextBlock
@@ -270,7 +300,7 @@ public sealed partial class LayerPanel : UserControl
             TextWrapping = TextWrapping.Wrap,
         };
 
-        var assign = Button("layer.assign", model.AssignLabel);
+        var assign = Button("layer.assign", "把选中的元素移入当前图层", model.AssignLabel, tab + 5);
         ToolTip.SetTip(assign, "把选中的元素都归到当前图层上。一次操作进一条历史，撤销一次就全回去。");
         assign.Click += (_, _) => model.AssignSelection();
 
@@ -297,39 +327,61 @@ public sealed partial class LayerPanel : UserControl
 
         Bind(model, () => note.Text = model.CurrentLayerNote, nameof(LayerPanelViewModel.CurrentLayerNote));
 
-        Bind(model, () => assign.Content = model.AssignLabel, nameof(LayerPanelViewModel.AssignLabel));
+        // 名字里带上"移入几个"：按钮上的字随选中数变，而名字是阅读器唯一读得到的东西。
+        // 只写"移入当前图层"的话，用阅读器的人不知道这一下会带走几个元素。
+        Bind(
+            model,
+            () =>
+            {
+                assign.Content = model.AssignLabel;
+                AccessibleName.Set(assign, $"{model.AssignLabel}当前图层", Tip(assign));
+            },
+            nameof(LayerPanelViewModel.AssignLabel));
 
         Bind(model, () => assign.IsEnabled = model.CanAssign, nameof(LayerPanelViewModel.CanAssign));
     }
 
-    private static TextBox Box(string id, string tip)
+    private static TextBox Box(string id, string name, string tip, int tab)
     {
         var box = new TextBox
         {
             FontSize = 12,
             Padding = new Thickness(6, 3),
             PlaceholderText = "名字",
+            TabIndex = tab,
         };
 
         AutomationProperties.SetAutomationId(box, id);
         ToolTip.SetTip(box, tip);
+        AccessibleName.Set(box, name, tip);
 
         return box;
     }
 
-    private static Button Button(string id, string content)
+    private static Button Button(string id, string name, string content, int tab)
     {
         var button = new Button
         {
             Content = content,
             FontSize = 12,
             Padding = new Thickness(8, 2),
+            TabIndex = tab,
         };
 
         AutomationProperties.SetAutomationId(button, id);
+        AccessibleName.Set(button, name);
 
         return button;
     }
+
+    /// <summary>
+    /// 控件上已经挂好的那句提示。
+    /// </summary>
+    /// <remarks>
+    /// 说明读的就是提示那一句，不另写一份：两处各写一份的话，改了一处忘了另一处，
+    /// 看得见提示的人与用阅读器的人会听到两句不同的话，而界面上看不出哪一句是旧的。
+    /// </remarks>
+    private static string? Tip(Control control) => ToolTip.GetTip(control) as string;
 
     private static Control RowOf(Control left, Control right)
     {

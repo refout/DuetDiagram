@@ -360,6 +360,14 @@ jobs:
           gate Import
           exit $STATUS
 
+      # 无障碍：每个交互控件都有可访问名称、名字说得出是哪一个、键盘到得了、
+      # Tab 走遍每一块面板、菜单能键盘展开。漏掉一个控件的名字在画面上完全看不出来，
+      # 而用户能 Tab 到它、却听不到它是干什么的——所以名字为空在入口处就抛异常。
+      # 判据从注册表与行数据来，不从视觉树次序来（后者会在加一个控件时静默错位）。
+      # 对比度、读屏实际体验与焦点可见性装置判不了，见 reports/phase5-accessibility.md
+      - name: 无障碍门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Accessibility"
+
       # 跨进程所有权：独占、只读退档、心跳过期判定与"抢占前先试删锁文件"。
       # 句柄是判据、心跳是补充——把心跳过期直接当成可抢占会撕掉一个活着进程正在写的文档。
       - name: 文档所有权门禁

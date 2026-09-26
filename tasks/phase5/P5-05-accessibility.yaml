@@ -1,20 +1,38 @@
 id: P5-05
 title: 无障碍——键盘导航与屏幕阅读器
 phase: 5
-status: pending
+status: done
 depends_on: [P4-01, P4-03, P4-04, P4-07, P4-09, P4-11, P4-14]
 estimated_loc: 320
 files:
   create:
+    - DuetDiagram.App/Services/AccessibleName.cs
     - DuetDiagram.E2E.Tests/AccessibilityTests.cs
+    - reports/phase5-accessibility.md
   modify:
-    - DuetDiagram.App/Controls/ToolBar.axaml
+    - DuetDiagram.App/Controls/DiagramToolBar.axaml.cs
     - DuetDiagram.App/Controls/DiagramMenuBar.axaml
-    - DuetDiagram.App/Controls/LayerPanel.axaml
-    - DuetDiagram.App/Controls/PageTabs.axaml
-    - DuetDiagram.App/Controls/PalettePanel.axaml
-    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml
-    - DuetDiagram.App/Controls/TemplatePanel.axaml
+    - DuetDiagram.App/Controls/DiagramMenuBar.axaml.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/Controls/LayerPanel.axaml.cs
+    - DuetDiagram.App/Controls/PageTabs.axaml.cs
+    - DuetDiagram.App/Controls/PalettePanel.axaml.cs
+    - DuetDiagram.App/Controls/TextPresetPanel.axaml.cs
+    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml.cs
+    - DuetDiagram.App/Controls/TemplatePanel.axaml.cs
+    - DuetDiagram.App/Controls/DiagnosticsPanel.axaml
+    - DuetDiagram.App/Controls/DiffSidebar.axaml.cs
+    - DuetDiagram.App/Controls/ImportDialog.axaml
+    - DuetDiagram.App/Controls/LayoutFailureDialog.axaml
+    - DuetDiagram.App/Controls/SidecarRecoveryDialog.axaml
+    - DuetDiagram.App/Controls/RichTextEditor.axaml
+    - DuetDiagram.App/Controls/RichTextEditor.axaml.cs
+    - DuetDiagram.App/Services/FieldEditBinder.cs
+    - DuetDiagram.App/Services/ConstraintEditorBinder.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - .github/workflows/ci.yml
+    - tasks/README.md
+    - AGENTS.md
 acceptance:
   - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Accessibility"
     expect: 全通过；每个面板都能用键盘聚焦与操作，画布的关键操作有可访问名称
@@ -32,3 +50,93 @@ scope_note: |
   **WCAG AA 是人工验收项，不是装置能判到底的。** 装置能验的是「每个控件都有名字、键盘能到达」，
   而「对比度够不够、读屏软件实际读得顺不顺」要真人用读屏软件走一遍。
   所以这一条交付的是可机验的底座，结论里要写明哪些只能等人。
+result: |
+  **结论：`Category=Accessibility` 十条用例全绿，`DuetDiagram.E2E.Tests` 从 204 条涨到 214 条
+  （失败 0），Release 构建 0 警告 0 错误。** 交付的是「WCAG AA」里**装置能判的那一半**——
+  每个控件有名字、名字说得出是哪一个、键盘到得了、Tab 走得进每一块面板、菜单能键盘展开；
+  另一半（对比度、读屏实际体验、焦点可见性）**未验**，如实列在 `reports/phase5-accessibility.md`
+  末尾的「只能等人」一节，不写成通过。验报告 `reports/phase5-accessibility.md`。
+
+  **判据里至少含三件不同的事，只有前两件装置能判。**
+  一、「每个控件有没有名字、名字说得出是哪一个」——名字是控件上的一个属性，逐个读一遍即可；
+  二、「键盘到不到得了」——无头模式里真的送 Tab 键、真的读焦点；
+  三、「对比度够不够（4.5:1 / 3:1）、读屏软件念出来顺不顺、焦点框看不看得见」——
+  要取最终渲染出来的颜色、要真人戴上读屏走一遍，装置判不了。
+  把底座说成达标，后来的人会以为对比度与读屏也测过了，而它们一次都没测。
+
+  **命名只有一个入口：`DuetDiagram.App/Services/AccessibleName.cs` 的 `Set`。** 它做三件事：
+  **名字为空就抛 `ArgumentException`**——「每个控件都有名字」没有编译期保证，而漏掉一个控件的表现是
+  「用户能 Tab 到它、却听不到它是干什么的」，画面上完全看不出来，把空名字判成异常是让它开发时就红；
+  **`help` 传空就把说明清掉**（`SetHelpText(control, null)`）——不清的话上一次留下的
+  「现在点不了」会一直挂在阅读器里，而控件此刻已经能点了；
+  **`ForEntry(entry)` 拼「档名：条目名」**——工具栏上看不见档名（只有图标与提示）、
+  右键菜单里也没有上一级，这两处的名字要自己带上档名；菜单里则由上一级念出来，不重复拼。
+  落点共 50 处：42 处在代码里（七块面板的控件都是在代码里搭出来的，不在标记里），
+  8 处在标记里直接写（两个对话框的按钮、导入报告与诊断面板的关闭按钮、菜单容器）。
+
+  **号是显式给的，不是碰巧顺着文件排的。** 焦点次序的默认依据是「控件在视觉树里的先后」，
+  而这几份标记把底部那一块（新建、改名、删除）声明在列表**之前**——默认次序下 Tab 先落到
+  「对谁做事」的按钮上，再落到「对谁」。所以给了四段显式号：
+  图层面板 `1000`（每层 4 个号 `1011 / 1012 / 1013 / 1014`，底部 `1900`）、
+  调色板面板 `2000`（底部 `2900 / 2901`、编辑器 `2950 + 序号`、删除 `2990`）、
+  文本预设面板 `3000`（`3900 / 3901`、编辑器 `3950 + 序号`、应用 `3980`、删除 `3990`）、
+  标签栏 `4000`（底部 `4900 / 4901 / 4902`）。用例断言「前一类里号最大的 < 后一类里号最小的」，
+  且**两类各要至少命中一个**——两类都落空的话两边都是 −1，那一条会假绿。
+
+  **两处从「点得到」改成「走得到」。** 调色板条目与文本预设条目原来是 `Grid` 加 `PointerPressed`，
+  鼠标点得到而键盘走不到（`Grid` 不是 Tab 停靠），改成外面套一颗 `Button`
+  （背景透明、边框零、光标手形），事件与自动化标识一并挪到按钮上，外观不变、键盘多一条路；
+  图层面板那四行原来没有号、靠视觉树先后，现在按行给号。
+
+  **四条发现。**
+  1. **菜单容器自己不收焦点，收的是顶级菜单项。** 给 `Menu` 加 `Focusable="True"` 试过，**没用**。
+     查 Avalonia 12.1.2 源码：`MenuBase.OnKeyDown` 是空实现（注释写着「交给交互处理器」），
+     真正按键的是 `DefaultMenuInteractionHandler.KeyDown`，它看的是**被聚焦的 `MenuItem`**、
+     不是 `Menu` 容器——`item?.IsTopLevel == true && item.HasSubMenu` 才 `Open`。
+     所以判据落在顶级菜单项上（聚焦它、按方向键、看 `IsSubMenuOpen`），容器只负责有名字。
+  2. **「名字齐了」这件事会悄悄失效。** 名字散在五十处，新加一个控件时忘了写名字，视觉上毫无差别。
+     两道拦：入口处把空名字判成异常；用例再把窗口里**所有**自己搭的交互控件过一遍。
+     视觉树与逻辑树都要走——菜单项在展开之前只挂在逻辑树上，只走视觉树会把它们漏掉。
+     模板里长出来的零件不算（主题自带的滚动条箭头、下拉框右半边那颗按钮），
+     判据是「模板父级为空」：自己搭的都是直接 `new` 出来的，模板生成的有父级。
+  3. **默认次序跟标记的声明次序绑在一起，而声明次序与使用次序不一致。** 这跟数据无关，
+     纯粹是标记的写法——人写标记时习惯把「操作」写在「列表」前面。
+  4. **名字要说得出是哪一个，不能只说是什么。** 三层图层就是三组一模一样的勾选框，
+     名字里不带图层名的话阅读器念三遍「这一层画不画」。所以行数据必须进名字：
+     「『上层』这一层画不画」「把『上层』往上挪一位」。工具栏与右键菜单同理。
+
+  **门禁（全部通过）。**
+  - `Category=Accessibility` 10 / 0 / 10；`DuetDiagram.E2E.Tests` 整组 214 / 0 / 214（原 204）。
+  - Release 构建 0 警告 0 错误；八工程全绿；`Category=CommentDiscipline` 通过；
+    `Category=MultiAgent` 通过；`tools/McpHarness -- protocol` 8/8；`tools/LocCounter --check` 退出 0；
+    `tools/LayoutScore` 退出 0；两条帧率 / 拖拽基准退出码 0；`tools/MemBudget` 退出 0；
+    `tools/StartupBench` 退出 0；自检退出 0。
+
+  **与任务清单的出入。**
+  1. 卡里原列的 `files.modify` 里第一条 `DuetDiagram.App/Controls/ToolBar.axaml` **不存在**，
+     实际文件是 `DiagramToolBar.axaml`；其余六条列的都是 `.axaml`，而**七块面板的控件是在代码里
+     搭出来的、不在标记里**（标记里只有空容器），所以实际改的是同名的 `.axaml.cs`。
+     上面 `files` 已改成实际动过的那些。
+  2. 实际改动远不止卡里那七份：还动了 `DiagramToolBar.axaml.cs`、`DiagramMenuBar.axaml.cs`、
+     `DiagramCanvas.cs`、`DiffSidebar.axaml.cs`、`RichTextEditor.axaml(.cs)`、
+     `Services/{AccessibleName.cs, FieldEditBinder.cs, ConstraintEditorBinder.cs}`、
+     四个对话框 / 面板的 `.axaml`（诊断面板、导入报告、布局失败、备份恢复）、
+     `DuetDiagram.E2E.Tests/HeadlessFixture.cs`。卡里的清单是按「面板」列的，
+     而命名与号是横切所有面板的，落点比卡里预想的多。
+  3. 卡里的第二条约束写「键盘可达的判据**从绘制列表来**」，实际判据**从注册表与行数据来**：
+     名字该是什么由条目自己与行数据决定（`MenuRegistry`、`LayerPanelViewModel.Rows`），
+     所以用例读的是同一份数据，而不是「第几个控件叫什么」——后者会在加一个控件时静默错位。
+     绘制列表是渲染层的东西，跟焦点次序无关。
+  4. 多了一个「只收指针」的例外类：富文本编辑器里那四颗样式按钮（加粗 / 斜体 / 下划线 / 删除线）
+     **刻意不接收焦点**——它们读的是编辑框此刻的选区，而选区是编辑框上的活状态，
+     焦点一挪走就读不到那一段了。名字照样有，但键盘到不了，用例把它们单列成
+     `PointerOnly` 排除在「可聚焦」断言之外，并在报告里留给人工验收。
+     要它们键盘可达，得先把「选区跟着焦点走」这件事改掉，那是另一条。
+  5. **对比度、读屏实际体验、焦点可见性这三项未验**，报告末尾单列一节写明「只能等人」，
+     并列出三条判不了的**原因**（颜色是运行期算的、要真人戴读屏、要人看）。P5-07 真人验收从这里起。
+  6. 没有加 `AccessKey`（`Alt` 组合的助记键）。方案没要求，这一条也没做，如实记在报告里。
+  7. Tab 走查的上限是 160 步，是采样不是穷举：焦点环走一圈就够判断「进没进过每一块面板」，
+     但某个控件若只在第 161 步才被走到会漏掉。160 是「十块面板 + 几十个控件」的两倍余量。
+  8. 画布里的元素读不出来。画布是一整块自绘区域，节点与边不进无障碍树；
+     名字与说明只能说出「这块地方是什么、按哪些键能干什么」，说不出「里面有哪几个节点」。
+     要让阅读器读出图的内容得给每个元素建无障碍节点，那是另一件事。

@@ -150,6 +150,11 @@ internal static class ConstraintEditorBinder
         };
 
         AutomationProperties.SetAutomationId(remove, RemoveId);
+
+        // 一屏上可能有好几行，每行都有一颗"删"。名字里带上这一行的内容，
+        // 阅读器念出来才知道删的是哪一条——只念"删"的话，用户只能靠数行数。
+        AccessibleName.Set(remove, $"删掉这条约束：{row.Title}");
+
         remove.Click += (_, _) => model.Remove(row);
 
         Grid.SetColumn(remove, 2);
@@ -169,6 +174,11 @@ internal static class ConstraintEditorBinder
         };
 
         AutomationProperties.SetAutomationId(button, id);
+
+        // 按钮上只有三个字，名字补上"约束"两个字：这一节里能加的东西不止一种，
+        // 只念"加同层"的话，用户不知道加出来的是一条约束还是别的什么。
+        AccessibleName.Set(button, $"{text}约束");
+
         button.Click += (_, _) => act();
 
         return button;

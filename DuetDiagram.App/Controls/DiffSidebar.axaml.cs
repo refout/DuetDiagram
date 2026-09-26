@@ -33,6 +33,9 @@ public sealed partial class DiffSidebar : UserControl
         InitializeComponent();
 
         _toggle.Click += (_, _) => SetExpanded(!_details.IsVisible);
+
+        // 先把名字按当下的状态挂上：控件是刚 new 出来的，点击那条路只管之后的改动。
+        SetExpanded(_details.IsVisible);
     }
 
     /// <summary>文档那一侧。换一份会话就换一份日志。</summary>
@@ -66,6 +69,13 @@ public sealed partial class DiffSidebar : UserControl
     {
         _details.IsVisible = expanded;
         _toggle.Content = expanded ? "收起" : "展开";
+
+        // 按钮上写的是"展开/收起"，名字要说清展开的是什么：这一栏上只有一颗按钮，
+        // 只念"展开"的话，用户不知道展开出来的是明细还是别的什么。
+        AccessibleName.Set(
+            _toggle,
+            expanded ? "收起变更明细" : "展开变更明细",
+            expanded ? null : "看最近一次改动逐字段的前后值。");
     }
 
     private void Refresh()

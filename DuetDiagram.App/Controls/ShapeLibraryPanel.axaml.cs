@@ -111,6 +111,13 @@ public sealed partial class ShapeLibraryPanel : UserControl
         AutomationProperties.SetAutomationId(button, $"shape.entry.{row.Name}");
         ToolTip.SetTip(button, $"{row.Name}——把选中的节点换成这个形状。");
 
+        // 按钮上画的是一块形状预览加一个形状名，名字要说的是"按下去做什么"：
+        // 只念形状名的话，用户听不出这一下会把选中的节点改掉。
+        AccessibleName.Set(
+            button,
+            $"把选中的节点换成「{row.Name}」形状",
+            row.IsCurrent ? "选中的节点现在就是这一种形状。" : "把选中的节点换成这个形状。");
+
         button.Click += (_, _) => row.Apply();
 
         return button;

@@ -94,6 +94,10 @@ internal static class FieldEditBinder
         // 自动化 ID 让无头测试能按字段名找到控件，不用去猜它在视觉树里的位置。
         AutomationProperties.SetAutomationId(editor, field.Field);
 
+        // 名字就是字段名。这一行在屏幕上是"左边一个字段名、右边一个编辑器"，
+        // 阅读器读不出这个左右关系，所以字段名必须长在控件自己身上。
+        AccessibleName.Set(editor, field.Label, MixedNote(field));
+
         ApplyReadOnly(field, editor);
 
         body.Children.Add(editor);
@@ -121,7 +125,11 @@ internal static class FieldEditBinder
             error.IsVisible = field.HasError;
         });
 
-        Watch(field, nameof(PropertyFieldViewModel.IsMixed), () => mixed.IsVisible = field.IsMixed);
+        Watch(field, nameof(PropertyFieldViewModel.IsMixed), () =>
+        {
+            mixed.IsVisible = field.IsMixed;
+            AccessibleName.Set(editor, field.Label, MixedNote(field));
+        });
         Watch(field, nameof(PropertyFieldViewModel.IsReadOnly), () => ApplyReadOnly(field, editor));
 
         return row;
@@ -146,6 +154,16 @@ internal static class FieldEditBinder
 
         editor.IsEnabled = !field.IsReadOnly;
     }
+
+    /// <summary>
+    /// 取值不一致时挂在说明上的那一句。
+    /// </summary>
+    /// <remarks>
+    /// 屏幕上那句话摆在编辑器下面，阅读器读不到它——所以同一句话要进说明。
+    /// 不一致这件事只有一份说法（<see cref="MixedValue"/>），两处各写一遍的话，
+    /// 改了屏幕上的忘了说明里的，两边的用户会得到两个答案。
+    /// </remarks>
+    private static string? MixedNote(PropertyFieldViewModel field) => field.IsMixed ? MixedValue : null;
 
     /// <summary>
     /// 盯住一个属性，它被换掉时把新值推进控件。

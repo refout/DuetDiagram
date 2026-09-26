@@ -258,6 +258,18 @@ jobs:
       - name: MCP 实机验收
         run: dotnet run --project tools/McpHarness -c ${{ env.CONFIGURATION }} -- protocol
 
+      # 布局质量评分：写死的种子语料上跑产品里那份布局引擎，四个维度给分，综合 ≥ 85。
+      # 退化的表现是"图排出来了但排得难看"，而别的测试一条都不会红——
+      # 布局能算出坐标、约束都满足，只有把分数摆出来才看得出质量掉了。
+      - name: 布局质量评分门禁
+        run: dotnet run --project tools/LayoutScore -c ${{ env.CONFIGURATION }}
+
+      # 内存预算：逐档量进程工作集，峰值 < 500MB，并核视口索引与版本日志两处上限。
+      # 退化的表现是"打开一份大文档之后越用越卡"，而那种卡在功能测试里看不出来。
+      # 它只引核心、布局与渲染三层，不起窗口，所以放在这个作业里跑。
+      - name: 内存预算门禁
+        run: dotnet run --project tools/MemBudget -c ${{ env.CONFIGURATION }}
+
   app-and-aot:
     name: 界面栈自检 + 端到端 + 原生发布
     # 三项都放在 Windows 上：界面自检与端到端要初始化窗口平台与绘图后端，
@@ -385,6 +397,18 @@ jobs:
       # 判据是单帧不超过 16 毫秒——这是 §14.3「拖拽延迟 < 16ms」的取证。
       - name: 拖拽帧时基准
         run: dotnet run --project DuetDiagram.App -c ${{ env.CONFIGURATION }} --no-build -- --benchmark-drag --nodes 1000 --samples 200
+
+      # 千节点稳态帧率：判据是帧率均值 ≥ 30 帧每秒、剔除率 > 80%，且比回退档快。
+      # 上面那条「变更高亮帧率」验的是"叠加层没拖垮帧率"，这一条验的是裸帧率本身——
+      # 少了它的话，帧率掉到 30 以下也只有带高亮那一档会红。
+      - name: 千节点帧率基准
+        run: dotnet run --project DuetDiagram.App -c ${{ env.CONFIGURATION }} --no-build -- --benchmark-frames --nodes 1000 --frames 120
+
+      # 冷启动：每轮起一个全新的界面进程，量「进程创建 → 首帧可交互」的墙上时钟，判据 ≤ 2s。
+      # 它要真的把窗口弹到屏幕上，所以只能在有显示平台的运行器上跑。
+      # 退化的表现是"双击图标之后要等一会儿"，而那与功能对不对无关。
+      - name: 冷启动基准
+        run: dotnet run --project tools/StartupBench -c ${{ env.CONFIGURATION }}
 
       # 脱屏渲染一帧后退出，用退出码表达结果；同时产出可人工核对的证据图。
       - name: 界面栈自检

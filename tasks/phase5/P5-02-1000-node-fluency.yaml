@@ -1,12 +1,16 @@
 id: P5-02
 title: 1000 节点流畅性取证
 phase: 5
-status: pending
+status: done
 depends_on: [P2-03, P4-22]
 estimated_loc: 180
 files:
   create:
     - reports/phase5-fluency.md
+  modify:
+    - reports/phase2-drag.md
+    - tasks/README.md
+    - AGENTS.md
 acceptance:
   - command: dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-frames --nodes 1000 --frames 120
     expect: 报告帧率 ≥ 30 FPS 且虚拟化剔除率 > 80%，退出码 0
@@ -20,3 +24,45 @@ context:
   - 方案 §14.3 的 Phase 5 判据「1000 节点流畅」
   - "P2-03 的虚拟化与换档已经过 Phase 2 门禁，这一条补的是「1000 节点这一档的常驻取证」与遗留登记"
   - "CI 的 app-and-aot 那一组已经在跑这两个基准，这一条把它们写进 Phase 5 的 DoD 表"
+result: |
+  **结论：两条判据都达标，退出码 0。** 没有另造装置——量的就是 P2-03 / P2-06 落地的那两条命令。
+  验报告 `reports/phase5-fluency.md`。
+
+  实测（本机，AMD Ryzen 5 6600H / 6 核 12 线程 / 无独显，.NET 10.0.11）：
+  - 虚拟化帧率 **139.5 ~ 152.0 帧每秒**（判据 ≥ 30，四次完整运行 + 一次收尾复跑），
+    剔除率 **86.3%**（判据 > 80%，五次一字不差）；
+  - 拖拽单帧处理中位 **0.271 ~ 0.292 ms**（判据 ≤ 16 ms，五次运行；最大 3.358 ~ 4.632 ms）。
+
+  **口径写死在报告里，这是这一条的主要交付。**
+  帧率取稳态帧的**均值**（判据读的是 `1000 / culled.Mean`，中位只作对照，
+  两者在千节点上差三成）；剔除率按**指令条数**算不按面积（`(2968 − 406) / 2968`）；
+  视口是内容面积的**十二分之一**（倍数由内容反算，约 1.39）；
+  拖拽的计时区间只有 `CanvasViewModel.BeginFrame()` 这一句，
+  同一循环里的 `session.UpdateDrag(...)` 在 `Stopwatch` 之外、不进样本。
+  两处判据一个读均值一个读中位，是有意的，所以两处都写死。
+
+  **一个发现：Phase 2 报告的拖拽中位不可复现。**
+  `reports/phase2-drag.md` 记的是 11.321 ms（并据此写「余量 1.4 倍」），这一轮是 0.28 ms，差 40 倍。
+  查法：把该报告所属的提交 `c7ef0a2` 检出到临时工作树里重建，
+  同一台机器、同一条命令量出 **0.310 ms（Release）/ 0.365 ms（Debug）**；
+  `FrameBenchmark.RunDrag`、`CanvasViewModel.BeginFrame`、`Shift` 与该提交逐字相同（`git diff` 为空）。
+  也就是说**同一台机器、同一个提交、同一条命令量不出 11.321 ms**，
+  剩下的解释只有「量的时候机器状态不同」，而那是无法事后区分的。
+  所以记成**不可复现**而不是「已修正」：Phase 5 以本报告的 0.28 ms 为准，
+  判据的真实余量是 **55 倍**而不是 1.4 倍。
+  正文数字不改（那是当时那次测量的记录），只在它的「已知取舍与未验证」里加一行指向本报告，
+  并在它的验收口径表那一格加一个指针。
+
+  顺带记一处同类差异：帧率也比 Phase 2 报告高约 1.4 倍，
+  但**两种模式同时快了同一个倍数**、剔除率一字不差，与「内容变了」和「机器状态不同」都相容，
+  无法区分——它不构成矛盾，所以不单列发现，只作为跨报告比数字时的告警写进报告。
+
+  **门禁（全部通过）。**
+  - `dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-frames --nodes 1000 --frames 120` 退出码 0。
+  - `dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-drag --nodes 1000 --samples 200` 退出码 0。
+  - Release 构建 0 警告 0 错误；八工程全绿；`Category=CommentDiscipline` 通过；
+    `tools/McpHarness -- protocol` 8/8；`tools/LocCounter --check` 退出 0；自检退出 0。
+
+  **与任务清单的出入。** 多改了一份 `reports/phase2-drag.md`（加了一行指向本报告的更正指针）。
+  卡里只写了 `create: reports/phase5-fluency.md`；不改那份的话，
+  读的人会以为 11.321 ms 是这个实现的真实水平，而它复现不出来。

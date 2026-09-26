@@ -21,7 +21,7 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000
 
 | 口径 | 要求 | 实测 | 余量 |
 |---|---:|---:|---:|
-| 单帧拖拽处理耗时 | ≤ 16 ms | **11.321 ms**（中位，1000 节点 / 200 样本） | 1.4 倍 |
+| 单帧拖拽处理耗时 | ≤ 16 ms | **11.321 ms**（中位，1000 节点 / 200 样本）——**复测不可复现**，见 `reports/phase5-fluency.md` | 1.4 倍（按复测是 55 倍） |
 | 拖动中不发命令 | 总线历史条目数不变 | `Category=Drag` **5/5**，含「移动中历史不变、松手前固定集合为空」 | — |
 | 松手只落定一次 | 固定恰好一个节点、重布局恰好一次 | `Releasing_a_drag_pins_exactly_one_node`：PinnedCount == 1 | — |
 | 重叠落点被挡 | 落点与另一固定节点重叠则拒绝 | `A_drop_that_overlaps_a_pinned_node_is_rejected`：Rejected、固定集合不增 | — |
@@ -78,6 +78,7 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000
 
 | 项 | 说明 |
 |---|---|
+| 单帧拖拽处理耗时 11.321 ms | **复测不可复现。** 同一台机器、同一个提交（`c7ef0a2`）、同一条命令，在临时工作树里重建后量出 0.310 ms（Release）/ 0.365 ms（Debug）；`FrameBenchmark.RunDrag`、`CanvasViewModel.BeginFrame`、`Shift` 与该提交逐字相同。以 `reports/phase5-fluency.md` 的 0.28 ms 为准，真实余量是 55 倍而不是 1.4 倍。正文数字不改，它是当时那次测量的记录 |
 | 固定位置不走命令总线 | 原任务设想里有一条「拖动落定与 pin 的命令」，未采用。理由见 `tasks/phase2/P2-06-node-drag.yaml` 的 `scope_note`：走命令总线会把一次拖动塞进几百条 IR 记录，撤销栈失真；绕开后两个界面完全对等 |
 | 画布上的选中高亮还没做 | P2-06 把点选接到命中测试、选中可驱动拖拽，但选中元素在画布上还没有可见的高亮框，那一项在变更高亮（P2-08） |
 | 重叠只比已固定节点 | 不比自动布局位置，是有意的：自动布局位置会变，当判据会让正常拖动被误拒 |

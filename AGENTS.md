@@ -64,7 +64,13 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 其中 **`P5-01`（布局质量评分装置与基准）已落地**：`tools/LayoutScore` 跑出综合分 96.6 ≥ 85，
 验报告 `reports/phase5-layout-score.md`；顺带记下一个发现——**带环的图布局引擎直接抛异常**
 （去环那一步给反向边起名，而图没开多图模式），流程图上"重试"就是一条回边，
-修它不在这一条范围内，如实记在报告里。其余 Phase 5 任务 `pending`。
+修它不在这一条范围内，如实记在报告里。
+其中 **`P5-02`（1000 节点流畅性取证）已落地**：不另造装置，量的就是 P2-03 / P2-06 的那两条基准——
+虚拟化帧率 139.5 ~ 152.0 帧每秒（判据 ≥ 30）、剔除率 86.3%（判据 > 80%）、
+拖拽单帧处理中位 0.271 ~ 0.292 ms（判据 ≤ 16 ms），两条命令退出码都是 0，
+验报告 `reports/phase5-fluency.md`；顺带查实 `reports/phase2-drag.md` 记的 11.321 ms 复现不出来
+（同一台机器、同一个提交量出 0.310 ms），记成不可复现、不改正文数字。
+其余 Phase 5 任务 `pending`。
 **决策门 1（DSL 去留）已按产品负责人的指令判为「留」**，P4-20 因此解封；
 这与方案 §15.3 的原始口径有一处差别，记在下面的差异表里。
 决策门 2（布局引擎主选）仍然开着，卡在 `reports/compare-blind/` 的人工评分上——
@@ -550,6 +556,16 @@ dotnet run --project tools/LocCounter -- --root . --check
 # 退出码 0 达标 / 1 低于阈值 / 2 装置自己不可信（几何自检没过，或排不出来的超过三分之一）。
 # 带环的图目前排不出来，装置把它单列在最前面且不计入综合分，见 reports/phase5-layout-score.md
 dotnet run --project tools/LayoutScore -c Release
+
+# 千节点流畅：虚拟化帧率 ≥ 30 帧每秒（判据读的是稳态帧的均值，不是中位）、剔除率 > 80%
+# （按指令条数算，不是面积）、且比回退档快。回退档只作对照，不是判据。退出码 0 / 1
+dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-frames --nodes 1000 --frames 120
+
+# 千节点拖拽：单帧处理输入的中位 ≤ 16 毫秒（最大值只报不判）。计时区间只有
+# CanvasViewModel.BeginFrame 这一句，同一循环里的 session.UpdateDrag 在计时之外。退出码 0 / 1
+dotnet run --project DuetDiagram.App -c Release --no-build -- --benchmark-drag --nodes 1000 --samples 200
+
+# 上面两条的口径、本机值（无独显的软件光栅化，不是产品保证值）与遗留，见 reports/phase5-fluency.md
 
 # 任务 YAML 必须能被解析。它们是给 agent 读的，读不了等于任务不存在——
 # 已经踩过两次（未加引号的冒号加空格、未加引号的引号），两次都是整个文件静默失效

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>StartupBench</RootNamespace>
+    <IsAotCompatible>false</IsAotCompatible>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    冷启动取证装置。它每轮起一个全新的界面进程，记下从进程创建到首帧可交互的墙上时钟，
+    并把界面自己写出来的逐段读数读回来印成表。
+
+    引用的是**产品里那个界面程序**而不是另造一个替身：替身起来得快，量到的就是替身的启动，
+    而这一条要回答的是「用户双击图标到图出来要等多久」。它是调查装置而不是产品的一部分，
+    因此不进解决方案文件。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../DuetDiagram.Core/DuetDiagram.Core.csproj" />
+  </ItemGroup>
+
+</Project>

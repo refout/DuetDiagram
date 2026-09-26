@@ -174,6 +174,12 @@ public sealed class DiagramSession : IDisposable
         // 算不出来就是算不出来，如实抛出比留一份空画面让人以为文档是空的要好。
         _currentPageId = PageMembership.DefaultPageId(Document);
         Scene = SampleDiagram.Build(Document, RenderTheme, _measurer, null, _engine, budget: null, pageId: _currentPageId);
+
+        // 首布局与首份绘制列表就在这里出来了，冷启动打点取这一点。
+        // 放在这里而不是放在窗口那一层：窗口拿到会话时它已经算完了，
+        // 从外面记的话这一段会被算进"会话装配"，而它恰恰是启动里最该看清的一段。
+        StartupProbe.Mark("layout");
+
         _sceneVersion = Document.Version;
 
         // 别的窗口改的是同一份文档、同一条总线，所以通知能到这一份上来。

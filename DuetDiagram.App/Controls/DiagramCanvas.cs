@@ -184,6 +184,10 @@ public sealed partial class DiagramCanvas : UserControl
             DrawSelection(context, transform, model.SelectionBounds);
         }
 
+        // 冷启动的终点画在这里：这一帧真的把一份非空绘制列表消费掉了，
+        // 窗口也已经上屏。只量到窗口 Show 是假的快——那时图还没出来。
+        StartupProbe.Frame(Host, _drawnCommands, Bounds.Width, Bounds.Height);
+
         if (!measuring)
         {
             return;

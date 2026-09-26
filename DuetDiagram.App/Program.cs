@@ -16,6 +16,12 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // 打点要在别的分支之前开始：它记的是"距进程入口多久"，晚一步开始就少算一段。
+        if (ReadOption(args, StartupProbe.Switch) is { } probePath)
+        {
+            StartupProbe.Begin(probePath);
+        }
+
         if (args.Contains(SelfTest.CommandLineSwitch, StringComparer.Ordinal))
         {
             return SelfTest.Run(args);
@@ -56,9 +62,12 @@ internal static class Program
                 or UnauthorizedAccessException or ArgumentException)
             {
                 Console.Error.WriteLine($"打不开 {path}：{exception.Message}");
+                StartupProbe.Fail("文档打不开");
 
                 return OpenFailedExitCode;
             }
+
+            StartupProbe.Mark("read");
         }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

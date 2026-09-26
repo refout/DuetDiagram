@@ -6,7 +6,7 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
-| DuetDiagram.App | 68 | 17497 | 9958 | 4627 | 2912 |
+| DuetDiagram.App | 69 | 17795 | 10136 | 4695 | 2964 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18415 | 10380 | 5360 | 2675 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
@@ -23,8 +23,8 @@
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
-| tools | 43 | 11704 | 7883 | 1897 | 1924 |
-| **合计** | **504** | **114920** | **71406** | **24198** | **19316** |
+| tools | 44 | 12384 | 8357 | 1973 | 2054 |
+| **合计** | **506** | **115898** | **72058** | **24342** | **19498** |
 
 ## 明细
 
@@ -38,10 +38,10 @@
 
 | 文件 | 代码 |
 |---|---:|
-| App.axaml.cs | 18 |
+| App.axaml.cs | 19 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 869 |
+| DiagramCanvas.cs | 870 |
 | DiagramMenuBar.axaml.cs | 93 |
 | DiagramToolBar.axaml.cs | 105 |
 | DiffSidebar.axaml.cs | 105 |
@@ -70,14 +70,14 @@
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
 | TextEditSession.cs | 145 |
-| MainWindow.axaml.cs | 411 |
-| Program.cs | 78 |
+| MainWindow.axaml.cs | 416 |
+| Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
 | SampleDiagram.cs | 80 |
 | SelfTest.cs | 224 |
 | ConstraintEditorBinder.cs | 117 |
 | ContextEntries.cs | 53 |
-| DiagramSession.cs | 1346 |
+| DiagramSession.cs | 1347 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 76 |
 | ErrorPresenter.cs | 41 |
@@ -86,6 +86,7 @@
 | ImportService.cs | 79 |
 | MenuEntries.cs | 193 |
 | MenuRegistry.cs | 101 |
+| StartupProbe.cs | 164 |
 | TemplateCatalog.cs | 73 |
 | WorkspaceRegistry.cs | 94 |
 | CanvasViewModel.cs | 296 |
@@ -620,6 +621,7 @@
 | Candidates.cs | 137 |
 | Facts.cs | 68 |
 | Program.cs | 12 |
+| Program.cs | 474 |
 | Analysis.cs | 381 |
 | Checks.cs | 181 |
 | Program.cs | 75 |

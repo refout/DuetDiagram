@@ -30,6 +30,9 @@ public sealed class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // 平台这一段的终点：界面框架已经装好，接下来才是建窗口与第一次布局。
+        StartupProbe.Mark("platform");
+
         // 自检模式不经过这里：它用独立的启动路径渲染一帧后直接退出，
         // 不创建窗口，因此也不受这个生命周期分支影响。
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

@@ -83,13 +83,20 @@ public sealed partial class MainWindow : Window
 
         InitializeComponent();
 
+        // 上屏那一下要有人在听，所以在这里接。窗口的构造函数跑完之前不会 Show，
+        // 因此这一步赶得上。
+        StartupProbe.Attach(this);
+
         Launch = launch;
 
         // 先取工作区再建会话：能不能写是取租约那一刻才知道的，
         // 而它必须赶在会话建好之前定下来——会话建好之后再改，界面上已经挂上去的那些
         // 控件不会跟着变。
         _lease = WorkspaceRegistry.Shared.Acquire(launch.Key, launch.Create);
+        StartupProbe.Mark("document");
+
         Session = DiagramSession.Shared(_lease.Workspace, engine: launch.Engine, readOnly: _lease.ReadOnly);
+        StartupProbe.Mark("session");
 
         Model = new CanvasViewModel();
         Properties = new PropertyPanelViewModel(Session);
@@ -166,8 +173,10 @@ public sealed partial class MainWindow : Window
 
         // 第一份绘制列表走 Load：它把视口适配到内容上。之后每一次改动走 Refresh，
         // 用户摆好的视角不该因为改了一个字就跳回默认。
+        StartupProbe.Mark("scene");
         ShowScene();
         _loaded = true;
+        StartupProbe.Mark("window");
     }
 
     /// <summary>这个窗口看的是哪份文档。</summary>

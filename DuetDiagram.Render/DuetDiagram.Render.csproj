@@ -14,6 +14,13 @@
 
   <ItemGroup>
     <PackageReference Include="SkiaSharp" />
+    <!--
+      原生库要按平台补齐。SkiaSharp 那个包的依赖清单里只有 Win32 与 macOS 两份，
+      引用它的工程在 Windows 上因此能直接跑；Linux 上少一份，而这一层里
+      位图导出、PDF 导出与文本测量都要碰原生库，缺了就是 DllNotFoundException。
+      只在 Linux 上引：别的平台上引进来只会把用不上的 .so 拷进输出目录。
+    -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
   </ItemGroup>
 
   <ItemGroup>

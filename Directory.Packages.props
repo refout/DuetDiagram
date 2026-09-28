@@ -32,6 +32,12 @@
     <!-- 绘图与文本排版。图形由界面框架自己的绘制上下文完成，文本测量与整形直接用它。 -->
     <PackageVersion Include="SkiaSharp" Version="4.148.0" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="4.148.0" />
+    <!--
+      Linux 那一份原生库不在 SkiaSharp 包里：那个包的清单只带 Win32 与 macOS 两份，
+      Linux 要单独引。缺了它的表现是「Windows 上一切正常，Linux 上一碰 SkiaSharp 就
+      DllNotFoundException」——位图导出、PDF 导出与文本测量三条路都走不通。
+    -->
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.148.0" />
 
     <!--
       备选布局引擎，也是最终选中的那个。它的调用方式有讲究：

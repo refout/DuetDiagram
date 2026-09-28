@@ -1,7 +1,7 @@
 id: P0-02
 title: 界面框架 + 绘图库最小应用
 phase: 0a
-status: blocked
+status: done
 depends_on: [P0-01]
 estimated_loc: 200
 files:
@@ -33,22 +33,36 @@ context:
   - 渲染层负责把布局结果画出来，文本测量与排版由绘图库承担
   - 冷启动目标是 2 秒以内
 result:
-  status_detail: 渲染链路与冷启动已达标，原生发布被本机工具链阻塞
+  status_detail: 三行验收全部有出口；原生发布与原生冷启动由 CI 的 app-and-aot 每次推送跑一次
   measured:
     cold_start_wall_clock_ms: [725, 693, 697]
     platform_ready_ms: 440
     first_frame_ms: 215
     bitmap: 900x600
     native_skia: 4.148.0.0 可加载，字体 Segoe UI，示例文本宽度 57.0
+    native_aot_cold_start_ms: 中位 207.1（默认文档）/ 189.2（200 节点文档），见 reports/phase5-startup.md 的「补测」一节
   verified:
     - 自绘路径可用，能画矩形、圆角矩形、自定义路径与文字
     - 中文标签正常渲染
     - 原生绘图库确实被加载，不只是托管层可用
     - 界面声明使用编译期绑定，满足裁剪与原生编译的前提
+    - 原生发布（PublishAot）在 CI 的 Windows 运行器上每次推送都跑一次并通过
+    - 原生发布出来的那一份冷启动：默认文档中位 207.1 ms、200 节点文档 189.2 ms，判据 2000 ms
   blocker:
     symptom: Platform linker not found
     cause: 本机未安装 Visual Studio 的「使用 C++ 的桌面开发」工作负载，缺少原生链接器
     scope: 托管编译与中间代码生成均已完成，仅最后一步链接失败
     unblock: 安装该工作负载后重跑发布命令
+  resolution: |
+    这一条卡的是**本机**缺 C++ 工具链，不是产品缺东西，所以出口放在 CI 而不是本机：
+    `app-and-aot` 那一组在带工具链的 Windows 运行器上既做原生发布，也在发布之后跑一次
+    「原生冷启动基准」，把第三行验收补上。本机仍缺那个工作负载，所以**本机那一份仍是
+    blocked 时记下的那些读数**，原生相关的两个读数只在 CI 上有。
+    第三行验收此前没有出口：`tools/StartupBench` 找的是框架依赖发布里的原生宿主，
+    而原生发布的产物在 RID 目录下的 `publish/` 里——装置加了 `--native` 之后才量得到
+    （只认那个产物，找不到就报错退出，不做静默回退）。
+    运行 36375279714 / sha 01560e1 实测通过；判据仍是规格里的 2000 ms，没有为 CI 放宽。
   side_findings:
     - 界面框架 12 版本把位图保存的编码参数改为独立选项类型，旧重载已过时
+    - 原生那一份比框架依赖那一份快约一个数量级（207 ms 对同一台运行器上的 2087 ms），
+      减少的主要是含即时编译的「平台」与「上屏」两段，不只是「运行时」那一段

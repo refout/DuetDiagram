@@ -36,7 +36,7 @@ internal static class MenuRefusals
         ReadOnly(context) ?? (context.Selected.Count < 2 ? reason : null);
 }
 
-/// <summary>文件那一档。这一轮有"再开一个窗口"、"存盘"、"存为模板"与"导入"四件。</summary>
+/// <summary>文件那一档。这一轮有"再开一个窗口"、"打开"、"存盘"、"存为模板"与"导入"五件。</summary>
 internal static class FileEntries
 {
     public static void Register(MenuRegistry registry)
@@ -49,6 +49,18 @@ internal static class FileEntries
             MenuSurface.Menu,
             _ => null,
             context => context.Window.OpenAnotherWindow()));
+
+        // 「打开」与「导入」都在文件那一档，但拿到的东西不是一回事：打开得到的是一份
+        // **独立的文档**（有自己的路径与撤销栈，保存写回它自己），导入是把一段片段拼进当前这份。
+        // 它与「再开一个窗口」同一类，都不改当前这份文档，所以只读时照样能用。
+        registry.Add(new MenuEntry(
+            "file.open",
+            MenuGroups.File,
+            "menu.file.open",
+            "Ctrl+O",
+            MenuSurface.Menu,
+            _ => null,
+            context => context.Window.BeginOpen()));
 
         // 「导入」与「保存」都在文件那一档，但一个把外面的东西拿进来、一个把这份写出去。
         // 它排在保存前面：这一档的第一件事是"从哪儿来"。
@@ -236,7 +248,7 @@ internal static class ViewEntries
 /// 这一轮只有一条占位条目，它永远给一句"还没接上"。能导出的是工具那条通路
 /// （<c>diagram_export</c>）与脱屏自检，两者都直接消费绘制列表；
 /// 界面上的导出还差三样：选文件、选格式、选范围——那三样在后面的任务里，
-/// 而格式那一样要等到四种格式都有了才值得做（Mermaid、SVG、PNG 与 PDF 现在都有了）。
+/// 而格式那一样要等到几种格式都有了才值得做（DSL、SVG、PNG 与 PDF 现在都有了）。
 /// </para>
 /// <para>
 /// 留一条一直拒绝的条目而不是留一个空档，是因为空档看起来像"这一轮没做"，

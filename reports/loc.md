@@ -6,25 +6,25 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
-| DuetDiagram.App | 71 | 18515 | 10465 | 4937 | 3113 |
-| DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
+| DuetDiagram.App | 72 | 18988 | 10701 | 5110 | 3177 |
+| DuetDiagram.Benchmarks | 6 | 571 | 337 | 145 | 89 |
 | DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 30 | 9651 | 6236 | 1413 | 2002 |
+| DuetDiagram.E2E.Tests | 31 | 10125 | 6528 | 1488 | 2109 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
-| DuetDiagram.Llm.Tests | 17 | 4900 | 3512 | 390 | 998 |
+| DuetDiagram.Llm | 25 | 4836 | 2626 | 1535 | 675 |
+| DuetDiagram.Llm.Tests | 17 | 4838 | 3466 | 390 | 982 |
 | DuetDiagram.Mcp | 15 | 2580 | 1330 | 874 | 376 |
 | DuetDiagram.Mcp.Tests | 11 | 3423 | 2177 | 560 | 686 |
-| DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
-| DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
+| DuetDiagram.Mermaid | 9 | 2041 | 1181 | 548 | 312 |
+| DuetDiagram.Mermaid.Tests | 7 | 2069 | 1510 | 217 | 342 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **510** | **118115** | **73351** | **24866** | **19898** |
+| **合计** | **507** | **117613** | **72911** | **24884** | **19818** |
 
 ## 明细
 
@@ -46,7 +46,7 @@
 | DiagramToolBar.axaml.cs | 108 |
 | DiffSidebar.axaml.cs | 111 |
 | HighlightOverlay.cs | 17 |
-| ImportDialog.axaml.cs | 47 |
+| ImportDialog.axaml.cs | 51 |
 | LayerPanel.axaml.cs | 293 |
 | LayoutFailureDialog.axaml.cs | 29 |
 | PageTabs.axaml.cs | 144 |
@@ -70,23 +70,24 @@
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
 | TextEditSession.cs | 145 |
-| MainWindow.axaml.cs | 416 |
+| MainWindow.axaml.cs | 481 |
 | Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
-| Strings.cs | 127 |
+| Strings.cs | 129 |
 | SampleDiagram.cs | 80 |
 | SelfTest.cs | 224 |
 | AccessibleName.cs | 24 |
 | ConstraintEditorBinder.cs | 119 |
 | ContextEntries.cs | 54 |
-| DiagramSession.cs | 1347 |
+| DiagramSession.cs | 1356 |
 | DocumentFile.cs | 43 |
-| DocumentLaunch.cs | 76 |
+| DocumentLaunch.cs | 130 |
+| DslFile.cs | 94 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 81 |
 | FieldEditBinder.cs | 277 |
 | ImportService.cs | 79 |
-| MenuEntries.cs | 193 |
+| MenuEntries.cs | 201 |
 | MenuRegistry.cs | 114 |
 | StartupProbe.cs | 164 |
 | TemplateCatalog.cs | 73 |
@@ -116,7 +117,7 @@
 |---|---:|
 | Benchmarks.cs | 73 |
 | ConstraintBenchmarks.cs | 97 |
-| MermaidBenchmarks.cs | 63 |
+| MermaidBenchmarks.cs | 51 |
 | Program.cs | 9 |
 | QuadTreeBenchmarks.cs | 45 |
 | TestGraphs.cs | 62 |
@@ -353,6 +354,7 @@
 | MenuBarTests.cs | 132 |
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
+| OpenTests.cs | 292 |
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
 | Phase4ScenarioTests.cs | 129 |
@@ -414,9 +416,9 @@
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 27 |
-| DiagramToolset.cs | 169 |
+| DiagramToolset.cs | 168 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 141 |
+| ExportTool.cs | 127 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -425,7 +427,7 @@
 | StyleTool.cs | 123 |
 | ToolDescriptor.cs | 99 |
 | ToolRegistry.cs | 76 |
-| ToolResult.cs | 104 |
+| ToolResult.cs | 103 |
 | ValidateTool.cs | 28 |
 
 ### DuetDiagram.Llm.Tests
@@ -436,7 +438,7 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 472 |
+| ExportToolTests.cs | 426 |
 | Harness.cs | 92 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |
@@ -490,9 +492,6 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ExportOptions.cs | 5 |
-| ExportReport.cs | 7 |
-| MermaidExporter.cs | 371 |
 | ImportOptions.cs | 7 |
 | ImportReport.cs | 10 |
 | MermaidImporter.cs | 234 |
@@ -511,11 +510,9 @@
 | CorpusImportTests.cs | 118 |
 | CorpusLexingTests.cs | 118 |
 | CorpusParsingTests.cs | 191 |
-| ExporterTests.cs | 317 |
 | ImporterTests.cs | 329 |
 | LexerTests.cs | 294 |
 | ParserTests.cs | 407 |
-| RoundTripTests.cs | 194 |
 
 ### DuetDiagram.Render
 

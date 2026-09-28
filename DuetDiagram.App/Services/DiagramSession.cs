@@ -133,6 +133,9 @@ public sealed class DiagramSession : IDisposable
     /// 这一份是不是只读的。另一个进程拿着这份文档时为真——那时界面上所有写入口都要禁掉，
     /// 而不只是加一句提示：留一个能点的按钮就是一个能造成损坏的入口。
     /// </param>
+    /// <param name="pins">
+    /// 打开时就有的固定位置，通常来自文本里的 <c>pin</c> 意图。空表示这一份没有预设的固定位置。
+    /// </param>
     /// <remarks>
     /// 共用工作区的窗口共享同一份文档、同一条命令总线与同一个广播器，
     /// 因此版本号天然一致，也不存在版本冲突。窗口标识也一并共享——
@@ -142,11 +145,12 @@ public sealed class DiagramSession : IDisposable
         DiagramWorkspace workspace,
         Theme? theme = null,
         ILayoutEngine? engine = null,
-        bool readOnly = false)
+        bool readOnly = false,
+        IReadOnlyDictionary<string, Anchor>? pins = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
 
-        return new DiagramSession(workspace, theme, engine, readOnly, ownsWorkspace: false);
+        return new DiagramSession(workspace, theme, engine, readOnly, ownsWorkspace: false, pins: pins);
     }
 
     private DiagramSession(
@@ -154,7 +158,8 @@ public sealed class DiagramSession : IDisposable
         Theme? theme,
         ILayoutEngine? engine,
         bool readOnly,
-        bool ownsWorkspace)
+        bool ownsWorkspace,
+        IReadOnlyDictionary<string, Anchor>? pins = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
 
@@ -170,10 +175,20 @@ public sealed class DiagramSession : IDisposable
         _highlights = new HighlightTracker(_workspace.CommandBus.Context.Broadcaster, Theme);
         _highlights.Changed += () => HighlightsChanged?.Invoke();
 
+        // 文本里写的固定位置要在首帧就生效。晚一步的话，第一次打开看到的图
+        // 与文本写的不是一回事——用户以为 pin 没写对。
+        if (pins is not null)
+        {
+            foreach (var (id, anchor) in pins)
+            {
+                _pinned[id] = anchor;
+            }
+        }
+
         // 第一份布局不走 Reload：那时还没有"上一次成功的结果"可以退守，
         // 算不出来就是算不出来，如实抛出比留一份空画面让人以为文档是空的要好。
         _currentPageId = PageMembership.DefaultPageId(Document);
-        Scene = SampleDiagram.Build(Document, RenderTheme, _measurer, null, _engine, budget: null, pageId: _currentPageId);
+        Scene = SampleDiagram.Build(Document, RenderTheme, _measurer, _pinned, _engine, budget: null, pageId: _currentPageId);
 
         // 首布局与首份绘制列表就在这里出来了，冷启动打点取这一点。
         // 放在这里而不是放在窗口那一层：窗口拿到会话时它已经算完了，

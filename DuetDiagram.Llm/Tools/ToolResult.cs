@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Llm.Loop;
-using DuetDiagram.Mermaid.Export;
 
 namespace DuetDiagram.Llm.Tools;
 

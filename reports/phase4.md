@@ -74,21 +74,25 @@
 
 ## 判据 5：导入导出无损
 
-**结论：四种导出（Mermaid / SVG / PNG / PDF）与一种导入（Mermaid 文件）各自有无损口径；两条 L3 端到端场景各有用例。**
+**结论：四种导出（DSL / SVG / PNG / PDF）与两种导入（Mermaid 文件当片段、DSL 文件当文档）各自有无损口径；两条 L3 端到端场景各有用例。**
 
 | 子项 | 任务 | 分类门禁（怎么复跑） |
 |---|---|---|
 | SVG 导出 | P4-16 | `Category=SvgExport`（Render 13） |
 | PNG 导出 | P4-17 | `Category=BitmapExport`（Render 24） |
 | PDF 导出 | P4-18 | `Category=PdfExport`（Render 22） |
-| Mermaid 导出 | P4-09 起 | `Category=MermaidExport`（Mermaid 29）、`Category=ExportTool`（Llm 30） |
-| 往返无损 | — | `Category=RoundTrip`（Core 11）、`Category=MermaidRoundTrip`（Mermaid 7） |
-| 导入（Mermaid 文件） | P4-19 | `Category=Import`（Core 27 + E2E 15）、`Category=MermaidImport`（Mermaid 27） |
+| DSL 导出 | P4-20 | `Category=DslExport`（Dsl 25）、`Category=ExportTool`（Llm 30） |
+| 往返无损 | — | `Category=RoundTrip`（Core 11）、`Category=DslRoundTrip`（Dsl 7） |
+| 导入（Mermaid 文件当片段） | P4-19 | `Category=Import`（Core 27 + E2E 15）、`Category=MermaidImport`（Mermaid 27） |
+| 打开（DSL 文件当文档） | P1-19 | `Category=Open`（E2E 9） |
 
 - SVG：`SvgExporter` 只消费**绘制列表**、不重新遍历文档；每一类绘制指令都有对应元素，漏一类就少画一样。
   文字交 `<text>` 而不是路径（换来可搜索、可在 draw.io 里改），代价（对方缺字体时按回退字体排）随导出结果一起交给调用方。
 - PNG：同一份绘制列表逐像素可复现；离屏渲染，不经过窗口平台（喂它的是 MCP 服务端）。
 - PDF：同一批列表逐字节可复现且是**矢量**（用 SkiaSharp 自带写入器，一个包都不加）。
+- DSL：IR 的纯函数（`DslExporter`）。导出必然有损——页、图层、标签、动作、字体、文本预设、画布设置这些 DSL 都表达不了，所以丢失清单逐类随结果交给调用方；`Category=DslRoundTrip` 验的是「同一份 IR 走一圈还是同一份 IR」，不是文本逐字节一致。
+- **Mermaid 导出已移除（2026-09-28）**：产品负责人只留了 Mermaid 的导入方向，导出与往返测试连同 `DuetDiagram.Mermaid/Export/` 整个目录一并删掉。理由见 `reports/phase1-mermaid-export.md` 顶上的后补。现在要拿文本走 DSL 导出。
+- 打开：把一份 `.dsl` 当成一份**独立文档**（新窗口、新撤销栈、保存写回原文件），与「把 Mermaid 拼进当前文档」是两件事，见 `reports/dsl-open.md`。
 - 导入：整份算 `ImportFragmentCommand` 一次，撤销一次整份退回；标识冲突消解复用 `TemplateInstantiator`。
 - 两条 L3 场景新增端到端用例（`DuetDiagram.E2E.Tests/Phase4ScenarioTests.cs`，`Category=Phase4Scenario`）：
   - 「大型架构图」：导入 500 节点 Mermaid，导入落地到首帧渲染 **< 2s**，且导入的图点得中（命中与画布接上了）；

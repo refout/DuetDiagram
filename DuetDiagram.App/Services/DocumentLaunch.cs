@@ -1,5 +1,7 @@
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Sidecar;
 using DuetDiagram.Core.Workspace;
+using DuetDiagram.Dsl.Mapping;
 using DuetDiagram.Layout;
 
 namespace DuetDiagram.App.Services;
@@ -45,16 +47,23 @@ public sealed record WorkspaceSetup(
 /// </remarks>
 public sealed class DocumentLaunch
 {
+    /// <summary>DSL 那一形态的绘图文件后缀。</summary>
+    private const string DslSuffix = ".dsl";
+
     private DocumentLaunch(
         string key,
         ILayoutEngine? engine,
         TemplateCatalog templates,
-        Func<WorkspaceSetup> create)
+        Func<WorkspaceSetup> create,
+        IReadOnlyDictionary<string, Anchor>? pins = null,
+        MappingReport? report = null)
     {
         Key = key;
         Engine = engine;
         Templates = templates;
         Create = create;
+        Pins = pins;
+        Report = report;
     }
 
     /// <summary>进程内登记用的标识。同一个标识就是同一份文档。</summary>
@@ -75,6 +84,25 @@ public sealed class DocumentLaunch
 
     /// <summary>第一次打开这份文档时怎么建工作区。</summary>
     public Func<WorkspaceSetup> Create { get; }
+
+    /// <summary>
+    /// 打开时就有的固定位置。
+    /// </summary>
+    /// <remarks>
+    /// 只有 DSL 那一条路会带上它：绝对坐标在 IR 里没有位置，而 DSL 文本把
+    /// <c>pin</c> 意图写进了自己，读回来时就要在首帧生效。IR JSON 那一条与示例文档
+    /// 都给空——前者的固定位置在人工产物那份 sidecar 里，本轮不读它。
+    /// </remarks>
+    public IReadOnlyDictionary<string, Anchor>? Pins { get; }
+
+    /// <summary>
+    /// 读这份 DSL 时映射层做了什么。只有 DSL 那一条路有。
+    /// </summary>
+    /// <remarks>
+    /// 读文件的时候就一起带出来，而不是让界面再读一遍：再读一遍不但多一次磁盘往返，
+    /// 两次读之间文件还可能已经变了，于是摆到用户面前的话与真正打开的那一份对不上。
+    /// </remarks>
+    public MappingReport? Report { get; }
 
     /// <summary>
     /// 开一份示例文档。
@@ -161,6 +189,96 @@ public sealed class DocumentLaunch
     }
 
     /// <summary>
+    /// 打开一份绘图文件，按后缀选一种读法。
+    /// </summary>
+    /// <param name="path">文件路径。</param>
+    /// <param name="engine">布局引擎。</param>
+    /// <param name="templates">从哪儿找模板。</param>
+    /// <exception cref="InvalidDataException">文件读不出来，或者内容不是本程序认得的一种绘图文件。</exception>
+    /// <remarks>
+    /// **后缀只用来选读法，不用来判断内容。** 两种后缀读出来是同一种东西——一份文档，
+    /// 只是文本形态不同。这条规则收在这里一处：命令行与选择器各写一遍的话，
+    /// 某一处漏掉一种后缀的表现是"这个入口打不开那种文件"，而另一个入口好好的。
+    /// </remarks>
+    public static DocumentLaunch FromPath(string path, ILayoutEngine? engine = null, TemplateCatalog? templates = null) =>
+        IsDsl(path) ? Dsl(path, engine, templates) : File(path, engine, templates);
+
+    /// <summary>这份路径是不是 DSL 那一形态的绘图文件。</summary>
+    public static bool IsDsl(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        return string.Equals(Path.GetExtension(path), DslSuffix, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 打开一份 DSL 绘图文件。
+    /// </summary>
+    /// <param name="path">文件路径。</param>
+    /// <param name="engine">布局引擎。</param>
+    /// <param name="templates">从哪儿找模板。</param>
+    /// <exception cref="InvalidDataException">文件读不出来，或者内容不是一份 DSL。</exception>
+    /// <remarks>
+    /// <para>
+    /// **与 <see cref="File"/> 同形，只是文本形态不同。** 它同样有路径、同样进跨进程所有权、
+    /// 拿不到独占时同样退成只读——在用户看来就是"打开了一份已有的绘图文件"。
+    /// </para>
+    /// <para>
+    /// **文本里的固定位置与映射报告一并带出去。** <c>pin</c> 意图只写在文本里、不在 IR 上，
+    /// 不带进会话的话第一次打开看到的图与文本写的不是一回事；报告则要说给用户听，
+    /// 因为它记着文本与图对不上的那些地方。
+    /// </para>
+    /// </remarks>
+    public static DocumentLaunch Dsl(string path, ILayoutEngine? engine = null, TemplateCatalog? templates = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var full = Path.GetFullPath(path);
+        var catalog = templates ?? new TemplateCatalog();
+
+        // 文件在不在先看一眼，再动锁。反过来做的话，打开一个写错的路径会在那份文档旁边
+        // 留下一个空的锁文件——而它本来就不存在，那个文件是凭空多出来的。
+        if (!System.IO.File.Exists(full))
+        {
+            throw new InvalidDataException($"这份文档不在：{full}");
+        }
+
+        var documentLock = DocumentLock.Acquire(full);
+
+        try
+        {
+            var issues = new List<ValidationIssue>();
+            var (document, pins, report) = DslFile.Read(full, issues);
+
+            if (documentLock.TookOver && issues.Count > 0)
+            {
+                throw new InvalidDataException(
+                    $"上一个进程没有正常退出，而这份文档没能通过校验：{issues[0].Message}");
+            }
+
+            return new DocumentLaunch(
+                full,
+                engine,
+                catalog,
+                () => new WorkspaceSetup(
+                    DiagramSession.CreateWorkspace(document),
+                    documentLock,
+                    full,
+                    ReadOnly: !documentLock.CanWrite,
+                    Reason: documentLock.Reason),
+                pins,
+                report);
+        }
+        catch
+        {
+            // 开不起来就把所有权还回去。留着的话，这一个进程已经不再编辑这份文档了，
+            // 却还占着它，别的进程只能只读——而那个进程明明才是唯一在看它的人。
+            documentLock.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// 再开一个窗口看同一份文档。
     /// </summary>
     /// <remarks>
@@ -168,5 +286,5 @@ public sealed class DocumentLaunch
     /// 而不是新造一个。窗口各开一份工作区的话，两个窗口各有各的撤销栈，
     /// 在一边撤销不会动另一边——而它们显示的是同一份文档。
     /// </remarks>
-    public DocumentLaunch Again() => new(Key, Engine, Templates, Create);
+    public DocumentLaunch Again() => new(Key, Engine, Templates, Create, Pins, Report);
 }

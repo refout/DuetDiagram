@@ -141,7 +141,7 @@ public sealed class MenuBarTests
                 menu.Find(id)!.IsEnabled.Should().BeFalse($"{id} 要改文档，只读时点不动");
             }
 
-            foreach (var id in new[] { "edit.select-all", "edit.select-none", "layout.relayout", "file.new-window" })
+            foreach (var id in new[] { "edit.select-all", "edit.select-none", "layout.relayout", "file.new-window", "file.open" })
             {
                 menu.Find(id)!.IsEnabled.Should().BeTrue($"{id} 不改文档，只读时照样能用");
             }

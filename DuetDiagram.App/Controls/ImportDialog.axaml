@@ -3,8 +3,8 @@
              x:Class="DuetDiagram.App.Controls.ImportDialog"
              xmlns:res="using:DuetDiagram.App.Resources">
   <!--
-    一次导入之后摆出来的那张单子：导了哪个文件、导进去多少、以及哪些地方与原文对不上。
-    它只是一个报告面板，不认识会话也不认识文档——导不导、导完怎么办都由宿主去办。
+    一次导入或一次打开之后摆出来的那张单子：动了哪个文件、结果是什么、以及哪些地方与原文对不上。
+    它只是一个报告面板，不认识会话也不认识文档——导不导、开不开、完事怎么办都由宿主去办。
   -->
   <Border Padding="14"
           Width="420"
@@ -13,7 +13,8 @@
           BorderThickness="1"
           CornerRadius="6">
     <StackPanel>
-      <TextBlock FontSize="13"
+      <TextBlock x:Name="TitleText"
+                 FontSize="13"
                  FontWeight="SemiBold"
                  Foreground="#2b3a4d"
                  Text="{x:Static res:Strings.ImportTitle}" />
@@ -56,7 +57,7 @@
                   Orientation="Horizontal"
                   Spacing="8">
         <Button x:Name="CloseButton"
-                AutomationProperties.Name="关闭导入报告"
+                AutomationProperties.Name="关闭报告"
                 Content="{x:Static res:Strings.ImportClose}" />
       </StackPanel>
     </StackPanel>

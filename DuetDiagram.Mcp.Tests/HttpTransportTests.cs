@@ -269,10 +269,10 @@ public sealed class HttpTransportTests
         var exported = await Harness.CallSucceedsAsync(
             client,
             DiagramToolset.Export,
-            """{"format":"mermaid"}""",
+            """{"format":"dsl"}""",
             cancellationToken);
 
-        exported.GetProperty("data").GetProperty("format").GetString().Should().Be("mermaid");
+        exported.GetProperty("data").GetProperty("format").GetString().Should().Be("dsl");
     }
 
     #endregion

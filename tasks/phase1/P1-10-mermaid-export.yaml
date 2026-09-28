@@ -140,3 +140,19 @@ open_questions:
         只会从报告里悄悄消失。所以报告为空**不等于**无损。
       - 有一条用例守着底线：语料的文档只用了 Mermaid 表达得出来的东西，
         导出必须一条丢失都不报。报了说明清单过报，而过报会让真丢失被淹掉。
+
+removal:
+  date: 2026-09-28
+  what: |
+    **这一档后来被整个移除了。** Mermaid 的导出方向与往返测试连同
+    `DuetDiagram.Mermaid/Export/` 整个目录一并删掉，只留导入方向。
+  why: |
+    产品负责人的指令是「只留一个 Mermaid 导入的功能，但是还是需要导入 dsl 的功能。
+    其他的 Mermaid 的功能都删除」。导出方向已经有 DSL、SVG、PNG 与 PDF 四档，
+    而 Mermaid 那一档装不下 IR 的大部分内容（丢失清单与 DSL 大面积重叠），
+    却要再维护一份反向的语法映射。
+  where_now: |
+    要拿文本走 DSL 导出：`diagram_export` 的 `dsl` 档，或界面上的导出入口。
+    本任务卡的 `status` 保持 `done`——那是历史事实。取证留在
+    `reports/phase1-mermaid-export.md`，报告是历史记录，不删。
+  successor: P1-19

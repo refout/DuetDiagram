@@ -3,7 +3,7 @@
 - 测量时间：2026-09-21
 - 测量机器：AMD Ryzen 5 6600H，12 逻辑核 / 6 物理核
 - 运行时：.NET 10.0.11，x64 RyuJIT（x86-64-v3），.NET SDK 10.0.303
-- 用途：Phase 1 的 Mermaid 导入验收，以及后续导出与往返的对照基准
+- 用途：Phase 1 的 Mermaid 导入验收（导出与往返那一档已于 2026-09-28 移除，见 `reports/phase1-mermaid-export.md` 顶上的后补）
 
 ## 复现
 

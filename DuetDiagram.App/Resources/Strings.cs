@@ -131,6 +131,8 @@ public static class Strings
 
     public static string MenuFileNewWindow => Get("menu.file.new-window");
 
+    public static string MenuFileOpen => Get("menu.file.open");
+
     public static string MenuFileImport => Get("menu.file.import");
 
     public static string MenuFileSave => Get("menu.file.save");
@@ -258,6 +260,8 @@ public static class Strings
     public static string ImportTitle => Get("import.title");
 
     public static string ImportClose => Get("import.close");
+
+    public static string OpenTitle => Get("open.title");
 
     public static string LayoutFailureTitle => Get("layout.failure.title");
 

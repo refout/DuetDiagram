@@ -56,7 +56,8 @@ internal static class Program
             // 用户看到的是一个空窗口，而错误只写在控制台上。
             try
             {
-                App.Startup = DocumentLaunch.File(path);
+                // 后缀决定用哪一种读法：DSL 与 IR JSON 读出来是同一种东西，只是文本形态不同。
+                App.Startup = DocumentLaunch.FromPath(path);
             }
             catch (Exception exception) when (exception is InvalidDataException or IOException
                 or UnauthorizedAccessException or ArgumentException)
@@ -74,7 +75,7 @@ internal static class Program
         return 0;
     }
 
-    /// <summary>从命令行打开一份文档的开关。</summary>
+    /// <summary>从命令行打开一份绘图文件的开关。DSL 与 IR JSON 两种后缀都认。</summary>
     public const string OpenSwitch = "--open";
 
     /// <summary>文档打不开时的退出码。</summary>

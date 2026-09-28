@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using DuetDiagram.App.Controls;
+using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Core.Commands;
@@ -95,7 +96,11 @@ public sealed partial class MainWindow : Window
         _lease = WorkspaceRegistry.Shared.Acquire(launch.Key, launch.Create);
         StartupProbe.Mark("document");
 
-        Session = DiagramSession.Shared(_lease.Workspace, engine: launch.Engine, readOnly: _lease.ReadOnly);
+        Session = DiagramSession.Shared(
+            _lease.Workspace,
+            engine: launch.Engine,
+            readOnly: _lease.ReadOnly,
+            pins: launch.Pins);
         StartupProbe.Mark("session");
 
         Model = new CanvasViewModel();
@@ -390,9 +395,19 @@ public sealed partial class MainWindow : Window
     /// 把文档写回它的文件。
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// **按打开时的形态写回。** 打开的是 DSL 就写 DSL 文本，其余写 IR JSON——
+    /// 用哪一种形态打开、就写回哪一种，用户不必记得"这一份当初是什么"。
+    /// </para>
+    /// <para>
+    /// **DSL 装不下的东西要如实说。** 页、图层、标签、动作、字体、文本预设、画布设置
+    /// 在 DSL 里都没有对应写法，写出去就没了。不说的话，用户会以为存下来的就是全部内容。
+    /// </para>
+    /// <para>
     /// 只读时不报错也不提示：状态栏上那句"这份文档是只读的"从打开起就一直在，
     /// 再叠一条只会让用户以为刚刚发生了一件新事。文档没有文件时给一句灰显说明——
     /// 那种情况下按了没反应，用户会以为快捷键坏了。
+    /// </para>
     /// </remarks>
     public void Save()
     {
@@ -408,12 +423,25 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var file = System.IO.Path.GetFileName(path);
+
         try
         {
-            DocumentFile.Write(path, Session.Document);
-            Status.Show(new ErrorPresentation(
-                ErrorPresentationKind.StatusBarMuted,
-                $"已写回 {System.IO.Path.GetFileName(path)}"));
+            string written;
+
+            if (DocumentLaunch.IsDsl(path))
+            {
+                var dropped = DslFile.Write(path, Session.Document, Session.PinnedNodes).Report.Dropped.Count;
+
+                written = dropped == 0 ? $"已写回 {file}" : $"已写回 {file}，有 {dropped} 类内容写不进去";
+            }
+            else
+            {
+                DocumentFile.Write(path, Session.Document);
+                written = $"已写回 {file}";
+            }
+
+            Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBarMuted, written));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -421,6 +449,105 @@ public sealed partial class MainWindow : Window
                 ErrorPresentationKind.StatusBar,
                 $"存不进去：{exception.Message}"));
         }
+    }
+
+    /// <summary>
+    /// 从界面上发起一次打开：先让用户选一份文件，再开。
+    /// </summary>
+    /// <remarks>
+    /// 选文件那一步是异步的，而菜单条目是一个同步的动作，所以这里只把这件事起个头。
+    /// 选择器在无头模式下打不开，所以**能验的那一段全在 <see cref="Open"/> 里**：
+    /// 端到端用例直接给它一条路径，走的是与点菜单完全相同的那条路。
+    /// </remarks>
+    public void BeginOpen() => _ = ChooseAndOpen();
+
+    private async Task ChooseAndOpen()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "打开绘图",
+            AllowMultiple = false,
+
+            // 后缀只用来让用户少找一会儿，不用来判断内容——用哪一种读法由说明那一层按后缀定。
+            FileTypeFilter =
+            [
+                new FilePickerFileType("绘图文件")
+                {
+                    Patterns = ["*.dsl", "*.json", "*.dgm"],
+                },
+                FilePickerFileTypes.All,
+            ],
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        // 云端或虚拟位置拿不到本地路径。那种情况下这个窗口开不了它，
+        // 而不是"点了没反应"——理由要说出来。
+        if (files[0].TryGetLocalPath() is not { } path)
+        {
+            ImportView.Show(files[0].Name, "这份文件不在本机，读不了", [], Strings.OpenTitle);
+
+            return;
+        }
+
+        Open(path);
+    }
+
+    /// <summary>
+    /// 打开一份绘图文件：开得起来就新开一个窗口，开不起来就把理由摆出来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **它是"打开一份已有的绘图文件"，不是拼片段。** 拿到的是一份独立的文档：
+    /// 有自己的路径、自己的撤销栈，保存写回打开的那一个文件。这与导入那条路是两件事——
+    /// 导入是把一段片段拼进当前这份，一次撤销能退回去。
+    /// </para>
+    /// <para>
+    /// **开不起来不抛异常，摆到报告面板上。** 读不出来、内容不是本程序认得的一种形态，
+    /// 都摆出来——只写控制台或者什么都不说的话，用户看到的是"点了没反应"。
+    /// </para>
+    /// <para>
+    /// **报告只在有话要说的时候摆。** 一份干净的文件打开之后，那个窗口本身就是结果；
+    /// 再叠一块面板说一句"打开了"只是噪音。有话要说（诊断、改名、补出来的节点、
+    /// 没落地的布局意图）才摆——那些正是文本与图对不上的地方。
+    /// </para>
+    /// </remarks>
+    /// <returns>新开出来的那个窗口。开不起来时为空，理由摆在报告面板上。</returns>
+    public MainWindow? Open(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var file = System.IO.Path.GetFileName(path);
+
+        DocumentLaunch launch;
+
+        try
+        {
+            launch = DocumentLaunch.FromPath(path, Launch.Engine, Launch.Templates);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException
+            or UnauthorizedAccessException or ArgumentException)
+        {
+            ImportView.Show(file, $"打不开：{exception.Message}", [], Strings.OpenTitle);
+
+            return null;
+        }
+
+        // 与「再开一个窗口」同一套。标识不同，所以登记表给的是一份新的工作区——
+        // 打开另一份文件本来就该是一份独立的文档。
+        var window = new MainWindow(launch);
+
+        window.Show();
+
+        if (launch.Report is { } report && DslFile.Notes(report) is { Count: > 0 } notes)
+        {
+            window.ImportView.Show(file, "已打开；下面是与原文对不上的地方", notes, Strings.OpenTitle);
+        }
+
+        return window;
     }
 
     /// <summary>
@@ -461,7 +588,7 @@ public sealed partial class MainWindow : Window
         // 而不是"点了没反应"——理由要说出来。
         if (files[0].TryGetLocalPath() is not { } path)
         {
-            ImportView.Show(files[0].Name, "这份文件不在本机，读不了", []);
+            ImportView.Show(files[0].Name, "这份文件不在本机，读不了", [], Strings.ImportTitle);
 
             return;
         }
@@ -494,7 +621,8 @@ public sealed partial class MainWindow : Window
             ImportView.Show(
                 System.IO.Path.GetFileName(path),
                 ErrorPresenterTable.For(ErrorCodes.DocumentReadOnly).Message,
-                []);
+                [],
+                Strings.ImportTitle);
 
             return;
         }
@@ -503,14 +631,14 @@ public sealed partial class MainWindow : Window
 
         if (!outcome.Succeeded)
         {
-            ImportView.Show(outcome.File, outcome.Refusal!, outcome.Notes);
+            ImportView.Show(outcome.File, outcome.Refusal!, outcome.Notes, Strings.ImportTitle);
 
             return;
         }
 
         var result = Session.ImportFragment(outcome.Fragment!);
 
-        ImportView.Show(outcome.File, HeadlineOf(result), outcome.Notes);
+        ImportView.Show(outcome.File, HeadlineOf(result), outcome.Notes, Strings.ImportTitle);
     }
 
     /// <summary>

@@ -83,7 +83,7 @@ internal static class Matrix
         new("导出格式", "SVG 导出", Status.Yes, "DuetDiagram.Render/Export/SvgExporter.cs", "逐类绘制命令对得上"),
         new("导出格式", "PNG 导出", Status.Yes, "DuetDiagram.Render/Export/BitmapExporter.cs", "同一份绘制列表逐像素可复现"),
         new("导出格式", "PDF 导出（矢量、文字可选中）", Status.Yes, "DuetDiagram.Render/Export/PdfExporter.cs", "SKDocument.CreatePdf，CID 嵌入的矢量文本"),
-        new("导出格式", "Mermaid 导出", Status.Yes, "DuetDiagram.Llm/Tools/ExportTool.cs", "diagram_export 的 mermaid 档"),
+        new("导出格式", "DSL 导出", Status.Yes, "DuetDiagram.Dsl/Export/DslExporter.cs", "diagram_export 的 dsl 档，装不下的内容逐类进丢失清单"),
         new("导出格式", "矢量文本（导出后可选中 / 搜索）", Status.Yes, "DuetDiagram.Render/Export/PdfExporter.cs", "PDF 与 SVG 均为矢量文本"),
         new("导出格式", "位图含文字", Status.Yes, "DuetDiagram.Render/Export/BitmapExporter.cs", ""),
         new("导出格式", "透明背景 PNG", Status.Yes, "DuetDiagram.Render/Export/BitmapExporter.cs:Transparent", "离屏渲染时背景可透明"),
@@ -98,7 +98,7 @@ internal static class Matrix
         new("导入格式", "draw.io XML 导入", Status.No, "", "不读 .drawio 格式"),
         new("导入格式", "图像导入", Status.No, "", "未做"),
         new("导入格式", "SVG 导入", Status.No, "", "未做"),
-        new("导入格式", "DSL 导入", Status.No, "", "DSL 去留未定（决策门 1），入方向仅解析未接生产入口"),
+        new("导入格式", "DSL 导入（打开成一份绘图文件）", Status.Yes, "DuetDiagram.App/Services/DslFile.cs", "打开一份 .dsl 得到一份文档，可保存回原文件"),
 
         // ── 样式 ───────────────────────────────────────────────
         new("样式", "填充色", Status.Yes, "DuetDiagram.Core/Model/Styles.cs:Fill", ""),

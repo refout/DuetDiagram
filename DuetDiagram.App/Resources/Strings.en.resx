@@ -45,6 +45,9 @@
   <data name="menu.file.new-window" xml:space="preserve">
     <value>New window</value>
   </data>
+  <data name="menu.file.open" xml:space="preserve">
+    <value>Open…</value>
+  </data>
   <data name="menu.file.import" xml:space="preserve">
     <value>Import Mermaid…</value>
   </data>
@@ -220,6 +223,9 @@
   </data>
   <data name="import.close" xml:space="preserve">
     <value>Close</value>
+  </data>
+  <data name="open.title" xml:space="preserve">
+    <value>Open</value>
   </data>
 
   <data name="layout.failure.title" xml:space="preserve">

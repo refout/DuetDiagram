@@ -1,7 +1,6 @@
 using System.Text.Json;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Dsl.Export;
-using DuetDiagram.Mermaid.Export;
 
 namespace DuetDiagram.Llm.Tools;
 
@@ -51,7 +50,7 @@ internal sealed record ExportPayload(
 /// </remarks>
 internal static class ExportTool
 {
-    private const string Formats = "mermaid、dsl、svg、png、pdf";
+    private const string Formats = "dsl、svg、png、pdf";
 
     public static ToolResult Run(DiagramToolContext context, ExportArguments args)
     {
@@ -71,8 +70,6 @@ internal static class ExportTool
 
         return args.Format switch
         {
-            "mermaid" => Mermaid(context, args.PageId),
-
             "dsl" => Dsl(context, args.PageId),
 
             "svg" => Svg(context, args.PageId),
@@ -88,31 +85,13 @@ internal static class ExportTool
         };
     }
 
-    private static ToolResult Mermaid(DiagramToolContext context, string? pageId)
-    {
-        // 按页导出就是拿一份投影去导：目标格式只认文档，不认识"页"这个概念，
-        // 而"这一页上有谁"那套口径在 Core 里只有一份。
-        var document = PageMembership.Project(context.Document, pageId);
-        var result = MermaidExporter.Export(document, new ExportOptions());
-
-        var payload = new ExportPayload("mermaid", result.Text, result.Report.Dropped);
-
-        var message = result.Report.Dropped.Count == 0
-            ? pageId is null ? "已导出 Mermaid 文本" : $"已导出 {pageId} 这一页的 Mermaid 文本"
-            : $"已导出 Mermaid 文本，有 {result.Report.Dropped.Count} 类内容写不进去，见 dropped";
-
-        return ToolResult.Ok(
-            JsonSerializer.SerializeToElement(payload, ToolJsonContext.Default.ExportPayload),
-            message);
-    }
-
     /// <summary>
     /// 导出 DSL。
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 与 Mermaid 那一条同一口径：DSL 导出器只吃文档、只依赖 Core，所以直接调，
-    /// 不绕注入那一道。按页导出也是先拿一份投影再导——DSL 描述的是图，
+    /// DSL 导出器只吃文档、只依赖 Core，所以直接调，不绕注入那一道。
+    /// 按页导出也是先拿一份投影再导——DSL 描述的是图，
     /// 不认识"页"这个概念，而"这一页上有谁"那套口径在 Core 里只有一份。
     /// </para>
     /// <para>
@@ -271,7 +250,7 @@ internal static class ExportTool
         ToolErrorCodes.NotSupported,
         $"这个宿主没有接上渲染层，导出不了 {format}",
         "format",
-        "这个宿主现在能用的格式：mermaid、dsl"));
+        "这个宿主现在能用的格式：dsl"));
 
     /// <summary>
     /// 渲染层拿到了文档却排不出结果。

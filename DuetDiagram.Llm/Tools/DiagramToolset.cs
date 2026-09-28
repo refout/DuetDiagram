@@ -70,12 +70,11 @@ public static class DiagramToolset
         + "新建的组合一律在顶层，要嵌套就再发一次移入。";
 
     private const string ExportDescription =
-        "把当前图导出成文本格式。现在能导出 Mermaid。"
+        "把当前图导出成文本或位图格式。现在能导出 DSL、SVG、PNG 与 PDF。"
         + "要拿一份能贴进别处、或者交给别人看的文本时用它。"
         + "导出不改变文档，也不进撤销栈。"
         + "导出必然有损——IR 的表达力强于目标格式，写不出来的东西在返回的 dropped 里逐类列出，"
-        + "报告为空不等于无损。自有 DSL 的导出方向还没有实现，位图与 PDF 走同一个入口"
-        + "但还没有排到，这几样会返回结构化的「尚未支持」。";
+        + "报告为空不等于无损。SVG、PNG 与 PDF 要靠宿主接上渲染层，没接上会返回结构化的「尚未支持」。";
 
     private const string ValidateDescription =
         "整体校验当前文档，返回结构化错误与修复建议。"
@@ -229,7 +228,7 @@ public static class DiagramToolset
         #region diagram_export
 
         public Task<ToolResult> Export(
-            [Description("导出格式：mermaid、dsl、svg、png 或 pdf。现在只有 mermaid 接上了。")][Pattern(Patterns.DiagramId)] string format,
+            [Description("导出格式：dsl、svg、png 或 pdf。")][Pattern(Patterns.DiagramId)] string format,
             [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
             Task.FromResult(ExportTool.Run(_context, new ExportArguments(format, pageId)));
 

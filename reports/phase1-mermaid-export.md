@@ -7,6 +7,18 @@
 
 导入那一半的结论与基准在 `reports/phase1-mermaid-import.md`，不在这里重复。
 
+> **后补（2026-09-28）：这一档后来被移除了。**
+>
+> 产品负责人的指令是「只留一个 Mermaid 导入，其余全删」，所以 Mermaid 的导出方向
+> 与往返测试（`Category=MermaidExport` / `Category=MermaidRoundTrip`）连同
+> `DuetDiagram.Mermaid/Export/` 整个目录一并删掉。理由与 `AGENTS.md` 的
+> 「与规格文档的已知差异」表里那一条一致：导出方向已经有 DSL、SVG、PNG 与 PDF 四档，
+> 而 Mermaid 那一档装不下 IR 的大部分内容（丢失清单与 DSL 大面积重叠），
+> 却要再维护一份反向的语法映射。
+>
+> **现在要拿文本的话走 DSL 导出**：`diagram_export` 的 `dsl` 档，或者界面上的导出入口。
+> 这一份报告是历史记录，不改——下面的数字、命令与结论都是当时那一档的真实读数。
+
 ## 复现
 
 ```bash

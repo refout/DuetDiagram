@@ -368,6 +368,14 @@ jobs:
       - name: 多窗口门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=MultiWindow"
 
+      # 打开一份绘图文件：DSL 文本读成一份独立文档，文本里的固定位置在首帧就生效，
+      # 保存按打开时的形态写回同一个文件，文本与图对不上的地方（诊断、改名、补出来的节点、
+      # 没落地的布局意图）逐条摆到报告面板上，坏内容不开窗口。
+      # 退化的表现是「图打开了但和文本写的不是一回事」或者「保存之后这份文件读不回来了」，
+      # 两种在别的门禁里都看不出来——它们盯的是当前文档，不是刚从文件读进来的那一份。
+      - name: 打开门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Open"
+
       # Phase 4 界面侧门禁：形状库面板、富文本编辑器、图层面板、页面标签、导入端到端。
       # 这几样退化的表现是「面板里少一项、或某项操作点了没反应」，全项目跑一遍也只红这一组。
       # shell 必须显式写 bash：Windows 运行器上 `run:` 默认走 pwsh，而这段是 bash 函数语法，

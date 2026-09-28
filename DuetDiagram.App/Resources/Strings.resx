@@ -44,6 +44,9 @@
   <data name="menu.file.new-window" xml:space="preserve">
     <value>新建窗口</value>
   </data>
+  <data name="menu.file.open" xml:space="preserve">
+    <value>打开…</value>
+  </data>
   <data name="menu.file.import" xml:space="preserve">
     <value>导入 Mermaid…</value>
   </data>
@@ -223,6 +226,9 @@
   </data>
   <data name="import.close" xml:space="preserve">
     <value>关闭</value>
+  </data>
+  <data name="open.title" xml:space="preserve">
+    <value>打开</value>
   </data>
 
   <data name="layout.failure.title" xml:space="preserve">

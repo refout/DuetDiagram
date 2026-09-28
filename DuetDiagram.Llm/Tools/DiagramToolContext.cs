@@ -94,7 +94,7 @@ public sealed record DiagramToolContext
     /// <para>
     /// 与 <see cref="Placement"/>、<see cref="PinnedNodes"/> 同一口径：那两样也不是文档的
     /// 函数（一个在布局结果里、一个在人工产物里），所以只能由宿主喂进来。
-    /// 对照 Mermaid 导出——那是文档的纯函数、只依赖 Core，所以它直接调，不绕这一道。
+    /// 对照 DSL 导出——那是文档的纯函数、只依赖 Core，所以它直接调，不绕这一道。
     /// </para>
     /// <para>
     /// 参数是文档与页面标识：页面过滤那一套口径在 Core 里只有一份，

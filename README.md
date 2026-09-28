@@ -14,7 +14,8 @@ Phase 0a / 0b、Phase 1、Phase 2、Phase 3 的代码都落地了。Phase 4（�
 已产出，其中工具栏与菜单栏骨架、图层的可见性与锁定（含渲染消费与面板）、页面的归属与翻页、
 框选与右键菜单、组合的呈现与操作、调色板面板、文本样式预设、形状库与自定义形状
 （路径数据）、模板库与模板应用、富文本内容模型、富文本的排版与渲染、富文本的编辑界面、
-数学排版、SVG 导出、PNG 导出、PDF 导出、Mermaid 导入入口、draw.io 覆盖率取证（86.3% ≥ 85%）已落地，其余待开工。
+数学排版、SVG 导出、PNG 导出、PDF 导出、DSL 导出、Mermaid 导入入口、把一份 `.dsl`
+当绘图文件打开、draw.io 覆盖率取证（87.2% ≥ 85%）已落地，其余待开工。
 逐阶段的结论、取证数据与仍然开着的决策门见 `tasks/README.md`，工程清单见 `AGENTS.md`。
 
 **两个决策门都还开着，卡在同一件事上。** 自有 DSL 的去留与布局引擎的主选都要读
@@ -62,7 +63,7 @@ AGENTS.md                   Agent 契约：13 条不可违反的约束 + 已知�
 DuetDiagram.Core            IR、命令总线、日志、历史、广播、序列化、工作区与文档锁（只依赖 BCL）
 DuetDiagram.Layout          布局引擎封装、四级降级与四项约束补齐
 DuetDiagram.Render          空间索引、绘制列表、视口变换与虚拟化
-DuetDiagram.Mermaid         Mermaid 的词法、语法、导入与导出
+DuetDiagram.Mermaid         Mermaid 的词法、语法与导入
 DuetDiagram.Dsl             自有 DSL 的词法、语法与语义映射
 DuetDiagram.Llm             八个粗粒度工具的定义、参数 schema 与参数校验
 DuetDiagram.App             界面主程序（画布、面板、自检与基准开关）

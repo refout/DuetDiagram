@@ -4,23 +4,27 @@ using Avalonia.Markup.Xaml;
 namespace DuetDiagram.App.Controls;
 
 /// <summary>
-/// 一次导入之后摆出来的那张单子：导了哪个文件、导进去多少、哪些地方与原文对不上。
+/// 一次导入或一次打开之后摆出来的那张单子：动了哪个文件、结果是什么、哪些地方与原文对不上。
 /// </summary>
 /// <remarks>
 /// <para>
-/// **它是这份报告唯一的落点。** 导入是宽松模式：认不出的内容不抛异常，
-/// 只是不进 IR；被丢掉的节点声明与没映射的样式属性也都是**有意的取舍**。
+/// **它是这类报告唯一的落点。** 导入与打开都是宽松模式：认不出的内容不抛异常，
+/// 只是不进 IR；被丢掉的声明与没映射的东西也都是**有意的取舍**。
 /// 这些一句话都不说的话，用户拿到的是一张少了几条边、少了一处颜色的图，
 /// 而他无从知道是原文里就没有、还是程序没做。
 /// </para>
 /// <para>
-/// **它只负责显示，不负责办。** 读文件、拼进文档、摆到哪儿都由宿主去做；
+/// **它只负责显示，不负责办。** 读文件、拼进文档、开窗口都由宿主去做；
 /// 面板自己去读文件的话，同一份文件会在两个地方被解析一遍，
 /// 而两处的判据迟早会不一样。
 /// </para>
 /// <para>
 /// **它只读一次，不做确认。** 导入是一条命令、撤销一次整份退回，
 /// 所以"先预览再确认"那一步是多余的；用户导错了按一下撤销就回去了。
+/// </para>
+/// <para>
+/// **标题由调用方给。** 同一块面板既当导入报告又当打开报告，写死一个标题的话，
+/// 打开一份文件却看到"导入"两个字。关闭按钮那两个字两种用途下一样，所以不参数化。
 /// </para>
 /// </remarks>
 public sealed partial class ImportDialog : UserControl
@@ -45,14 +49,17 @@ public sealed partial class ImportDialog : UserControl
     /// 摆一次报告。
     /// </summary>
     /// <param name="file">文件名，不含路径。</param>
-    /// <param name="headline">一句话说清这次导入的结果，或者为什么导不进来。</param>
+    /// <param name="headline">一句话说清这次的结果，或者为什么没成。</param>
     /// <param name="notes">要逐条列出来的那些话。可以是空的。</param>
-    public void Show(string file, string headline, IReadOnlyList<string> notes)
+    /// <param name="title">这块面板顶上那一行，说明这是哪一档的报告。</param>
+    public void Show(string file, string headline, IReadOnlyList<string> notes, string title)
     {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(headline);
         ArgumentNullException.ThrowIfNull(notes);
+        ArgumentNullException.ThrowIfNull(title);
 
+        TitleText.Text = title;
         FileText.Text = file;
         HeadlineText.Text = headline;
         NotesList.ItemsSource = notes;
@@ -85,6 +92,8 @@ public sealed partial class ImportDialog : UserControl
     {
         AvaloniaXamlLoader.Load(this);
 
+        TitleText = this.FindControl<TextBlock>(nameof(TitleText))
+            ?? throw new InvalidOperationException("导入提示里没有名为 TitleText 的文本");
         FileText = this.FindControl<TextBlock>(nameof(FileText))
             ?? throw new InvalidOperationException("导入提示里没有名为 FileText 的文本");
         HeadlineText = this.FindControl<TextBlock>(nameof(HeadlineText))

@@ -5,7 +5,7 @@
 
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
-| DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
+| DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
 | DuetDiagram.App | 71 | 18486 | 10448 | 4930 | 3108 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
@@ -18,13 +18,13 @@
 | DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
 | DuetDiagram.Llm.Tests | 17 | 4900 | 3512 | 390 | 998 |
 | DuetDiagram.Mcp | 15 | 2498 | 1292 | 840 | 366 |
-| DuetDiagram.Mcp.Tests | 11 | 3288 | 2082 | 546 | 660 |
+| DuetDiagram.Mcp.Tests | 11 | 3296 | 2088 | 546 | 662 |
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
 | tools | 44 | 12392 | 8358 | 1980 | 2054 |
-| **合计** | **510** | **117797** | **73158** | **24792** | **19847** |
+| **合计** | **510** | **117813** | **73168** | **24794** | **19851** |
 
 ## 明细
 
@@ -32,7 +32,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| Program.cs | 217 |
+| Program.cs | 221 |
 
 ### DuetDiagram.App
 
@@ -484,7 +484,7 @@
 | SecurityTests.cs | 321 |
 | SessionStateTests.cs | 175 |
 | SkillTests.cs | 143 |
-| StdioTests.cs | 234 |
+| StdioTests.cs | 240 |
 
 ### DuetDiagram.Mermaid
 

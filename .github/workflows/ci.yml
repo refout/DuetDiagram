@@ -33,6 +33,15 @@ jobs:
       - name: Build（警告即错误）
         run: dotnet build DuetDiagram.slnx -c ${{ env.CONFIGURATION }} --no-restore
 
+      # 渲染层有两条判据要求宿主真的有覆盖汉字的字体：一条量「两个汉字画出来的墨迹
+      # 宽过一个半字号」（没有字体时走西文兜底字形，窄得多），另一条查 PDF 里有没有
+      # 按字给出码位的映射表（没有字体时字形号是 0，映射表写不出来）。
+      # 运行器默认不带中文字体，缺了这两条会红——而它们红得有道理：那份图上确实画不出汉字。
+      - name: 中文字体（渲染层两条判据要用）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-cjk
+
       - name: Test（全部测试工程）
         run: |
           dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build

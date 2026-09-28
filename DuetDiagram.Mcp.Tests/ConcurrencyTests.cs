@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
+using DuetDiagram.Core.Bus;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Core.Model;
 using DuetDiagram.Llm.Tools;
 using DuetDiagram.Mcp.Server;
@@ -41,6 +43,131 @@ public sealed class ConcurrencyTests
 
     /// <summary>一次写入最多试几回。撞上冲突就重读重试，所以它比成功次数大得多。</summary>
     private const int AttemptsPerWrite = 40;
+
+    /// <summary>开跑之前先把文档撑到这么大。</summary>
+    private const int SeedNodes = 300;
+
+    /// <summary>同时读的人有几个。</summary>
+    private const int Readers = 6;
+
+    /// <summary>每个读的人来回几趟。</summary>
+    private const int RoundsPerReader = 12;
+
+    /// <summary>写入方在读取那一阵里要再写进去多少个节点。</summary>
+    private const int WritesByAgent = 120;
+
+    [Fact]
+    [Trait("Category", "MultiAgent")]
+    public async Task Reading_the_document_while_a_writer_is_in_flight_never_blows_up()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        await using var host = await Harness.StartAsync(
+            Harness.Options(Harness.NewWorkspace(), requestsPerMinute: 100_000),
+            cancellationToken);
+
+        // 先把文档撑大：整份读一遍不再是一瞬间的事，读到一半被改的机会才够大。
+        // 这一段是单线程的，读的人还没起来，所以直接走总线。
+        for (var i = 0; i < SeedNodes; i++)
+        {
+            host.Session.Bus
+                .Execute(
+                    new AddNodeCommand(new NodeDef { Id = $"seed-{i}", Label = $"seed-{i}" }),
+                    new VersionCheckRequest { ClientVersion = host.Session.Document.Version })
+                .IsSuccess.Should().BeTrue();
+        }
+
+        using var stop = new CancellationTokenSource();
+
+        // 一个 agent 持续改结构。它走的是真的传输，与读的人同一条路。
+        // 文档里那些集合是**就地改**的，所以它每加一个节点，
+        // 读的人手上的那次遍历就多一分撞上"集合被修改"的机会。
+        var writer = Task.Run(
+            async () =>
+            {
+                using var client = Harness.RawClient(host, Harness.FullToken);
+
+                var added = 0;
+
+                while (added < WritesByAgent && !stop.IsCancellationRequested)
+                {
+                    var current = await VersionAsync(client, cancellationToken);
+
+                    var reply = await Harness.RawAsync(
+                        client,
+                        DiagramToolset.Edit,
+                        $$"""{"action":"add-node","id":"live-{{added}}","label":"live-{{added}}"}""",
+                        cancellationToken,
+                        Harness.At(current));
+
+                    // 被别人抢先推进一版是正常的，重读一次再来。
+                    if (reply.Status == HttpStatusCode.Conflict)
+                    {
+                        continue;
+                    }
+
+                    reply.Status.Should().Be(
+                        HttpStatusCode.OK,
+                        $"写入拿到 {(int)reply.Status}：{reply.Text}");
+
+                    added++;
+                }
+            },
+            cancellationToken);
+
+        try
+        {
+            await Task.WhenAll(Enumerable.Range(0, Readers).Select(ReadAsync));
+        }
+        finally
+        {
+            await stop.CancelAsync();
+            await writer;
+        }
+
+        async Task<int> VersionAsync(HttpClient client, CancellationToken token)
+        {
+            var reply = await Harness.RawAsync(client, DiagramToolset.Read, "{}", token);
+
+            reply.Status.Should().Be(HttpStatusCode.OK, $"读摘要拿到 {(int)reply.Status}：{reply.Text}");
+
+            return Harness
+                .ToolResultOf(reply)
+                .GetProperty("data")
+                .GetProperty("summary")
+                .GetProperty("version")
+                .GetInt32();
+        }
+
+        async Task ReadAsync(int index)
+        {
+            using var client = Harness.RawClient(host, Harness.FullToken);
+
+            for (var round = 0; round < RoundsPerReader; round++)
+            {
+                // 一条读：整份走一遍摘要。
+                var read = await Harness.RawAsync(client, DiagramToolset.Read, "{}", cancellationToken);
+
+                read.Status.Should().Be(
+                    HttpStatusCode.OK,
+                    $"读的时候另一个线程可能正在改：{(int)read.Status} {read.Text}");
+
+                // 一条写入，声明一个注定过期的版本。它必然走传输层那一道预判，
+                // 而那一步要读版本日志、还要把整份文档序列化出来——旧的那条路上，
+                // 红出来的就是这一步抛出来的"集合被修改"。
+                var stale = await Harness.RawAsync(
+                    client,
+                    DiagramToolset.Edit,
+                    $$"""{"action":"add-node","id":"r{{index}}-{{round}}","label":"r{{index}}-{{round}}"}""",
+                    cancellationToken,
+                    Harness.At(0));
+
+                stale.Status.Should().Be(
+                    HttpStatusCode.Conflict,
+                    $"旧声明要被预判挡下，而不是崩掉：{(int)stale.Status} {stale.Text}");
+            }
+        }
+    }
 
     [Fact]
     [Trait("Category", "MultiAgent")]

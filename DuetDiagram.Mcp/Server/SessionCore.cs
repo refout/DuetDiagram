@@ -31,6 +31,17 @@ public sealed class SessionCore : IAsyncDisposable
     private readonly AsyncLocal<SessionState?> _declared = new();
     private readonly AsyncLocal<PermissionSet?> _permissions = new();
 
+    /// <summary>
+    /// 一次只放一件事进去碰这份文档。
+    /// </summary>
+    /// <remarks>
+    /// 命令总线那把门锁只挡住**写入方之间**：读的人不拿它，于是读的时候另一个线程
+    /// 可能正在改。文档里的集合是就地改的，读到一半被改会抛「集合被修改」，
+    /// 而它在网络那条通路上表现为一个没有正文的 500——调用方拿到一个状态码，
+    /// 什么也说明不了。这一把把读的人也纳进来。
+    /// </remarks>
+    private readonly SemaphoreSlim _document = new(1, 1);
+
     private SessionCore(DiagramCommandBus bus, InProcessBroadcaster broadcaster)
     {
         Bus = bus;
@@ -133,9 +144,59 @@ public sealed class SessionCore : IAsyncDisposable
         _permissions.Value = permissions;
     }
 
+    /// <summary>
+    /// 独占这份文档做一件事。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 与命令总线那把门锁是两把不同的锁，**次序固定：先这一把，后门锁**。
+    /// 写入方在自己那把锁内改文档，而它整段都发生在这里面，所以不会互相等死。
+    /// 反过来先拿门锁再拿这一把的话，一条写入会与一条读取互等，两个都走不动。
+    /// </para>
+    /// <para>
+    /// 读的人拿这一把，写入方不用知道：门锁那边一个字都不用改。
+    /// </para>
+    /// </remarks>
+    public async Task<TResult> ExclusivelyAsync<TResult>(
+        Func<Task<TResult>> body,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        await _document.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            return await body().ConfigureAwait(false);
+        }
+        finally
+        {
+            _document.Release();
+        }
+    }
+
+    /// <summary>独占这份文档做一件事，不要结果。</summary>
+    public async Task ExclusivelyAsync(
+        Func<Task> body,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+
+        await ExclusivelyAsync(
+            async () =>
+            {
+                await body().ConfigureAwait(false);
+
+                return true;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask DisposeAsync()
     {
         Bus.Dispose();
+
+        _document.Dispose();
 
         await Broadcaster.DisposeAsync().ConfigureAwait(false);
     }

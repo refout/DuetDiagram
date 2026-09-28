@@ -183,7 +183,13 @@ public sealed class HttpHost : IAsyncDisposable
             .WithMessageFilters(filters => filters.AddIncomingFilter(next => async (messageContext, cancellationToken) =>
             {
                 session.Observe(messageContext.JsonRpcMessage);
-                await next(messageContext, cancellationToken).ConfigureAwait(false);
+
+                // 工具的执行体读的就是这份文档，所以整条消息都在那一把锁里走完。
+                // 一次只放一条进去：文档是就地改的，读到一半被改会抛「集合被修改」，
+                // 而那个异常在这里没有出口，只会变成一个没有正文的 500。
+                await session
+                    .ExclusivelyAsync(() => next(messageContext, cancellationToken), cancellationToken)
+                    .ConfigureAwait(false);
             }));
 
         var app = builder.Build();
@@ -328,17 +334,26 @@ public sealed class HttpHost : IAsyncDisposable
     /// 命令总线那一道检查仍然是说了算的那一道。这里判完之后到命令真正执行之间还有个窗口，
     /// 那个窗口里的冲突由总线在门锁内挡下，形状是工具结果里的错误码。
     /// </para>
+    /// <para>
+    /// 这一判读的是文档与版本日志，而两者都归总线管、都可能正在被另一个线程改，
+    /// 所以它整段在一把独占锁里走完。不拿的话，读到一半被改会抛「集合被修改」，
+    /// 而那个异常在传输层没有出口，只会变成一个没有正文的 500。
+    /// </para>
     /// </remarks>
     private static async Task<bool> RefuseConflictAsync(
         HttpContext context,
         SessionCore session,
         RequestShape shape)
     {
-        var answer = ConflictResponder.Decide(
-            shape.Declared,
-            session.Document,
-            session.Bus.Context.VersionLog,
-            () => DiagramSerializer.SerializeFull(session.Document));
+        var answer = await session
+            .ExclusivelyAsync(
+                () => Task.FromResult(ConflictResponder.Decide(
+                    shape.Declared,
+                    session.Document,
+                    session.Bus.Context.VersionLog,
+                    () => DiagramSerializer.SerializeFull(session.Document))),
+                context.RequestAborted)
+            .ConfigureAwait(false);
 
         // 空差异与"参数错误"都不算冲突，放它进去。
         if (answer is not (FullSnapshotDiff or ReferenceDiff))

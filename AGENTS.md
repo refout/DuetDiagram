@@ -368,7 +368,9 @@ dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --fi
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=SkillDisclosure"
 
 # 十个 agent 真并发写同一份文档：版本号不重号不跳号、节点数与成功次数对得上、
-# 写完之后文档仍然校验通过。顺序跑十次验不到版本检查的竞态，而竞态正是这一条要挡的
+# 写完之后文档仍然校验通过。顺序跑十次验不到版本检查的竞态，而竞态正是这一条要挡的。
+# 另有"一个 agent 在写、六个人在读"那一条：读的人不拿总线那把门锁，
+# 所以要的是文档不能读到一半被改——旧的那条路上它回的是一个没有正文的 500
 dotnet test --project DuetDiagram.Mcp.Tests/DuetDiagram.Mcp.Tests.csproj -- --filter-trait "Category=MultiAgent"
 
 # MCP 的协议层验收：拿真的服务端可执行文件把八条判据逐条跑一遍（协议一致、参数校验、

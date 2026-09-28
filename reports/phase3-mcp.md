@@ -152,18 +152,93 @@ dotnet run --project tools/McpHarness -c Release -- agent
    这个下界与调度无关。同时把齐步走的等待时限放宽、进程内那一组的频次上限抬高
    （十个人各一份凭据，额度本来够，抬高是免得这一档以限流的形式失败、
    而限流看起来像并发出了问题）。改完连跑 56 次全绿。
-3. **并发那一组还有一条对机器负载敏感的地方，没修。** 上面第 2 条之后，跑全量门禁时
-   `Ten_agents_writing_at_once_do_not_corrupt_the_document` 又偶发失败过一次：
-   - 单跑这一组（连跑 6 遍）全绿；按全量顺序跑一遍也全绿。
-   - 只在**机器被占满**的时候失败——那一次是因为同一个目录下另有一个测试进程在跑，
-     两次读到的都是 1.0 秒上下就报错，而不是超时。
-   这一条与上面第 2 条不是同一处：版本号那几条判据都是确定量（成功的版本号正好是
-   1 到成功次数、文档里正好那么多节点），**失败的那一条断言还没抓到**——
-   要复现就得让机器满载，而那正是它难查的原因。**没有当成"并发本来就不稳"绕过去**，
-   记在这里：下次它再红，先把当时那条断言与完整输出留下，再判断是判据该改还是真的漏了一次写入。
+3. **并发那一组对机器负载敏感的那一条，2026-09-28 抓到根因并修掉了**，见下面
+   「补记：并发读被打断会变成一个没有正文的 500」。这里保留当初那句判断：
+   **没有当成「并发本来就不稳」绕过去。**
 4. **`tools/Poc/McpTransport` 与 `tools/Poc/SharedTools` 随这一条删掉了。**
    前者验的是协议库本身能不能支撑三条传输与自定义会话字段，后者验的是一份工具定义能不能两处共用；
    两份结论都固化了（落点是真实的两条传输与 `Category=ToolParity`），
    留着就是同一件事的两份实现。要复核当初那份对**库**的取证，从 git 历史里取回。
    `tools/Poc/LayoutCandidates` 不动：它服务的是布局引擎主选那个还开着的决策门。
 5. **跨机器传输没做**：TLS、多实例共享变化源。现在只验了回环地址上的网络传输。
+
+## 补记：并发读被打断会变成一个没有正文的 500（2026-09-28）
+
+**这是上面「遗留」第 3 条的那一条。** 2026-09-28 的 CI 运行 `36378098566`（`4d10329`）里，
+ubuntu 那一档的 `MCP 实机验收` 红了，`10 agent 并发` 报的是：
+
+```
+[未通过] 10 agent 并发：InvalidOperationException：写入拿到 500：
+```
+
+正文是空的——服务端回了一个没有内容的 500，调用方除了状态码什么也拿不到。
+**这个形状本身就是一处缺口**：网络那一档把日志提供者清空了（`builder.Logging.ClearProviders()`），
+所以 ASP.NET Core 那条「未处理异常」的日志也一并没了，500 的成因在服务端一个字都不留。
+
+### 怎么抓到的
+
+先按老办法在服务端中间件上挂探针，什么都没抓到——说明异常不是从 `next(context)` 里抛出来的。
+真正的原因是**探针写的是服务端进程的标准错误，而装置把它收进了 `ErrorLog` 不往外印**，
+加上第一次的探针又挂了「只记含 DuetDiagram / ModelContextProtocol 的栈」这个过滤器，
+ASP.NET Core 内部的栈一条都过不了。改成写文件、去掉过滤器之后一次就抓到了：
+
+```
+System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+   at System.Collections.Generic.Queue`1.Enumerator.MoveNext()
+   at System.Linq.Enumerable.IEnumerableWhereIterator`1.ToArray()
+   at DuetDiagram.Core.Logging.VersionLog.BuildDiff(Int32 from, Int32 to, …)  VersionLog.cs:line 108
+   at DuetDiagram.Mcp.Server.ConflictResponder.Decide(…)                     ConflictResponder.cs:line 62
+   at DuetDiagram.Mcp.Server.HttpHost.RefuseConflictAsync(…)                 HttpHost.cs:line 351
+```
+
+**怎么复现的**：单跑不复现（本机十二核、跑几遍全绿）。用 `DOTNET_PROCESSOR_COUNT=1`
+把进程压到一个核，再同时起六个装置实例，**48 次里红 3~4 次**，红的都是这一条。
+
+### 根因
+
+命令总线那把门锁只挡住**写入方之间**（版本号递增与哈希更新之间不被打断）。
+读的人不拿它，而文档里的那些集合是**就地改**的（`DefinitionCollection._items` 是个
+`List<T>`，`Replace` 走 `Clear` + `AddRange`），于是：
+
+- 传输层那一道版本预判要读版本日志（`VersionLog` 里那个 `Queue<VersionEntry>`），
+  还可能把整份文档序列化出来——**它跑在总线门锁之外**；
+- 工具的执行体（读摘要、导出、校验）也要整份走一遍文档——同样在门锁之外。
+
+读到一半被改就抛「集合被修改」，而中间件没有出口，ASP.NET Core 把它变成一个空的 500。
+
+### 修法
+
+会话上另加一把锁，**进出的位置只有两个**：
+
+- 网络那一档的版本预判整段在里面走完（`HttpHost.RefuseConflictAsync`）；
+- 两条传输的**入站消息过滤器**各把整条消息包在里面——工具的执行体、
+  以及它发出去的每一条命令都在其中。
+
+次序是固定的：**先这一把，后总线那把门锁**；反过来会互等。命令总线一个字都没改，
+写入方不必知道读的人拿的是哪把锁。
+
+### 验收
+
+- **装置那一档**：同一条命令、同样的压力（单核 + 六个实例并发、48 次），
+  修之前红 3~4 次，修之后 **48 次全绿**。
+- **门禁**：`Category=MultiAgent` 新增一条
+  `Reading_the_document_while_a_writer_is_in_flight_never_blows_up`——
+  一个 agent 走真的传输持续写，六个读的人同时读摘要、并发一条注定过期的写入。
+  **这条判据验过是真的能红**：把锁临时短路掉，3 遍全红，红的正是
+  `Expected stale.Status to be Conflict … but found InternalServerError`；
+  把锁装回去，3 遍全绿。
+- 全量：Core 651 / Layout 78 / Render 328 / Mermaid 181 / Dsl 206 / Llm 222 /
+  Mcp 113 / E2E 225 全绿，`dotnet build DuetDiagram.slnx -c Release` 0 警告 0 错误，
+  `tools/LocCounter --check` 退出码 0。
+
+### 这一修**没有**覆盖到的
+
+- **绕开传输的写入方不受这把锁管。** 判据是「MCP 服务端只放一件事进去碰它自己那份文档」，
+  所以它对「谁在写」有前提：写入必须走服务端那条通路。这一档里唯一的写入方就是传输，
+  但这不是由类型系统保证的——将来若有代码直接拿 `SessionCore.Bus` 去改文档，这条保证就破了。
+  门禁里那条用例一开始写成「测试线程直接调 `Bus.Execute`」，正是这样红的（3 遍全红）；
+  改成走真的传输之后才对得上这一档要验的东西。
+- **`/changes` 那条只读端点不在这把锁里。** 它读的是版本号与结构哈希（两个属性），
+  不遍历集合，所以不会抛；但「两份值来自同一个版本」这件事仍然只靠它自己那一次读的时机。
+- 上面那条空的 500 **本身没改**：服务端仍然不记未处理异常。这一档的修法是让它不再发生，
+  不是让它可诊断。真要再查一次同类问题，还得照上面那个探针的做法来。

@@ -107,7 +107,13 @@ public sealed class DiagramMcpServer : IAsyncDisposable
             .WithMessageFilters(filters => filters.AddIncomingFilter(next => async (messageContext, cancellationToken) =>
             {
                 server.Observe(messageContext.JsonRpcMessage);
-                await next(messageContext, cancellationToken).ConfigureAwait(false);
+
+                // 与网络那一条同一把锁、同一个位置：工具的执行体读的就是这份文档，
+                // 一次只放一条消息进去。标准输入输出这条通路上只有一个客户端，
+                // 但它照样可以一次送进来几条，而文档是就地改的。
+                await session
+                    .ExclusivelyAsync(() => next(messageContext, cancellationToken), cancellationToken)
+                    .ConfigureAwait(false);
             }))
             .WithStdioServerTransport();
 

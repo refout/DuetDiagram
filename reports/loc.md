@@ -12,19 +12,19 @@
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 30 | 9649 | 6236 | 1411 | 2002 |
+| DuetDiagram.E2E.Tests | 30 | 9651 | 6236 | 1413 | 2002 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
 | DuetDiagram.Llm.Tests | 17 | 4900 | 3512 | 390 | 998 |
-| DuetDiagram.Mcp | 15 | 2498 | 1292 | 840 | 366 |
-| DuetDiagram.Mcp.Tests | 11 | 3296 | 2088 | 546 | 662 |
+| DuetDiagram.Mcp | 15 | 2580 | 1330 | 874 | 376 |
+| DuetDiagram.Mcp.Tests | 11 | 3423 | 2177 | 560 | 686 |
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **510** | **117904** | **73224** | **24816** | **19864** |
+| **合计** | **510** | **118115** | **73351** | **24866** | **19898** |
 
 ## 明细
 
@@ -458,11 +458,11 @@
 | BearerAuth.cs | 87 |
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
-| DiagramMcpServer.cs | 94 |
+| DiagramMcpServer.cs | 96 |
 | DocumentRendering.cs | 51 |
-| HttpHost.cs | 280 |
+| HttpHost.cs | 286 |
 | RateLimiter.cs | 43 |
-| SessionCore.cs | 71 |
+| SessionCore.cs | 101 |
 | SessionState.cs | 110 |
 | StandardErrorDiagnostics.cs | 11 |
 | StdioLogging.cs | 11 |
@@ -475,7 +475,7 @@
 | 文件 | 代码 |
 |---|---:|
 | ChangeFeedTests.cs | 149 |
-| ConcurrencyTests.cs | 100 |
+| ConcurrencyTests.cs | 189 |
 | ConflictResponseTests.cs | 205 |
 | Harness.cs | 323 |
 | HttpTransportTests.cs | 210 |

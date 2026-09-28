@@ -398,7 +398,8 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-frames --nodes 10
 # 第一条（不带原生编译地跑一遍）在本机是过的，P4-18 起它还会真的写一份 PDF
 dotnet run --project DuetDiagram.AotSmokeTest -c Release
 dotnet publish DuetDiagram.AotSmokeTest/DuetDiagram.AotSmokeTest.csproj -c Release
-./DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe
+# 发布产物落在 RID 目录下的 publish/，不在 RID 目录本身
+./DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/publish/DuetDiagram.AotSmokeTest.exe
 
 # 对比测试：冻结语料 → 盲评清单 + 解析统计
 # 逐字节可复现（打乱种子写死在代码里）。rater.md / items.json / key.json 不进仓库。

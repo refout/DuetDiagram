@@ -460,3 +460,10 @@ jobs:
       # 界面程序的原生发布：这是技术选型能否成立的关键一项，由带 C++ 工具链的运行器负责。
       - name: 原生发布界面程序
         run: dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c ${{ env.CONFIGURATION }}
+
+      # 原生那一份的冷启动。上面「冷启动基准」量的是框架依赖发布里的原生宿主——
+      # 两者启动开销不同（原生那份没有运行时装起来、也没有即时编译），要断言就得分开量。
+      # 必须放在原生发布之后：装置只认 RID 目录下 publish/ 里的产物，找不到就报错退出，
+      # 不会静默退回托管那一份——静默回退会让这条门禁在原生发布坏掉时照样绿。
+      - name: 原生冷启动基准
+        run: dotnet run --project tools/StartupBench -c ${{ env.CONFIGURATION }} -- --native --budget 2000

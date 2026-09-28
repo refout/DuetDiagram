@@ -23,8 +23,8 @@
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
-| tools | 44 | 12392 | 8358 | 1980 | 2054 |
-| **合计** | **510** | **117813** | **73168** | **24794** | **19851** |
+| tools | 44 | 12424 | 8379 | 1988 | 2057 |
+| **合计** | **510** | **117845** | **73189** | **24802** | **19854** |
 
 ## 明细
 
@@ -625,7 +625,7 @@
 | Candidates.cs | 137 |
 | Facts.cs | 68 |
 | Program.cs | 12 |
-| Program.cs | 475 |
+| Program.cs | 496 |
 | Analysis.cs | 381 |
 | Checks.cs | 181 |
 | Program.cs | 75 |

@@ -36,7 +36,7 @@ IR 是唯一事实源；GUI 做的每一件事，LLM 通过命令层都能做。
 | `tools/CoverageAudit` | draw.io 覆盖率取证装置：分母写死在 `Matrix.cs`（来自 draw.io 公开能力面，取数时间 2026-09），每条判定带证据或理由，印逐档计数与覆盖率，`--list-missing` 列全部「无」（不进 sln） | Phase 4 P4-21 已落地（覆盖率 86.3%，≥ 85%） |
 | `tools/LayoutScore` | 布局质量评分装置：语料写死在 `Corpus.cs`，四个维度与权重写死在 `Rubric.cs`，跑产品里那份布局引擎，印逐图分数与原始数；几何自检先验一遍交叉判定；`--dump` 印坐标与折线，`--ratings` 与人工评分对照（不进 sln） | Phase 5 P5-01 已落地（综合分 96.6，≥ 85）；带环的图排不出来，见 `reports/phase5-layout-score.md` |
 | `tools/MemBudget` | 内存预算取证装置：逐档量进程工作集（后台 2 毫秒采样取峰值），并单独核视口索引与版本日志两处上限；`--nodes` / `--big` 换规模；退出码 0 / 1 / 2（装置自己不可信）（不进 sln） | Phase 5 P5-03 已落地（峰值 139.1 ~ 141.5 MB，< 500MB）；5000 节点的图排不出来，见 `reports/phase5-memory.md` |
-| `tools/StartupBench` | 冷启动取证装置：每轮起一个全新的界面进程，量「进程创建 → 首帧可交互」的墙上时钟，并把界面自己写出来的逐段读数读回来印成表；`--runs` / `--nodes` / `--budget` / `--configuration` / `--no-big`；退出码 0 / 1 / 2（装置自己不可信）（不进 sln） | Phase 5 P5-04 已落地（默认文档中位 1580.3 ms，≤ 2s）；最大两块是平台初始化与窗口上屏，见 `reports/phase5-startup.md`。判据默认是规格里的 2000 ms，CI 上放宽到 2600 ms——四核共享运行器同一份代码量到 2087 ms |
+| `tools/StartupBench` | 冷启动取证装置：每轮起一个全新的界面进程，量「进程创建 → 首帧可交互」的墙上时钟，并把界面自己写出来的逐段读数读回来印成表；`--runs` / `--nodes` / `--budget` / `--configuration` / `--no-big` / `--native`；退出码 0 / 1 / 2（装置自己不可信）（不进 sln） | Phase 5 P5-04 已落地（默认文档中位 1580.3 ms，≤ 2s）；最大两块是平台初始化与窗口上屏，见 `reports/phase5-startup.md`。判据默认是规格里的 2000 ms，CI 上放宽到 2600 ms——四核共享运行器同一份代码量到 2087 ms。默认量框架依赖发布里的原生宿主，`--native` 量原生编译发布出来的那一份（P0-02 的第三行验收要的是后者） |
 | `DuetDiagram.Llm` | 八个粗粒度工具的定义、参数 schema 与参数校验；一份定义两处派生；归一化上下文摘要与 `diagram_read`；八个工具的动作分发、样式白名单与幂等键；图层级权限判定（在动作参数上判这次写入点名了哪个图层）；导出（Mermaid 与自有 DSL 直接调、SVG 与 PNG 与 PDF 走宿主喂进来的渲染器，位图与 PDF 按 base64 进载荷）、整体校验与撤销重做；错误码到修复建议的映射表与错误回环；内部模型那条通路的客户端（工具调用往返 + 失败回灌 + 把这一轮匹配上的 Skill 正文接在系统提示后面） | Phase 3 P3-05 ~ P3-11 / P3-14 / P3-15 已落地；P4-03 把两个图层开关接成了动作；P4-04 让 `diagram_read` / `diagram_export` 的 `pageId` 按页过滤；P4-12 让摘要带上富文本的纯文本投影（`diagram_edit` 改标签那条路两条都不用改：字段表已经把它带上了）；P4-16 让 `diagram_export` 的 `svg` 真的出图；P4-17 让 `png` 也出图；P4-18 让 `pdf` 也出图（选型见 `reports/phase4-pdf.md`）；P4-20 让 `dsl` 也出文本，并为此引了 DSL 那一层；模型那条通路已经能跑通，凭据与真实模型验收未开工 |
 | `DuetDiagram.Llm.Tests` | 工具表、参数约束、上下文摘要、动作分发、样式白名单、布局组合动作、图层级权限、导出校验、历史栈、错误回环与两侧派生一致性的门禁 | 已落地 |
 | `DuetDiagram.Mcp` | MCP Server：把注册表里那八个工具挂到协议上，走标准输入输出或 HTTP 两条传输；另把两份 Skill 按 `skill://` 挂成资源，第三层就是那份语法文档本身（构建时嵌入程序集）；会话状态从每条请求现读、标准输入输出下日志改道标准错误；网络那一档前面挡着认证、限流、权限档、版本预判与工作区，另有一条按版本号补差的变化源端点，审计与命令层告警写标准错误；导出 SVG、PNG 与 PDF 那一侧的渲染接线（把文档排出来再交给导出器，三个导出器共用一次"排出来"；排不出结果时如实说） | Phase 3 P3-12 / P3-13 / P3-14 / P3-15 / P3-16 已落地；P4-16 引了渲染层与布局引擎，只为导出 SVG 那一档；P4-17 让同一个入口也出 PNG，两条渲染接线收成一个 `DocumentRendering`；P4-18 让同一个入口再出 PDF，并按文档自己声明的页序一页一张纸；跨机器传输（TLS、多实例共享变化源）未开工 |
@@ -83,6 +83,8 @@ Phase 4 的任务集（`P4-01` ~ `P4-22`，丰富功能）已产出。**`P4-01`�
 逐段读数由界面自己写文件（`DuetDiagram.App --startup-probe <路径>`），验报告 `reports/phase5-startup.md`；
 顺带记下——最大两块不是我们的代码（平台初始化与窗口上屏合计占总时长一半，三个场景几乎一样），
 而「文档」那一列在不同场景之间不可比（同一批代码路径只是被记在了不同的段里）。
+后补：装置加了 `--native`，量原生编译发布出来的那一份（P0-02 的第三行验收要的是它，
+而上面那些数字量的是框架依赖发布里的原生宿主）。
 其中 **`P5-05`（无障碍——键盘导航与屏幕阅读器）已落地**：`Category=Accessibility` 十条用例全绿，
 `DuetDiagram.E2E.Tests` 从 204 条涨到 214 条（失败 0）；
 命名收成一条路——`DuetDiagram.App/Services/AccessibleName.cs` 的 `Set`（**名字为空就抛异常**，
@@ -615,7 +617,11 @@ dotnet run --project tools/MemBudget -c Release
 # 冷启动：每轮起一个全新的界面进程，量「进程创建 → 首帧可交互」的墙上时钟。
 # 先构建界面程序，装置不会替你构建。退出码 0 达标 / 1 超过 2 秒 / 2 装置自己不可信。
 # 窗口会真的弹出来，画完首帧立刻关掉；逐段读数由界面自己写文件，见 reports/phase5-startup.md
+# 默认量的是框架依赖发布里的原生宿主；加 --native 量原生编译发布出来的那一份
+# （先 dotnet publish DuetDiagram.App，产物在 RID 目录下的 publish/ 里）。
 dotnet run --project tools/StartupBench -c Release
+dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c Release
+dotnet run --project tools/StartupBench -c Release -- --native
 
 # 无障碍：每个交互控件都有可访问名称、名字说得出是哪一个、键盘到得了、Tab 走遍每一块面板、
 # 菜单能键盘展开。判据从注册表与行数据来，不从视觉树次序来——后者会在加一个控件时静默错位。

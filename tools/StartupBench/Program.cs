@@ -83,6 +83,7 @@ internal static class Program
         var budget = ReadInt(args, "--budget", DefaultBudgetMilliseconds);
         var configuration = ReadOption(args, "--configuration") ?? "Release";
         var skipBig = args.Contains("--no-big", StringComparer.Ordinal);
+        var native = args.Contains("--native", StringComparer.Ordinal);
 
         Console.WriteLine("冷启动取证");
         Console.WriteLine($"判据：进程创建 → 首帧可交互 ≤ {budget:0} ms");
@@ -96,15 +97,20 @@ internal static class Program
             return 2;
         }
 
-        if (ResolveApp(root, configuration) is not { } app)
+        if (ResolveApp(root, configuration, native) is not { } app)
         {
-            Console.Error.WriteLine($"找不到界面程序：先 dotnet build DuetDiagram.slnx -c {configuration}");
+            Console.Error.WriteLine(native
+                ? $"找不到原生发布出来的界面程序：先 dotnet publish DuetDiagram.App/DuetDiagram.App.csproj -c {configuration}"
+                : $"找不到界面程序：先 dotnet build DuetDiagram.slnx -c {configuration}");
 
             return 2;
         }
 
         Console.WriteLine($"运行环境：{DescribeEnvironment()}");
         Console.WriteLine($"界面程序：{app.FileName}");
+        Console.WriteLine(native
+            ? "形态：原生编译（AOT）发布出来的那一份"
+            : "形态：框架依赖发布里的原生宿主；要量原生编译那一份加 --native");
         Console.WriteLine();
 
         var fixtures = Path.Combine(Path.GetTempPath(), "duet-startup-fixtures");
@@ -540,11 +546,19 @@ internal static class Program
     /// 找界面程序。
     /// </summary>
     /// <remarks>
-    /// 找到的是原生宿主（可执行文件）而不是用 dotnet 去跑那一份程序集：用 dotnet 跑的话，
-    /// 墙上时钟里会多出「找一个已经装好的运行时」那一段，而用户双击图标走的是原生宿主。
-    /// 只有在没有原生宿主时才退回用 dotnet 跑程序集。
+    /// <para>
+    /// 默认找到的是框架依赖发布里的原生宿主（可执行文件），不是用 dotnet 去跑那一份程序集：
+    /// 用 dotnet 跑的话，墙上时钟里会多出「找一个已经装好的运行时」那一段，
+    /// 而用户双击图标走的是原生宿主。只有在没有原生宿主时才退回用 dotnet 跑程序集。
+    /// </para>
+    /// <para>
+    /// <c>native</c> 为真时只认原生编译发布出来的那一份，落在 RID 目录下的 <c>publish/</c> 里
+    /// ——RID 目录本身不是它的落点。两种形态的启动开销不同（原生那一份没有运行时装起来、
+    /// 也没有即时编译），要比较就得说清量的是哪一种，所以这里不做静默回退：
+    /// 要原生那一份而它不在，报错退出。
+    /// </para>
     /// </remarks>
-    private static Launch? ResolveApp(string root, string configuration)
+    private static Launch? ResolveApp(string root, string configuration, bool native)
     {
         var bin = Path.Combine(root, "DuetDiagram.App", "bin", configuration);
 
@@ -554,6 +568,24 @@ internal static class Program
         }
 
         var executable = OperatingSystem.IsWindows() ? "DuetDiagram.App.exe" : "DuetDiagram.App";
+
+        if (native)
+        {
+            foreach (var framework in Directory.GetDirectories(bin))
+            {
+                foreach (var rid in Directory.GetDirectories(framework))
+                {
+                    var published = Path.Combine(rid, "publish", executable);
+
+                    if (File.Exists(published))
+                    {
+                        return new Launch(published, []);
+                    }
+                }
+            }
+
+            return null;
+        }
 
         foreach (var framework in Directory.GetDirectories(bin))
         {

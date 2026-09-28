@@ -22,7 +22,7 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000
 | 口径 | 要求 | 实测 | 余量 |
 |---|---:|---:|---:|
 | 单帧拖拽处理耗时 | ≤ 16 ms | **11.321 ms**（中位，1000 节点 / 200 样本）——**复测不可复现**，见 `reports/phase5-fluency.md` | 1.4 倍（按复测是 55 倍） |
-| 拖动中不发命令 | 总线历史条目数不变 | `Category=Drag` **5/5**，含「移动中历史不变、松手前固定集合为空」 | — |
+| 拖动中不发命令 | 总线历史条目数不变 | `Category=Drag` **6/6**，含「移动中历史不变、松手前固定集合为空」 | — |
 | 松手只落定一次 | 固定恰好一个节点、重布局恰好一次 | `Releasing_a_drag_pins_exactly_one_node`：PinnedCount == 1 | — |
 | 重叠落点被挡 | 落点与另一固定节点重叠则拒绝 | `A_drop_that_overlaps_a_pinned_node_is_rejected`：Rejected、固定集合不增 | — |
 | 整次拖拽算一步撤销 | Undo/Redo 一次退回/恢复 | `Undo_reverts_a_drag_as_one_step`：Pinned 增删一致 | — |
@@ -45,7 +45,7 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000
 |---|---|---|
 | 按下点选 | 画布 → `DragController.Press` → `DiagramSession.BeginDrag` | 先问命中测试器「点到了谁」；`SelectionSet.ResolveDragSet` 决定这一拖动的是谁：非加选只动被点中的，加选模式下点中已在集合里就整批拖 |
 | 移动预览 | 画布 → `DragController.Move` → 视图模型 `UpdateDrag` | 只把被拖元素的绘制指令整体偏移一个 `DragDelta`；布局与文档都不碰。边只重算与被拖节点相连的那些 |
-| 松手落定 | `DragController.Release` → `DiagramSession.CommitDrag` | 用松手时的偏移算出落点，与「其他已固定节点」比重叠；不重叠才写 `pinnedNodes` 并重布局，返回 `DragCommit.Pinned`；重叠返回 `Rejected`；偏移为零返回 `Ignored` |
+| 松手落定 | `DragController.Release` → `DiagramSession.CommitDrag` | 用松手时的偏移算出落点，与「其他已固定节点」比重叠；不重叠才写 `pinnedNodes` 并重布局，返回 `DragCommit.Pinned`；重叠返回 `Rejected`。**只有指针真的挪过（≥ 3 屏幕像素）才走到这里**——没挪动的一按一松是点选，画布那一步就把落定跳过了，见下面「点一下不该把它钉住」 |
 | 取消 | `OnPointerCaptureLost` / `OnLostFocus` → `CancelDrag` | 指针被抢走（弹菜单、失焦）时清掉预览，不写任何固定位置 |
 
 ### 重叠在写入侧挡
@@ -84,3 +84,43 @@ dotnet run --project DuetDiagram.App -c Release -- --benchmark-drag --nodes 1000
 | 重叠只比已固定节点 | 不比自动布局位置，是有意的：自动布局位置会变，当判据会让正常拖动被误拒 |
 | 命中测试的取证 | `Category=HitTest` 在上一轮落地，本轮不重复造；这一轮只接上「画布指针 → 命中测试器 → 选中/拖拽」这一桥 |
 | 原生编译下的表现 | 本机缺 C++ 工作负载，AOT 发布没能验收。拖拽链路是纯计算 + 界面事件转发，风险在界面框架那一侧 |
+
+## 后补：点一下不该把它钉住（2026-09-28）
+
+**发现的经过：** CI 上 `RichTextEditorTests.Double_clicking_a_node_opens_the_editor_on_it`
+偶发红（同一次运行的 224 条里只挂这一条，同一提交重跑就过）。查下来不是用例不稳，是产品缺陷：
+**在节点上单击一下会把它固定住。**
+
+链路上看得很清楚——`OnPointerPressed` 一按到节点就 `_nodeDragging = true`，**没有位移阈值**；
+`OnPointerReleased` 无条件 `_dragger.Release(...)` → `CommitDrag` 写 `pinnedNodes`。
+零偏移的落定没有被拦：`DragCommit.Ignored` 只在「没有拖拽在进行」时返回，
+上面那张表原先写「偏移为零返回 `Ignored`」，与实现对不上，已改。
+
+后果有两层：
+
+- 用户想「选一下」，实际把这个节点钉住了。固定之后重布局不再动它，而画面上看不出任何变化——
+  他会在后面某次编辑里发现这个节点「怎么不动了」，却找不到原因。
+- 双击进标签编辑跟着坏：第一下先钉住节点并重布局，节点挪了位，第二下就落空。
+
+**因果这一层要说清楚：** 后一条是**推断**，不是直接量到的。直接量到的是
+「单击即固定」（探针：`afterOneClick=1`、`PinnedNodes` 里有 `check`）与
+「固定会触发一次重布局」；而那条用例偶发红这一点**本机复现不出来**——
+`Category=RichTextEditor` 连跑 8 轮（每轮 7 条）全绿，本机 12 核，运行器是 4 核共享机。
+把两件事接起来的是：第一下与第二下之间隔着一次重布局，而重布局什么时候落地取决于运行器忙不忙。
+所以这一条记成「找到了一个真缺陷，它是最像的成因」，不记成「已定位并消除」。
+
+**修法：** 与框选那一条同一口径。指针从按下到松手走够 3 个屏幕像素才算拖过
+（`MarqueeSession.ThresholdPixels`），短于它的算点选——选中在按下那一刻已经发生了，
+落定这一步跳过，`Cancel()` 掉预览。一旦越过阈值就锁住，拖出去又拖回来仍算拖过。
+阈值这一层放在画布而不是会话：会话的 `CommitDrag` 是程序接口，「把节点钉在当前位置」
+对它是正当操作（`A_drop_that_overlaps_a_pinned_node_is_rejected` 就是这么摆场景的），
+需要判的是**用户的手势有没有动**，那是界面才知道的事。
+
+**取证：** 新增 `Clicking_a_node_selects_it_without_pinning_it`（`Category=Drag`）：
+真窗口里点一下，断言选中里有它、`PinnedNodes` 为空。修之前这条用例是红的
+（实测 `afterOneClick=1`，`PinnedNodes` 里有 `check`），修之后 `Category=Drag` 6/6、
+`DuetDiagram.E2E.Tests` 全量 225/225。
+
+**同时更正：** 这一条落地时没有任何用例守着「点选不固定」——上面那张验收表里
+「松手只落定一次」验的是**拖动**的落定次数，而没验「没拖的那一下不该落定」。
+口径与 `docs/GUI.md` 的「节点拖拽与固定」一节同步。

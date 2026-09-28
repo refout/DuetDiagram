@@ -1,3 +1,5 @@
+using Avalonia.Headless;
+using Avalonia.Input;
 using DuetDiagram.App;
 using DuetDiagram.App.Interaction;
 using DuetDiagram.App.Services;
@@ -78,6 +80,34 @@ public sealed class DragTests
             placed.Should().NotBeNull();
             placed!.X.Should().BeApproximately(start.X + delta.X, 0.01);
             placed.Y.Should().BeApproximately(start.Y + delta.Y, 0.01);
+        });
+    }
+
+    /// <summary>在节点上点一下只选中，不写固定位置。</summary>
+    /// <remarks>
+    /// 按下那一刻就进了"可能拖拽"的状态，而落定原来是无条件的：一按一松、指针一动没动，
+    /// 也会写一个与当前位置相同的固定位置。用户以为只是选了一下，实际把它钉住了——
+    /// 之后重布局不再动它，而画面上看不出任何变化。双击进编辑也受它影响：
+    /// 第一下先钉住节点、顺带重布局，节点挪了位，第二下就落空了。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "Drag")]
+    public async Task Clicking_a_node_selects_it_without_pinning_it()
+    {
+        await HeadlessFixture.Run(() =>
+        {
+            var window = HeadlessFixture.Open();
+            var canvas = HeadlessFixture.Canvas(window);
+
+            var point = HeadlessFixture.ToWindow(canvas, window, HeadlessFixture.CenterOf(canvas, "check"));
+
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+
+            window.Session.SelectedIds.Should().Contain("check", "点一下要选中它");
+            window.Session.PinnedNodes.Should().BeEmpty("点选不是拖动，不该写固定位置");
+
+            window.Close();
         });
     }
 

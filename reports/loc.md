@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
-| DuetDiagram.App | 71 | 18486 | 10448 | 4930 | 3108 |
+| DuetDiagram.App | 71 | 18515 | 10465 | 4937 | 3113 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
 | DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 30 | 9619 | 6218 | 1404 | 1997 |
+| DuetDiagram.E2E.Tests | 30 | 9649 | 6236 | 1411 | 2002 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4859 | 2642 | 1537 | 680 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **510** | **117845** | **73189** | **24802** | **19854** |
+| **合计** | **510** | **117904** | **73224** | **24816** | **19864** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 19 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 879 |
+| DiagramCanvas.cs | 896 |
 | DiagramMenuBar.axaml.cs | 98 |
 | DiagramToolBar.axaml.cs | 108 |
 | DiffSidebar.axaml.cs | 111 |
@@ -339,7 +339,7 @@
 | ConstraintEditorTests.cs | 299 |
 | ContextMenuTests.cs | 249 |
 | DiagnosticsPanelTests.cs | 151 |
-| DragTests.cs | 121 |
+| DragTests.cs | 139 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
 | HeadlessFixture.cs | 213 |

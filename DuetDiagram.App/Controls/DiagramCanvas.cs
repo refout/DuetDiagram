@@ -97,6 +97,12 @@ public sealed partial class DiagramCanvas : UserControl
     private DragController? _dragger;
     private bool _nodeDragging;
 
+    /// <summary>这一按从画布上的哪里开始。用来分辨"点了一下"与"拖了一段"。</summary>
+    private Point _nodeDragOrigin;
+
+    /// <summary>这一按有没有真的挪过。没挪过的一按一松算点选，落定时不写固定位置。</summary>
+    private bool _nodeDragMoved;
+
     // 一次框选。按在空白处才开始，拖动中只更新叠加层上的那个选框。
     private MarqueeSession? _marquee;
     private SpatialRect? _marqueeArea;
@@ -729,6 +735,8 @@ public sealed partial class DiagramCanvas : UserControl
                     if (_dragger.Press(model.Pick(position.X, position.Y), additive, startDoc))
                     {
                         _nodeDragging = true;
+                        _nodeDragOrigin = position;
+                        _nodeDragMoved = false;
                         e.Pointer.Capture(this);
                         e.Handled = true;
                         return;
@@ -796,6 +804,16 @@ public sealed partial class DiagramCanvas : UserControl
         // 选中节点整体挪一下，松手才由宿主一次性落定。
         if (_nodeDragging && _dragger is not null)
         {
+            // 超过阈值才算真的拖过。按下时手抖一两个像素是常事，而那一档用户想的是"选中"，
+            // 阈值与框选那一条同一口径。一旦越过就锁住，拖出去又拖回来仍然算拖过。
+            if (!_nodeDragMoved)
+            {
+                var dx = position.X - _nodeDragOrigin.X;
+                var dy = position.Y - _nodeDragOrigin.Y;
+
+                _nodeDragMoved = Math.Sqrt((dx * dx) + (dy * dy)) >= MarqueeSession.ThresholdPixels;
+            }
+
             _dragger.Move(model.Viewport.Transform.ToDocument(position.X, position.Y));
             e.Handled = true;
             return;
@@ -893,7 +911,18 @@ public sealed partial class DiagramCanvas : UserControl
             // 预览只是画布把指令整体挪了一下，文档里的位置自始至终没动。
             var drop = e.GetPosition(this);
 
-            _dragger?.Release(Model?.Pick(drop.X, drop.Y));
+            if (_nodeDragMoved)
+            {
+                _dragger?.Release(Model?.Pick(drop.X, drop.Y));
+            }
+            else
+            {
+                // 没挪过：这一下是点选，而选中在按下那一刻已经发生了。
+                // 照旧落定的话，用户每点一下节点就会把它固定住——固定之后重布局不再动它，
+                // 而画面上看不出任何变化，他会以为只是选了一下。
+                _dragger?.Cancel();
+            }
+
             _nodeDragging = false;
             _dragger = null;
             e.Pointer.Capture(null);

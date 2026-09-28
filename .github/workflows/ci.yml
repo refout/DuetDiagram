@@ -361,7 +361,10 @@ jobs:
 
       # Phase 4 界面侧门禁：形状库面板、富文本编辑器、图层面板、页面标签、导入端到端。
       # 这几样退化的表现是「面板里少一项、或某项操作点了没反应」，全项目跑一遍也只红这一组。
+      # shell 必须显式写 bash：Windows 运行器上 `run:` 默认走 pwsh，而这段是 bash 函数语法，
+      # 用默认 shell 的话连一条用例都跑不到——直接是解析错误，看起来像门禁失败。
       - name: Phase 4 界面门禁（形状库/富文本/图层/页面/导入）
+        shell: bash
         run: |
           gate() { dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=$1" || STATUS=1; }
           STATUS=0
@@ -431,7 +434,8 @@ jobs:
 
       - name: 运行原生冒烟程序
         run: |
-          $exe = "DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/DuetDiagram.AotSmokeTest.exe"
+          # 原生发布把产物放进 RID 目录下的 publish/，不是 RID 目录本身。
+          $exe = "DuetDiagram.AotSmokeTest/bin/Release/net10.0/win-x64/publish/DuetDiagram.AotSmokeTest.exe"
           $output = & $exe
           Write-Host $output
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

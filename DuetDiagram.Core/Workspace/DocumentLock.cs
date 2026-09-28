@@ -125,8 +125,15 @@ public sealed class DocumentLock : IDisposable
             return Busy(documentPath, "另一个进程正在编辑这份文档，这一份是只读的");
         }
 
-        // 句柄拿不到，心跳又停了：对方可能卡住了。抢一下——删得掉锁文件才抢得到，
-        // 而握着它的活进程会让这一步失败。这一下失败才是判据，心跳过期只是触发去试。
+        // 句柄拿不到，心跳又停了：对方可能卡住了。抢之前先问一句锁文件是不是被独占拿着——
+        // 是的话它就是活着的，别抢。判据只能是"能不能按共享方式打开"：删除在两边的语义不一样，
+        // Windows 上持有者没给删除共享所以删不掉，而 POSIX 上删除只是摘掉目录项、与谁握着文件无关，
+        // 于是那一下一定成功，同一段代码在 Linux 上会把活着的持有者挤掉（两边都以为自己独占）。
+        if (IsHeldExclusively(lockPath))
+        {
+            return Busy(documentPath, "另一个进程好像卡住了，但它还占着这份文档");
+        }
+
         try
         {
             File.Delete(lockPath);
@@ -206,6 +213,52 @@ public sealed class DocumentLock : IDisposable
         {
             handle = null!;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 锁文件是不是被一个独占的持有者拿着。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 按最大共享的方式打开一次，打得开就说明没有独占持有者。共享位必须给全
+    /// （<see cref="FileShare.ReadWrite"/> 与 <see cref="FileShare.Delete"/>），不能只给读——
+    /// Windows 的共享检查是双向的，新句柄的共享位也要放行既有句柄的写访问，
+    /// 只给读的话持有者按完全共享开着时反而会被拒，于是把"没人独占"误判成"有人独占"。
+    /// </para>
+    /// <para>
+    /// POSIX 那边"最大共享"仍然会被翻译成一把共享锁（只有 <see cref="FileShare.None"/> 才是独占锁），
+    /// 而共享锁与独占锁互斥，所以这一下照样打得开才说明没人独占。反过来"删得掉"不能当判据：
+    /// POSIX 上删除与锁无关，永远删得掉。
+    /// </para>
+    /// <para>
+    /// 文件在探测的一瞬间被另一个进程删掉时按"没有独占持有者"处理——那是抢占的正常中间态，
+    /// 不是"有人在拿着"。
+    /// </para>
+    /// </remarks>
+    private static bool IsHeldExclusively(string lockPath)
+    {
+        try
+        {
+            using var probe = new FileStream(
+                lockPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+
+            return false;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
         }
     }
 

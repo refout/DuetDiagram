@@ -40,7 +40,7 @@
 | 命令总线 | `Bus/` | `Execute` / `ExecuteAsync` / `Undo` / `Redo`，门锁 + AsyncLocal 嵌套检测 |
 | 序列化 | `Serialization/` | 源生成 JSON（AOT 安全）、结构哈希、视觉哈希 |
 | Sidecar | `Sidecar/` | `layout.json` / `user.json` 的读写、路径推导、备份轮转与损坏恢复 |
-| 工作区 | `Workspace/` | `DiagramWorkspace` 管文档 + 总线 + 广播器所有权，另挂一把**文档级软锁**（`Concurrency/SoftLock.cs`）；`DocumentLock` 与 `Heartbeat` 管**跨进程**那份所有权：锁文件按独占方式持有，心跳文件按允许读写的方式每 5 秒写一次，15 秒没有心跳才去试抢占，而"删不掉锁文件"才是别抢的真正判据 |
+| 工作区 | `Workspace/` | `DiagramWorkspace` 管文档 + 总线 + 广播器所有权，另挂一把**文档级软锁**（`Concurrency/SoftLock.cs`）；`DocumentLock` 与 `Heartbeat` 管**跨进程**那份所有权：锁文件按独占方式持有，心跳文件按允许读写的方式每 5 秒写一次，15 秒没有心跳才去试抢占，而"锁文件能不能按最大共享方式打开"才是能不能抢的判据（删除在 POSIX 上与锁无关，不能当判据） |
 | 并发 | `Concurrency/` | `SoftLock` 管"哪个主体正在改这份文档"（TTL 30 秒，判据是**最后一次操作**而不是拿到锁的时刻，到期懒释放）；`PermissionSet` 与 `LayerAcl` 管"哪个主体能改哪些图层"，绑的是主体不是连接，认不出的主体按只读 |
 | 时间 | `Time/ITimeProvider.cs` | 命令总线填充时间戳的唯一来源 |
 | 诊断 | `Diagnostics/` | 最小告警出口，避免 Core 依赖 `Microsoft.Extensions.Logging` |

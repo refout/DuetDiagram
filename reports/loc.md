@@ -8,7 +8,7 @@
 | DuetDiagram.AotSmokeTest | 1 | 320 | 217 | 65 | 38 |
 | DuetDiagram.App | 71 | 18486 | 10448 | 4930 | 3108 |
 | DuetDiagram.Benchmarks | 6 | 588 | 349 | 149 | 90 |
-| DuetDiagram.Core | 122 | 18415 | 10380 | 5360 | 2675 |
+| DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
 | DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
 | tools | 44 | 12384 | 8357 | 1973 | 2054 |
-| **合计** | **510** | **117725** | **73124** | **24760** | **19841** |
+| **合计** | **510** | **117778** | **73152** | **24782** | **19844** |
 
 ## 明细
 
@@ -245,7 +245,7 @@
 | TemplateInstantiator.cs | 252 |
 | ITimeProvider.cs | 22 |
 | DiagramWorkspace.cs | 50 |
-| DocumentLock.cs | 136 |
+| DocumentLock.cs | 164 |
 | Heartbeat.cs | 62 |
 
 ### DuetDiagram.Core.Tests

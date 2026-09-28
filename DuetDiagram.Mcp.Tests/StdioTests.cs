@@ -344,8 +344,16 @@ public sealed class StdioTests
 
         bytes.Should().StartWith("%PDF"u8.ToArray(), "导出的要是一份真的 PDF，而不是一份空文件");
         file.Should().Contain("/Type /Page");
-        file.Should().Contain("/FontFile", "字体没嵌进去，收件人机器上没有那份字体");
-        file.Should().Contain("/Type0", "汉字要按 CID 型字体嵌，否则到了别处是方块");
+
+        var realFont = file.Contains("/FontFile", StringComparison.Ordinal);
+        (realFont || file.Contains("/Subtype /Type3", StringComparison.Ordinal))
+            .Should().BeTrue("字体没嵌进去，收件人机器上没有那份字体");
+
+        if (realFont)
+        {
+            file.Should().Contain("/Type0", "汉字要按 CID 型字体嵌，否则到了别处是方块");
+            file.Should().Contain("Identity-H");
+        }
 
         data.GetProperty("dropped").GetArrayLength().Should().BeGreaterThan(0,
             "字体整份嵌入的代价要如实带上");

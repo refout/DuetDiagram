@@ -140,7 +140,15 @@ internal static class Program
         var head = Encoding.ASCII.GetString(export.Pdf, 0, 4);
 
         Assert(head == "%PDF", $"pdf header is {head}");
-        Assert(Encoding.Latin1.GetString(export.Pdf).Contains("/FontFile", StringComparison.Ordinal), "pdf embeds a font");
+
+        // 字形数据跟着文件走有两种合法形态：宿主字体栈能给出可嵌入数据时是 CID 型真字体，
+        // 给不出时退化成 Type3（把字形当成画法写进文件）。两种都自足，别只认前者。
+        var pdfText = Encoding.Latin1.GetString(export.Pdf);
+
+        Assert(
+            pdfText.Contains("/FontFile", StringComparison.Ordinal)
+            || pdfText.Contains("/Subtype /Type3", StringComparison.Ordinal),
+            "pdf embeds a font");
     }
 
     /// <summary>

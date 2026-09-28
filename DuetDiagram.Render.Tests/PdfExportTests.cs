@@ -226,13 +226,15 @@ public sealed class PdfExportTests
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 判据是"文件里没有位图对象、而有嵌入的字体"。位图那一档导出来的文件正好相反：
+    /// 判据是"文件里没有位图对象、而有自带的字形数据"。位图那一档导出来的文件正好相反：
     /// 一个大的位图对象、一个字体都没有。所以这一条能真的把两条路分开，
     /// 而不是只证明"我们写了 PDF"。
     /// </para>
     /// <para>
-    /// 中文文档还要多一条：字体是 CID 型、按 Identity-H 编码嵌进去的。
-    /// 少了这一条，汉字到了没有那份字体的机器上就是方块。
+    /// 自带字形有两种形态，用哪一种由宿主的字体栈决定，这一层选不了：拿得到可嵌入的
+    /// 字体数据时按 CID 型字体嵌（<c>/FontFile</c> 加 <c>/Type0</c>、按 <c>Identity-H</c> 编码），
+    /// 拿不到时改成把每个字形当绘制过程嵌（Type3）。后者一样自带字形、一样能搜能复制，
+    /// 只是形态不同——所以判据认"字形数据在文件里"，而"文字搜不到"另有一条用例守着。
     /// </para>
     /// </remarks>
     [Fact]
@@ -242,9 +244,18 @@ public sealed class PdfExportTests
         var pdf = Latin1(PdfExporter.Export([Build([new NodeDef { Id = "n1", Label = "开始" }])]));
 
         pdf.Should().NotContain("/Subtype /Image", "有一条位图对象就说明这条路退回了位图");
-        pdf.Should().Contain("/FontFile", "字体没嵌进去，收件人机器上没有那份字体");
-        pdf.Should().Contain("/Type0", "汉字要按 CID 型字体嵌，否则到了别处是方块");
-        pdf.Should().Contain("Identity-H");
+
+        var realFont = pdf.Contains("/FontFile", StringComparison.Ordinal);
+
+        (realFont || pdf.Contains("/Subtype /Type3", StringComparison.Ordinal))
+            .Should().BeTrue("字形数据要跟着文件走，否则收件人机器上没有那份字体");
+
+        if (realFont)
+        {
+            // 真字体那一档必须是 CID 型按 Identity-H 编码，否则汉字到了别处是方块。
+            pdf.Should().Contain("/Type0");
+            pdf.Should().Contain("Identity-H");
+        }
     }
 
     /// <summary>

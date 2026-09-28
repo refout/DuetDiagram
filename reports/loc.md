@@ -22,9 +22,9 @@
 | DuetDiagram.Mermaid | 12 | 2677 | 1564 | 696 | 417 |
 | DuetDiagram.Mermaid.Tests | 9 | 2780 | 2021 | 293 | 466 |
 | DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
-| DuetDiagram.Render.Tests | 24 | 6233 | 4291 | 815 | 1127 |
-| tools | 44 | 12384 | 8357 | 1973 | 2054 |
-| **合计** | **510** | **117778** | **73152** | **24782** | **19844** |
+| DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
+| tools | 44 | 12392 | 8358 | 1980 | 2054 |
+| **合计** | **510** | **117797** | **73158** | **24792** | **19847** |
 
 ## 明细
 
@@ -574,7 +574,7 @@
 | MathTypesettingTests.cs | 258 |
 | ModeSwitchTests.cs | 113 |
 | PageRenderTests.cs | 117 |
-| PdfExportTests.cs | 355 |
+| PdfExportTests.cs | 360 |
 | QuadTreeTests.cs | 285 |
 | RichTextLayoutTests.cs | 297 |
 | RichTextRenderTests.cs | 117 |
@@ -625,7 +625,7 @@
 | Candidates.cs | 137 |
 | Facts.cs | 68 |
 | Program.cs | 12 |
-| Program.cs | 474 |
+| Program.cs | 475 |
 | Analysis.cs | 381 |
 | Checks.cs | 181 |
 | Program.cs | 75 |

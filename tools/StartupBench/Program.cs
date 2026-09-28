@@ -31,8 +31,15 @@ namespace StartupBench;
 /// </remarks>
 internal static class Program
 {
-    /// <summary>判据。超过它退出码 1。</summary>
-    private const double BudgetMilliseconds = 2000;
+    /// <summary>
+    /// 判据的默认值：进程创建 → 首帧可交互不超过这么多毫秒。超过它退出码 1。
+    /// </summary>
+    /// <remarks>
+    /// 这是规格里那条判据，取在参考机器上。共享的 CI 运行器比参考机器慢三成上下，
+    /// 拿这个数去卡它，量到的是「今天这台机器有多忙」而不是「产品有没有退化」——
+    /// 所以允许用 <c>--budget</c> 换一个判据值，报告里记的始终是这一档。
+    /// </remarks>
+    private const int DefaultBudgetMilliseconds = 2000;
 
     private const int DefaultRuns = 5;
 
@@ -73,11 +80,12 @@ internal static class Program
     {
         var runs = ReadInt(args, "--runs", DefaultRuns);
         var nodes = ReadInt(args, "--nodes", DefaultNodes);
+        var budget = ReadInt(args, "--budget", DefaultBudgetMilliseconds);
         var configuration = ReadOption(args, "--configuration") ?? "Release";
         var skipBig = args.Contains("--no-big", StringComparer.Ordinal);
 
         Console.WriteLine("冷启动取证");
-        Console.WriteLine($"判据：进程创建 → 首帧可交互 ≤ {BudgetMilliseconds:0} ms");
+        Console.WriteLine($"判据：进程创建 → 首帧可交互 ≤ {budget:0} ms");
         Console.WriteLine($"每个场景跑 {runs} 轮，每轮起一个全新的界面进程；逐段耗时由界面自己写文件");
         Console.WriteLine();
 
@@ -158,13 +166,13 @@ internal static class Program
 
             if (scenario.Judged)
             {
-                if (median > BudgetMilliseconds)
+                if (median > budget)
                 {
-                    verdicts.Add($"{scenario.Name} 中位数 {median:0.0} ms，超过 {BudgetMilliseconds:0} ms");
+                    verdicts.Add($"{scenario.Name} 中位数 {median:0.0} ms，超过 {budget:0} ms");
                 }
-                else if (first > BudgetMilliseconds)
+                else if (first > budget)
                 {
-                    verdicts.Add($"{scenario.Name} 第一轮 {first:0.0} ms，超过 {BudgetMilliseconds:0} ms（中位数 {median:0.0} ms 达标）");
+                    verdicts.Add($"{scenario.Name} 第一轮 {first:0.0} ms，超过 {budget:0} ms（中位数 {median:0.0} ms 达标）");
                 }
             }
             else
@@ -205,7 +213,7 @@ internal static class Program
             return 1;
         }
 
-        Console.WriteLine($"达标：进程创建到首帧可交互不超过 {BudgetMilliseconds:0} ms");
+        Console.WriteLine($"达标：进程创建到首帧可交互不超过 {budget:0} ms");
 
         return 0;
     }

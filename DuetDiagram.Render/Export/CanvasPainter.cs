@@ -39,9 +39,6 @@ internal static class CanvasPainter
 
     private const float DotOff = 3;
 
-    /// <summary>文档没点名家族时用的那个。与度量器的兜底同一个，否则量出来的与画出来的不是一套。</summary>
-    private const string DefaultFamily = "Segoe UI";
-
     /// <summary>
     /// 铺底色。
     /// </summary>
@@ -384,7 +381,13 @@ internal static class CanvasPainter
     /// <para>
     /// **字体要挑一次。** 文档点名的家族未必认得出这段字里的每一个字——例如
     /// 一份写中文标签而字体是西文家族的文档。不挑的话，认不出的字画成空白方块，
-    /// 而那是"导出看起来坏了"里最容易被当成"程序坏了"的一种。
+    /// 而那是"导出看起来坏了"里最容易被当成"程序坏了"的一种。挑哪个字体由
+    /// <see cref="FontFallback"/> 定，与度量那一步同一份规则。
+    /// </para>
+    /// <para>
+    /// **整段换，不是逐字换。** 逐字换字体要真正的文字整形，而这里要的只是
+    /// "不出现空白方块"——一个字体里通常拉丁与中日韩字形都有。代价是混排的标签
+    /// 整段用回退字体，而画布那边是逐字回退，于是同一段里拉丁字用的字体略有不同。
     /// </para>
     /// <para>
     /// 下划线与删除线按需挂上。位置与粗细按字号算，不读字体的那一组度量：
@@ -398,12 +401,12 @@ internal static class CanvasPainter
             return;
         }
 
-        var family = string.IsNullOrWhiteSpace(text.FontFamily) ? DefaultFamily : text.FontFamily;
+        var family = string.IsNullOrWhiteSpace(text.FontFamily) ? FontFallback.DefaultFamily : text.FontFamily;
 
-        using var requested = FromFamily(family, text.Weight, text.Italic);
+        using var requested = FontFallback.FromFamily(family, text.Weight, text.Italic);
         using var primary = new SKFont(requested, (float)text.FontSize) { Hinting = SKFontHinting.None };
 
-        var missing = FirstMissing(primary, text.Text);
+        var missing = FontFallback.FirstMissing(primary, text.Text);
 
         if (missing < 0)
         {
@@ -411,7 +414,7 @@ internal static class CanvasPainter
             return;
         }
 
-        using var substitute = Substitute(family, missing, text.Weight, text.Italic);
+        using var substitute = FontFallback.Substitute(family, missing, text.Weight, text.Italic);
 
         if (substitute is null)
         {
@@ -444,75 +447,6 @@ internal static class CanvasPainter
             Decorate(canvas, text, paint, baseline);
         }
     }
-
-    /// <summary>
-    /// 这段文字里第一个这个字体画不出来的字。都在就返回零以下。
-    /// </summary>
-    /// <remarks>
-    /// 逐字问一遍而不是只看第一个：混排的标签里第一个字常常是拉丁字母，
-    /// 而画不出来的是后面那个中文字。
-    /// </remarks>
-    private static int FirstMissing(SKFont font, string text)
-    {
-        for (var index = 0; index < text.Length;)
-        {
-            var codePoint = char.ConvertToUtf32(text, index);
-
-            if (font.GetGlyph(codePoint) == 0)
-            {
-                return codePoint;
-            }
-
-            index += char.IsSurrogatePair(text, index) ? 2 : 1;
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// 换一个认得出这个字的字体。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 拿点名的家族当线索去问字体管理器：它认得这个字就把点名的家族还回来，
-    /// 认不得就还一个认得的（例如西文家族遇上汉字，还的是本机的中文字体）。
-    /// </para>
-    /// <para>
-    /// **整段换，不是逐字换。** 逐字换字体要真正的文字整形，而这里要的只是
-    /// "不出现空白方块"——一个字体里通常拉丁与中日韩字形都有。代价是混排的标签
-    /// 整段用回退字体，而画布那边是逐字回退，于是同一段里拉丁字用的字体略有不同。
-    /// </para>
-    /// </remarks>
-    private static SKTypeface? Substitute(string family, int codePoint, FontWeight weight, bool italic)
-    {
-        var matched = SKFontManager.Default.MatchCharacter(family, codePoint);
-
-        if (matched is null)
-        {
-            return null;
-        }
-
-        using (matched)
-        {
-            return FromFamily(matched.FamilyName, weight, italic);
-        }
-    }
-
-    /// <summary>
-    /// 按家族、字重与倾斜取一个字体。
-    /// </summary>
-    /// <remarks>
-    /// 字重与倾斜要一起交给字体匹配，而不是拿到常规体再让绘制方自己变：
-    /// 量出来的宽度必须与画出来的那一个字面一致，否则加粗的那一段会溢出。
-    /// 家族不存在时退回系统默认字体，与度量器同一条口径。
-    /// </remarks>
-    private static SKTypeface FromFamily(string family, FontWeight weight, bool italic) =>
-        SKTypeface.FromFamilyName(
-            family,
-            weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright)
-            ?? SKTypeface.Default;
 
     /// <summary>下划线与删除线各画一道横线，宽度取这一段的框宽。</summary>
     private static void Decorate(SKCanvas canvas, DrawText text, SKPaint paint, float baseline)

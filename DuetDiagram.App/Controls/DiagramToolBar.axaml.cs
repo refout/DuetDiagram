@@ -177,7 +177,7 @@ public sealed partial class DiagramToolBar : UserControl
     {
         AvaloniaXamlLoader.Load(this);
 
-        Body = this.FindControl<StackPanel>(nameof(Body))
+        Body = this.FindControl<WrapPanel>(nameof(Body))
             ?? throw new InvalidOperationException("工具栏的界面标记里没有名为 Body 的容器");
     }
 }

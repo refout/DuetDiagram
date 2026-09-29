@@ -61,8 +61,10 @@ public sealed class CanvasSmokeTests
             var frame = window.CaptureRenderedFrame();
 
             frame.Should().NotBeNull("无头模式用的是真实的绘图后端，抓不到帧说明后端没起来");
-            frame!.PixelSize.Width.Should().Be(900);
-            frame.PixelSize.Height.Should().Be(600);
+            frame!.PixelSize.Width.Should().Be(
+                (int)window.Bounds.Width,
+                "抓到的就是窗口那一块，尺寸对不上说明抓的不是窗口");
+            frame.PixelSize.Height.Should().Be((int)window.Bounds.Height);
 
             window.Close();
         });

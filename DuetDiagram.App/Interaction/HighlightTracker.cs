@@ -20,6 +20,12 @@ namespace DuetDiagram.App.Interaction;
 /// 一个与来源无关的颜色，来源信息就丢了。
 /// </para>
 /// <para>
+/// **标记有寿命。** 一条标记活 <see cref="Theme.HighlightMarkSeconds"/> 秒，过了整条作废。
+/// 脉冲（更短的那一截）只是"刚才这一下"，角标与虚线轮廓是"刚才改过这几个"；
+/// 两者都要停，否则改过的元素会永久带着一圈虚线与一个角标，改得越多画布越花——
+/// 而那时用户已经看不出"哪些是刚改的"了，那正是标记要回答的问题。
+/// </para>
+/// <para>
 /// 通知在后台投递线程上到达，画布在界面线程上读。两份状态之间用一把锁隔开：
 /// 无锁的并发字典读起来快，但"读一遍得到一份自洽的快照"这件事它保证不了，
 /// 而快照不自洽的表现是某一帧里同一个元素既是撤销又是脉冲。
@@ -35,7 +41,15 @@ public sealed class HighlightTracker : IDisposable
 
     private readonly Dictionary<string, ElementHighlight> _highlights = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ChangeSource> _lastRealSource = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, DateTimeOffset> _pulseStart = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 每个元素那一条标记是什么时候开始的。
+    /// </summary>
+    /// <remarks>
+    /// 撤销重做的标记也记在这里：它们没有脉冲，但同样有寿命——
+    /// 寿命是整条标记的性质，而脉冲只是标记里可以没有的那一截。
+    /// </remarks>
+    private readonly Dictionary<string, DateTimeOffset> _markStart = new(StringComparer.Ordinal);
 
     public HighlightTracker(IChangeBroadcaster broadcaster, Theme theme, Func<DateTimeOffset>? clock = null)
     {
@@ -57,19 +71,35 @@ public sealed class HighlightTracker : IDisposable
     /// </remarks>
     public event Action? Changed;
 
-    /// <summary>有没有任何被标记的元素。</summary>
+    /// <summary>有没有还活着的标记。过了寿命的不算。</summary>
     public bool HasHighlights
     {
         get
         {
             lock (_gate)
             {
-                return _highlights.Count > 0;
+                var now = _clock();
+
+                foreach (var id in _highlights.Keys)
+                {
+                    if (!Expired(id, now))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
         }
     }
 
-    /// <summary>当前是否还有脉冲在跑。它决定画布要不要继续出帧。</summary>
+    /// <summary>
+    /// 当前是否还有脉冲在跑。
+    /// </summary>
+    /// <remarks>
+    /// 画布按它决定要不要**按帧**重画。脉冲是动画，得逐帧出；而"标记过期"不是动画，
+    /// 隔一会儿重画一次就够——两者合成一档的话，标记活着的那几秒里画布要白转三十帧每秒。
+    /// </remarks>
     public bool HasActivePulse
     {
         get
@@ -78,9 +108,9 @@ public sealed class HighlightTracker : IDisposable
             {
                 var now = _clock();
 
-                foreach (var start in _pulseStart.Values)
+                foreach (var (id, highlight) in _highlights)
                 {
-                    if (now < Expiry(start))
+                    if (highlight.Kinds.Contains(HighlightKind.Pulse) && !PulseExpired(id, now))
                     {
                         return true;
                     }
@@ -107,9 +137,14 @@ public sealed class HighlightTracker : IDisposable
                 var now = _clock();
                 var latest = DateTimeOffset.MinValue;
 
-                foreach (var start in _pulseStart.Values)
+                foreach (var (id, highlight) in _highlights)
                 {
-                    if (now < Expiry(start) && start > latest)
+                    if (!highlight.Kinds.Contains(HighlightKind.Pulse) || Expired(id, now))
+                    {
+                        continue;
+                    }
+
+                    if (_markStart.TryGetValue(id, out var start) && start > latest)
                     {
                         latest = start;
                     }
@@ -129,8 +164,12 @@ public sealed class HighlightTracker : IDisposable
     }
 
     /// <summary>
-    /// 当前标记的一份快照，已经过期的脉冲在这一份里不再出现。
+    /// 当前标记的一份快照。过了寿命的整条不再出现，脉冲过期则只去掉脉冲那一截。
     /// </summary>
+    /// <remarks>
+    /// 顺手把过期的从表里清掉。不清的话，改过的元素会一直留在表里被逐帧遍历一遍——
+    /// 一张大图上改得越多，每帧白跑的圈数越多，而它们早就不画了。
+    /// </remarks>
     public IReadOnlyList<ElementHighlight> Snapshot()
     {
         lock (_gate)
@@ -141,6 +180,9 @@ public sealed class HighlightTracker : IDisposable
             }
 
             var now = _clock();
+
+            Prune(now);
+
             var list = new List<ElementHighlight>(_highlights.Count);
 
             foreach (var (id, highlight) in _highlights)
@@ -187,6 +229,8 @@ public sealed class HighlightTracker : IDisposable
         var now = _clock();
         var undoOrRedo = notification.Source is ChangeSource.Undo or ChangeSource.Redo;
 
+        Prune(now);
+
         foreach (var id in notification.AffectedIds)
         {
             var source = notification.Source;
@@ -215,14 +259,37 @@ public sealed class HighlightTracker : IDisposable
                 IsUndo: notification.Source == ChangeSource.Undo,
                 IsRedo: notification.Source == ChangeSource.Redo);
 
-            if (undoOrRedo)
+            _markStart[id] = now;
+        }
+    }
+
+    /// <summary>把过了寿命的标记整条清掉。调用方要已经拿着锁。</summary>
+    private void Prune(DateTimeOffset now)
+    {
+        if (_highlights.Count == 0)
+        {
+            return;
+        }
+
+        List<string>? dead = null;
+
+        foreach (var id in _highlights.Keys)
+        {
+            if (Expired(id, now))
             {
-                _pulseStart.Remove(id);
+                (dead ??= []).Add(id);
             }
-            else
-            {
-                _pulseStart[id] = now;
-            }
+        }
+
+        if (dead is null)
+        {
+            return;
+        }
+
+        foreach (var id in dead)
+        {
+            _highlights.Remove(id);
+            _markStart.Remove(id);
         }
     }
 
@@ -241,11 +308,15 @@ public sealed class HighlightTracker : IDisposable
         return next;
     }
 
-    private DateTimeOffset Expiry(DateTimeOffset start) =>
-        start + TimeSpan.FromSeconds(_theme.HighlightPulseSeconds);
+    /// <summary>这一条标记过了寿命没有。没记开始时刻的也当成过了——它画不出来。</summary>
+    private bool Expired(string id, DateTimeOffset now) =>
+        !_markStart.TryGetValue(id, out var start)
+        || now >= start + TimeSpan.FromSeconds(_theme.HighlightMarkSeconds);
 
+    /// <summary>这一条标记的脉冲跑完了没有。</summary>
     private bool PulseExpired(string id, DateTimeOffset now) =>
-        !_pulseStart.TryGetValue(id, out var start) || now >= Expiry(start);
+        !_markStart.TryGetValue(id, out var start)
+        || now >= start + TimeSpan.FromSeconds(_theme.HighlightPulseSeconds);
 
     public void Dispose()
     {

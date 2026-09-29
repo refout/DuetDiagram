@@ -110,9 +110,9 @@ public sealed partial class DiagramCanvas : UserControl
     /// <summary>右键菜单。每次右键现建一份：条目随选中的内容变。</summary>
     private ContextMenu? _contextMenu;
 
-    // 脉冲动画的帧驱动。只有真的有脉冲在跑时才转——空闲时也在转的话，
+    // 高亮层的重画驱动。只有真的有东西要重画时才转——空闲时也在转的话，
     // 省电模式下会被系统降频，而那个降频会被误读成性能退化。
-    private DispatcherTimer? _pulseTimer;
+    private DispatcherTimer? _highlightTimer;
 
     // 连线 / 重连 / 加折点的手势状态。它们与节点拖拽互斥：一次按下只进一条手势。
     private bool _connecting;
@@ -136,6 +136,12 @@ public sealed partial class DiagramCanvas : UserControl
             "图画布",
             "图就画在这里。空格加左键拖动是平移，滚轮缩放，双击节点改标签，右键出菜单。"
             + "撤销、重做、删除、重排与性能诊断面板在菜单栏和工具栏上，各带快捷键。");
+
+        // 形状面板拖过来的形状落在画布上。收不收由这一层答：拖拽的路由到"指针底下的那个控件"，
+        // 而指针底下是什么只有画布知道。
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
     }
 
     /// <summary>
@@ -229,16 +235,20 @@ public sealed partial class DiagramCanvas : UserControl
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 虚线，不填色。填一层半透明底会把元素自己的填充色改掉，而用户正看着那个颜色
+    /// 实线，不填色。填一层半透明底会把元素自己的填充色改掉，而用户正看着那个颜色
     /// 判断这次改对了没有——选中框把要判断的东西盖住了，就没法判断了。
     /// </para>
     /// <para>
-    /// 在屏幕坐标下画，线宽与虚线的疏密因此不随缩放变。跟着缩放变的话，
-    /// 缩到两成时框线会细到看不见，放到四倍时那一段虚线会长得像个实框。
+    /// **实线是为了与变更轮廓分开。** 变更高亮那个虚线框用的是同一个蓝，两者若都画虚线，
+    /// 改完一个选中的元素会看到两个几乎重合的虚线框，分不出哪个是"我选中的"、
+    /// 哪个是"它被改过"。于是"实线＝我选中的""虚线＝它被改过"各靠形状就能认出来，
+    /// 颜色只是辅助线索。
+    /// </para>
+    /// <para>
+    /// 在屏幕坐标下画，线宽因此不随缩放变。跟着缩放变的话，缩到两成时框线会细到看不见。
     /// </para>
     /// </remarks>
-    private static readonly Pen SelectionPen =
-        new(Avalonia.Media.Brush.Parse("#1f6feb"), 1, new DashStyle([4, 3], 0));
+    private static readonly Pen SelectionPen = new(Avalonia.Media.Brush.Parse("#1f6feb"), 1);
 
     private static void DrawSelection(
         DrawingContext context,
@@ -549,14 +559,14 @@ public sealed partial class DiagramCanvas : UserControl
         // 那种情况下高亮由宿主自己设好，画布清掉它等于把要量的东西量没了。
         if (Session is not { } session)
         {
-            StopPulseTimer();
+            StopHighlightTimer();
             return;
         }
 
         if (!session.HasHighlights)
         {
             model.ClearHighlights();
-            StopPulseTimer();
+            StopHighlightTimer();
             return;
         }
 
@@ -566,41 +576,67 @@ public sealed partial class DiagramCanvas : UserControl
             model.Theme,
             session.HighlightPhase));
 
-        // 有脉冲在跑就继续出帧，跑完了就停。空闲时也转的话，省电模式下会被系统降频，
+        // 两档间隔，按有没有脉冲在跑选。
+        //
+        // 脉冲是动画，要按帧重画；而"标记过期"不是动画——它只是"过一会儿这个框该没了"，
+        // 隔半秒重画一次就够。用同一档快间隔兜着的话，一批大改动（例如导入五百个节点）
+        // 之后画布要白转三十帧每秒好几秒，而屏幕上什么也没动。
+        //
+        // 全都没了就把表停掉：空闲时也转的话，省电模式下会被系统降频，
         // 而那个降频会被误读成性能退化。
         if (session.HasActivePulse)
         {
-            StartPulseTimer();
+            StartHighlightTimer(PulseFrame);
+        }
+        else if (session.HasHighlights)
+        {
+            StartHighlightTimer(ExpiryPoll);
         }
         else
         {
-            StopPulseTimer();
+            StopHighlightTimer();
         }
     }
 
-    private void StartPulseTimer()
+    /// <summary>脉冲动画的重画间隔。约三十帧每秒，再密的帧也看不出差别。</summary>
+    private static readonly TimeSpan PulseFrame = TimeSpan.FromMilliseconds(33);
+
+    /// <summary>只为等标记过期而重画的间隔。过期的粒度不必细到帧。</summary>
+    private static readonly TimeSpan ExpiryPoll = TimeSpan.FromMilliseconds(500);
+
+    private void StartHighlightTimer(TimeSpan interval)
     {
-        if (_pulseTimer is null)
+        if (_highlightTimer is null)
         {
-            // 约三十帧每秒。脉冲是渐亮渐暗的慢动作，再密的帧也看不出差别，
-            // 而每一帧都要重算一遍高亮指令并重绘。
-            _pulseTimer = new DispatcherTimer(
-                TimeSpan.FromMilliseconds(33),
+            _highlightTimer = new DispatcherTimer(
+                interval,
                 DispatcherPriority.Render,
                 (_, _) => InvalidateVisual());
+
+            _highlightTimer.Start();
+
+            return;
         }
 
-        if (!_pulseTimer.IsEnabled)
+        // 换档时重置一遍：不重置的话，上一档剩下的那点时间会算进新的一格里，
+        // 表现是脉冲开头几帧忽快忽慢。
+        if (_highlightTimer.Interval != interval)
         {
-            _pulseTimer.Start();
+            _highlightTimer.Stop();
+            _highlightTimer.Interval = interval;
+        }
+
+        if (!_highlightTimer.IsEnabled)
+        {
+            _highlightTimer.Start();
         }
     }
 
-    private void StopPulseTimer()
+    private void StopHighlightTimer()
     {
-        if (_pulseTimer is { IsEnabled: true })
+        if (_highlightTimer is { IsEnabled: true })
         {
-            _pulseTimer.Stop();
+            _highlightTimer.Stop();
         }
     }
 
@@ -653,6 +689,58 @@ public sealed partial class DiagramCanvas : UserControl
     #endregion
 
     #region 输入
+
+    /// <summary>
+    /// 有东西被拖到画布上方：这一包数据收不收。
+    /// </summary>
+    /// <remarks>
+    /// **不收的要显式说"不收"。** 拖过来的若是别的东西（文件、从别处复制的一段文字），
+    /// 光标应当显示禁止，而不是显示可放置之后什么也不发生。
+    /// </remarks>
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (Model is not null && Session is not null && ShapeDrag.Read(e.DataTransfer) is not null)
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            return;
+        }
+
+        e.DragEffects = DragDropEffects.None;
+    }
+
+    /// <summary>
+    /// 一个形状被放到了画布上：在落点新建一个这个形状的节点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **落点要换算成文档坐标再交出去。** 松手给的是屏幕上的点，而节点的位置记在
+    /// 文档坐标系里；不换算的话，缩放或平移过之后新节点会落在离光标很远的地方，
+    /// 而那个偏移量随缩放变，看上去毫无规律。
+    /// </para>
+    /// <para>
+    /// 成不成由会话定（只读、标识冲突都在它那边），这里只负责把落点换算出来。
+    /// </para>
+    /// </remarks>
+    private void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (Model is not { } model || Session is not { } session)
+        {
+            return;
+        }
+
+        if (ShapeDrag.Read(e.DataTransfer) is not { } shapeName
+            || !Enum.TryParse<DuetDiagram.Core.Model.NodeShape>(shapeName, out var shape))
+        {
+            return;
+        }
+
+        var point = e.GetPosition(this);
+        var document = model.Viewport.Transform.ToDocument(point.X, point.Y);
+
+        e.DragEffects = session.AddNode(shape, document.X, document.Y).IsEffectiveSuccess
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {

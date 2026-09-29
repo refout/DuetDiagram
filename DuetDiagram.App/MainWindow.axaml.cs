@@ -136,6 +136,12 @@ public sealed partial class MainWindow : Window
         DiffView.Session = Session;
         StatusBarView.Status = Status;
 
+        // 形状面板点一下要落一个点，而"用户在看哪一块"只有画布知道。
+        // 面板自己去画布上找的话，两者之间就多了一条反向依赖——它并不该知道画布的存在。
+        Shapes.NewNodeSpot = () => Canvas.Model is { } model
+            ? (model.Viewport.VisibleDocumentRect.CenterX, model.Viewport.VisibleDocumentRect.CenterY)
+            : (0, 0);
+
         // 标签编辑那一路：画布报出"双击了谁"，编辑器只把两件事交回来（取消、提交）。
         // 编辑器自己不碰会话——它改的是状态对象上的草稿，而草稿经命令层写进文档
         // 那一步在这里接起来，只读门与版本检查因此只此一道。

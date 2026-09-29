@@ -164,6 +164,26 @@ public sealed record Theme
     /// <summary>变更高亮的虚线轮廓往外撑多少。</summary>
     public double HighlightOutlineInset { get; init; } = 7;
 
+    /// <summary>
+    /// 一条变更标记活多少秒。过了就整条撤掉。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 脉冲只管"刚才这一下"，脉冲停了标记还得留一会儿——用户看完脉冲之后要能看清
+    /// 到底是哪几个元素被改了，而脉冲一闪而过的时候看不清。
+    /// </para>
+    /// <para>
+    /// **但标记不能永远留着。** 留着的表现是改过的东西永久带着一圈虚线与一个角标，
+    /// 改得越多画布越花，而那时用户已经看不出"哪些是刚改的"了——那正是标记要回答的问题。
+    /// 边栏那份差异记录是长期的，画布上的标记只是"刚才那一下"的提示，两者寿命本就不同。
+    /// </para>
+    /// <para>
+    /// 取值比脉冲总时长（<see cref="HighlightPulseSeconds"/> 乘 <see cref="HighlightPulseCount"/>）长一截：
+    /// 短于它的话，标记在脉冲还没跑完时就消失了。
+    /// </para>
+    /// </remarks>
+    public double HighlightMarkSeconds { get; init; } = 8;
+
     /// <summary>调色板。令牌名到具体外观的映射。</summary>
     public Palette Palette { get; init; } = new();
 

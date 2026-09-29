@@ -1,0 +1,126 @@
+id: P5-08
+title: 界面修复——五条显示与操作问题的根因
+phase: 5
+status: done
+depends_on: [P5-07]
+estimated_loc: 1200
+files:
+  create:
+    - reports/phase5-ui-fixes.md
+    - reports/phase5-ui-fixes-before.png
+    - reports/phase5-ui-fixes-after.png
+    - DuetDiagram.Render/FontFallback.cs
+    - DuetDiagram.App/Interaction/ShapeDrag.cs
+    - DuetDiagram.E2E.Tests/CanvasLayoutTests.cs
+    - DuetDiagram.E2E.Tests/LabelMetricsTests.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.App/Controls/DiagramToolBar.axaml
+    - DuetDiagram.App/Controls/DiagramToolBar.axaml.cs
+    - DuetDiagram.App/Controls/ShapeLibraryPanel.axaml.cs
+    - DuetDiagram.App/Interaction/HighlightTracker.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/ViewModels/ShapeLibraryPanelViewModel.cs
+    - DuetDiagram.Render/SkiaTextMeasurer.cs
+    - DuetDiagram.Render/Theme.cs
+    - DuetDiagram.Render/Export/CanvasPainter.cs
+    - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
+    - DuetDiagram.E2E.Tests/HighlightTests.cs
+    - DuetDiagram.E2E.Tests/ShapeLibraryTests.cs
+    - DuetDiagram.E2E.Tests/Phase4ScenarioTests.cs
+    - docs/GUI.md
+    - docs/Render-Pipeline.md
+    - AGENTS.md
+    - reports/phase4.md
+    - tasks/README.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Canvas"
+    expect: 全通过；左栏五块面板在默认尺寸与最小尺寸两档都不被压成零高度，工具栏在窄窗口上折行且每个按钮都在工具栏范围内，标签画出来的中心落在节点框中心上（容差 0.5 像素）
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=ShapeLibrary"
+    expect: 全通过；没选中时点形状在视口中心建节点，拖到画布上在落点建节点，两条都发命令、撤销能还原
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Highlight"
+    expect: 全通过；普通变更与撤销来的标记都会过期，撤销来的那条没有脉冲
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release
+    expect: 整份端到端 240 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**五条问题逐条查到根因，不许只写「已修」。** 每条要写出改前的实测读数（谁量出来的、量到多少）、根因在哪一层、改了什么，以及一条能复跑的判据"
+  - "**改前的读数不许靠回忆。** 把基线提交检出到一份独立工作树里重建、重跑同一批用例取数，读数来自界面自己的视觉树与渲染层的绘制列表"
+  - "**判据量屏幕上真正占了多少地方，不量「控件在不在视觉树里」。** 被压成零高度的面板还在视觉树里、也 Tab 得到，只是屏幕上一个像素都不占；按钮跑到窗口外也还在注册表里。功能用例一条都不会红"
+  - "**标签那条判据不许写死像素数。** 字的实际宽度随机器上装的字体变，写死的话换一台机器就红，而红的原因与要验的东西无关；判据用界面框架现量一遍同一段字再比"
+  - "**不许把剩下的偏差写成「已解决」。** 含拉丁字的串两边仍差约 0.45 像素，这一轮没有消除，如实记"
+  - "**类别清单不变，不新增类别。** 五条判据分别落在已有的 Canvas / ShapeLibrary / Highlight 三个类别里"
+  - "**临时取证用的用例在提交前删掉。** 抓 PNG 与导布局读数那几条不进仓库"
+context:
+  - "方案 §9.1 的六个分区与 §9.3 的四种高亮手段；这两处早就落地了，这一条修的是落地之后在屏幕上露出来的毛病"
+  - "五条问题由产品方在真机上用了一轮之后提出来：左栏有面板看不见、工具栏右边有按钮点不到、人建不出节点、改完节点出现虚线框与右上角圆点且与选中框分不出来、节点文字偏右"
+  - "reports/phase4.md 的补记里那条 500 节点时间判据的飘动是这一条顺带查出来的，两者是同一个根因的两面"
+  - "P5-07 是它的直接先例（报告格式：逐条指证据 + 遗留如实列）"
+result: |
+  **结论：五条问题逐条查到根因、改掉、各留一条能复跑的判据。四条布局问题的共同点
+  是「功能用例一条都不会红」——面板还在视觉树里、按钮还在注册表里、标记确实挂上了、
+  字确实画出来了，只有量屏幕上真正占了多少地方才看得见。
+  验报告 `reports/phase5-ui-fixes.md`。**
+
+  **五条问题与根因：**
+
+  | # | 现象 | 根因 |
+  |---|---|---|
+  | 1 | 左栏有面板挤没了 | 左栏是 `Grid`，四块 Auto 行吃掉全部高度，星号那一行（调色板）被压成 0，而 Grid 自己不滚动 |
+  | 2 | 工具栏右边两个按钮跑到窗口外 | `Body` 是 `StackPanel`，横向排不下时不折行，子项被摆到父容器边界之外 |
+  | 3 | 人建不出节点 | 形状面板只有「改选中节点的形状」这一条路，没选中时被拒；另外两条拿图的路都要求先有文本 |
+  | 4 | 变更标记不消失、与选中框分不出 | 标记没有寿命；选中框与变更轮廓用同一个蓝、又都是虚线 |
+  | 5 | 节点文字不居中（偏右 4.96 像素） | 度量器用主家族那一个字体量整行，绘制方逐字回退，两边量出 18.07 与 28 |
+
+  **改前的读数不是回忆。** 把 `15d5b0d` 检出到一份独立工作树里重建、重跑同一批用例取数：
+  调色板 `240×0` 且与文本预设的纵向位置都是 725（两块叠着），整列总高 824 与窗口高度无关
+  （900×600 与 1400×900 两档五个数一个都没变）；工具栏 `Body` 884 宽而 15 个条目排到 x=983，
+  最后两个按钮整个在可视区之外；中文标签的框 `(80, …, 60 宽)` 中心 110，
+  文字框 `(100.963, …, 18.074 宽)` 是居中的，而按 28 画出来的字中心落在 114.96。
+
+  **五条判据**（`Category=Canvas` 12/12、`Category=ShapeLibrary` 6/6、`Category=Highlight` 5/5，
+  整份端到端 240/240，Release 构建 0 警告 0 错误）：
+  `CanvasLayoutTests.No_panel_in_the_left_column_is_squeezed_to_nothing`、
+  `CanvasLayoutTests.The_toolbar_wraps_instead_of_pushing_buttons_out_of_view`、
+  `ShapeLibraryTests.Clicking_a_shape_without_a_selection_creates_a_node`、
+  `ShapeLibraryTests.Dropping_a_shape_on_the_canvas_creates_a_node_at_the_drop_point`、
+  `HighlightTests.A_mark_expires_after_its_lifetime`、
+  `HighlightTests.An_undo_mark_has_no_pulse_but_still_expires`、
+  `LabelMetricsTests.A_label_is_centred_in_its_node_at_the_width_it_is_drawn`。
+
+  **两条判据验过「把修复撤掉它就红」**：把 `HighlightTracker.Expired` 强行改成 `false`，
+  两条高亮过期用例都红；把度量的按段量改回整行量，标签居中那条以预测的 4.96 像素偏移失败。
+
+  **改法各一句：**
+  左栏换成 `ScrollViewer`（宽 240，纵向滚动、横向不滚）套 `StackPanel`；
+  工具栏 `Body` 换成 `WrapPanel`，窗口默认尺寸 900×600 改成 1280×820（最小仍是 900×600）；
+  形状面板加两条入口（没选中时点一下在视口中心新建、从面板拖到画布上在落点新建，
+  拖拽载荷是一个自定义数据格式，别的东西拖过来显式答「不收」）；
+  变更标记 8 秒过期、选中框改成实线、画布的重画驱动分两档（脉冲 33 ms、只为过期 500 ms）；
+  度量改成按「这一段由哪个家族来画」分段逐段量，与导出器的画法收在同一个 `FontFallback` 里。
+
+  **顺带查出的一件事。** 全量端到端跑时那条 500 节点时间判据红了，根因不是渲染慢：
+  新增的 8 秒标记寿命配上一枚 33 ms 定时器，让无头抓帧的循环一直有活干
+  （抓一帧的实现是「把队列里的作业跑到空为止」），于是「抓一帧」的耗时被拉到整个标记寿命那么长。
+  这正是重画驱动分两档的由来；那条判据本身也改了名与门槛，逐条记在 `reports/phase4.md` 的补记里。
+  点击那一段原来是另一件事坏着——导入报告那个浮层盖在画布中间把点击吃了。
+
+  **没验的与遗留（报告里六条）：**
+  一、**五条都只有自建用例，没有人看着跑过**——四条布局问题靠无头抓帧与视觉树读数判，
+  人眼在真机上看着对不对要真人走一遍（尤其「实线选中框 vs 虚线变更框」这一对）；
+  二、拖拽只验了「落在落点上」，吸附、落点预览、拖到面板外取消都没有；
+  三、新节点的标识不能自己起（自动取 `n1`、`n2`…，改名走属性面板的标签字段）；
+  四、8 秒与脉冲 1.5 秒 × 3 次都是拍的值，没有用户测过；
+  五、左栏的滚动条没有真的拖过；
+  六、`MinWidth`/`MinHeight`（900×600）是拍的，900 宽时工具栏已经要折两行了。
+
+  **含拉丁字的串两边仍差约 0.45 像素**（`"Start"` 度量 28.916 / 界面框架 28.465），
+  纯全角串则一致（`"开始"`、`"日本語"` 两边都是 28 与 42）。这是两个字体栈各自选到的
+  西文字面在字距上略有差别，与「全角字画不出来」那条路不是同一件事，**没有消除，也没写成已解决**。
+  差异表里原来那一条「`SkiaTextMeasurer` 不做字体回退」按落地后的状态改写。
+
+  **与任务清单的出入。** 卡里没写这一条（它由产品方在真机上用完一轮之后提出，
+  不是从方案的任务集里派生的），编号 `P5-08` 由本仓顺延 Phase 5 已有的七个号定。

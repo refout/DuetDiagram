@@ -7,7 +7,7 @@ using DuetDiagram.Core.Shapes;
 namespace DuetDiagram.App.ViewModels;
 
 /// <summary>
-/// 形状面板的状态：一份形状清单，点一个就把选中的节点换成它。
+/// 形状面板的状态：一份形状清单，点一个就把它放到画布上。
 /// </summary>
 /// <remarks>
 /// <para>
@@ -16,9 +16,11 @@ namespace DuetDiagram.App.ViewModels;
 /// "画布上能画、面板上没有"或者反过来，两种都要等人点到才发现。
 /// </para>
 /// <para>
-/// **它改的是元素，与调色板、文本预设两个面板相反。** 那两处改的是文档级的清单，
-/// 元素只是引用它们；形状是节点自己的字段，所以这里点一下就是一次字段编辑，
-/// 与属性面板里改那个字段走同一条路（<see cref="DiagramSession.Apply"/>）。
+/// **同一颗按钮管两件事，按有没有选中分。** 选中了节点就是一次字段编辑，
+/// 与属性面板里改那个字段走同一条路（<see cref="DiagramSession.Apply"/>）；
+/// 没选中就是新建一个节点（<see cref="DiagramSession.AddNode"/>）。
+/// 分成两颗按钮（"换形状"与"新建"）的话，用户得先想清楚自己现在属于哪种情形，
+/// 而这两件事在用户眼里都是"我要这个形状"。
 /// </para>
 /// </remarks>
 public sealed class ShapeLibraryPanelViewModel : INotifyPropertyChanged
@@ -54,7 +56,22 @@ public sealed class ShapeLibraryPanelViewModel : INotifyPropertyChanged
     /// <summary>形状行，按形状库给出的顺序。</summary>
     public IReadOnlyList<ShapeRowViewModel> Rows { get; }
 
-    /// <summary>画布上有没有选中的节点。没有的话点形状没有落点。</summary>
+    /// <summary>
+    /// 没有选中时，新节点落在文档的哪一点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **面板不知道用户在看哪一块。** 视口在画布那一侧，由宿主把这一根线接上——
+    /// 面板自己去画布上找的话，两者之间就多了一条反向依赖，而形状面板并不知道画布的存在。
+    /// </para>
+    /// <para>
+    /// 没接（或画布还没排布）时给原点：那仍然是一个合法的文档位置，
+    /// 只是新节点不会出现在用户正看的地方。为空只该发生在没有窗口的测试里。
+    /// </para>
+    /// </remarks>
+    public Func<(double X, double Y)>? NewNodeSpot { get; set; }
+
+    /// <summary>画布上有没有选中的节点。没有的话点形状是新建一个。</summary>
     public bool HasSelection => _session.SelectedNodes.Count > 0;
 
     /// <summary>最近一次失败的一句话。成功一次就清掉。</summary>
@@ -82,9 +99,11 @@ public sealed class ShapeLibraryPanelViewModel : INotifyPropertyChanged
     /// <summary>有没有只读提示要显示。</summary>
     public bool HasReadOnlyNote => ReadOnlyNote is not null;
 
-    /// <summary>把选中的节点换成这个形状。</summary>
+    /// <summary>
+    /// 选中了就把选中的节点换成这个形状，没选中就新建一个这个形状的节点。
+    /// </summary>
     /// <remarks>
-    /// 走会话的批量字段入口：多选时每个节点各发一条命令，撤销按一次退回一个——
+    /// 换形状走会话的批量字段入口：多选时每个节点各发一条命令，撤销按一次退回一个——
     /// 与属性面板里改同一个字段的表现一致，两处不该对同一件事有两种撤销手感。
     /// </remarks>
     public void Apply(NodeShape shape)
@@ -93,7 +112,7 @@ public sealed class ShapeLibraryPanelViewModel : INotifyPropertyChanged
 
         if (!HasSelection)
         {
-            Error = "先在画布上选中节点，再挑形状";
+            Create(shape);
             return;
         }
 
@@ -104,6 +123,20 @@ public sealed class ShapeLibraryPanelViewModel : INotifyPropertyChanged
             Error = result.Message ?? "选中的节点已经是这个形状了";
         }
         else if (!result.IsEffectiveSuccess)
+        {
+            Error = Describe(result);
+        }
+
+        Refresh();
+    }
+
+    /// <summary>在用户正看的地方新建一个这个形状的节点。</summary>
+    private void Create(NodeShape shape)
+    {
+        var spot = NewNodeSpot?.Invoke() ?? (X: 0.0, Y: 0.0);
+        var result = _session.AddNode(shape, spot.X, spot.Y);
+
+        if (!result.IsEffectiveSuccess)
         {
             Error = Describe(result);
         }

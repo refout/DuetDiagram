@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
-| DuetDiagram.App | 72 | 18988 | 10701 | 5110 | 3177 |
+| DuetDiagram.App | 73 | 19406 | 10889 | 5279 | 3238 |
 | DuetDiagram.Benchmarks | 6 | 571 | 337 | 145 | 89 |
 | DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 31 | 10125 | 6528 | 1488 | 2109 |
+| DuetDiagram.E2E.Tests | 33 | 10586 | 6797 | 1601 | 2188 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4836 | 2626 | 1535 | 675 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3423 | 2177 | 560 | 686 |
 | DuetDiagram.Mermaid | 9 | 2041 | 1181 | 548 | 312 |
 | DuetDiagram.Mermaid.Tests | 7 | 2069 | 1510 | 217 | 342 |
-| DuetDiagram.Render | 33 | 6500 | 3451 | 2112 | 937 |
+| DuetDiagram.Render | 34 | 6649 | 3516 | 2178 | 955 |
 | DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **507** | **117613** | **72911** | **24884** | **19818** |
+| **合计** | **511** | **118641** | **73433** | **25232** | **19976** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 19 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 896 |
+| DiagramCanvas.cs | 937 |
 | DiagramMenuBar.axaml.cs | 98 |
 | DiagramToolBar.axaml.cs | 108 |
 | DiffSidebar.axaml.cs | 111 |
@@ -53,7 +53,7 @@
 | PalettePanel.axaml.cs | 274 |
 | PropertyPanel.axaml.cs | 80 |
 | RichTextEditor.axaml.cs | 191 |
-| ShapeLibraryPanel.axaml.cs | 92 |
+| ShapeLibraryPanel.axaml.cs | 137 |
 | ShapePreview.cs | 44 |
 | SidecarRecoveryDialog.axaml.cs | 25 |
 | StatusBar.axaml.cs | 72 |
@@ -66,11 +66,12 @@
 | DragSession.cs | 23 |
 | EdgeAdorner.cs | 76 |
 | EdgeHandleHitTest.cs | 118 |
-| HighlightTracker.cs | 167 |
+| HighlightTracker.cs | 200 |
 | MarqueeSession.cs | 32 |
 | SelectionSet.cs | 33 |
+| ShapeDrag.cs | 19 |
 | TextEditSession.cs | 145 |
-| MainWindow.axaml.cs | 481 |
+| MainWindow.axaml.cs | 484 |
 | Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
 | Strings.cs | 129 |
@@ -79,7 +80,7 @@
 | AccessibleName.cs | 24 |
 | ConstraintEditorBinder.cs | 119 |
 | ContextEntries.cs | 54 |
-| DiagramSession.cs | 1356 |
+| DiagramSession.cs | 1392 |
 | DocumentFile.cs | 43 |
 | DocumentLaunch.cs | 130 |
 | DslFile.cs | 94 |
@@ -106,7 +107,7 @@
 | PropertySectionViewModel.cs | 35 |
 | RenderModeViewModel.cs | 33 |
 | RichTextEditorViewModel.cs | 184 |
-| ShapeLibraryPanelViewModel.cs | 123 |
+| ShapeLibraryPanelViewModel.cs | 134 |
 | StatusBarViewModel.cs | 81 |
 | TemplatePanelViewModel.cs | 130 |
 | TextPresetPanelViewModel.cs | 210 |
@@ -334,7 +335,8 @@
 | 文件 | 代码 |
 |---|---:|
 | AccessibilityTests.cs | 324 |
-| CanvasSmokeTests.cs | 202 |
+| CanvasLayoutTests.cs | 77 |
+| CanvasSmokeTests.cs | 204 |
 | CompositeDragTests.cs | 158 |
 | ConnectTests.cs | 86 |
 | ConstraintEditorTests.cs | 299 |
@@ -344,9 +346,10 @@
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
 | HeadlessFixture.cs | 213 |
-| HighlightTests.cs | 70 |
+| HighlightTests.cs | 129 |
 | I18nTests.cs | 409 |
 | ImportTests.cs | 375 |
+| LabelMetricsTests.cs | 65 |
 | LayerPanelTests.cs | 357 |
 | LayerVisibilityTests.cs | 154 |
 | LayoutFailureTests.cs | 217 |
@@ -357,10 +360,10 @@
 | OpenTests.cs | 292 |
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
-| Phase4ScenarioTests.cs | 129 |
+| Phase4ScenarioTests.cs | 138 |
 | PropertyPanelTests.cs | 167 |
 | RichTextEditorTests.cs | 344 |
-| ShapeLibraryTests.cs | 112 |
+| ShapeLibraryTests.cs | 169 |
 | TemplateTests.cs | 197 |
 | TextPresetTests.cs | 189 |
 | ToolBarTests.cs | 118 |
@@ -527,11 +530,12 @@
 | DrawList.cs | 64 |
 | BitmapExporter.cs | 60 |
 | BitmapOptions.cs | 15 |
-| CanvasPainter.cs | 361 |
+| CanvasPainter.cs | 328 |
 | PdfExporter.cs | 77 |
 | PdfOptions.cs | 12 |
 | SvgExporter.cs | 266 |
 | SvgOptions.cs | 6 |
+| FontFallback.cs | 63 |
 | Highlight.cs | 181 |
 | HitTester.cs | 113 |
 | ITextMeasurer.cs | 6 |
@@ -544,10 +548,10 @@
 | RichTextLayout.cs | 190 |
 | SceneBuilder.cs | 490 |
 | SceneComposer.cs | 55 |
-| SkiaTextMeasurer.cs | 77 |
+| SkiaTextMeasurer.cs | 111 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 78 |
-| Theme.cs | 139 |
+| Theme.cs | 140 |
 | Viewport.cs | 49 |
 | ViewportCulling.cs | 6 |
 | ViewportTransform.cs | 32 |

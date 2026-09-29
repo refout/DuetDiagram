@@ -1,5 +1,7 @@
 using DuetDiagram.App;
+using DuetDiagram.App.Interaction;
 using DuetDiagram.App.Services;
+using DuetDiagram.Core.Broadcasting;
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Commands.Builtin;
 using DuetDiagram.Render;
@@ -99,6 +101,72 @@ public sealed class HighlightTests
         });
     }
 
+    /// <summary>
+    /// 标记会过期：脉冲先停，角标与虚线轮廓后停，过了整条寿命什么都没了。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 时钟是注入的。真实时间下要等八秒，而"等八秒"这件事在测试里既慢又不稳——
+    /// 它量的是墙上时钟，不是标记的寿命规则。
+    /// </para>
+    /// <para>
+    /// 两级寿命都要看：只断言"最后没了"的话，把脉冲与整条标记并成一条也能通过，
+    /// 而那样一来脉冲会跟着标记一起留八秒，改过的元素会一直闪着。
+    /// </para>
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "Highlight")]
+    public void A_mark_expires_after_its_lifetime()
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var broadcaster = new SyncBroadcaster();
+
+        using var tracker = new HighlightTracker(broadcaster, Theme.Default, () => now);
+
+        broadcaster.Publish("e1", ChangeSource.Human);
+
+        tracker.HasHighlights.Should().BeTrue();
+        tracker.Snapshot().Should().ContainSingle(m => m.ElementId == "e1");
+
+        // 过了脉冲那一截：脉冲没了，角标与轮廓还在。
+        now += TimeSpan.FromSeconds(Theme.Default.HighlightPulseSeconds + 0.1);
+
+        tracker.Snapshot().Single(m => m.ElementId == "e1").Kinds
+            .Should().NotContain(HighlightKind.Pulse, "脉冲只是「刚才这一下」");
+        tracker.HasHighlights.Should().BeTrue("角标与轮廓还在，整条标记没到寿命");
+
+        // 过了整条寿命：什么都没了。
+        now += TimeSpan.FromSeconds(Theme.Default.HighlightMarkSeconds);
+
+        tracker.HasHighlights.Should().BeFalse("过了寿命整条作废");
+        tracker.Snapshot().Should().BeEmpty();
+    }
+
+    /// <summary>撤销的标记没有脉冲，但它同样有寿命。</summary>
+    /// <remarks>
+    /// 撤销与重做的标记本来就不带脉冲，于是"脉冲过期"这一条永远轮不到它们——
+    /// 只按脉冲判过期的话，撤销过的东西会永久带着角标与轮廓。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "Highlight")]
+    public void An_undo_mark_has_no_pulse_but_still_expires()
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var broadcaster = new SyncBroadcaster();
+
+        using var tracker = new HighlightTracker(broadcaster, Theme.Default, () => now);
+
+        broadcaster.Publish("e1", ChangeSource.Undo);
+
+        tracker.Snapshot().Single(m => m.ElementId == "e1").Kinds
+            .Should().NotContain(HighlightKind.Pulse);
+        tracker.PulsePhase.Should().BeNegative("没有脉冲在跑");
+
+        now += TimeSpan.FromSeconds(Theme.Default.HighlightMarkSeconds);
+
+        tracker.HasHighlights.Should().BeFalse();
+    }
+
     /// <summary>以 LLM 为来源重连一条边。走总线而不是会话的便捷方法，因为要指定来源。</summary>
     private static void ReconnectAsLlm(DiagramSession session)
     {
@@ -106,5 +174,45 @@ public sealed class HighlightTests
             .WithContext(ChangeContext.For(ChangeSource.Llm));
 
         session.Bus.Execute(command).IsEffectiveSuccess.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// 当场把通知交给订阅方的广播器。
+    /// </summary>
+    /// <remarks>
+    /// 真实那一份在后台线程上投递，订阅方要等它到。这里当场发，是为了让
+    /// "推进时钟再断言"这件事是确定的——异步投递下，断言可能落在通知到达之前。
+    /// </remarks>
+    private sealed class SyncBroadcaster : IChangeBroadcaster
+    {
+        private Action<ChangeNotification>? _handler;
+        private int _version;
+
+        /// <summary>发一条变更通知。</summary>
+        public void Publish(string elementId, ChangeSource source) =>
+            Enqueue(new ChangeNotification
+            {
+                DocumentId = "d",
+                Version = ++_version,
+                AffectedIds = [elementId],
+                Source = source,
+                Timestamp = DateTimeOffset.UnixEpoch,
+            });
+
+        public void Enqueue(ChangeNotification notification) => _handler?.Invoke(notification);
+
+        public IDisposable Subscribe(Action<ChangeNotification> handler)
+        {
+            _handler = handler;
+
+            return new Handle(() => _handler = null);
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        private sealed class Handle(Action release) : IDisposable
+        {
+            public void Dispose() => release();
+        }
     }
 }

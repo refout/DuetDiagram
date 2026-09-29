@@ -1,3 +1,8 @@
+<!--
+  默认尺寸按"左栏整列与工具栏一整排都摆得下"取：左栏五块面板自然高度合计九百多像素，
+  工具栏一整排要一千像素上下。最小尺寸放到旧默认值（900×600）——再小就只剩画布了，
+  而到了那个尺寸工具栏会折成两排、左栏要滚动，两样都还认得出来，所以它是个合理的下限。
+-->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:DuetDiagram.App.Controls"
@@ -5,7 +10,8 @@
         x:Class="DuetDiagram.App.MainWindow"
         x:DataType="vm:CanvasViewModel"
         Title="DuetDiagram"
-        Width="900" Height="600">
+        Width="1280" Height="820"
+        MinWidth="900" MinHeight="600">
   <DockPanel>
     <!--
       菜单栏与工具栏都停靠在顶部。它们与画布之间是"占一行"的关系，
@@ -33,15 +39,25 @@
       才挑得出来。形状与模板紧挨着图层，因为前两者都是"往里放什么"
       （形状改的是已有的一个节点，模板放进的是一批元素）；调色板与文本预设是"它长什么样"。
     -->
-    <Grid DockPanel.Dock="Left"
-          Width="240"
-          RowDefinitions="Auto,Auto,Auto,*,Auto">
-      <controls:LayerPanel x:Name="LayersView" Grid.Row="0" />
-      <controls:ShapeLibraryPanel x:Name="ShapesView" Grid.Row="1" />
-      <controls:TemplatePanel x:Name="TemplatesView" Grid.Row="2" />
-      <controls:PalettePanel x:Name="PaletteView" Grid.Row="3" />
-      <controls:TextPresetPanel x:Name="TextPresetsView" Grid.Row="4" />
-    </Grid>
+    <!--
+      整列可滚动，五块面板按声明次序往下排。
+      各占一截固定高度的话，五块加起来比窗口高，排在后面的那几块会被压成零高度——
+      它们在视觉树里、也能被键盘 Tab 到，但屏幕上一条都看不见，看起来像功能没做。
+      让整列滚：窗口再矮也只是要滚一下，没有哪一块会消失。
+      横向不滚：面板自己按栏宽折行，横向滚动条出现的话每块面板都会多一条，白占地方。
+    -->
+    <ScrollViewer DockPanel.Dock="Left"
+                  Width="240"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+        <controls:LayerPanel x:Name="LayersView" />
+        <controls:ShapeLibraryPanel x:Name="ShapesView" />
+        <controls:TemplatePanel x:Name="TemplatesView" />
+        <controls:PalettePanel x:Name="PaletteView" />
+        <controls:TextPresetPanel x:Name="TextPresetsView" />
+      </StackPanel>
+    </ScrollViewer>
 
     <!--
       属性面板占右侧一栏。它的数据上下文由主窗口在代码里设成属性面板的状态，

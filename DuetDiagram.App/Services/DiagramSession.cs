@@ -628,6 +628,88 @@ public sealed class DiagramSession : IDisposable
     }
 
     /// <summary>
+    /// 在文档的某一点新建一个节点。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **坐标走固定位置，不进 IR。** IR 里没有坐标（见 <see cref="NodeDef"/>），
+    /// 人工落点记在文档之外的 sidecar 上——与拖动落定是同一条路（<see cref="CommitDrag"/>）。
+    /// 不落固定位置的话，新节点交给引擎自由摆放，用户点了一下，
+    /// 它出现在离所指之处很远的地方，看上去像"没反应"。
+    /// </para>
+    /// <para>
+    /// **落点指的是新节点的中心，不是左上角。** 拖到画布上时用户指的是光标底下那一点，
+    /// 按左上角算的话节点整块偏到右下。固定位置记的却是左上角，
+    /// 所以这里先按同一套度量算出尺寸再折半——量法与会话里别处一致，尺寸才是同一份。
+    /// </para>
+    /// <para>
+    /// **标识由会话拼。** 与建图层、建页同一个理由：标识要在九个集合里都不撞，
+    /// 而界面上看不到别的集合，让它去拼只能靠"看起来没用过"来猜。
+    /// </para>
+    /// <para>
+    /// 标签先与标识同字：新节点是个空壳，用户接着多半要改它的文字，
+    /// 而留空的话它在画布上是一个没有任何字的小方块，改起来得先认出它。
+    /// </para>
+    /// </remarks>
+    /// <param name="shape">新节点的形状。</param>
+    /// <param name="documentX">落点的横坐标，文档坐标系，指新节点的中心。</param>
+    /// <param name="documentY">落点的纵坐标，文档坐标系，指新节点的中心。</param>
+    public CommandResult AddNode(NodeShape shape, double documentX, double documentY)
+    {
+        if (IsReadOnly)
+        {
+            return Refuse();
+        }
+
+        var id = NextNodeId();
+
+        var node = new NodeDef
+        {
+            Id = id,
+            Label = id,
+            Shape = shape,
+            Page = _currentPageId,
+        };
+
+        var result = Bus.Execute(new AddNodeCommand(node));
+
+        if (!result.IsEffectiveSuccess)
+        {
+            return Report(result);
+        }
+
+        var size = SceneBuilder.MeasureNode(node, RenderTheme, _measurer);
+
+        _pinned[id] = new Anchor(documentX - (size.Width / 2), documentY - (size.Height / 2));
+
+        // 建完就选中：用户接着多半要改它的字或者换它的形状，两件事都要先选中它。
+        // 不选的话，画面上多了一个没人指着的小方块，而属性面板还停在上一个元素上。
+        SetSelection([id]);
+        Reload();
+
+        return Report(result);
+    }
+
+    /// <summary>
+    /// 下一个可用的节点标识。
+    /// </summary>
+    /// <remarks>
+    /// 判据是九个集合共用的那份占用检查，与图层、页面那边同一个理由。
+    /// </remarks>
+    private string NextNodeId()
+    {
+        for (var index = 1; ; index++)
+        {
+            var candidate = $"n{index}";
+
+            if (!Document.IsIdTaken(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    /// <summary>
     /// 按当前文档重算布局与绘制列表。
     /// </summary>
     /// <remarks>
@@ -2476,10 +2558,16 @@ public sealed class DiagramSession : IDisposable
 
     #region 变更高亮
 
-    /// <summary>有没有任何被标记的元素。</summary>
+    /// <summary>
+    /// 有没有还活着的变更标记。
+    /// </summary>
+    /// <remarks>
+    /// 画布按它决定要不要画叠加层，也按它决定要不要留着那个定时器——
+    /// 标记会在寿命到了之后自己消失，而"消失"这件事得有一帧把它画掉。
+    /// </remarks>
     public bool HasHighlights => _highlights.HasHighlights;
 
-    /// <summary>当前是否还有脉冲在跑。它决定画布要不要继续出帧。</summary>
+    /// <summary>当前是否还有脉冲在跑。它决定画布要不要按帧重画。</summary>
     public bool HasActivePulse => _highlights.HasActivePulse;
 
     /// <summary>脉冲当前相位；没有脉冲时为负。</summary>

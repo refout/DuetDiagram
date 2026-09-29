@@ -121,6 +121,9 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Rele
 五条新判据全在 `Category=Canvas` 里，而那一类由不带过滤器的 `端到端测试` 那一步覆盖，
 所以这一条**没有改 workflow**。判据的读数在本地量——CI 只回答「它红了没有」。
 
+CI 运行 `36536374462`（提交 `77539ce`，首次尝试，8 分 53 秒）：**两个作业都绿，无跳过的步骤**
+（ubuntu 那一组 44/44 实步、windows 那一组 28/28 实步，非 success 的步骤 0 条）。
+
 ## 遗留与没验的
 
 1. **没有人看着跑过。** 五条判据都是无头宿主里的读数（视口位移、选中集合），

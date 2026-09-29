@@ -217,6 +217,23 @@ dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Rele
 
 判据本身也一并改了名与门槛，逐条记在 `reports/phase4.md` 的补记里。
 
+## 门禁与 CI
+
+本机（Release）：构建 0 警告 0 错误；七个测试工程 651 / 78 / 328 / 136 / 206 / 219 / 113
+加端到端 240，失败 0；`Category=CommentDiscipline` 1/1；`tools/LocCounter --check` 退出 0。
+
+CI 运行 `36518778659`（提交 `6f748c3`，首次尝试，7 分 11 秒）：**两个作业都绿，无跳过的步骤**。
+
+| 作业 | 结论 | 与本条相关的步骤 |
+|---|---|---|
+| 编译 + 测试 + 契约门禁（ubuntu） | success（45 步全绿） | `LOC 一致性`、`任务 YAML 可解析`、`Build（警告即错误）`、`Test（全部测试工程）` |
+| 界面栈自检 + 端到端 + 原生发布（windows） | success（28 步全绿） | `端到端测试`（不带过滤器，整份 E2E 一起跑，包含本条的七条新用例）、`变更高亮门禁`、`Phase 4 界面门禁`（其中的 `gate ShapeLibrary`）、`界面栈自检` |
+
+**五条新判据都有 CI 出口。** 三条落在已有门禁里（`Category=Highlight` 有专列的一步、
+`Category=ShapeLibrary` 在 Phase 4 界面门禁那个 `gate` 里、`Category=Canvas` 由不带过滤器的
+`端到端测试` 那一步覆盖），所以这一条没有改 workflow。
+**判据的读数在本地量**——CI 只回答「它红了没有」。
+
 ## 遗留与没验的
 
 1. **五条都只有自建用例，没有人看着跑过。** 四条布局问题我是靠无头抓帧与视觉树读数判的

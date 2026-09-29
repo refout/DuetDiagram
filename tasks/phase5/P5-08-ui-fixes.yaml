@@ -91,6 +91,12 @@ result: |
   `HighlightTests.An_undo_mark_has_no_pulse_but_still_expires`、
   `LabelMetricsTests.A_label_is_centred_in_its_node_at_the_width_it_is_drawn`。
 
+  **CI 运行 `36518778659`（提交 `6f748c3`，首次尝试，7 分 11 秒）：两个作业都绿、无跳过的步骤。**
+  五条判据都有 CI 出口，但三条落在已有门禁里，所以这一条没有改 workflow——
+  `Category=Highlight` 有专列的一步、`Category=ShapeLibrary` 在 Phase 4 界面门禁那个 `gate` 里、
+  `Category=Canvas` 由不带过滤器的 `端到端测试` 那一步覆盖。
+  **判据的读数在本地量，CI 只回答「它红了没有」。**
+
   **两条判据验过「把修复撤掉它就红」**：把 `HighlightTracker.Expired` 强行改成 `false`，
   两条高亮过期用例都红；把度量的按段量改回整行量，标签居中那条以预测的 4.96 像素偏移失败。
 

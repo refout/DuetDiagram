@@ -1,0 +1,89 @@
+id: P5-10
+title: 画布滚动条——去掉空格手势，横竖两条可拖动的滚动条
+phase: 5
+status: done
+depends_on: [P5-09]
+estimated_loc: 480
+files:
+  create:
+    - DuetDiagram.Render/ScrollRange.cs
+    - DuetDiagram.Render.Tests/ScrollRangeTests.cs
+    - DuetDiagram.E2E.Tests/ScrollBarTests.cs
+    - reports/phase5-scrollbars.md
+  modify:
+    - DuetDiagram.Render/Viewport.cs
+    - DuetDiagram.App/ViewModels/CanvasViewModel.cs
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
+    - DuetDiagram.E2E.Tests/AccessibilityTests.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - docs/GUI.md
+    - AGENTS.md
+    - reports/phase5-pan-modifier.md
+    - reports/loc.md
+    - tasks/README.md
+    - .github/workflows/ci.yml
+acceptance:
+  - command: dotnet test --project DuetDiagram.Render.Tests -c Release -- --filter-trait "Category=ScrollRange"
+    expect: 11 条全通过（适配之后拇指居中、图装得下时范围仍大于零、范围随内容与缩放重算、正反解往返、平移无边界而位置钳在条上、未排布时不产生 NaN）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release -- --filter-trait "Category=ScrollBar"
+    expect: 6 条全通过（两条常显且占得住、范围与模型一致、适配之后拇指居中、拖条改视图、到头停住、中键平移时条跟着走）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release
+    expect: 整份端到端 245 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**框选一个字都不动。** 左键在空白处拖动仍然是框选——它是「框选右键 → 创建分组 / 泳道 / 子流程」在界面上唯一的入口"
+  - "**中键平移与滚轮缩放都不动。** 滚轮仍然是以光标为锚点的缩放，不改成语义上的滚动；横向滚轮仍然整条丢掉"
+  - "**滚动范围要以内容中心对称，且图装得下时也挪得动。** 按内容外接框算范围的话，图一装下范围就是零、拇指占满轨道、拖上去一动不动，而那是用户报的场景"
+  - "**位置钳在条上，不钳平移量。** 平移仍然无边界，现有依赖这一点的用例一条都不许改预期值"
+  - "**必须关掉自动隐藏。** 默认是两像素、悬停才展开的细线，用户拖不动；关掉它还有第二个用处——条厚恒定，画布格不会因为鼠标移动而改尺寸"
+  - "**回程只订阅 `Scroll`，不订阅 `ValueChanged`。** 前者只在用户动它时发，模型回推不发，环断在那里；后者是路由事件，程序化赋值也发"
+  - "**空格那一套要删干净。** 字段、方法、用例、文档一节、可访问说明里那半句，一处不留；留下的私有字段会触发 CS0169，在 `TreatWarningsAsErrors` 下是构建错误"
+  - "**判据要验过「把实现撤掉它就红」。** 范围那一条撤掉按视口取余量 → `Category=ScrollRange` 红 4 条；撤掉 `Scroll` 订阅 → `Category=ScrollBar` 红 2 条"
+  - "**临时取证用的探针在提交前删掉。**"
+context:
+  - "产品方先报「画布无法拖动」，接着要求「左键直接就可以拖动，去除空格键」；得知左键拖动已经是框选之后，改为「添加滚动条，上下的，左右的，可以拖动滚动条」"
+  - "追问后确认两条口径：平移只留中键加滚动条（空格手势删掉）；滚动范围留余量，图完整显示时拖滚动条也能挪动视图"
+  - "P5-09 是它的直接先例（报告格式：实测读数 + 根因 + 判据 + 遗留如实列）"
+  - "P2-02 卡里定的平移手势是「中键或空格加左键拖拽平移」——这一条把空格那半删掉，并登记进 AGENTS.md 的差异表"
+result: |
+  **结论：画布外面加了横竖两条常显、可拖动的滚动条；空格手势整个删掉，平移只剩中键一条路。
+  滚动范围以内容中心对称、并留出四分之一视口的余量，所以图装得下时也挪得动——而"图装得下"
+  正是用户报的那个场景。验报告 `reports/phase5-scrollbars.md`。**
+
+  **范围模型。** 每轴：范围总长 = `max(内容长 × 缩放, 视口长) + 2 × max(24, 视口长 / 4)`，
+  可滚距离是总长减视口长；位置 = `总长 / 2 − (内容中心 × 缩放 + 平移量)`，反解共用同一份总长。
+  由此得到一条好用的性质：适配把内容摆正中间，所以**拇指必然落在轨道正中间**，与内容多大无关。
+  位置钳在 `[0, 可滚距离]` 里，**平移量不钳**——条只能表达"到头了"，视口可以停在任意位置。
+
+  **接法。** 位置单向从模型来（界面标记里的绑定），用户拖条那一头由 `Scroll` 事件写回模型。
+  程序化赋值不发 `Scroll`，环就断在那里，所以不需要就地编辑器那种防回环标志。
+
+  **删掉的东西。** `DiagramCanvas` 的 `_spaceHeld` / `_keyRoot` / `_keyWindow` 与
+  `OnAttachedToVisualTree` / `OnDetachedFromVisualTree` / `OnHostDeactivated` / `OwnsSpace` /
+  `OnHostKeyDown` / `OnHostKeyUp` 全删，`UpdatePanCursor` 只看 `_panning`，`wantsPan` 只剩中键；
+  `CanvasSmokeTests` 删掉 6 条空格用例与 2 个只被它们用的 helper；
+  `AccessibilityTests` 那句「画布上的空格操作要说出来」改成中键。
+
+  **判据**：`Category=ScrollRange` 11 条（渲染层）、`Category=ScrollBar` 6 条（端到端）。
+
+  **「把实现撤掉它就红」验过**：把余量从「四分之一视口」改成只取适配留白，
+  `Category=ScrollRange` 11 条里红 4 条；把两条 `Scroll` 订阅拿掉，
+  `Category=ScrollBar` 6 条里红 2 条。第二次还顺手发现
+  `The_bar_stops_at_its_range` 原来太松（只断言"再滚一次位移不变"，而没接线的实现位移压根不变，
+  于是它照样绿），改成先断言"从头滚到底要正好挪过一整条范围"之后才有牙。
+
+  **门禁读数**：本机 Release 构建 0 警告 0 错误；`Category=Viewport` 26/26、
+  `Category=ScrollRange` 11/11、`Category=ScrollBar` 6/6、整份端到端 **245**/245、
+  `Category=Accessibility` 10/10、`Category=CommentDiscipline` 1/1、`LocCounter --check` 退出 0。
+
+  **没验的（报告里四条）：** 真机上拖滚动条的手感与拇指粗细（装置判不了）；
+  `SmallChange=40` / `LargeChange=一页` 两个数只是推测；
+  中键把视图拖出范围之后拇指钉在端点、拖拇指会把视图拉回范围内而看上去跳一下（这是"平移无边界"的代价）；
+  横向滚轮仍然整条丢掉，触控板两指横滚要不要接管是产品决定，这一条没碰。
+
+  **与任务清单的出入。** 卡里没写这一条（产品方在真机上用完一轮之后提的），
+  编号 `P5-10` 由本仓顺延 Phase 5 已有的号定。

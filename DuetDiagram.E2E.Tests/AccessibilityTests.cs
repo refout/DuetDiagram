@@ -274,7 +274,7 @@ public sealed class AccessibilityTests
             var help = AutomationProperties.GetHelpText(canvas);
             help.Should().NotBeNullOrWhiteSpace("画布上的操作键要写在说明里，不然键盘用户不知道它能干什么");
 
-            foreach (var gesture in (string[])["空格", "滚轮", "双击", "右键"])
+            foreach (var gesture in (string[])["中键", "滚轮", "双击", "右键"])
             {
                 help.Should().Contain(gesture, $"画布上的{gesture}操作要说出来");
             }

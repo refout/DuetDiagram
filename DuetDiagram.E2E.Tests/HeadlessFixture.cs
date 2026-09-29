@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
+using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
@@ -185,6 +187,29 @@ public static class HeadlessFixture
         ArgumentNullException.ThrowIfNull(window);
 
         return window.GetVisualDescendants().OfType<DiagramToolBar>().Single();
+    }
+
+    /// <summary>
+    /// 窗口里那两条滚动条中的一条。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **模板里的滚动条不算。** 左栏那个滚动容器、以及导入报告里的那一个，
+    /// 各自模板里都带着滚动条，从窗口往下找会一并命中。
+    /// 这一层自己摆的那两条模板父级是空的，按这一点区分。
+    /// </para>
+    /// <para>
+    /// 它同时也是"这两条有没有摆上"的判据：找不到就是没摆，
+    /// 而不是"找的方式不对"——所以这里用 Single，多一条少一条都会当场失败。
+    /// </para>
+    /// </remarks>
+    public static ScrollBar ScrollBar(Window window, Orientation orientation)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants()
+            .OfType<ScrollBar>()
+            .Single(bar => bar.TemplatedParent is null && bar.Orientation == orientation);
     }
 
     /// <summary>窗口里那条菜单栏。</summary>

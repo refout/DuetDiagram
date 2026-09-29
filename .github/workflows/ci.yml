@@ -132,6 +132,12 @@ jobs:
       - name: 视口变换门禁
         run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=Viewport"
 
+      # 滚动条的范围：内容外留多少余量、位置与视图互为逆运算、平移无边界而位置钳在条上。
+      # 这一条退化的表现是「图装得下时滚动条拖上去一动不动」——而"图装得下"是最常见的那一档，
+      # 画面上看不出任何异常，只有对着数字才知道范围算成了零。
+      - name: 滚动范围门禁
+        run: dotnet test --project DuetDiagram.Render.Tests/DuetDiagram.Render.Tests.csproj -c ${{ env.CONFIGURATION }} --no-build -- --filter-trait "Category=ScrollRange"
+
       # 命中测试：点中节点、点中边、点中空白、重叠时谁在上、不受视口剔除影响。
       # 这一条退化会让画布「点不中元素」，而偏差随缩放放大、画面上完全看不出来。
       - name: 命中测试门禁
@@ -320,6 +326,12 @@ jobs:
       # 只定一个、被拒、整次拖拽算一步撤销、画布预览偏移。
       - name: 节点拖拽门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Drag"
+
+      # 滚动条：两条常显且占得住、范围与模型一致、适配之后拇指居中、拖条改视图、
+      # 到头停住、中键平移时条跟着走。退化的表现是「条摆上去了但拖不动」或
+      # 「视图动了条不动」——画布本身照常画，只有条与视图之间的关系错了。
+      - name: 滚动条门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=ScrollBar"
 
       # 连线：从端口拖出、拖到空白取消、拖到自身被拒。这一条退化的表现是
       # 「明明从端口拖了线却连不上」，而界面上没有任何报错——端口判定错在坐标层。

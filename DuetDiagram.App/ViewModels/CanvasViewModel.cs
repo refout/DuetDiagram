@@ -106,14 +106,26 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     public DrawList DrawList
     {
         get => _drawList;
-        private set => Set(ref _drawList, value, nameof(DrawList), nameof(IsEmpty));
+        private set => Set(
+            ref _drawList,
+            value,
+            nameof(DrawList),
+            nameof(IsEmpty),
+            nameof(HorizontalScroll),
+            nameof(VerticalScroll));
     }
 
     /// <summary>看哪儿。</summary>
     public Viewport Viewport
     {
         get => _viewport;
-        private set => Set(ref _viewport, value, nameof(Viewport), nameof(ZoomText));
+        private set => Set(
+            ref _viewport,
+            value,
+            nameof(Viewport),
+            nameof(ZoomText),
+            nameof(HorizontalScroll),
+            nameof(VerticalScroll));
     }
 
     /// <summary>没有可画的东西。界面据此显示一句提示而不是一片空白。</summary>
@@ -132,6 +144,16 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
     /// </remarks>
     public string ZoomText =>
         string.Format(CultureInfo.InvariantCulture, "缩放 {0:0}%", _viewport.Scale * 100);
+
+    /// <summary>横向滚动条的范围。</summary>
+    /// <remarks>
+    /// 内容一换、视口一动它都跟着变，所以它是一份现算的读数，而不是一个可以缓存的字段——
+    /// 缓存要记"什么时候该失效"，而漏掉任何一处失效，表现都是滚动条与视图对不上。
+    /// </remarks>
+    public ScrollRange HorizontalScroll => _viewport.HorizontalScrollRange(ContentBounds);
+
+    /// <summary>纵向滚动条的范围。</summary>
+    public ScrollRange VerticalScroll => _viewport.VerticalScrollRange(ContentBounds);
 
     /// <summary>
     /// 换一份绘制列表，并把视口适配到内容上。
@@ -417,6 +439,18 @@ public sealed class CanvasViewModel : INotifyPropertyChanged
 
     /// <summary>平移。参数是屏幕上的位移。</summary>
     public void PanBy(double dx, double dy) => Viewport = _viewport.PanBy(dx, dy);
+
+    /// <summary>
+    /// 用户把横向滚动条拖到了某个位置。
+    /// </summary>
+    /// <remarks>
+    /// 与 <see cref="PanBy"/> 是两条路，但落点相同：都只改视口的平移量。
+    /// 让滚动条自己去改画布的绘制偏移的话，"视图在哪"就有了两个说法。
+    /// </remarks>
+    public void ScrollHorizontal(double value) => Viewport = _viewport.ScrollToX(ContentBounds, value);
+
+    /// <inheritdoc cref="ScrollHorizontal(double)"/>
+    public void ScrollVertical(double value) => Viewport = _viewport.ScrollToY(ContentBounds, value);
 
     /// <summary>光标移到了画布上的某个位置。参数是屏幕坐标。</summary>
     public void MovePointer(double screenX, double screenY)

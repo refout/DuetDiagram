@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
-| DuetDiagram.App | 73 | 19510 | 10944 | 5313 | 3253 |
+| DuetDiagram.App | 73 | 19429 | 10893 | 5297 | 3239 |
 | DuetDiagram.Benchmarks | 6 | 571 | 337 | 145 | 89 |
 | DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 33 | 10759 | 6918 | 1614 | 2227 |
+| DuetDiagram.E2E.Tests | 34 | 10773 | 6910 | 1632 | 2231 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4836 | 2626 | 1535 | 675 |
@@ -21,10 +21,10 @@
 | DuetDiagram.Mcp.Tests | 11 | 3423 | 2177 | 560 | 686 |
 | DuetDiagram.Mermaid | 9 | 2041 | 1181 | 548 | 312 |
 | DuetDiagram.Mermaid.Tests | 7 | 2069 | 1510 | 217 | 342 |
-| DuetDiagram.Render | 34 | 6649 | 3516 | 2178 | 955 |
-| DuetDiagram.Render.Tests | 24 | 6244 | 4296 | 818 | 1130 |
+| DuetDiagram.Render | 35 | 6783 | 3551 | 2263 | 969 |
+| DuetDiagram.Render.Tests | 25 | 6455 | 4444 | 839 | 1172 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **511** | **118918** | **73609** | **25279** | **20030** |
+| **合计** | **514** | **119196** | **73733** | **25387** | **20076** |
 
 ## 明细
 
@@ -41,7 +41,7 @@
 | App.axaml.cs | 19 |
 | ContextMenuBuilder.cs | 33 |
 | DiagnosticsPanel.axaml.cs | 12 |
-| DiagramCanvas.cs | 992 |
+| DiagramCanvas.cs | 918 |
 | DiagramMenuBar.axaml.cs | 98 |
 | DiagramToolBar.axaml.cs | 108 |
 | DiffSidebar.axaml.cs | 111 |
@@ -71,7 +71,7 @@
 | SelectionSet.cs | 33 |
 | ShapeDrag.cs | 19 |
 | TextEditSession.cs | 145 |
-| MainWindow.axaml.cs | 484 |
+| MainWindow.axaml.cs | 491 |
 | Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
 | Strings.cs | 129 |
@@ -93,7 +93,7 @@
 | StartupProbe.cs | 164 |
 | TemplateCatalog.cs | 73 |
 | WorkspaceRegistry.cs | 94 |
-| CanvasViewModel.cs | 296 |
+| CanvasViewModel.cs | 312 |
 | ConstraintEditorViewModel.cs | 165 |
 | DiagnosticsViewModel.cs | 155 |
 | LayerPanelViewModel.cs | 226 |
@@ -336,7 +336,7 @@
 |---|---:|
 | AccessibilityTests.cs | 324 |
 | CanvasLayoutTests.cs | 77 |
-| CanvasSmokeTests.cs | 325 |
+| CanvasSmokeTests.cs | 180 |
 | CompositeDragTests.cs | 158 |
 | ConnectTests.cs | 86 |
 | ConstraintEditorTests.cs | 299 |
@@ -345,7 +345,7 @@
 | DragTests.cs | 139 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 213 |
+| HeadlessFixture.cs | 222 |
 | HighlightTests.cs | 129 |
 | I18nTests.cs | 409 |
 | ImportTests.cs | 375 |
@@ -363,6 +363,7 @@
 | Phase4ScenarioTests.cs | 138 |
 | PropertyPanelTests.cs | 167 |
 | RichTextEditorTests.cs | 344 |
+| ScrollBarTests.cs | 128 |
 | ShapeLibraryTests.cs | 169 |
 | TemplateTests.cs | 197 |
 | TextPresetTests.cs | 189 |
@@ -548,11 +549,12 @@
 | RichTextLayout.cs | 190 |
 | SceneBuilder.cs | 490 |
 | SceneComposer.cs | 55 |
+| ScrollRange.cs | 13 |
 | SkiaTextMeasurer.cs | 111 |
 | SpatialRect.cs | 29 |
 | TextLayout.cs | 78 |
 | Theme.cs | 140 |
-| Viewport.cs | 49 |
+| Viewport.cs | 71 |
 | ViewportCulling.cs | 6 |
 | ViewportTransform.cs | 32 |
 
@@ -580,6 +582,7 @@
 | RichTextLayoutTests.cs | 297 |
 | RichTextRenderTests.cs | 117 |
 | SceneSnapshotTests.cs | 251 |
+| ScrollRangeTests.cs | 148 |
 | ShapeProviderTests.cs | 86 |
 | Snapshot.cs | 57 |
 | SvgExportTests.cs | 248 |

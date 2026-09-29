@@ -5,7 +5,6 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
@@ -68,15 +67,8 @@ public sealed partial class DiagramCanvas : UserControl
 
     private CanvasViewModel? _subscribed;
     private bool _panning;
-    private bool _spaceHeld;
     private Point _lastPointer;
     private int _drawnCommands;
-
-    /// <summary>空格键从哪儿读。窗口那一层，不是这个控件自己。</summary>
-    private InputElement? _keyRoot;
-
-    /// <summary>挂着按键与失活的那扇窗，断开时要摘干净。</summary>
-    private WindowBase? _keyWindow;
 
     /// <summary>文档那一侧。拖节点需要它来定选中、写固定位置；普通选中也走它。</summary>
     public DiagramSession? Session { get; set; }
@@ -141,7 +133,8 @@ public sealed partial class DiagramCanvas : UserControl
         AccessibleName.Set(
             this,
             "图画布",
-            "图就画在这里。空格加左键拖动是平移，滚轮缩放，双击节点改标签，右键出菜单。"
+            "图就画在这里。中键拖动是平移，滚轮缩放，双击节点改标签，右键出菜单。"
+            + "上下与左右各有一条滚动条，也可以拖动它们来移动视图。"
             + "撤销、重做、删除、重排与性能诊断面板在菜单栏和工具栏上，各带快捷键。");
 
         // 形状面板拖过来的形状落在画布上。收不收由这一层答：拖拽的路由到"指针底下的那个控件"，
@@ -697,123 +690,8 @@ public sealed partial class DiagramCanvas : UserControl
 
     #region 输入
 
-    /// <summary>
-    /// 挂上窗口那一层的按键处理。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// **空格不能靠"画布有没有焦点"来收。** 窗口刚打开时没有任何控件有焦点，
-    /// 点过工具栏上任意一颗按钮之后焦点又落在那颗按钮上——两种状态下空格都到不了画布，
-    /// 而用户看到的是"按着空格拖，画布一动不动"。空格是画布上的平移修饰键，
-    /// 它该由画布在窗口这一层直接读，而不是等焦点碰巧落在自己身上。
-    /// </para>
-    /// <para>
-    /// 走隧道：这样消息先经过这里，再轮到真正有焦点的控件。画布认下这一下时会把它标成
-    /// "已处理"，焦点所在的那颗按钮因此不会被空格按下。
-    /// </para>
-    /// </remarks>
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-
-        if (TopLevel.GetTopLevel(this) is not { } root)
-        {
-            return;
-        }
-
-        _keyRoot = root;
-
-        root.AddHandler(KeyDownEvent, OnHostKeyDown, RoutingStrategies.Tunnel, handledEventsToo: true);
-        root.AddHandler(KeyUpEvent, OnHostKeyUp, RoutingStrategies.Tunnel, handledEventsToo: true);
-
-        // 窗口失去激活之后收不到抬起消息，空格会被永远记成按着，
-        // 于是下一次左键按下变成平移——用户以为选中坏了。
-        if (root is WindowBase window)
-        {
-            _keyWindow = window;
-            window.Deactivated += OnHostDeactivated;
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        if (_keyRoot is { } root)
-        {
-            root.RemoveHandler(KeyDownEvent, OnHostKeyDown);
-            root.RemoveHandler(KeyUpEvent, OnHostKeyUp);
-            _keyRoot = null;
-        }
-
-        if (_keyWindow is { } window)
-        {
-            window.Deactivated -= OnHostDeactivated;
-            _keyWindow = null;
-        }
-
-        base.OnDetachedFromVisualTree(e);
-    }
-
-    private void OnHostDeactivated(object? sender, EventArgs e)
-    {
-        _spaceHeld = false;
-        UpdatePanCursor();
-    }
-
-    /// <summary>
-    /// 这一下空格归不归画布。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 空格同时是按钮的"按下"键与文本框里的一个字符，所以不能一概抢过来。规则一条：
-    /// **正在打字时归文本框；其余时候指针在画布上、或者画布拿着焦点，就归画布。**
-    /// 指针不在画布上时留给聚焦的控件——键盘用户 Tab 到某颗按钮之后按空格，仍要能按下它。
-    /// </para>
-    /// <para>
-    /// 已经按下的那一下必须继续归画布，否则抬起消息回不到这里，空格会一直留在"按着"。
-    /// </para>
-    /// </remarks>
-    private bool OwnsSpace()
-    {
-        if (_spaceHeld)
-        {
-            return true;
-        }
-
-        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox)
-        {
-            return false;
-        }
-
-        return IsPointerOver || IsFocused;
-    }
-
-    private void OnHostKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Space || e.Handled || !OwnsSpace())
-        {
-            return;
-        }
-
-        _spaceHeld = true;
-        UpdatePanCursor();
-        e.Handled = true;
-    }
-
-    private void OnHostKeyUp(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Space || !_spaceHeld)
-        {
-            return;
-        }
-
-        _spaceHeld = false;
-        UpdatePanCursor();
-        e.Handled = true;
-    }
-
-    /// <summary>光标跟着"现在能不能拖动画布"走。按着空格而光标没变的话，用户不知道已经按上了。</summary>
-    private void UpdatePanCursor() => Cursor = _panning || _spaceHeld ? PanCursor : Cursor.Default;
+    /// <summary>光标跟着"现在是不是在拖动画布"走。</summary>
+    private void UpdatePanCursor() => Cursor = _panning ? PanCursor : Cursor.Default;
 
     /// <summary>
     /// 有东西被拖到画布上方：这一包数据收不收。
@@ -908,8 +786,8 @@ public sealed partial class DiagramCanvas : UserControl
             return;
         }
 
-        var wantsPan = point.Properties.IsMiddleButtonPressed
-            || (_spaceHeld && point.Properties.IsLeftButtonPressed);
+        // 中键是平移。左键留给选中、拖节点与框选，右键留给菜单。
+        var wantsPan = point.Properties.IsMiddleButtonPressed;
 
         // 双击节点进标签编辑。它排在拖拽之前判：双击的第二下若也进拖拽，
         // 松手会把这一下当成一次"没挪动的拖动"把节点固定住，
@@ -1202,12 +1080,6 @@ public sealed partial class DiagramCanvas : UserControl
     protected override void OnLostFocus(FocusChangedEventArgs e)
     {
         base.OnLostFocus(e);
-
-        // 焦点一挪走就把空格状态清掉。按键消息挂在窗口那一层之后，这一条不再是必需的
-        // （抬起消息照样到得了），但它是兜底：卡住一个"按着"的修饰键，
-        // 表现是之后每一次左键按下都变成平移，而用户以为选中坏了。
-        _spaceHeld = false;
-        UpdatePanCursor();
 
         // 拖拽中丢了焦点，这一拖作废：不写固定位置，节点回到原处。
         // 否则一次意外的失焦会把节点挪到用户没打算去的地方。

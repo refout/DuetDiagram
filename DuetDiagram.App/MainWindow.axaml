@@ -75,49 +75,92 @@
     <DockPanel>
       <controls:PageTabs x:Name="PageTabsView" DockPanel.Dock="Top" />
 
-      <Grid>
-        <controls:DiagramCanvas x:Name="Canvas" />
+      <!--
+        画布那一格再分一次：画布与那几个浮层叠在左上那一格里，两条滚动条各占右边一条与下边一条，
+        右下角空着。浮层不进停靠位——停靠会改变画布的尺寸，而画布一改尺寸视口就跟着变，
+        开关一次面板图就跳一下。
+        滚动条也不进停靠位，理由相同；它们只占画布格的外围，因此画布少掉的那点宽高
+        与"面板开着"是同一件事。
+      -->
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="*,Auto">
         <!--
-          就地编辑那一层。它铺在画布那一格上，编辑器自己按排版结果摆到节点上。
-          单独一层而不是塞进画布：画布只认绘制列表，让它去管控件的话，
-          绘制列表这条路径与控件那条路径就混在一起了，而快照测试覆盖的是前一条。
-          这一层没有背景色，空白处不参与命中，指针事件照样落到画布上。
+          画布与浮层共用左上那一格。内层再套一个 Grid 而不是把行列写在原来那一层上，
+          是为了让"它们全在同一个原点"这件事写在纸面上：就地编辑那一层用的是画布的屏幕坐标，
+          两者错开一点点，编辑框就会与节点差半个字宽，而那种差别只有对着屏幕才看得出来。
         -->
-        <Canvas x:Name="EditLayer">
-          <controls:RichTextEditor x:Name="TextEditor" IsVisible="False" />
-        </Canvas>
-        <controls:DiagnosticsPanel HorizontalAlignment="Right"
-                                   VerticalAlignment="Top"
-                                   Margin="12"
-                                   IsVisible="{Binding Diagnostics.IsOpen}" />
-        <!--
-          变更边栏浮在右下角。它与诊断面板一样不进停靠位：停靠会改画布尺寸，
-          而尺寸一变视口就跳，开一次边栏图就挪一下位置。
-        -->
-        <controls:DiffSidebar x:Name="DiffView"
-                              HorizontalAlignment="Right"
-                              VerticalAlignment="Bottom"
-                              Margin="12" />
-        <!--
-          两条提示都浮在正中间，默认收起来。它们不进停靠位：一出现就改画布尺寸的话，
-          图会在"出错的那一刻"跟着跳一下，而用户正在盯着它看出错在哪。
-        -->
-        <controls:LayoutFailureDialog x:Name="LayoutFailureView"
-                                      HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"
-                                      IsVisible="False" />
-        <controls:SidecarRecoveryDialog x:Name="SidecarRecoveryView"
+        <Grid Grid.Row="0" Grid.Column="0">
+          <controls:DiagramCanvas x:Name="Canvas" />
+          <!--
+            就地编辑那一层。它铺在画布那一格上，编辑器自己按排版结果摆到节点上。
+            单独一层而不是塞进画布：画布只认绘制列表，让它去管控件的话，
+            绘制列表这条路径与控件那条路径就混在一起了，而快照测试覆盖的是前一条。
+            这一层没有背景色，空白处不参与命中，指针事件照样落到画布上。
+          -->
+          <Canvas x:Name="EditLayer">
+            <controls:RichTextEditor x:Name="TextEditor" IsVisible="False" />
+          </Canvas>
+          <controls:DiagnosticsPanel HorizontalAlignment="Right"
+                                     VerticalAlignment="Top"
+                                     Margin="12"
+                                     IsVisible="{Binding Diagnostics.IsOpen}" />
+          <!--
+            变更边栏浮在右下角。它与诊断面板一样不进停靠位：停靠会改画布尺寸，
+            而尺寸一变视口就跳，开一次边栏图就挪一下位置。
+          -->
+          <controls:DiffSidebar x:Name="DiffView"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="12" />
+          <!--
+            两条提示都浮在正中间，默认收起来。它们不进停靠位：一出现就改画布尺寸的话，
+            图会在"出错的那一刻"跟着跳一下，而用户正在盯着它看出错在哪。
+          -->
+          <controls:LayoutFailureDialog x:Name="LayoutFailureView"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Center"
                                         IsVisible="False" />
+          <controls:SidecarRecoveryDialog x:Name="SidecarRecoveryView"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          IsVisible="False" />
+          <!--
+            导入报告与上面两条同一个位置、同一个理由：它也是一份要读的单子，
+            一出现就改画布尺寸的话图会跟着跳一下。
+          -->
+          <controls:ImportDialog x:Name="ImportView"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 IsVisible="False" />
+        </Grid>
+
         <!--
-          导入报告与上面两条同一个位置、同一个理由：它也是一份要读的单子，
-          一出现就改画布尺寸的话图会跟着跳一下。
+          两条滚动条。**必须关掉自动隐藏**：默认值是两像素、悬停才展开的细线，
+          而用户要的是能拖动的条——细线上连命中区域都几乎没有。
+          关掉它还有第二个好处：条的厚度恒定，画布格不会因为鼠标进出而改变尺寸，
+          而画布一改尺寸视口就跟着动。
+          位置单向从模型来；拖回去那一条走 Scroll 事件，在窗口的代码里接。
         -->
-        <controls:ImportDialog x:Name="ImportView"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               IsVisible="False" />
+        <ScrollBar x:Name="VerticalBar"
+                   Grid.Row="0" Grid.Column="1"
+                   Orientation="Vertical"
+                   AllowAutoHide="False"
+                   Minimum="0"
+                   SmallChange="40"
+                   Maximum="{Binding VerticalScroll.Maximum}"
+                   ViewportSize="{Binding VerticalScroll.ViewportLength}"
+                   LargeChange="{Binding VerticalScroll.ViewportLength}"
+                   Value="{Binding VerticalScroll.Value, Mode=OneWay}" />
+
+        <ScrollBar x:Name="HorizontalBar"
+                   Grid.Row="1" Grid.Column="0"
+                   Orientation="Horizontal"
+                   AllowAutoHide="False"
+                   Minimum="0"
+                   SmallChange="40"
+                   Maximum="{Binding HorizontalScroll.Maximum}"
+                   ViewportSize="{Binding HorizontalScroll.ViewportLength}"
+                   LargeChange="{Binding HorizontalScroll.ViewportLength}"
+                   Value="{Binding HorizontalScroll.Value, Mode=OneWay}" />
       </Grid>
     </DockPanel>
   </DockPanel>

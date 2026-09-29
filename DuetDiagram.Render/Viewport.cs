@@ -57,6 +57,44 @@ public sealed record Viewport(double Scale, double OffsetX, double OffsetY, doub
     public SpatialRect VisibleDocumentRect =>
         Transform.ToDocument(new SpatialRect(0, 0, Width, Height));
 
+    /// <summary>
+    /// 横向滚动条的范围。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **范围以内容中心为对称中心，不以内容外接框为界。** 按外接框算的话，
+    /// 图一装进窗口范围就是零、拇指占满整条轨道，拖上去一动不动——
+    /// 而"图装得下"恰恰是最常见的那一档，用户会以为滚动条坏了。
+    /// </para>
+    /// <para>
+    /// 由此还得到一条好用的性质：适配把内容摆正中间，于是拇指正好落在轨道正中间，
+    /// 与内容多大无关。
+    /// </para>
+    /// </remarks>
+    /// <param name="content">内容的范围，文档坐标。</param>
+    public ScrollRange HorizontalScrollRange(SpatialRect content) =>
+        RangeAlong(content.CenterX, content.Width, Width, OffsetX);
+
+    /// <inheritdoc cref="HorizontalScrollRange(SpatialRect)"/>
+    public ScrollRange VerticalScrollRange(SpatialRect content) =>
+        RangeAlong(content.CenterY, content.Height, Height, OffsetY);
+
+    /// <summary>
+    /// 把内容摆到横向滚动条上的某个位置。
+    /// </summary>
+    /// <remarks>
+    /// 它是 <see cref="HorizontalScrollRange"/> 的逆运算，两者共用同一份范围长度——
+    /// 各算一次的话，浮点上会差一点点，而表现是拖动时拇指自己抖。
+    /// </remarks>
+    /// <param name="content">内容的范围，文档坐标。</param>
+    /// <param name="value">滚动条上的位置。</param>
+    public Viewport ScrollToX(SpatialRect content, double value) =>
+        this with { OffsetX = OffsetAlong(content.CenterX, content.Width, Width, value) };
+
+    /// <inheritdoc cref="ScrollToX(SpatialRect,double)"/>
+    public Viewport ScrollToY(SpatialRect content, double value) =>
+        this with { OffsetY = OffsetAlong(content.CenterY, content.Height, Height, value) };
+
     /// <summary>按一份主题取缩放上下界。</summary>
     public static Viewport For(Theme theme)
     {
@@ -137,5 +175,42 @@ public sealed record Viewport(double Scale, double OffsetX, double OffsetY, doub
             OffsetX = ((Width - (content.Width * scale)) / 2) - (content.X * scale),
             OffsetY = ((Height - (content.Height * scale)) / 2) - (content.Y * scale),
         };
+    }
+
+    /// <summary>
+    /// 内容之外留的那圈余量。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 取 <see cref="FitMargin"/> 与四分之一视口的较大者。四分之一那一项是为了让
+    /// **图完整显示时视图还能移动半个视口**（可滚距离正好是视口的一半）——
+    /// 再小则拖上去像没反应，再大则内容能被整个推出屏幕、用户找不回来。
+    /// </para>
+    /// <para>
+    /// <see cref="FitMargin"/> 只在视口极小（不到它的四倍）时接管，那时按比例算出来的余量
+    /// 小得没有意义。
+    /// </para>
+    /// </remarks>
+    private static double Pad(double viewportLength) => Math.Max(FitMargin, viewportLength / 4);
+
+    /// <summary>滚动范围的总长，屏幕单位。正反解都走这一份，不然两者会在浮点上分叉。</summary>
+    private static double SurfaceLength(double contentLength, double viewportLength) =>
+        Math.Max(contentLength, viewportLength) + (Pad(viewportLength) * 2);
+
+    /// <summary>沿一轴把内容中心的位置换成滚动条上的位置。</summary>
+    private ScrollRange RangeAlong(double center, double contentLength, double viewportLength, double offset)
+    {
+        var surface = SurfaceLength(contentLength * Scale, viewportLength);
+        var centerOnScreen = (center * Scale) + offset;
+
+        return new ScrollRange(surface - viewportLength, viewportLength, (surface / 2) - centerOnScreen);
+    }
+
+    /// <summary>沿一轴把滚动条上的位置换回内容中心该在的屏幕位置。</summary>
+    private double OffsetAlong(double center, double contentLength, double viewportLength, double value)
+    {
+        var surface = SurfaceLength(contentLength * Scale, viewportLength);
+
+        return (surface / 2) - (center * Scale) - value;
     }
 }

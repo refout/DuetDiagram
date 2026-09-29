@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
@@ -181,6 +182,14 @@ public sealed partial class MainWindow : Window
         TextPresetsView.DataContext = TextPresets;
         PageTabsView.DataContext = Pages;
         DataContext = Model;
+
+        // 拖动滚动条 → 视图。位置单向从模型来（界面标记里那条绑定），回程只有这一处。
+        //
+        // 订阅 Scroll 而不是 ValueChanged：Scroll 只在用户动它的时候发，
+        // 模型把位置推回去时不发，环就断在这里。ValueChanged 是路由事件，
+        // 程序化赋值也发，用它就得自己防回环。
+        VerticalBar.Scroll += (_, e) => Model.ScrollVertical(e.NewValue);
+        HorizontalBar.Scroll += (_, e) => Model.ScrollHorizontal(e.NewValue);
 
         // 第一份绘制列表走 Load：它把视口适配到内容上。之后每一次改动走 Refresh，
         // 用户摆好的视角不该因为改了一个字就跳回默认。
@@ -930,5 +939,9 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ImportView 的提示");
         TextEditor = this.FindControl<RichTextEditor>(nameof(TextEditor))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextEditor 的编辑器");
+        VerticalBar = this.FindControl<ScrollBar>(nameof(VerticalBar))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 VerticalBar 的滚动条");
+        HorizontalBar = this.FindControl<ScrollBar>(nameof(HorizontalBar))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 HorizontalBar 的滚动条");
     }
 }

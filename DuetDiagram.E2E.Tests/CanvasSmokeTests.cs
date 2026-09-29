@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using DuetDiagram.App;
 using DuetDiagram.App.Controls;
 using DuetDiagram.Render;
@@ -193,8 +194,8 @@ public sealed class CanvasSmokeTests
 
             var start = ToWindow(canvas, window, CenterOf(canvas));
 
-            // 先点一下把焦点收过来。键盘消息只发给有焦点的控件，
-            // 收不到焦点的话空格键永远到不了画布，而表现是"空格拖拽坏了"。
+            // 点一下把焦点收过来。这一条量的是"点过之后画布拿到焦点"，
+            // 而空格本身不依赖它——另外几条量的是没点过、以及焦点在别处时照样能拖。
             window.MouseDown(start, MouseButton.Left);
             window.MouseUp(start, MouseButton.Left);
 
@@ -244,6 +245,169 @@ public sealed class CanvasSmokeTests
         });
     }
 
+    [Fact]
+    [Trait("Category", "Canvas")]
+    public async Task Space_drags_the_view_before_anything_has_been_clicked()
+    {
+        // 窗口刚打开时没有任何控件有焦点。空格若只认"画布拿到了焦点"，
+        // 这一下什么都不会发生——而用户眼里的表现正是"画布拖不动"。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = Open();
+            var canvas = Canvas(window);
+            var model = window.Model;
+
+            canvas.IsFocused.Should().BeFalse("这一条要的正是「还没点过任何地方」那一档");
+
+            var start = ToWindow(canvas, window, CenterOf(canvas));
+
+            // 指针先移到画布上。空格归不归画布，看的就是指针在哪儿。
+            window.MouseMove(start);
+
+            var before = model.Viewport;
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(start + new Vector(-35, 45));
+            window.MouseUp(start + new Vector(-35, 45), MouseButton.Left);
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+
+            model.Viewport.OffsetX.Should().BeApproximately(before.OffsetX - 35, 1e-6);
+            model.Viewport.OffsetY.Should().BeApproximately(before.OffsetY + 45, 1e-6);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "Canvas")]
+    public async Task Space_drags_the_view_while_a_toolbar_button_has_focus()
+    {
+        // 点过工具栏上任意一颗按钮之后，焦点落在那颗按钮上。
+        // 空格若只认画布自己有没有焦点，这一档同样拖不动。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = Open();
+            var canvas = Canvas(window);
+            var model = window.Model;
+            var start = ToWindow(canvas, window, CenterOf(canvas));
+
+            var button = ToolbarButton(window, "全选");
+
+            window.MouseDown(SpotOf(button, window), MouseButton.Left);
+            window.MouseUp(SpotOf(button, window), MouseButton.Left);
+
+            button.IsFocused.Should().BeTrue("点过之后焦点在按钮上，这一条要的正是这个前提");
+
+            window.MouseMove(start);
+
+            var before = model.Viewport;
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(start + new Vector(25, 15));
+            window.MouseUp(start + new Vector(25, 15), MouseButton.Left);
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+
+            model.Viewport.OffsetX.Should().BeApproximately(before.OffsetX + 25, 1e-6);
+            model.Viewport.OffsetY.Should().BeApproximately(before.OffsetY + 15, 1e-6);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "Canvas")]
+    public async Task Space_over_the_canvas_does_not_press_the_focused_button()
+    {
+        // 空格同时是按钮的按下键。指针在画布上时它归画布——
+        // 否则用户按着空格拖画布，顺手把上一颗点过的按钮又按了一遍。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = Open();
+            var canvas = Canvas(window);
+            var model = window.Model;
+            var start = ToWindow(canvas, window, CenterOf(canvas));
+
+            ToolbarButton(window, "全选").Focus();
+            window.Session.SetSelection([]);
+
+            window.MouseMove(start);
+
+            var before = model.Viewport;
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(start + new Vector(20, 10));
+            window.MouseUp(start + new Vector(20, 10), MouseButton.Left);
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+
+            window.Session.SelectedIds.Should().BeEmpty("空格被画布认下了，就不该再去按那颗按钮");
+            model.Viewport.OffsetX.Should().BeApproximately(before.OffsetX + 20, 1e-6);
+            model.Viewport.OffsetY.Should().BeApproximately(before.OffsetY + 10, 1e-6);
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "Canvas")]
+    public async Task Space_over_a_button_still_presses_it()
+    {
+        // 上一条的对照。少了它，一个"把空格整个吞掉"的实现也能全绿——
+        // 而那会把键盘用户按空格激活按钮的路堵死。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = Open();
+
+            var button = ToolbarButton(window, "全选");
+
+            window.MouseMove(SpotOf(button, window));
+            button.Focus();
+            window.Session.SetSelection([]);
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+
+            window.Session.SelectedIds.Should().HaveCount(
+                window.Session.Document.Nodes.Count,
+                "指针不在画布上，空格该留给聚焦的那颗按钮");
+
+            window.Close();
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "Canvas")]
+    public async Task Space_while_a_text_box_has_focus_does_not_drag_the_view()
+    {
+        // 就地编辑标签那一层盖在画布上，打字时指针本来就在画布范围内。
+        // 空格在那儿是一个字符，画布不能抢。
+        await HeadlessFixture.Run(() =>
+        {
+            var window = Open();
+            var canvas = Canvas(window);
+            var model = window.Model;
+            var start = ToWindow(canvas, window, CenterOf(canvas));
+
+            window.GetVisualDescendants().OfType<TextBox>().First().Focus();
+
+            window.MouseMove(start);
+
+            var before = model.Viewport;
+
+            window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(start + new Vector(40, 30));
+            window.MouseUp(start + new Vector(40, 30), MouseButton.Left);
+            window.KeyReleaseQwerty(PhysicalKey.Space, RawInputModifiers.None);
+
+            model.Viewport.Should().Be(before);
+
+            window.Close();
+        });
+    }
+
     #endregion
 
     #region 状态栏
@@ -284,4 +448,13 @@ public sealed class CanvasSmokeTests
 
     private static Point ToWindow(DiagramCanvas canvas, Window window, Point local) =>
         HeadlessFixture.ToWindow(canvas, window, local);
+
+    /// <summary>工具栏上那一颗按钮，按它显示的字去找。</summary>
+    private static Button ToolbarButton(Window window, string content) =>
+        HeadlessFixture.Button(HeadlessFixture.ToolBar(window), content);
+
+    /// <summary>一个控件在窗口坐标下的中心点。指针事件给的是窗口坐标。</summary>
+    private static Point SpotOf(Control control, Window window) =>
+        control.TranslatePoint(new Point(control.Bounds.Width / 2, control.Bounds.Height / 2), window)
+        ?? throw new InvalidOperationException("这个控件不在窗口的视觉树里，量不出它在窗口里的位置");
 }

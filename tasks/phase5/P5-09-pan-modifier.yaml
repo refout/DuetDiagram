@@ -1,0 +1,85 @@
+id: P5-09
+title: 平移修复——空格拖不动画布
+phase: 5
+status: done
+depends_on: [P5-08]
+estimated_loc: 200
+files:
+  create:
+    - reports/phase5-pan-modifier.md
+  modify:
+    - DuetDiagram.App/Controls/DiagramCanvas.cs
+    - DuetDiagram.E2E.Tests/CanvasSmokeTests.cs
+    - docs/GUI.md
+    - AGENTS.md
+    - tasks/README.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release -- --filter-trait "Category=Canvas"
+    expect: 17 条全通过；焦点在「无」、在工具栏按钮上、在文本框里三档各有一条判据，另有一条对照量「指针在按钮上时空格仍要按下那颗按钮」
+  - command: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c Release
+    expect: 整份端到端 245 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**根因要查到「谁该收到这一下按键」这一层，不许停在「加个快捷键」。** 现象是空格失效，根因是画布按「自己有没有焦点」收空格，而窗口刚打开时谁都没有焦点、点过工具栏按钮之后焦点又在按钮上"
+  - "**改前的读数不许靠回忆。** 改之前先跑一遍探针取数（视口位移、焦点落在哪个控件上），改完再跑同一份探针"
+  - "**判据要验过「把修复撤掉它就红」。** 把 `DiagramCanvas.cs` 单独 stash 掉跑同一批用例，红的条数要恰好等于新增的「该平移」那几条，对照那两条不许红"
+  - "**不许把空格整个吞掉。** 空格同时是按钮的按下键与文本框里的一个字符，所以要有「指针在按钮上时空格仍按下按钮」与「焦点在文本框里时不平移」两条对照，否则一个过度修复的实现也能全绿"
+  - "**框选与拖节点的手势一个字都不动。** 左键拖空白仍然是框选（`A_plain_left_drag_leaves_the_view_alone` 仍然绿），空格与中键才是平移"
+  - "**无头验不了的那一段要如实写。** 窗口失活时清状态那段代码没有判据——无头宿主里 `Hide()` 不报 `Deactivated`，只有代码路径"
+  - "**临时取证用的探针在提交前删掉。** 打读数用的 `ZTmpPanProbe` / `ZTmpWheelProbe` 不进仓库"
+context:
+  - "P2-02 卡里定的平移手势是「中键或空格加左键拖拽平移」，滚轮以光标为锚点缩放——手势本身没改，改的是空格怎么收到"
+  - "产品方报的是「画布无法拖动」，接在 P5-08 那五条界面问题之后"
+  - "`docs/GUI.md` 的「输入怎么送到画布上」那一节原来写着「画布在指针按下时把焦点收过来，否则空格键永远到不了这里」——那句话描述的就是这个缺陷"
+  - "P5-08 是它的直接先例（报告格式：实测读数 + 根因 + 判据 + 遗留如实列）"
+result: |
+  **结论：空格平移原来按「画布有没有焦点」收，而窗口刚打开时谁都没有焦点、
+  点过工具栏按钮之后焦点又在按钮上，两档下空格都到不了画布——用户看到的就是「画布拖不动」。
+  改成在窗口那一层用隧道读，并定下「空格归谁」的三条分支。验报告 `reports/phase5-pan-modifier.md`。**
+
+  **改前的读数（探针量视口位移，不是「事件有没有送到」）：**
+
+  | 场景 | 焦点在哪 | 视口位移 |
+  |---|---|---|
+  | 窗口刚打开，直接空格加左键拖 | **无** | 0 |
+  | 点过工具栏上任意一颗按钮之后 | `Button(全选)` | 0 |
+  | 先点一下画布，再空格加左键拖 | `DiagramCanvas` | (50, 20) |
+  | 中键拖拽（任何状态） | 无所谓 | (50, 20) |
+
+  顺带量到一条副作用：**焦点在按钮上时按空格会把那颗按钮按下去**（按一下「全选」，
+  选中集合从 0 变成 5）——用户想拖画布，结果改了一次选中。
+
+  **改法。** 空格改在窗口那一层用隧道读（`OnAttachedToVisualTree` 往 `TopLevel` 挂
+  `KeyDownEvent` / `KeyUpEvent`）。走隧道还顺手挡住上面那条副作用：画布认下空格时把它标成
+  「已处理」，聚焦的那颗按钮因此不会被按下去。空格归谁按三条判：焦点在文本框里归文本框、
+  指针在画布上或画布拿着焦点归画布、其余留给聚焦的控件。按下的那一下必须继续归画布，
+  否则抬起消息回不到这里。光标跟着这个状态走（空格按下时变成四向箭头）。
+
+  **五条判据都在 `Category=Canvas` 里**（改前 12 条，改后 17 条）：
+  `Space_drags_the_view_before_anything_has_been_clicked`、
+  `Space_drags_the_view_while_a_toolbar_button_has_focus`、
+  `Space_over_the_canvas_does_not_press_the_focused_button`、
+  `Space_over_a_button_still_presses_it`、
+  `Space_while_a_text_box_has_focus_does_not_drag_the_view`。
+  后两条是**对照**——少了它们，一个「把空格整个吞掉」的实现也能全绿。
+
+  **「把修复撤掉它就红」验过**：把 `DiagramCanvas.cs` 单独 stash 掉跑 `Category=Canvas`，
+  17 条里恰好红 3 条（三条「该平移」的），两条对照照样绿。
+
+  **顺带量到的一件事：水平滚轮被整条丢掉。** 水平滚一格视口一个数都不变（scale 1.631、
+  offset (215.1, 24) 原样），垂直滚一格是以光标为锚点的缩放（×1.15）。
+  垂直那一轴是方案定的、没动；**水平那一轴要不要接、以及触控板上两指滚该是缩放还是平移，
+  是产品决定，这一条没有改**。
+
+  **没验的（报告里五条）：**
+  一、五条判据都是无头宿主里的读数，**没有人看着跑过**（真机上的手感、光标、Alt+Tab 回来之后顺不顺手）；
+  二、**Alt+Tab 那一路没有判据**——无头宿主里 `Hide()` 不报 `Deactivated`（实测 `IsActive` 一直是 `true`），
+  失活时清状态那段只有代码路径；
+  三、**手势本身没有可见提示**，除了按空格时光标变化之外界面上没有任何地方写着这个手势；
+  四、指针必须先到画布上空格才归画布，指针在别处先按住空格再移到画布上拖，这一下不平移
+  （这是「不抢按钮的按下键」那条规则的代价，规则本身是有意的）；
+  五、框选、拖节点、连线那几条手势一条都没碰。
+
+  **与任务清单的出入。** 卡里没写这一条（它由产品方在真机上用完一轮之后提出，
+  不是从方案的任务集里派生的），编号 `P5-09` 由本仓顺延 Phase 5 已有的号定。

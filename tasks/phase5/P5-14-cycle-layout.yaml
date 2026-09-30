@@ -1,0 +1,91 @@
+id: P5-14
+title: 带环的图——打开引擎的多图模式，环不再让整张图排不出来
+phase: 5
+status: done
+depends_on: [P5-01]
+estimated_loc: 180
+files:
+  create:
+    - DuetDiagram.Layout.Tests/CycleTests.cs
+  modify:
+    - DuetDiagram.Layout/Internal/EngineAdapter.cs
+    - DuetDiagram.Layout.Tests/Graphs.cs
+    - DuetDiagram.E2E.Tests/OpenTests.cs
+    - AGENTS.md
+    - tasks/README.md
+acceptance:
+  - command: dotnet run --project tools/LayoutScore -c Release
+    expect: 退出码 0，综合分 95.9（阈值 85），语料 11 份全部排得出来，没有「排不出来的」那一段
+  - command: dotnet test --project DuetDiagram.Layout.Tests -c Release -- --filter-trait "Category=Layout"
+    expect: 39 条全通过（原有 35 条 + 新增 4 条带环用例）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release -- --filter-trait "Category=Open"
+    expect: 10 条全通过（原有 9 条 + 新增 1 条，打开那份带重试回边的完整示例）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release
+    expect: 整份端到端 269 条全通过，退出码 0
+  - command: dotnet test DuetDiagram.slnx -c Release
+    expect: 整份解决方案 2029 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**环被正确断开了要靠两条合起来证，不能只断言「没抛异常」。** 把环上的边悄悄丢掉同样不会抛异常，而那样排出来的图是错的。所以每一份带环的输入都要同时满足：输入的边一条不少地留在结果里，且环上各节点落在互不相同的层上、顺着环走一圈恰好有一次下降（那一次就是被断开的边）"
+  - "**只动引擎适配层这一处，不动约束补齐的任何一个环节。** 多图模式是引擎自己的开关，打开它只是放行去环那一步给反向边起的那个名字；去环、层序、让位、路由这些步骤一个字都不改"
+  - "**改完必须证明它对无环图零影响。** 十份无环图修前修后的分数要一字不差——这是「作用范围只有带环那一份」的一手证据，比任何推理都硬"
+  - "**判据要验过「把那一行撤掉它就红」。** 撤掉之后 `Category=Layout` 红 3 条、`Category=Open` 红 1 条，红的必须是新增的那几条，其余一条不动"
+  - "**自环那一条留着当护栏，不写成回归网。** 引擎在去环**之前**先把自环摘掉（`RemoveSelfEdges` 排在 `Acyclic.Run` 前面），所以自环根本不走那条被命名的边；撤掉修复它照样绿。把它的实际行为量清楚再写注释，不要按「自环也是环」想当然"
+  - "**回边压到中间层节点这一条不在本次范围内，如实记下不假装解决。** 断环只保证「排得出来」，不保证「排得好看」；要做对得让回边走图外侧的绕行通道，那是给路由加一种新走法"
+context:
+  - "这一条不是产品方提的，是 P5-01 那份布局评分报告里如实记下的一个发现派生出来的：`cycle-4` 在引擎里去环那一步抛 `DagreException: Cannot set a named edge when isMultigraph = false`，而流程图上「重试」就是一条回边"
+  - "本仓自己的 DSL 语法文档里那段完整示例（`bad -> input \"重试\"`）就是一份带环的图——那条路径当时的表现是打开就报排不出来"
+  - "去环那一步给反向边起名，而带名字的边在非多图模式下会被引擎直接拒绝。异常发生在引擎内部，不是我们的输入有问题"
+result: |
+  **结论：带环的图能排出来了。** 修法是一行——`EngineAdapter` 在构造引擎图之后
+  打开它的多图模式（`dagre._isMultigraph = true`）。`cycle-4` 从"抛异常"变成 77.6 分，
+  语料 11 份全部排得出来，综合分 95.9（≥ 85）。
+  验报告 `reports/phase5-layout-score.md` 第八节。
+
+  **为什么是一行。** 引擎去环那一步要把成环的边反向，反向时给它起一个名字
+  （原名加一个前缀），而带名字的边在非多图模式下会被直接拒绝。
+  `_isMultigraph` 是上游的公开字段，上游对它的读取只有两处：`IsMultigraph()` 与那道闸，
+  而边键算法 `EdgeArgsToId` **不看**它。所以打开它唯一的效果就是放行带名字的边，
+  键的算法一个字都不变——我们自己加的边都不带名字，同一对节点之间的重复边
+  仍然落到同一个键上。
+
+  **副作用逐处查过。** 布局这一层里唯一按 `(起点, 终点)` 做键的结构是
+  `SameRankContraction` 里那个 `seen`，它本来就是有意去重的；其余每一处都按节点标识
+  或边标识做键。引擎适配层回读结果时只看节点坐标。所以这一行不会让任何
+  "本来被合并的两条边"变成两条。
+
+  **对无环图零影响，这是量出来的不是推出来的。** 十份无环图修前修后的四个维度分数
+  与综合分**一字不差**（chain-8 93.0、layered-4x3 96.9、layered-3x4 96.9、
+  layered-6x5 98.1、diamond 95.5、fork-6 97.5、tree-3 97.0、fan-12 97.7、
+  k33 91.8、same-rank 92.4）。唯一变的是 `cycle-4`。
+
+  **`cycle-4` 的 77.6 不是回归，是这一份图本身的形状。** 它低在两处，都由那条回边决定：
+  方向一致 75.0（四节点环里必然有一条边逆着层序，`3/1`），
+  以及穿节点 1/4——回边从最低层回到最高层，在层间直上直下走一段，
+  而中间那两层的横向区间盖住了这条通道。紧凑度 50.6 也跟着低。
+  **这一条不在本次范围内**：要做对得让回边走图外侧的绕行通道，
+  那是给路由加一种新走法，与"只打开一个开关"是两件事，已记成待办。
+
+  **自环量下来的行为与预想不同，按实测改了注释。** 引擎在去环**之前**先把自环摘掉
+  （`IndexedDagreLayout.RunLayout` 里 `RemoveSelfEdges` 排在 `Acyclic.Run` 前面），
+  排完再挂回去，所以自环那条被命名的边根本不会出现。撤掉修复之后自环用例照样绿，
+  它是护栏不是回归网。自环排出来的样子：一个节点、一条边，折线从节点下边出去、
+  从上边回来（`(80,60) -> (80,40) -> (80,20)`），两端都落在边界上。
+
+  **判据**：`Category=Layout` 39 条（新增 4 条：两节点环、三节点环、自环、
+  环叠同层约束与固定坐标），`Category=Open` 10 条（新增 1 条：把语法文档里那份
+  带重试回边的完整示例原文打开）。带环用例一律同时钉两件事——边一条不少、
+  层号互不相同且恰好一次下降。
+
+  **「把那一行撤掉它就红」验过**：撤掉 `dagre._isMultigraph = true` 之后
+  `Category=Layout` 39 条里红 3 条（两节点环、三节点环、环叠同层约束与固定坐标），
+  `Category=Open` 10 条里红 1 条；红的全是本次新增的带环用例，其余一条不动。装回去即全绿。
+
+  **门禁读数**：本机 Release 构建 0 警告 0 错误；`Category=Layout` 39/39、
+  `Category=Open` 10/10、整份端到端 269/269、整份解决方案 2029/2029；
+  `LocCounter --check` 退出码 0；任务 YAML 全部解析通过。
+  CI 读数见 `reports/phase5-layout-score.md` 的补记。
+
+  **没验的：** 回边走外侧绕行那一条没做（见上）；带环的大图（几十个节点、多条回边）
+  没造语料量过——语料里只有一份四节点环，它证明的是"这条路通了"，不是"多条回边也不挤"。

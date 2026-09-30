@@ -56,7 +56,8 @@ public sealed class DocumentLaunch
         TemplateCatalog templates,
         Func<WorkspaceSetup> create,
         IReadOnlyDictionary<string, Anchor>? pins = null,
-        MappingReport? report = null)
+        MappingReport? report = null,
+        SidecarLoad<UserSidecar>? sidecar = null)
     {
         Key = key;
         Engine = engine;
@@ -64,6 +65,7 @@ public sealed class DocumentLaunch
         Create = create;
         Pins = pins;
         Report = report;
+        Sidecar = sidecar;
     }
 
     /// <summary>进程内登记用的标识。同一个标识就是同一份文档。</summary>
@@ -89,11 +91,29 @@ public sealed class DocumentLaunch
     /// 打开时就有的固定位置。
     /// </summary>
     /// <remarks>
-    /// 只有 DSL 那一条路会带上它：绝对坐标在 IR 里没有位置，而 DSL 文本把
+    /// **只有 DSL 那一条路会带上它。** 绝对坐标在 IR 里没有位置，而 DSL 文本把
     /// <c>pin</c> 意图写进了自己，读回来时就要在首帧生效。IR JSON 那一条与示例文档
-    /// 都给空——前者的固定位置在人工产物那份 sidecar 里，本轮不读它。
+    /// 都给空——前者的固定位置在人工产物那份 sidecar 里，由 <see cref="Sidecar"/> 带出来。
     /// </remarks>
     public IReadOnlyDictionary<string, Anchor>? Pins { get; }
+
+    /// <summary>
+    /// 人工产物（<c>user.json</c>）读出来的结果。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **它是"读到了什么"，不是"有什么"。** 文件不存在、内容过期、内容损坏都在这个结果里，
+    /// 三种情形该做的事完全不同：不存在是空手起步，损坏要问用户走不走备份恢复。
+    /// 在这里就地丢掉坏内容的话，那种差别就没了。
+    /// </para>
+    /// <para>
+    /// **DSL 那一条路不带它。** 那个形态的 <c>pin</c> 写在文本里，而文本与
+    /// <c>user.json</c> 同名同目录——两个形态共用一份人工产物的话，
+    /// 打开 <c>a.dsl</c> 再保存会顺手改掉 <c>a.dgm</c> 的固定位置。
+    /// 所以那一条路既不读也不写这一份，折点因此仍然存不下来（见 <c>docs/Sidecar.md</c>）。
+    /// </para>
+    /// </remarks>
+    public SidecarLoad<UserSidecar>? Sidecar { get; }
 
     /// <summary>
     /// 读这份 DSL 时映射层做了什么。只有 DSL 那一条路有。
@@ -177,7 +197,8 @@ public sealed class DocumentLaunch
                     documentLock,
                     full,
                     ReadOnly: !documentLock.CanWrite,
-                    Reason: documentLock.Reason));
+                    Reason: documentLock.Reason),
+                sidecar: ReadSidecar(full, document));
         }
         catch
         {
@@ -227,6 +248,12 @@ public sealed class DocumentLaunch
     /// **文本里的固定位置与映射报告一并带出去。** <c>pin</c> 意图只写在文本里、不在 IR 上，
     /// 不带进会话的话第一次打开看到的图与文本写的不是一回事；报告则要说给用户听，
     /// 因为它记着文本与图对不上的那些地方。
+    /// </para>
+    /// <para>
+    /// **这一条不读 <c>user.json</c>。** 那个形态的固定位置在文本里，而两种形态共用
+    /// 同名同目录的那一份人工产物——读了它，打开一份 <c>.dsl</c> 就会把另一份
+    /// <c>.dgm</c> 的固定位置带进来，保存时再把它写回去。宁可让折点在这一形态下
+    /// 存不下来，也不要让两份文档的人工产物互相串台。
     /// </para>
     /// </remarks>
     public static DocumentLaunch Dsl(string path, ILayoutEngine? engine = null, TemplateCatalog? templates = null)
@@ -286,5 +313,25 @@ public sealed class DocumentLaunch
     /// 而不是新造一个。窗口各开一份工作区的话，两个窗口各有各的撤销栈，
     /// 在一边撤销不会动另一边——而它们显示的是同一份文档。
     /// </remarks>
-    public DocumentLaunch Again() => new(Key, Engine, Templates, Create, Pins, Report);
+    public DocumentLaunch Again() => new(Key, Engine, Templates, Create, Pins, Report, Sidecar);
+
+    /// <summary>
+    /// 读一份人工产物，把"读文件本身失败"也收成"读不出来"。
+    /// </summary>
+    /// <remarks>
+    /// 附属文件读不动不该让整份文档打不开：文档那一份刚刚已经读成了，用户要看的是它。
+    /// Core 那一边把读写异常照常抛出，是因为它不该替调用方决定这件事要不要紧——
+    /// 要不要紧在这里定，而这里的答复是"不要紧，但要说出来"。
+    /// </remarks>
+    private static SidecarLoad<UserSidecar> ReadSidecar(string path, DiagramDocument document)
+    {
+        try
+        {
+            return SidecarStore.LoadUser(path, document);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return SidecarLoad<UserSidecar>.Unusable($"人工产物读不出来：{exception.Message}");
+        }
+    }
 }

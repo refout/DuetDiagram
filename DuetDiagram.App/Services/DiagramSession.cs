@@ -82,6 +82,16 @@ public sealed class DiagramSession : IDisposable
     private readonly Stack<BendSnapshot> _bendUndo = new();
     private readonly Stack<BendSnapshot> _bendRedo = new();
 
+    /// <summary>
+    /// 人工指定的端口。来自 <c>user.json</c> 的 customPorts。
+    /// </summary>
+    /// <remarks>
+    /// **它现在只做一件事：不被抹掉。** 端口本身写在节点的 IR 字段上（属性面板改的就是那一份），
+    /// 而人工产物那份是同一件事的另一个记法，布局与路由都还没读它。整份原样带进带出，
+    /// 是为了让"打开一份别人给的文档、改一处、保存"不会顺手清掉他文件里那一节。
+    /// </remarks>
+    private readonly Dictionary<string, IReadOnlyList<PortDef>> _customPorts = new(StringComparer.Ordinal);
+
     private DragSession? _drag;
 
     private ConnectSession? _connect;
@@ -136,6 +146,10 @@ public sealed class DiagramSession : IDisposable
     /// <param name="pins">
     /// 打开时就有的固定位置，通常来自文本里的 <c>pin</c> 意图。空表示这一份没有预设的固定位置。
     /// </param>
+    /// <param name="sidecar">
+    /// 打开时读到的人工产物。文件不存在时给 <see cref="SidecarStatus.Missing"/> 的那一份，
+    /// 不读人工产物时给空。
+    /// </param>
     /// <remarks>
     /// 共用工作区的窗口共享同一份文档、同一条命令总线与同一个广播器，
     /// 因此版本号天然一致，也不存在版本冲突。窗口标识也一并共享——
@@ -146,11 +160,12 @@ public sealed class DiagramSession : IDisposable
         Theme? theme = null,
         ILayoutEngine? engine = null,
         bool readOnly = false,
-        IReadOnlyDictionary<string, Anchor>? pins = null)
+        IReadOnlyDictionary<string, Anchor>? pins = null,
+        SidecarLoad<UserSidecar>? sidecar = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
 
-        return new DiagramSession(workspace, theme, engine, readOnly, ownsWorkspace: false, pins: pins);
+        return new DiagramSession(workspace, theme, engine, readOnly, ownsWorkspace: false, pins, sidecar);
     }
 
     private DiagramSession(
@@ -159,7 +174,8 @@ public sealed class DiagramSession : IDisposable
         ILayoutEngine? engine,
         bool readOnly,
         bool ownsWorkspace,
-        IReadOnlyDictionary<string, Anchor>? pins = null)
+        IReadOnlyDictionary<string, Anchor>? pins = null,
+        SidecarLoad<UserSidecar>? sidecar = null)
     {
         ArgumentNullException.ThrowIfNull(workspace);
 
@@ -175,15 +191,11 @@ public sealed class DiagramSession : IDisposable
         _highlights = new HighlightTracker(_workspace.CommandBus.Context.Broadcaster, Theme);
         _highlights.Changed += () => HighlightsChanged?.Invoke();
 
-        // 文本里写的固定位置要在首帧就生效。晚一步的话，第一次打开看到的图
-        // 与文本写的不是一回事——用户以为 pin 没写对。
-        if (pins is not null)
-        {
-            foreach (var (id, anchor) in pins)
-            {
-                _pinned[id] = anchor;
-            }
-        }
+        // 人工产物先落，文本里的固定位置后落：两者同时提到同一个节点时以文本为准。
+        // 它们其实不会同时出现（DSL 那一条路不读人工产物），这里排个先后是为了
+        // 万一将来两条来源合流，判据是写死的一句而不是看谁先跑。
+        Seed(sidecar);
+        Seed(pins);
 
         // 第一份布局不走 Reload：那时还没有"上一次成功的结果"可以退守，
         // 算不出来就是算不出来，如实抛出比留一份空画面让人以为文档是空的要好。
@@ -295,6 +307,16 @@ public sealed class DiagramSession : IDisposable
     /// 它是这份文档的人工产物，重算不出来，所以单独留着而不是混进语义层。
     /// </remarks>
     public IReadOnlyDictionary<string, Anchor> PinnedNodes => _pinned;
+
+    /// <summary>
+    /// 人工指定的端口。来自 <c>user.json</c> 的 customPorts，不进 IR。
+    /// </summary>
+    /// <remarks>
+    /// 与固定位置、固定折线并列的第三样人工产物。它现在只原样带进带出，
+    /// 不被布局与路由读——那份工作还没做，而先把内容保住比先让它生效要紧：
+    /// 内容丢了是重算不回来的。
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<PortDef>> CustomPorts => _customPorts;
 
     #region 选中
 
@@ -2230,6 +2252,85 @@ public sealed class DiagramSession : IDisposable
         _pinned.Clear();
 
         foreach (var (id, anchor) in snapshot.Pins)
+        {
+            _pinned[id] = anchor;
+        }
+    }
+
+    /// <summary>
+    /// 把一份人工产物装进来，并重排一次。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **装的是"读到了并且有效"的那一份。** 状态不是 <see cref="SidecarStatus.Loaded"/>
+    /// 时什么都不做：坏内容与不存在都不该把当前画面清空，用户手上这一份仍然是好的。
+    /// </para>
+    /// <para>
+    /// **孤儿条目原样留下。** 它们指向的节点这会儿不在文档里，因此是惰性的；
+    /// 直接丢掉等于让用户的一次误删顺手毁掉他手工调整过的东西。要不要真丢由调用方决定，
+    /// 而这里不丢。
+    /// </para>
+    /// <para>
+    /// 从备份恢复走的也是这一条：备份是一份旧快照，装进来之后同样要重排一次，
+    /// 因为固定位置正是布局的输入。
+    /// </para>
+    /// </remarks>
+    public void ApplyUserSidecar(SidecarLoad<UserSidecar> sidecar)
+    {
+        ArgumentNullException.ThrowIfNull(sidecar);
+
+        if (!sidecar.IsUsable)
+        {
+            return;
+        }
+
+        Seed(sidecar);
+        Reload();
+    }
+
+    /// <summary>
+    /// 把人工产物里的三样东西装进会话。装之前先清空——它是"这一份是这样"的完整描述，
+    /// 不是一份增量。
+    /// </summary>
+    private void Seed(SidecarLoad<UserSidecar>? sidecar)
+    {
+        if (sidecar?.Value is not { } user)
+        {
+            return;
+        }
+
+        _pinned.Clear();
+        _pinnedEdges.Clear();
+        _customPorts.Clear();
+
+        foreach (var (id, anchor) in user.PinnedNodes)
+        {
+            _pinned[id] = anchor;
+        }
+
+        foreach (var (id, bends) in user.PinnedEdges)
+        {
+            _pinnedEdges[id] = [.. bends];
+        }
+
+        foreach (var (id, ports) in user.CustomPorts)
+        {
+            _customPorts[id] = [.. ports];
+        }
+    }
+
+    /// <summary>
+    /// 把文本里写的固定位置装进会话。它要在首帧就生效——晚一步的话，
+    /// 第一次打开看到的图与文本写的不是一回事，用户以为 <c>pin</c> 没写对。
+    /// </summary>
+    private void Seed(IReadOnlyDictionary<string, Anchor>? pins)
+    {
+        if (pins is null)
+        {
+            return;
+        }
+
+        foreach (var (id, anchor) in pins)
         {
             _pinned[id] = anchor;
         }

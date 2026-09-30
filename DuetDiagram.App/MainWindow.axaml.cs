@@ -12,6 +12,7 @@ using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Core.Commands;
 using DuetDiagram.Core.Model;
+using DuetDiagram.Core.Sidecar;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
 
@@ -45,6 +46,10 @@ public sealed partial class MainWindow : Window
 
     private bool _loaded;
     private bool _closed;
+
+    // 每小时清一次备份的那只表。文档没有文件、或者打开的是 DSL 那一形态时为空——
+    // 那两种情况下人工产物这份文件根本不参与，也就没有东西要清。
+    private readonly DispatcherTimer? _backupSweep;
 
     /// <summary>用默认的布局引擎，开一份示例文档。</summary>
     public MainWindow()
@@ -102,7 +107,8 @@ public sealed partial class MainWindow : Window
             _lease.Workspace,
             engine: launch.Engine,
             readOnly: _lease.ReadOnly,
-            pins: launch.Pins);
+            pins: launch.Pins,
+            sidecar: launch.Sidecar);
         StartupProbe.Mark("session");
 
         Model = new CanvasViewModel();
@@ -185,6 +191,25 @@ public sealed partial class MainWindow : Window
             _ = ChooseAndExport(request);
         };
         ExportView.DismissRequested += ExportView.Dismiss;
+
+        // 人工产物损坏时的恢复提示。它与上面两条同一口径：只把"用户选了哪一条"交回来，
+        // 读备份、装回去都由这里办。
+        SidecarRecoveryView.RestoreRequested += OnRestoreSidecar;
+        SidecarRecoveryView.DiscardRequested += OnDiscardSidecar;
+
+        // 打开这一份时要做的两件事：清一次过老的备份，读不出来时问用户怎么办。
+        // 放在这里而不是放在会话那一层：会话不该知道文件在哪儿，那是租约的事。
+        if (_lease.Path is { } sidecarPath && !DocumentLaunch.IsDsl(sidecarPath))
+        {
+            PruneBackups(sidecarPath);
+
+            _backupSweep = StartBackupSweep(sidecarPath);
+        }
+
+        if (launch.Sidecar is { Status: SidecarStatus.Unusable, Detail: { } sidecarDetail })
+        {
+            ShowSidecarRecovery(sidecarDetail);
+        }
 
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
@@ -309,12 +334,12 @@ public sealed partial class MainWindow : Window
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 打开文档那条路还没做，所以现在没有调用点。放在这里而不是让提示自己去找会话，
-    /// 是因为"要不要弹、弹什么"是宿主的事：提示自己去读文件的话，
-    /// 同一份坏文件会在两个地方被解析一遍，而两处的判据迟早会不一样。
+    /// 放在这里而不是让提示自己去找会话，是因为"要不要弹、弹什么"是宿主的事：
+    /// 提示自己去读文件的话，同一份坏文件会在两个地方被解析一遍，
+    /// 而两处的判据迟早会不一样。
     /// </para>
     /// <para>
-    /// 触发它的时机是"读 user.json 得到不可用的结果"。那条路上没有第二条出路——
+    /// 触发它的时机是"读 <c>user.json</c> 得到不可用的结果"。那条路上没有第二条出路——
     /// 那份内容重算不出来，所以提示上也没有"取消"。
     /// </para>
     /// </remarks>
@@ -325,6 +350,126 @@ public sealed partial class MainWindow : Window
         SidecarRecoveryView.SetDetail(detail);
         SidecarRecoveryView.IsVisible = true;
     }
+
+    #region 人工产物
+
+    /// <summary>
+    /// 把人工产物写回去。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **三样都空、而且原先没有这个文件时不建它。** 一份从没被拖过、没改过折线的文档
+    /// 旁边多出一个空的 <c>user.json</c>，对用户没有意义。反过来，原先有内容而现在已经清空
+    /// 时照写——不写的话旧内容会留在那儿，下次打开又把删掉的固定位置装回来。
+    /// </para>
+    /// <para>
+    /// **走带备份的那一条。** 直接调底层那个写入方法平时看不出区别，
+    /// 直到某天文件坏了、用户点开恢复对话框、发现里面是空的。
+    /// </para>
+    /// </remarks>
+    private void WriteSidecar(string path)
+    {
+        var empty = Session.PinnedNodes.Count == 0
+            && Session.PinnedEdges.Count == 0
+            && Session.CustomPorts.Count == 0;
+
+        if (empty && !System.IO.File.Exists(SidecarPaths.User(path)))
+        {
+            return;
+        }
+
+        SidecarBackup.Save(path, new UserSidecar
+        {
+            DocumentId = Session.Document.Id,
+            PinnedNodes = Session.PinnedNodes,
+            PinnedEdges = Session.PinnedEdges,
+            CustomPorts = Session.CustomPorts,
+        });
+    }
+
+    /// <summary>
+    /// 用户选了"从备份恢复"：由新到旧试，第一份能用的装回来。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 备份列表只按文件名里的时间戳排过序，内容能不能用要读过才知道——
+    /// 中间可能有被别的工具截断的那一份，也可能有属于另一份文档的那一份。
+    /// </para>
+    /// <para>
+    /// 一份都用不了时**不动当前内容**：那份坏文件还在原地，用户还能自己去看它。
+    /// 顺手清掉的话，用户连"坏成什么样"都看不到了。
+    /// </para>
+    /// </remarks>
+    private void OnRestoreSidecar()
+    {
+        SidecarRecoveryView.IsVisible = false;
+
+        if (_lease.Path is not { } path)
+        {
+            return;
+        }
+
+        foreach (var backup in SidecarBackup.List(path))
+        {
+            var restored = SidecarBackup.Restore(backup.Path, Session.Document);
+
+            if (!restored.IsUsable)
+            {
+                continue;
+            }
+
+            Session.ApplyUserSidecar(restored);
+            Status.Show(new ErrorPresentation(
+                ErrorPresentationKind.StatusBarMuted,
+                $"已从 {System.IO.Path.GetFileName(backup.Path)} 恢复人工调整"));
+
+            return;
+        }
+
+        Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBar, "备份里没有一份能用的"));
+    }
+
+    /// <summary>
+    /// 用户选了"放弃人工调整"：把提示收掉，什么都不装。
+    /// </summary>
+    /// <remarks>
+    /// 当前内容不动，也不去删那份坏文件——下一次保存会用会话里这一份覆盖它，
+    /// 而按"解析不了就不备份"的规矩，坏内容不会进备份列表。
+    /// </remarks>
+    private void OnDiscardSidecar() => SidecarRecoveryView.IsVisible = false;
+
+    /// <summary>按策略清一次备份。</summary>
+    private static void PruneBackups(string path)
+    {
+        try
+        {
+            SidecarBackup.Prune(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // 清不掉不是用户要处理的事：留着几份多余的备份没有任何后果，
+            // 而把它摆到状态栏上会让一次正常启动以一句红字收尾。
+        }
+    }
+
+    /// <summary>
+    /// 排一只每小时清一次备份的表。
+    /// </summary>
+    /// <remarks>
+    /// 三次清理里，保存那一次由写入路径自己带、启动那一次紧接着做，只有定时这一次
+    /// 要由宿主来排——Core 里没有调度器，也不该有。
+    /// </remarks>
+    private static DispatcherTimer StartBackupSweep(string path)
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+
+        timer.Tick += (_, _) => PruneBackups(path);
+        timer.Start();
+
+        return timer;
+    }
+
+    #endregion
 
     /// <summary>
     /// 快捷键：再开一个窗口、写回文件，以及菜单上写着的那几个组合键。
@@ -435,6 +580,11 @@ public sealed partial class MainWindow : Window
     /// 再叠一条只会让用户以为刚刚发生了一件新事。文档没有文件时给一句灰显说明——
     /// 那种情况下按了没反应，用户会以为快捷键坏了。
     /// </para>
+    /// <para>
+    /// **人工产物跟着一起写，但它不算"写回文档"。** 固定位置、固定折线与自定义端口
+    /// 本来就不在文档里（在文档里的话，同一份语义在不同机器上会因为某人拖过而不同），
+    /// 所以它们单独落在 <c>user.json</c> 上，写之前先备份一份旧的。
+    /// </para>
     /// </remarks>
     public void Save()
     {
@@ -465,6 +615,11 @@ public sealed partial class MainWindow : Window
             else
             {
                 DocumentFile.Write(path, Session.Document);
+
+                // 文档与它的人工产物是两件事，写在一起但各自独立：文档那份写不进去时
+                // 不该留下半份人工产物，所以它排在后面。
+                WriteSidecar(path);
+
                 written = $"已写回 {file}";
             }
 
@@ -817,6 +972,10 @@ public sealed partial class MainWindow : Window
 
         // 先立这个标志：排队等界面线程的那次重算可能还没跑，它要先看到窗口已经关了。
         _closed = true;
+
+        // 清备份那只表也要停。留着的话，窗口关掉之后它还会按时醒过来，
+        // 去碰一个已经没有窗口的路径。
+        _backupSweep?.Stop();
 
         // 度量器持有原生资源，交给垃圾回收决定什么时候放掉的话，
         // 关闭窗口之后还会有一批字体对象活着。

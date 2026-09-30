@@ -26,6 +26,12 @@ internal static class EngineAdapter
         // 而在非复合模式下建立父子关系会直接抛异常，连最简单的图形都跑不完。
         var dagre = new DagreGraph(compound: true);
 
+        // 多图模式也必须打开：断开有向环时，引擎会把环上某条边反过来并给它起一个名字，
+        // 而带名字的边在非多图模式下会被直接拒绝——图里只要有一个环就整张排不出来。
+        // 打开它只放行这一步：我们自己加的边都不带名字，键的算法不看这个开关，
+        // 所以同一对节点之间的重复边仍然和以前一样落到同一个键上。
+        dagre._isMultigraph = true;
+
         dagre.SetGraph(new GraphLabel
         {
             RankDir = ToRankDir(options.Direction),

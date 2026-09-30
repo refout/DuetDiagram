@@ -93,4 +93,32 @@ internal static class Graphs
 
         return new LayoutRequest([.. nodes], [.. edges], new LayoutOptions(direction));
     }
+
+    /// <summary>
+    /// 首尾相接的环：<c>c0 -&gt; c1 -&gt; ... -&gt; c(n-1) -&gt; c0</c>。
+    /// </summary>
+    /// <remarks>
+    /// 环是分层布局里唯一必须违背输入的形状：层序本身要求无环，所以引擎必然要把其中一条边反过来。
+    /// 这一族用例量的不是"好不好看"，而是那条被反过来的边有没有把整张图带崩，
+    /// 以及环上各节点是否仍然落在互不相同的层上。
+    /// </remarks>
+    /// <param name="count">环上的节点数。为 1 时退化成一条自环。</param>
+    /// <param name="direction">主方向。</param>
+    public static LayoutRequest Cycle(int count, Direction direction = Direction.TB)
+    {
+        var nodes = new List<LayoutNode>(count);
+        var edges = new List<LayoutEdge>(count);
+
+        for (var index = 0; index < count; index++)
+        {
+            nodes.Add(Node($"c{index}"));
+        }
+
+        for (var index = 0; index < count; index++)
+        {
+            edges.Add(new LayoutEdge($"e{index}", $"c{index}", $"c{(index + 1) % count}"));
+        }
+
+        return new LayoutRequest([.. nodes], [.. edges], new LayoutOptions(direction));
+    }
 }

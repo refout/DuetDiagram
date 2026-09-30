@@ -12,9 +12,9 @@
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 36 | 11721 | 7473 | 1820 | 2428 |
-| DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
-| DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
+| DuetDiagram.E2E.Tests | 36 | 11791 | 7516 | 1832 | 2443 |
+| DuetDiagram.Layout | 19 | 2980 | 1605 | 981 | 394 |
+| DuetDiagram.Layout.Tests | 7 | 1890 | 1332 | 212 | 346 |
 | DuetDiagram.Llm | 25 | 4942 | 2695 | 1561 | 686 |
 | DuetDiagram.Llm.Tests | 17 | 5028 | 3597 | 410 | 1021 |
 | DuetDiagram.Mcp | 15 | 2605 | 1350 | 873 | 382 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 35 | 6783 | 3551 | 2263 | 969 |
 | DuetDiagram.Render.Tests | 25 | 6455 | 4444 | 839 | 1172 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **519** | **121478** | **74998** | **25991** | **20489** |
+| **合计** | **520** | **121707** | **75130** | **26046** | **20531** |
 
 ## 明细
 
@@ -361,7 +361,7 @@
 | MenuBarTests.cs | 132 |
 | ModeSwitchTests.cs | 209 |
 | MultiWindowTests.cs | 259 |
-| OpenTests.cs | 292 |
+| OpenTests.cs | 335 |
 | PageTabsTests.cs | 233 |
 | PalettePanelTests.cs | 171 |
 | Phase4ScenarioTests.cs | 138 |
@@ -387,7 +387,7 @@
 | AnchorRestorer.cs | 35 |
 | CompositeOutline.cs | 59 |
 | EdgeRouter.cs | 251 |
-| EngineAdapter.cs | 41 |
+| EngineAdapter.cs | 42 |
 | NodeGrid.cs | 70 |
 | OrderSolver.cs | 128 |
 | RowPacker.cs | 40 |
@@ -403,8 +403,9 @@
 | 文件 | 代码 |
 |---|---:|
 | AlignTests.cs | 129 |
+| CycleTests.cs | 74 |
 | FallbackTests.cs | 351 |
-| Graphs.cs | 69 |
+| Graphs.cs | 83 |
 | LayoutRequestFactoryTests.cs | 223 |
 | LayoutTests.cs | 327 |
 | OrderTests.cs | 145 |

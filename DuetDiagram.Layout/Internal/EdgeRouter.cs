@@ -26,6 +26,12 @@ namespace DuetDiagram.Layout.Internal;
 /// 由上层决定是否提示用户。**不假装绕开**：一条看起来能走通但实际压过节点的折线，
 /// 比一条明确报告有冲突的折线更难排查。
 /// </para>
+/// <para>
+/// **回边走另一条路。** 回边逆着层序，两条竖段必然要跨过中间那些层，
+/// 而层间空隙里没有一条能绕开所有中间层节点的通道——空隙是横向的，跨过去的那两段是纵向的。
+/// 这时改走节点列外侧的一条通道，见 <see cref="TryOuterLane"/>。
+/// 外侧也走不通时仍然退回原折线并如实计入穿越。
+/// </para>
 /// </remarks>
 internal static class EdgeRouter
 {
@@ -33,6 +39,13 @@ internal static class EdgeRouter
 
     /// <summary>从指定端口出来时先往外走这么远，避免线贴着节点边框。</summary>
     private const double PortStub = 12;
+
+    /// <summary>回边绕行时，外侧通道离节点列外缘留出的距离。</summary>
+    /// <remarks>
+    /// 要比 <see cref="PortStub"/> 大：通道要走在端口那截外推线之外，
+    /// 否则绕行段会紧贴着端口线走过去。
+    /// </remarks>
+    private const double LaneGap = 16;
 
     /// <summary>
     /// 重新算出每条边的折线。
@@ -53,7 +66,7 @@ internal static class EdgeRouter
     /// <param name="edges">要路由的边。</param>
     /// <param name="ports">各节点的端口。</param>
     /// <param name="compositeBoxes">组合的包围盒。没有组合端点时为空。</param>
-    /// <param name="ranksAreVertical">层是不是沿纵向排列。</param>
+    /// <param name="direction">主方向。回边绕行要靠它判断哪条边是逆着层序走的。</param>
     /// <param name="endpointFailures">端点没落在边界上的边数。</param>
     /// <param name="unresolvedEndpoints">端点解析不出来的边数。</param>
     /// <param name="crossingEdges">折线穿过其它节点的边数。</param>
@@ -62,7 +75,7 @@ internal static class EdgeRouter
         LayoutEdge[] edges,
         IReadOnlyDictionary<string, IReadOnlyList<LayoutPort>> ports,
         IReadOnlyDictionary<string, PlacedNode> compositeBoxes,
-        bool ranksAreVertical,
+        Direction direction,
         out int endpointFailures,
         out int unresolvedEndpoints,
         out int crossingEdges)
@@ -75,6 +88,22 @@ internal static class EdgeRouter
         var grid = new NodeGrid(nodes);
         var channelBuffer = new List<PlacedNode>(64);
         var segmentBuffer = new List<PlacedNode>(64);
+
+        var ranksAreVertical = direction is Direction.TB or Direction.BT;
+
+        // 绕行通道要落在节点列之外，所以先把整张图的四边量出来，量一次给所有边共用。
+        var leftEdge = 0.0;
+        var rightEdge = 0.0;
+        var topEdge = 0.0;
+        var bottomEdge = 0.0;
+
+        if (nodes.Length > 0)
+        {
+            leftEdge = nodes.Min(n => n.X);
+            rightEdge = nodes.Max(n => n.Right);
+            topEdge = nodes.Min(n => n.Y);
+            bottomEdge = nodes.Max(n => n.Bottom);
+        }
 
         var routed = new List<RoutedEdge>(edges.Length);
         var failures = 0;
@@ -101,6 +130,26 @@ internal static class EdgeRouter
             var points = ranksAreVertical
                 ? RouteVertical(source, target, sourcePort, targetPort, grid, channelBuffer)
                 : RouteHorizontal(source, target, sourcePort, targetPort, grid, channelBuffer);
+
+            // 回边逆着层序走，两条竖段必然跨过中间那些层，于是压在中间层的节点上。
+            // 这时改走节点列外侧的一条通道。只在本来就会压到节点时才试，
+            // 所以无环图的折线一个点都不动；指定了端口也不试，那是用户选的出入口。
+            if (sourcePort is null
+                && targetPort is null
+                && IsBackEdge(source, target, direction)
+                && CrossesAnyNode(edge.From, edge.To, points, grid, segmentBuffer))
+            {
+                points = TryOuterLane(
+                    source,
+                    target,
+                    ranksAreVertical,
+                    grid,
+                    segmentBuffer,
+                    leftEdge,
+                    rightEdge,
+                    topEdge,
+                    bottomEdge) ?? points;
+            }
 
             // 端点必须落在两端节点的边界上。落在内部说明线是从节点身子里钻出来的，
             // 落在外部说明线没有接到节点上——两种都是渲染时一眼能看出来的错误。
@@ -212,6 +261,123 @@ internal static class EdgeRouter
             new LayoutPoint(channelX, endRoute.Y),
             endRoute,
             end);
+    }
+
+    /// <summary>回边：终点在主方向上落在起点的后面。</summary>
+    /// <remarks>
+    /// 判据必须带上主方向的正负，不能只看几何上的上下左右：主方向是自下而上时，
+    /// 顺着层序走的边在几何上恰恰就是"终点在上"那一批。只看几何会把正向边全判成回边。
+    /// </remarks>
+    private static bool IsBackEdge(PlacedNode source, PlacedNode target, Direction direction) => direction switch
+    {
+        Direction.TB => target.CenterY < source.CenterY,
+        Direction.BT => target.CenterY > source.CenterY,
+        Direction.LR => target.CenterX < source.CenterX,
+        _ => target.CenterX > source.CenterX,
+    };
+
+    /// <summary>
+    /// 回边压到中间层节点时，改走节点列外侧的一条通道。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 先试左（层上下叠放时）或上（层左右并排时），再试对侧。优先那一侧是因为它落在
+    /// 最外那个节点与原点之间的空当里，不会撑大整张图的范围；对侧的通道一定在最外缘之外，
+    /// 会把范围撑大，而范围是评分的一个维度。两侧都走不通时返回空，
+    /// 由调用方保留原折线并如实计入穿越。
+    /// </para>
+    /// <para>
+    /// 通道坐标取**整张图**的四边再往外让开一段，不是按两端节点算的：竖段要跨过中间所有层，
+    /// 只有整张图的边才保证不碰到任何一层的节点。
+    /// </para>
+    /// <para>
+    /// 进出口取节点侧边的中点，而不是原来那个上/下边的口——绕行本来就是从侧面出去的。
+    /// </para>
+    /// </remarks>
+    private static LayoutPoint[]? TryOuterLane(
+        PlacedNode source,
+        PlacedNode target,
+        bool ranksAreVertical,
+        NodeGrid grid,
+        List<PlacedNode> buffer,
+        double leftEdge,
+        double rightEdge,
+        double topEdge,
+        double bottomEdge)
+    {
+        if (ranksAreVertical)
+        {
+            var left = new LayoutPoint[]
+            {
+                new LayoutPoint(source.X, source.CenterY),
+                new LayoutPoint(leftEdge - LaneGap, source.CenterY),
+                new LayoutPoint(leftEdge - LaneGap, target.CenterY),
+                new LayoutPoint(target.X, target.CenterY),
+            };
+
+            if (IsUsable(left, source.Id, target.Id, grid, buffer))
+            {
+                return left;
+            }
+
+            var right = new LayoutPoint[]
+            {
+                new LayoutPoint(source.Right, source.CenterY),
+                new LayoutPoint(rightEdge + LaneGap, source.CenterY),
+                new LayoutPoint(rightEdge + LaneGap, target.CenterY),
+                new LayoutPoint(target.Right, target.CenterY),
+            };
+
+            return IsUsable(right, source.Id, target.Id, grid, buffer) ? right : null;
+        }
+
+        var top = new LayoutPoint[]
+        {
+            new LayoutPoint(source.CenterX, source.Y),
+            new LayoutPoint(source.CenterX, topEdge - LaneGap),
+            new LayoutPoint(target.CenterX, topEdge - LaneGap),
+            new LayoutPoint(target.CenterX, target.Y),
+        };
+
+        if (IsUsable(top, source.Id, target.Id, grid, buffer))
+        {
+            return top;
+        }
+
+        var bottom = new LayoutPoint[]
+        {
+            new LayoutPoint(source.CenterX, source.Bottom),
+            new LayoutPoint(source.CenterX, bottomEdge + LaneGap),
+            new LayoutPoint(target.CenterX, bottomEdge + LaneGap),
+            new LayoutPoint(target.CenterX, target.Bottom),
+        };
+
+        return IsUsable(bottom, source.Id, target.Id, grid, buffer) ? bottom : null;
+    }
+
+    /// <summary>
+    /// 一条绕行候选能不能用：不许引出负坐标，也不许把"压节点"从中间挪到外侧的另一处。
+    /// </summary>
+    /// <remarks>
+    /// 负坐标那一条不是洁癖：整张图的范围是以原点为基准的，
+    /// 负坐标表示不出来，导出与画布滚动区都会把它裁掉。
+    /// </remarks>
+    private static bool IsUsable(
+        LayoutPoint[] candidate,
+        string from,
+        string to,
+        NodeGrid grid,
+        List<PlacedNode> buffer)
+    {
+        foreach (var point in candidate)
+        {
+            if (point.X < 0 || point.Y < 0)
+            {
+                return false;
+            }
+        }
+
+        return !CrossesAnyNode(from, to, candidate, grid, buffer);
     }
 
     /// <summary>

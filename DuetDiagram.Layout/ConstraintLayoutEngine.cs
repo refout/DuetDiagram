@@ -178,7 +178,7 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
             edgeArray,
             CollectPorts(nodeArray),
             compositeBoxes,
-            effective.RanksAreVertical,
+            effective.Direction,
             out var endpointFailures,
             out var unresolvedEndpoints,
             out var crossingEdges);
@@ -212,11 +212,26 @@ public sealed class ConstraintLayoutEngine : ILayoutEngine
             OrderTime = orderWatch.Elapsed,
         };
 
+        // 折线可能走到节点列之外（回边的绕行通道），报告的范围要罩住它们：
+        // 这个范围往下就是绘制列表的尺寸，再往下是画布滚动区与导出的画布大小，
+        // 罩不住的那一截会被裁掉。
+        var width = placedNodes.Max(n => n.Right);
+        var height = placedNodes.Max(n => n.Bottom);
+
+        foreach (var edge in routed)
+        {
+            foreach (var point in edge.Points)
+            {
+                width = Math.Max(width, point.X);
+                height = Math.Max(height, point.Y);
+            }
+        }
+
         return new EngineLayoutResult(
             placedNodes,
             routed,
-            placedNodes.Max(n => n.Right),
-            placedNodes.Max(n => n.Bottom),
+            width,
+            height,
             diagnostics);
     }
 

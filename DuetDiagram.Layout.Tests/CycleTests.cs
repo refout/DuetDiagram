@@ -67,6 +67,54 @@ public sealed class CycleTests
         descents.Should().Be(1, "环上恰好有一条边逆着层序，那一条就是被断开的");
     }
 
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void A_cycle_routes_its_back_edge_outside_the_node_columns()
+    {
+        // 回边逆着层序，两条竖段本来要跨过中间那些层、压在中间层的节点上。
+        // 钉的是"确实走了外侧"——折线里出现一个比所有节点都靠左的点——
+        // 而不是"恰好没压上"：后者靠中间层恰好没占住那个位置也能过，那不算修好。
+        var result = Compute(Graphs.Cycle(4));
+
+        result.Diagnostics.EdgesCrossingNodes.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+
+        var back = result.Edges.Single(edge => edge.Points[0].Y > edge.Points[^1].Y);
+        var leftmostNode = result.Nodes.Min(node => node.X);
+
+        back.Points.Should().Contain(
+            point => point.X < leftmostNode,
+            "回边要走到所有节点列之外，而不是在层间直上直下");
+    }
+
+    [Fact]
+    [Trait("Category", "Layout")]
+    public void A_cycle_in_a_horizontal_layout_routes_outside_too()
+    {
+        // 层左右并排时是同一件事换轴：绕行通道在上下，穿节点照样要消掉。
+        // 节点高取 80 而不是默认的 40——横向布局里引擎会把同一行里的节点错开半个行高，
+        // 行矮的时候回边那条横线恰好擦着中间行的下边界（那不算穿过），
+        // 行高到一定程度才会真的压进去。语料里的横向图全是无环的，这一条是横向那一支唯一的覆盖。
+        var nodes = Enumerable.Range(0, 4)
+            .Select(index => new LayoutNode($"c{index}", 80, 80, null, null, null))
+            .ToArray();
+        var edges = Enumerable.Range(0, 4)
+            .Select(index => new LayoutEdge($"e{index}", $"c{index}", $"c{(index + 1) % 4}"))
+            .ToArray();
+
+        var result = Compute(new LayoutRequest(nodes, edges, new LayoutOptions(Direction.LR)));
+
+        result.Diagnostics.EdgesCrossingNodes.Should().Be(0);
+        result.Diagnostics.SatisfiesHardGuarantees.Should().BeTrue();
+
+        var back = result.Edges.Single(edge => edge.Points[0].X > edge.Points[^1].X);
+        var topmostNode = result.Nodes.Min(node => node.Y);
+
+        back.Points.Should().Contain(
+            point => point.Y < topmostNode,
+            "回边要走到所有节点行之外，而不是在列间直来直去");
+    }
+
     #endregion
 
     #region 自环与混合约束

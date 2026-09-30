@@ -85,6 +85,12 @@ public sealed class CycleTests
         back.Points.Should().Contain(
             point => point.X < leftmostNode,
             "回边要走到所有节点列之外，而不是在层间直上直下");
+
+        // 通道贴着节点列外缘再让开一段。这一条钉的是记录在案的那个读数——
+        // 换一个位置照样不压节点，但布局评分里那份外接框的读数会跟着漂。
+        back.Points.Should().Contain(
+            point => Math.Abs(point.X - (leftmostNode - 16)) < 0.01,
+            "外侧通道离节点列外缘的距离是固定的那一段");
     }
 
     [Fact]

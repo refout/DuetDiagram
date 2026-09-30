@@ -27,10 +27,12 @@ namespace DuetDiagram.Layout.Internal;
 /// 比一条明确报告有冲突的折线更难排查。
 /// </para>
 /// <para>
-/// **回边走另一条路。** 回边逆着层序，两条竖段必然要跨过中间那些层，
-/// 而层间空隙里没有一条能绕开所有中间层节点的通道——空隙是横向的，跨过去的那两段是纵向的。
-/// 这时改走节点列外侧的一条通道，见 <see cref="TryOuterLane"/>。
-/// 外侧也走不通时仍然退回原折线并如实计入穿越。
+/// **主方向那一段压到节点时改走另一条路。** 回边逆着层序，两条竖段必然要跨过中间那些层；
+/// 锚点把节点拉到别的层时，连到它的正向边也会跨过中间几层。这两种情况下层间空隙都救不了它——
+/// 空隙是横向的，跨过去的那两段是纵向的。这时把纵向段挪进一段**不含任何节点的横向区间**，
+/// 见 <see cref="TryChannelRoute"/>。这样的区间不止最外侧那一条，列与列之间的空当同样能用；
+/// 同侧有多条边时它们各占一条通道，不再叠在一起。
+/// 一段都用不上时仍然退回原折线并如实计入穿越。
 /// </para>
 /// </remarks>
 internal static class EdgeRouter
@@ -40,12 +42,21 @@ internal static class EdgeRouter
     /// <summary>从指定端口出来时先往外走这么远，避免线贴着节点边框。</summary>
     private const double PortStub = 12;
 
-    /// <summary>回边绕行时，外侧通道离节点列外缘留出的距离。</summary>
+    /// <summary>绕行通道离节点列外缘留出的距离。</summary>
     /// <remarks>
     /// 要比 <see cref="PortStub"/> 大：通道要走在端口那截外推线之外，
     /// 否则绕行段会紧贴着端口线走过去。
     /// </remarks>
     private const double LaneGap = 16;
+
+    /// <summary>同一段空隙里相邻两条通道的间距。</summary>
+    private const double LanePitch = 8;
+
+    /// <summary>一段空隙里最多排几条通道。空档再宽也要有上限，否则候选数失控。</summary>
+    private const int MaxLanesPerSpan = 4;
+
+    /// <summary>单条边最多试几条候选通道。试完还不成，就退回原折线并如实计入穿越。</summary>
+    private const int MaxCandidatesPerEdge = 32;
 
     /// <summary>
     /// 重新算出每条边的折线。
@@ -91,19 +102,20 @@ internal static class EdgeRouter
 
         var ranksAreVertical = direction is Direction.TB or Direction.BT;
 
-        // 绕行通道要落在节点列之外，所以先把整张图的四边量出来，量一次给所有边共用。
-        var leftEdge = 0.0;
-        var rightEdge = 0.0;
-        var topEdge = 0.0;
-        var bottomEdge = 0.0;
+        // 空隙表的搜索范围：从原点起，到最外那个节点之外再让出放得下 MaxLanesPerSpan 条通道的一段。
+        // 左边那一侧不用单独量——原点到最左那个节点之间本来就是空的，取补集时自然会出现。
+        var farEdge = LaneGap + (MaxLanesPerSpan * LanePitch);
 
         if (nodes.Length > 0)
         {
-            leftEdge = nodes.Min(n => n.X);
-            rightEdge = nodes.Max(n => n.Right);
-            topEdge = nodes.Min(n => n.Y);
-            bottomEdge = nodes.Max(n => n.Bottom);
+            farEdge += ranksAreVertical ? nodes.Max(n => n.Right) : nodes.Max(n => n.Bottom);
         }
+
+        // 空隙表、已占通道表与候选缓冲区在整个路由过程里复用。
+        // 空隙表懒算：没有边要绕行时一次都不建，无环的图连这次排序的代价都没有。
+        (double Low, double High)[]? spans = null;
+        var claimedLanes = new List<double>(4);
+        var scratch = new LayoutPoint[4];
 
         var routed = new List<RoutedEdge>(edges.Length);
         var failures = 0;
@@ -131,24 +143,60 @@ internal static class EdgeRouter
                 ? RouteVertical(source, target, sourcePort, targetPort, grid, channelBuffer)
                 : RouteHorizontal(source, target, sourcePort, targetPort, grid, channelBuffer);
 
-            // 回边逆着层序走，两条竖段必然跨过中间那些层，于是压在中间层的节点上。
-            // 这时改走节点列外侧的一条通道。只在本来就会压到节点时才试，
-            // 所以无环图的折线一个点都不动；指定了端口也不试，那是用户选的出入口。
-            if (sourcePort is null
+            // 穿越判定先算一次：绝大多数边根本不压节点，到此为止，不再多查一遍。
+            var crosses = CrossesAnyNode(
+                edge.From,
+                edge.To,
+                points,
+                grid,
+                segmentBuffer,
+                ranksAreVertical,
+                mainAxisOnly: false);
+
+            // 主方向那一段压到节点上时，改走一段不含任何节点的空隙。
+            // 只查主方向那一段：绕行走的正是主方向上的空隙，它修不好落在层间那条横段上的穿越——
+            // 那是挑不到空档时的如实计数，不该被一条绕到图外的远路顶掉。
+            // 指定了端口也不试，那是用户选的出入口。
+            //
+            // 端点解析成组合时同样不试：组合的成员节点在网格里，而排除的只是组合自己那个标识，
+            // 于是这条边与自己的成员相交也会被算成压节点——判据在这里不可信。
+            if (crosses
+                && sourcePort is null
                 && targetPort is null
-                && IsBackEdge(source, target, direction)
-                && CrossesAnyNode(edge.From, edge.To, points, grid, segmentBuffer))
+                && !compositeBoxes.ContainsKey(edge.From)
+                && !compositeBoxes.ContainsKey(edge.To)
+                && CrossesAnyNode(
+                    edge.From,
+                    edge.To,
+                    points,
+                    grid,
+                    segmentBuffer,
+                    ranksAreVertical,
+                    mainAxisOnly: true))
             {
-                points = TryOuterLane(
+                spans ??= ComputeFreeSpans(nodes, ranksAreVertical, farEdge);
+                var detoured = TryChannelRoute(
                     source,
                     target,
                     ranksAreVertical,
                     grid,
                     segmentBuffer,
-                    leftEdge,
-                    rightEdge,
-                    topEdge,
-                    bottomEdge) ?? points;
+                    spans,
+                    claimedLanes,
+                    scratch);
+
+                if (detoured is not null)
+                {
+                    points = detoured;
+                    crosses = CrossesAnyNode(
+                        edge.From,
+                        edge.To,
+                        points,
+                        grid,
+                        segmentBuffer,
+                        ranksAreVertical,
+                        mainAxisOnly: false);
+                }
             }
 
             // 端点必须落在两端节点的边界上。落在内部说明线是从节点身子里钻出来的，
@@ -158,7 +206,7 @@ internal static class EdgeRouter
                 failures++;
             }
 
-            if (CrossesAnyNode(edge.From, edge.To, points, grid, segmentBuffer))
+            if (crosses)
             {
                 crossings++;
             }
@@ -263,96 +311,202 @@ internal static class EdgeRouter
             end);
     }
 
-    /// <summary>回边：终点在主方向上落在起点的后面。</summary>
-    /// <remarks>
-    /// 判据必须带上主方向的正负，不能只看几何上的上下左右：主方向是自下而上时，
-    /// 顺着层序走的边在几何上恰恰就是"终点在上"那一批。只看几何会把正向边全判成回边。
-    /// </remarks>
-    private static bool IsBackEdge(PlacedNode source, PlacedNode target, Direction direction) => direction switch
-    {
-        Direction.TB => target.CenterY < source.CenterY,
-        Direction.BT => target.CenterY > source.CenterY,
-        Direction.LR => target.CenterX < source.CenterX,
-        _ => target.CenterX > source.CenterX,
-    };
-
     /// <summary>
-    /// 回边压到中间层节点时，改走节点列外侧的一条通道。
+    /// 算出坐标轴上一段段不含任何节点的区间。主方向上的通道落在里面就一定碰不到节点。
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 先试左（层上下叠放时）或上（层左右并排时），再试对侧。优先那一侧是因为它落在
-    /// 最外那个节点与原点之间的空当里，不会撑大整张图的范围；对侧的通道一定在最外缘之外，
-    /// 会把范围撑大，而范围是评分的一个维度。两侧都走不通时返回空，
-    /// 由调用方保留原折线并如实计入穿越。
+    /// 把每个节点在垂直于主方向那条轴上的投影区间并起来，再取补集。
+    /// 补集天然包含最左边那条带（原点到最左的节点之间）、各列之间的空当、
+    /// 以及最右边那条带（最右的节点之外再让出 <paramref name="farEdge"/> 那一段）。
     /// </para>
     /// <para>
-    /// 通道坐标取**整张图**的四边再往外让开一段，不是按两端节点算的：竖段要跨过中间所有层，
-    /// 只有整张图的边才保证不碰到任何一层的节点。
-    /// </para>
-    /// <para>
-    /// 进出口取节点侧边的中点，而不是原来那个上/下边的口——绕行本来就是从侧面出去的。
+    /// 列没对齐时列间的空当会被并掉，剩下的只有最外侧那两条——那时退化成只有外侧通道可用，
+    /// 与没有多通道时一样，不会算错。
     /// </para>
     /// </remarks>
-    private static LayoutPoint[]? TryOuterLane(
+    /// <param name="nodes">定好坐标的节点。</param>
+    /// <param name="ranksAreVertical">层是不是沿纵向排列。为真时投影到横轴，为假时投影到纵轴。</param>
+    /// <param name="farEdge">搜索范围的上界，即最右（最下）那个节点的外缘再往外让出的距离。</param>
+    private static (double Low, double High)[] ComputeFreeSpans(
+        PlacedNode[] nodes,
+        bool ranksAreVertical,
+        double farEdge)
+    {
+        var occupied = new (double Low, double High)[nodes.Length];
+
+        for (var index = 0; index < nodes.Length; index++)
+        {
+            occupied[index] = ranksAreVertical
+                ? (nodes[index].X, nodes[index].Right)
+                : (nodes[index].Y, nodes[index].Bottom);
+        }
+
+        // 按 (下界, 上界) 排，是全序，所以合并的结果与排序稳不稳定无关。
+        Array.Sort(occupied, static (a, b) =>
+        {
+            var byLow = a.Low.CompareTo(b.Low);
+            return byLow != 0 ? byLow : a.High.CompareTo(b.High);
+        });
+
+        var spans = new List<(double Low, double High)>(nodes.Length + 1);
+        var cursor = 0.0;
+
+        foreach (var interval in occupied)
+        {
+            if (interval.Low - cursor > Epsilon)
+            {
+                spans.Add((cursor, interval.Low));
+            }
+
+            cursor = Math.Max(cursor, interval.High);
+        }
+
+        if (farEdge - cursor > Epsilon)
+        {
+            spans.Add((cursor, farEdge));
+        }
+
+        return [.. spans];
+    }
+
+    /// <summary>
+    /// 折线的主方向段压到节点上时，改走一段不含节点的空隙。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 按空隙从左到右扫，每段空隙里从贴着节点列的那一侧往外排几条通道。
+    /// 已经给别的边用掉的通道跳过——同侧有多条边时它们各占一条，不再叠在一起。
+    /// 占用是按整条通道记的：同一条通道上主轴区间不重叠的两条边本可以共用，
+    /// 但那要多判一层区间重叠，代价与不确定性都更高，这里不做。
+    /// </para>
+    /// <para>
+    /// 每条候选都要真查一遍：空隙只保证主方向那一段是干净的，两端横着出去的腿不保证——
+    /// 同层里挨着的邻居会挡在中间。查不过就试下一条。
+    /// </para>
+    /// <para>
+    /// 候选试完（或试够上限）仍没有可用的就返回空，由调用方保留原折线并如实计入穿越。
+    /// </para>
+    /// </remarks>
+    private static LayoutPoint[]? TryChannelRoute(
         PlacedNode source,
         PlacedNode target,
         bool ranksAreVertical,
         NodeGrid grid,
         List<PlacedNode> buffer,
-        double leftEdge,
-        double rightEdge,
-        double topEdge,
-        double bottomEdge)
+        (double Low, double High)[] spans,
+        List<double> claimed,
+        LayoutPoint[] scratch)
+    {
+        // 拿两端的中点当参照，决定每段空隙该贴哪一边排：贴离两端近的那一边，绕行就短。
+        var reference = ranksAreVertical
+            ? (source.CenterX + target.CenterX) / 2
+            : (source.CenterY + target.CenterY) / 2;
+
+        var evaluated = 0;
+
+        foreach (var span in spans)
+        {
+            for (var index = 0; index < MaxLanesPerSpan; index++)
+            {
+                var lane = LaneFor(span, reference, index);
+
+                if (IsClaimed(lane, claimed)
+                    || !BuildChannelCandidate(scratch, source, target, ranksAreVertical, lane))
+                {
+                    continue;
+                }
+
+                if (++evaluated > MaxCandidatesPerEdge)
+                {
+                    return null;
+                }
+
+                if (IsUsable(scratch, source.Id, target.Id, grid, buffer, ranksAreVertical))
+                {
+                    claimed.Add(lane);
+                    return [.. scratch];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 一段空隙里的第几条通道落在哪：第一条贴着离两端最近的那条边缘，之后按
+    /// <see cref="LanePitch"/> 朝空隙里面走。
+    /// </summary>
+    private static double LaneFor((double Low, double High) span, double reference, int index)
+    {
+        var lane = Math.Abs(reference - span.Low) <= Math.Abs(reference - span.High)
+            ? span.Low + LaneGap + (index * LanePitch)
+            : span.High - LaneGap - (index * LanePitch);
+
+        return Math.Clamp(lane, span.Low, span.High);
+    }
+
+    /// <summary>
+    /// 按一条通道拼出候选折线：两端各自从最近的那一侧出去，中间那一段走在通道上。
+    /// </summary>
+    /// <remarks>
+    /// 通道夹在某个端点的横向区间里时这条候选不成立——那样腿要从节点身子里出来。
+    /// </remarks>
+    private static bool BuildChannelCandidate(
+        LayoutPoint[] scratch,
+        PlacedNode source,
+        PlacedNode target,
+        bool ranksAreVertical,
+        double lane)
     {
         if (ranksAreVertical)
         {
-            var left = new LayoutPoint[]
+            if (IsInside(lane, source.X, source.Right) || IsInside(lane, target.X, target.Right))
             {
-                new LayoutPoint(source.X, source.CenterY),
-                new LayoutPoint(leftEdge - LaneGap, source.CenterY),
-                new LayoutPoint(leftEdge - LaneGap, target.CenterY),
-                new LayoutPoint(target.X, target.CenterY),
-            };
-
-            if (IsUsable(left, source.Id, target.Id, grid, buffer))
-            {
-                return left;
+                return false;
             }
 
-            var right = new LayoutPoint[]
+            var sourceExit = lane <= source.X ? source.X : source.Right;
+            var targetExit = lane <= target.X ? target.X : target.Right;
+
+            scratch[0] = new LayoutPoint(sourceExit, source.CenterY);
+            scratch[1] = new LayoutPoint(lane, source.CenterY);
+            scratch[2] = new LayoutPoint(lane, target.CenterY);
+            scratch[3] = new LayoutPoint(targetExit, target.CenterY);
+
+            return true;
+        }
+
+        if (IsInside(lane, source.Y, source.Bottom) || IsInside(lane, target.Y, target.Bottom))
+        {
+            return false;
+        }
+
+        var sourceExitY = lane <= source.Y ? source.Y : source.Bottom;
+        var targetExitY = lane <= target.Y ? target.Y : target.Bottom;
+
+        scratch[0] = new LayoutPoint(source.CenterX, sourceExitY);
+        scratch[1] = new LayoutPoint(source.CenterX, lane);
+        scratch[2] = new LayoutPoint(target.CenterX, lane);
+        scratch[3] = new LayoutPoint(target.CenterX, targetExitY);
+
+        return true;
+    }
+
+    private static bool IsInside(double value, double low, double high) =>
+        value > low + Epsilon && value < high - Epsilon;
+
+    private static bool IsClaimed(double lane, List<double> claimed)
+    {
+        foreach (var taken in claimed)
+        {
+            if (Math.Abs(taken - lane) <= Epsilon)
             {
-                new LayoutPoint(source.Right, source.CenterY),
-                new LayoutPoint(rightEdge + LaneGap, source.CenterY),
-                new LayoutPoint(rightEdge + LaneGap, target.CenterY),
-                new LayoutPoint(target.Right, target.CenterY),
-            };
-
-            return IsUsable(right, source.Id, target.Id, grid, buffer) ? right : null;
+                return true;
+            }
         }
 
-        var top = new LayoutPoint[]
-        {
-            new LayoutPoint(source.CenterX, source.Y),
-            new LayoutPoint(source.CenterX, topEdge - LaneGap),
-            new LayoutPoint(target.CenterX, topEdge - LaneGap),
-            new LayoutPoint(target.CenterX, target.Y),
-        };
-
-        if (IsUsable(top, source.Id, target.Id, grid, buffer))
-        {
-            return top;
-        }
-
-        var bottom = new LayoutPoint[]
-        {
-            new LayoutPoint(source.CenterX, source.Bottom),
-            new LayoutPoint(source.CenterX, bottomEdge + LaneGap),
-            new LayoutPoint(target.CenterX, bottomEdge + LaneGap),
-            new LayoutPoint(target.CenterX, target.Bottom),
-        };
-
-        return IsUsable(bottom, source.Id, target.Id, grid, buffer) ? bottom : null;
+        return false;
     }
 
     /// <summary>
@@ -367,7 +521,8 @@ internal static class EdgeRouter
         string from,
         string to,
         NodeGrid grid,
-        List<PlacedNode> buffer)
+        List<PlacedNode> buffer,
+        bool ranksAreVertical)
     {
         foreach (var point in candidate)
         {
@@ -377,7 +532,7 @@ internal static class EdgeRouter
             }
         }
 
-        return !CrossesAnyNode(from, to, candidate, grid, buffer);
+        return !CrossesAnyNode(from, to, candidate, grid, buffer, ranksAreVertical, mainAxisOnly: false);
     }
 
     /// <summary>
@@ -516,20 +671,34 @@ internal static class EdgeRouter
     /// 折线是否穿过了它两端之外的节点。
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 只检查横向与纵向的线段，与两端节点本身的相交不算——线是从那两个节点上出来的。
     /// 这里用线段与矩形的相交判定，不是只看端点：只看端点会漏掉"线段横穿节点"这种最常见的情况。
+    /// </para>
+    /// <para>
+    /// <paramref name="mainAxisOnly"/> 为真时只看平行于主方向的那些段。绕行通道走在主方向上的空隙里，
+    /// 它修得好的是主方向那一段的穿越；落在层间那条横段上的穿越要靠挑空档，不是靠绕行。
+    /// </para>
     /// </remarks>
     private static bool CrossesAnyNode(
         string from,
         string to,
         LayoutPoint[] points,
         NodeGrid grid,
-        List<PlacedNode> buffer)
+        List<PlacedNode> buffer,
+        bool ranksAreVertical,
+        bool mainAxisOnly)
     {
         for (var i = 0; i < points.Length - 1; i++)
         {
             var a = points[i];
             var b = points[i + 1];
+
+            if (mainAxisOnly
+                && (ranksAreVertical ? Math.Abs(a.X - b.X) : Math.Abs(a.Y - b.Y)) > Epsilon)
+            {
+                continue;
+            }
 
             grid.Query(a.X, a.Y, b.X, b.Y, buffer);
 

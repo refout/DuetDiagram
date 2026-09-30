@@ -160,6 +160,10 @@ dotnet run --project tools/McpHarness -c Release -- agent
    两份结论都固化了（落点是真实的两条传输与 `Category=ToolParity`），
    留着就是同一件事的两份实现。要复核当初那份对**库**的取证，从 git 历史里取回。
    `tools/Poc/LayoutCandidates` 不动：它服务的是布局引擎主选那个还开着的决策门。
+
+   > **已被取代（2026-09-30）：** 决策门 2 的实质已在决策门 0 / P0-04 结掉，
+   > `tools/Poc/LayoutCandidates` 仍留着，身份转成引擎选型的取证装置；
+   > 见 `reports/phase0a-layout.md` 的补记。
 5. **跨机器传输没做**：TLS、多实例共享变化源。现在只验了回环地址上的网络传输。
 
 ## 补记：并发读被打断会变成一个没有正文的 500（2026-09-28）

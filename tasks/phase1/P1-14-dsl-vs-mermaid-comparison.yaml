@@ -1,7 +1,7 @@
 id: P1-14
 title: DSL 与 Mermaid 对比评分
 phase: 1
-status: pending
+status: blocked
 depends_on: [P0-08, P1-09, P1-10, P1-16, P1-17]
 estimated_loc: 400
 files:
@@ -61,7 +61,7 @@ scope_note: |
   只到语法树（P1-08）算不出来。P1-10 保留是因为 B 组是 Mermaid，
   结构清单要能从中还原出节点与边。
 progress:
-  updated_at: 2026-09-21
+  updated_at: 2026-09-30
   note: |
     **装置这一半齐了，结论那一半没做，这是刻意的。**
     见 reports/compare-blind/conclusion.md。
@@ -70,6 +70,15 @@ progress:
     `semantic`（语义拒绝率）、`score`（谓词口径的端到端准确率）、
     `verify`（求值器自检）、`sample` / `agreement`（人工评分与谓词的一致率）。
     剩下的全是人工活：填 60 份抽样评分，然后才是全量判定。
+
+    **2026-09-30 收尾：卡在缺真人评分，标 `blocked`。**
+    六条验收命令（`verify` / `listings` / `semantic` / `score` / `sample` / `agreement`）全部满足——
+    `agreement` 的验收本来就写着「没有评分文件时明确报『还没人交评分』」，那正是当前行为。
+    缺的只有真人评分：先填 60 份抽样把谓词校一遍，再决定要不要评全量 150 份。
+    这一步编码 agent 做不了（评的人知道哪份是哪组，逐批严格度漂移会伪装成组间差异），
+    也不会补一份合成评分——那会被后来的读者当成真数据。
+    决策门 1 已由产品负责人判为「留」；决策门 2 的实质已结，见
+    reports/phase0a-layout.md 的补记。
 
     落地位置与上面 files 一节写的不一样：装置在 `tools/CompareHarness`（不进 sln），
     没有建 `DuetDiagram.Compare.Tests`。理由与 tools/ 下其它几个一样——

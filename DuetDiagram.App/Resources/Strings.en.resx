@@ -228,6 +228,37 @@
     <value>Open</value>
   </data>
 
+  <data name="export.title" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="export.dialog.title" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="export.dialog.format" xml:space="preserve">
+    <value>Format</value>
+  </data>
+  <data name="export.dialog.range" xml:space="preserve">
+    <value>Range</value>
+  </data>
+  <data name="export.dialog.range.content" xml:space="preserve">
+    <value>Content bounds</value>
+  </data>
+  <data name="export.dialog.range.page" xml:space="preserve">
+    <value>Page size</value>
+  </data>
+  <data name="export.dialog.scale" xml:space="preserve">
+    <value>Scale</value>
+  </data>
+  <data name="export.dialog.scale-invalid" xml:space="preserve">
+    <value>Scale must be a number greater than zero</value>
+  </data>
+  <data name="export.dialog.confirm" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="export.dialog.cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+
   <data name="layout.failure.title" xml:space="preserve">
     <value>Layout failed</value>
   </data>

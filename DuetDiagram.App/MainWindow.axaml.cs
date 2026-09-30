@@ -11,6 +11,7 @@ using DuetDiagram.App.Resources;
 using DuetDiagram.App.Services;
 using DuetDiagram.App.ViewModels;
 using DuetDiagram.Core.Commands;
+using DuetDiagram.Core.Model;
 using DuetDiagram.Layout;
 using DuetDiagram.Render;
 
@@ -173,6 +174,17 @@ public sealed partial class MainWindow : Window
         // 导入报告只是一个"读一遍再关掉"的面板：它自己不做任何事，
         // 关掉那一下由这里办。
         ImportView.DismissRequested += ImportView.Dismiss;
+
+        // 导出对话框与导入报告同一口径：它只把选择收上来，选文件、写文件都由这里办。
+        // 选择到手之后先把对话框收起来再去做事——选文件那一步是异步的，
+        // 让它一直浮在画布上、而系统对话框已经在等输入，看起来像界面卡住了。
+        ExportView.ExportRequested += request =>
+        {
+            ExportView.Dismiss();
+
+            _ = ChooseAndExport(request);
+        };
+        ExportView.DismissRequested += ExportView.Dismiss;
 
         PropertiesView.DataContext = Properties;
         LayersView.DataContext = Layers;
@@ -675,6 +687,130 @@ public sealed partial class MainWindow : Window
         return presentations.Count > 0 ? presentations[0].Message : "这次导入没能写进去";
     }
 
+    #region 导出
+
+    /// <summary>
+    /// 从界面上发起一次导出：先把对话框摆出来，让人选格式、范围与倍数。
+    /// </summary>
+    /// <remarks>
+    /// 导出是**读**这份文档、写**另一个**文件，所以只读所有权不该挡住它——
+    /// 另存为那是另一件事，这一条不是。菜单上那一条因此永远可点。
+    /// </remarks>
+    public void BeginExport() => ExportView.Open();
+
+    /// <summary>
+    /// 选择到手之后的那一步：先让人选文件，再导。
+    /// </summary>
+    /// <remarks>
+    /// 选文件那一步是异步的，而对话框给的是一个同步的事件，所以这里只把这件事起个头。
+    /// 选择器在无头模式下打不开，所以**能验的那一段全在 <see cref="Export"/> 里**：
+    /// 端到端用例直接给它一条路径，走的是与选完文件之后完全相同的那条路。
+    /// </remarks>
+    private async Task ChooseAndExport(ExportRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var suggested = $"{Session.Document.Id}{SuffixOf(request.Format)}";
+
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = Strings.ExportDialogTitle,
+            SuggestedFileName = suggested,
+
+            // 后缀只用来让系统对话框先把名字填好，写出去的内容由格式定——
+            // 用户把名字改掉也不会写出一种与后缀对不上的内容，因为内容不按后缀分流。
+            DefaultExtension = SuffixOf(request.Format).TrimStart('.'),
+            FileTypeChoices = [new FilePickerFileType(LabelOf(request.Format)) { Patterns = [$"*{SuffixOf(request.Format)}"] }],
+        });
+
+        if (file is null)
+        {
+            return;
+        }
+
+        // 云端或虚拟位置拿不到本地路径。那种情况下这个窗口写不出去，
+        // 而不是"点了没反应"——理由要说出来。
+        if (file.TryGetLocalPath() is not { } path)
+        {
+            Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBar, "这个位置不在本机，写不出去"));
+
+            return;
+        }
+
+        Export(path, request);
+    }
+
+    /// <summary>
+    /// 把当前这一页导成一份文件。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// **它是"把画布上这一份导出去"，不是"把整份文档导出去"。** 拿到的就是
+    /// <see cref="DiagramSession.Scene"/> 里那一份绘制列表，所以导出来的图与屏幕上是同一份东西。
+    /// 工具那一条路的 PDF 会按文档声明的页序一页一张纸，两条路在这一点上不同——
+    /// 同一套词汇、不同的页范围。
+    /// </para>
+    /// <para>
+    /// **成功与失败都摆在状态栏上。** 导出去的那一份是另一个文件，
+    /// 与这份文档的存盘状态无关，所以不用报告面板；有丢失清单时才另摆一块——
+    /// 那几句话要说清"图里少了什么"，状态栏一行装不下。
+    /// </para>
+    /// </remarks>
+    /// <returns>这次导出的结果。写不出去时为空，理由摆在状态栏上。</returns>
+    public ExportOutcome? Export(string path, ExportRequest request)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(request);
+
+        try
+        {
+            var outcome = ExportService.Write(
+                path,
+                request,
+                Session.Scene.DrawList,
+                Session.Document,
+                Session.PinnedNodes);
+
+            Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBarMuted, outcome.Headline));
+
+            if (outcome.Notes.Count > 0)
+            {
+                ImportView.Show(outcome.File, outcome.Headline, outcome.Notes, Strings.ExportTitle);
+            }
+
+            return outcome;
+        }
+        catch (Exception exception) when (exception is IOException
+            or UnauthorizedAccessException
+            or InvalidOperationException
+            or NotSupportedException)
+        {
+            Status.Show(new ErrorPresentation(ErrorPresentationKind.StatusBar, $"导不出去：{exception.Message}"));
+
+            return null;
+        }
+    }
+
+    /// <summary>这个格式写出去是什么后缀。给系统对话框填名字用。</summary>
+    private static string SuffixOf(string format) => format switch
+    {
+        ExportFormats.Svg => ".svg",
+        ExportFormats.Png => ".png",
+        ExportFormats.Pdf => ".pdf",
+        _ => ".dsl",
+    };
+
+    /// <summary>这个格式说成人话是什么。给系统对话框那一栏用。</summary>
+    private static string LabelOf(string format) => format switch
+    {
+        ExportFormats.Svg => "SVG",
+        ExportFormats.Png => "PNG",
+        ExportFormats.Pdf => "PDF",
+        _ => "DSL",
+    };
+
+    #endregion
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
@@ -937,6 +1073,8 @@ public sealed partial class MainWindow : Window
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 SidecarRecoveryView 的提示");
         ImportView = this.FindControl<ImportDialog>(nameof(ImportView))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ImportView 的提示");
+        ExportView = this.FindControl<ExportDialog>(nameof(ExportView))
+            ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 ExportView 的对话框");
         TextEditor = this.FindControl<RichTextEditor>(nameof(TextEditor))
             ?? throw new InvalidOperationException("主窗口的界面标记里没有名为 TextEditor 的编辑器");
         VerticalBar = this.FindControl<ScrollBar>(nameof(VerticalBar))

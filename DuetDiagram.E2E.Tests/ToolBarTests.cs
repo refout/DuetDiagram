@@ -163,6 +163,8 @@ public sealed class ToolBarTests
     /// <remarks>
     /// 绘制列表版本也算在内：重排不改文档，但它换了画面上那份东西。
     /// 只看文档版本的话，"重排"会被判成什么都没发生。
+    /// 导出对话框开着与否也算：那一条点下去是摆出对话框，不改文档也不进状态栏，
+    /// 漏掉它就会被判成"点了什么都不发生"。
     /// </remarks>
     private readonly record struct Snapshot(
         int Version,
@@ -170,6 +172,7 @@ public sealed class ToolBarTests
         string Selection,
         bool ManualLayout,
         bool Diagnostics,
+        bool ExportDialog,
         double NodeSpacing,
         double LayerSpacing)
     {
@@ -183,6 +186,7 @@ public sealed class ToolBarTests
                 string.Join(',', window.Session.SelectedIds),
                 window.Session.ManualLayoutActive,
                 window.Model.Diagnostics.IsOpen,
+                HeadlessFixture.ExportDialog(window).IsVisible,
                 layout.NodeSpacing,
                 layout.LayerSpacing);
         }

@@ -228,6 +228,25 @@ public static class HeadlessFixture
         return window.GetVisualDescendants().OfType<ImportDialog>().Single();
     }
 
+    /// <summary>窗口里那个导出对话框。</summary>
+    /// <remarks>
+    /// 收起来的时候它照样在视觉树里，所以这一个找得到就说明它摆上了。
+    /// </remarks>
+    public static ExportDialog ExportDialog(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<ExportDialog>().Single();
+    }
+
+    /// <summary>窗口里那张人工产物恢复提示。</summary>
+    public static SidecarRecoveryDialog SidecarRecovery(Window window)
+    {
+        ArgumentNullException.ThrowIfNull(window);
+
+        return window.GetVisualDescendants().OfType<SidecarRecoveryDialog>().Single();
+    }
+
     /// <summary>
     /// 在一个面板里按按钮上显示的字找它。
     /// </summary>

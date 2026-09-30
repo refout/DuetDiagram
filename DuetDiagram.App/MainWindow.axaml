@@ -131,6 +131,14 @@
                                  HorizontalAlignment="Center"
                                  VerticalAlignment="Center"
                                  IsVisible="False" />
+          <!--
+            导出对话框与上面几条同一个位置：它也浮在画布上，一出现不改画布尺寸。
+            默认收起来，由「导出…」那一条菜单摆出来。
+          -->
+          <controls:ExportDialog x:Name="ExportView"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center"
+                                 IsVisible="False" />
         </Grid>
 
         <!--

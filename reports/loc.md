@@ -6,13 +6,13 @@
 | 项目 | 文件 | 总行 | 代码 | 注释 | 空行 |
 |---|---:|---:|---:|---:|---:|
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
-| DuetDiagram.App | 73 | 19429 | 10893 | 5297 | 3239 |
+| DuetDiagram.App | 75 | 20032 | 11216 | 5469 | 3347 |
 | DuetDiagram.Benchmarks | 6 | 571 | 337 | 145 | 89 |
 | DuetDiagram.Core | 123 | 18571 | 10435 | 5445 | 2691 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
-| DuetDiagram.E2E.Tests | 34 | 10773 | 6910 | 1632 | 2231 |
+| DuetDiagram.E2E.Tests | 35 | 11174 | 7153 | 1715 | 2306 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
 | DuetDiagram.Llm | 25 | 4942 | 2695 | 1561 | 686 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 35 | 6783 | 3551 | 2263 | 969 |
 | DuetDiagram.Render.Tests | 25 | 6455 | 4444 | 839 | 1172 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **515** | **119620** | **73980** | **25495** | **20145** |
+| **合计** | **518** | **120624** | **74546** | **25750** | **20328** |
 
 ## 明细
 
@@ -45,6 +45,7 @@
 | DiagramMenuBar.axaml.cs | 98 |
 | DiagramToolBar.axaml.cs | 108 |
 | DiffSidebar.axaml.cs | 111 |
+| ExportDialog.axaml.cs | 142 |
 | HighlightOverlay.cs | 17 |
 | ImportDialog.axaml.cs | 51 |
 | LayerPanel.axaml.cs | 293 |
@@ -71,10 +72,10 @@
 | SelectionSet.cs | 33 |
 | ShapeDrag.cs | 19 |
 | TextEditSession.cs | 145 |
-| MainWindow.axaml.cs | 491 |
+| MainWindow.axaml.cs | 567 |
 | Program.cs | 84 |
 | ShapeGeometryRenderer.cs | 88 |
-| Strings.cs | 129 |
+| Strings.cs | 138 |
 | SampleDiagram.cs | 80 |
 | SelfTest.cs | 224 |
 | AccessibleName.cs | 24 |
@@ -86,6 +87,7 @@
 | DslFile.cs | 94 |
 | ErrorPresenter.cs | 41 |
 | ErrorPresenterTable.cs | 81 |
+| ExportService.cs | 96 |
 | FieldEditBinder.cs | 277 |
 | ImportService.cs | 79 |
 | MenuEntries.cs | 201 |
@@ -346,9 +348,10 @@
 | DragTests.cs | 139 |
 | EdgeEditTests.cs | 96 |
 | ErrorPresentationTests.cs | 208 |
-| HeadlessFixture.cs | 222 |
+| ExportTests.cs | 228 |
+| HeadlessFixture.cs | 232 |
 | HighlightTests.cs | 129 |
-| I18nTests.cs | 409 |
+| I18nTests.cs | 412 |
 | ImportTests.cs | 375 |
 | LabelMetricsTests.cs | 65 |
 | LayerPanelTests.cs | 357 |
@@ -368,7 +371,7 @@
 | ShapeLibraryTests.cs | 169 |
 | TemplateTests.cs | 197 |
 | TextPresetTests.cs | 189 |
-| ToolBarTests.cs | 118 |
+| ToolBarTests.cs | 120 |
 
 ### DuetDiagram.Layout
 

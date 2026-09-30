@@ -245,15 +245,12 @@ internal static class ViewEntries
 /// </summary>
 /// <remarks>
 /// <para>
-/// 这一轮只有一条占位条目，它永远给一句"还没接上"。能导出的是工具那条通路
-/// （<c>diagram_export</c>）与脱屏自检，两者都直接消费绘制列表；
-/// 界面上的导出还差三样：选文件、选格式、选范围——那三样在后面的任务里，
-/// 而格式那一样要等到几种格式都有了才值得做（DSL、SVG、PNG 与 PDF 现在都有了）。
+/// 这一条把导出对话框摆出来。导出本身早就能用（工具那条通路与脱屏自检都直接消费绘制列表），
+/// 缺的一直是界面这一层：选文件、选格式、选范围那三样。
 /// </para>
 /// <para>
-/// 留一条一直拒绝的条目而不是留一个空档，是因为空档看起来像"这一轮没做"，
-/// 而拒绝能说清是"还没做"还是"做不了"。理由里不再提"导出还没实现"——
-/// 导出本身已经能用了，缺的只是界面这一层。
+/// **它永远可点，只读也一样。** 导出是读这份文档、写另一个文件，
+/// 与"能不能改这份文档"是两件事；另存为才是后者。
 /// </para>
 /// </remarks>
 internal static class ExportEntries
@@ -265,6 +262,6 @@ internal static class ExportEntries
             "menu.export.dialog",
             null,
             MenuSurface.Both,
-            _ => Strings.RefusalExport,
-            _ => { }));
+            _ => null,
+            context => context.Window.BeginExport()));
 }

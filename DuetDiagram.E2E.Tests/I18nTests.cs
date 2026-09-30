@@ -1,3 +1,4 @@
+using System.Resources;
 using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
@@ -199,27 +200,41 @@ public sealed class I18nTests
         });
     }
 
+    /// <summary>
+    /// 两份资源里都没有的键要当场抛，不许给空串。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 这一条原先验的是「第二语言缺某条时回落中性资源」。**现在第二语言是齐的**——
+    /// 两份资源逐键对得上，那条回落分支没有现成的例子可举。
+    /// 为了让用例有东西可验而故意少翻一条，等于让产品去迁就用例，所以不那么做。
+    /// </para>
+    /// <para>
+    /// 因此这里验的是这条链的末端：中性资源里也没有的键要抛
+    /// <see cref="MissingManifestResourceException"/>。给空串的话，屏幕上会出现一个
+    /// 空白的按钮，而没有任何地方说得出它是从哪来的。
+    /// </para>
+    /// </remarks>
     [Fact]
     [Trait("Category", "I18n")]
-    public async Task A_key_the_second_language_does_not_have_falls_back_to_the_neutral_one()
+    public async Task A_key_that_is_in_neither_resource_is_an_error_not_a_blank()
     {
-        // 第二种语言不必一次补齐。缺的那几条要显示中性资源里那一句，
-        // 而不是变成空白、更不是把键名摆到界面上——键名出现在界面里看起来像界面坏了。
         await HeadlessFixture.Run(() =>
         {
-            var neutral = Strings.RefusalExport;
-
-            neutral.Should().NotBeNullOrWhiteSpace();
-
-            try
+            foreach (var language in Strings.Languages)
             {
-                Strings.Language = Strings.English;
+                Strings.Language = language;
 
-                Strings.RefusalExport.Should().Be(neutral, "第二语言里没有这一条，要回落中性资源");
-            }
-            finally
-            {
-                Strings.Language = Strings.Chinese;
+                try
+                {
+                    var read = () => Strings.Get("menu.refusal.nothing-like-this");
+
+                    read.Should().Throw<MissingManifestResourceException>();
+                }
+                finally
+                {
+                    Strings.Language = Strings.Chinese;
+                }
             }
         });
     }

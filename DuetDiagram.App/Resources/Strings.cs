@@ -209,8 +209,6 @@ public static class Strings
 
     public static string RefusalDissolve => Get("menu.refusal.dissolve");
 
-    public static string RefusalExport => Get("menu.refusal.export");
-
     #endregion
 
     #region 面板与画布
@@ -262,6 +260,26 @@ public static class Strings
     public static string ImportClose => Get("import.close");
 
     public static string OpenTitle => Get("open.title");
+
+    public static string ExportTitle => Get("export.title");
+
+    public static string ExportDialogTitle => Get("export.dialog.title");
+
+    public static string ExportDialogFormat => Get("export.dialog.format");
+
+    public static string ExportDialogRange => Get("export.dialog.range");
+
+    public static string ExportDialogRangeContent => Get("export.dialog.range.content");
+
+    public static string ExportDialogRangePage => Get("export.dialog.range.page");
+
+    public static string ExportDialogScale => Get("export.dialog.scale");
+
+    public static string ExportDialogScaleInvalid => Get("export.dialog.scale-invalid");
+
+    public static string ExportDialogConfirm => Get("export.dialog.confirm");
+
+    public static string ExportDialogCancel => Get("export.dialog.cancel");
 
     public static string LayoutFailureTitle => Get("layout.failure.title");
 

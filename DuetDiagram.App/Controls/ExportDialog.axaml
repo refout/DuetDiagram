@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DuetDiagram.App.Controls.ExportDialog"
+             xmlns:res="using:DuetDiagram.App.Resources">
+  <!--
+    导出对话框：选格式、选范围、选倍数，然后交给宿主去写文件。
+
+    它只负责把选择收上来，不认识会话也不认识文档——要导的是哪一页、固定位置有哪些、
+    文件往哪儿写，都由宿主去办。面板自己去读会话的话，同一件事会有两个地方各判一次，
+    而两处的判据迟早会不一样。
+
+    范围与倍数会按所选格式灰掉：给一个格式它办不到的旋钮时，正确的处置是让它选不了，
+    而不是收下参数再按缺省值出图——后者会让人以为自己的选择生效了。
+    工具那一条路对同一件事的做法是拒绝并说清哪个格式办得到，两张表是同一张。
+  -->
+  <Border Padding="14"
+          Width="380"
+          Background="#f6f8fb"
+          BorderBrush="#8fa3bd"
+          BorderThickness="1"
+          CornerRadius="6">
+    <StackPanel>
+      <TextBlock x:Name="TitleText"
+                 FontSize="13"
+                 FontWeight="SemiBold"
+                 Foreground="#2b3a4d"
+                 Text="{x:Static res:Strings.ExportDialogTitle}" />
+
+      <Grid Margin="0,10,0,0"
+            ColumnDefinitions="Auto,*"
+            RowDefinitions="Auto,Auto,Auto">
+        <TextBlock Grid.Row="0"
+                   Grid.Column="0"
+                   Margin="0,0,8,6"
+                   VerticalAlignment="Center"
+                   FontSize="12"
+                   Foreground="#5b6675"
+                   Text="{x:Static res:Strings.ExportDialogFormat}" />
+        <ComboBox x:Name="FormatBox"
+                  Grid.Row="0"
+                  Grid.Column="1"
+                  Margin="0,0,0,6"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="{x:Static res:Strings.ExportDialogFormat}" />
+
+        <TextBlock Grid.Row="1"
+                   Grid.Column="0"
+                   Margin="0,0,8,6"
+                   VerticalAlignment="Center"
+                   FontSize="12"
+                   Foreground="#5b6675"
+                   Text="{x:Static res:Strings.ExportDialogRange}" />
+        <ComboBox x:Name="RangeBox"
+                  Grid.Row="1"
+                  Grid.Column="1"
+                  Margin="0,0,0,6"
+                  HorizontalAlignment="Stretch"
+                  AutomationProperties.Name="{x:Static res:Strings.ExportDialogRange}" />
+
+        <TextBlock Grid.Row="2"
+                   Grid.Column="0"
+                   Margin="0,0,8,0"
+                   VerticalAlignment="Center"
+                   FontSize="12"
+                   Foreground="#5b6675"
+                   Text="{x:Static res:Strings.ExportDialogScale}" />
+        <TextBox x:Name="ScaleBox"
+                 Grid.Row="2"
+                 Grid.Column="1"
+                 AutomationProperties.Name="{x:Static res:Strings.ExportDialogScale}" />
+      </Grid>
+
+      <!--
+        倍数填不出一个大于零的数时说的话。整条收起来的时候不占地方——
+        留一个空行看起来像"本来有话要说但没显示出来"。
+      -->
+      <TextBlock x:Name="HintText"
+                 Margin="0,8,0,0"
+                 FontSize="12"
+                 Foreground="#a33"
+                 TextWrapping="Wrap"
+                 IsVisible="False"
+                 Text="" />
+
+      <StackPanel Margin="0,12,0,0"
+                  Orientation="Horizontal"
+                  Spacing="8">
+        <Button x:Name="ConfirmButton"
+                AutomationProperties.Name="{x:Static res:Strings.ExportDialogConfirm}"
+                Content="{x:Static res:Strings.ExportDialogConfirm}" />
+        <Button x:Name="CancelButton"
+                AutomationProperties.Name="{x:Static res:Strings.ExportDialogCancel}"
+                Content="{x:Static res:Strings.ExportDialogCancel}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

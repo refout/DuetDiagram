@@ -163,9 +163,6 @@
   <data name="menu.refusal.dissolve" xml:space="preserve">
     <value>这一条要对准一个组合右键</value>
   </data>
-  <data name="menu.refusal.export" xml:space="preserve">
-    <value>界面上的导出还没接上：要选文件、选格式、选范围，那三样在后面的任务里</value>
-  </data>
 
   <data name="panel.layers.title" xml:space="preserve">
     <value>图层</value>
@@ -229,6 +226,37 @@
   </data>
   <data name="open.title" xml:space="preserve">
     <value>打开</value>
+  </data>
+
+  <data name="export.title" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="export.dialog.title" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="export.dialog.format" xml:space="preserve">
+    <value>格式</value>
+  </data>
+  <data name="export.dialog.range" xml:space="preserve">
+    <value>范围</value>
+  </data>
+  <data name="export.dialog.range.content" xml:space="preserve">
+    <value>按内容外接框</value>
+  </data>
+  <data name="export.dialog.range.page" xml:space="preserve">
+    <value>按纸张</value>
+  </data>
+  <data name="export.dialog.scale" xml:space="preserve">
+    <value>倍数</value>
+  </data>
+  <data name="export.dialog.scale-invalid" xml:space="preserve">
+    <value>倍数要是一个大于零的数</value>
+  </data>
+  <data name="export.dialog.confirm" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="export.dialog.cancel" xml:space="preserve">
+    <value>取消</value>
   </data>
 
   <data name="layout.failure.title" xml:space="preserve">

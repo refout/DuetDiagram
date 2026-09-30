@@ -1,0 +1,88 @@
+id: P5-12
+title: 导出对话框——界面上终于有地方选格式、范围与倍数
+phase: 5
+status: done
+depends_on: [P5-11]
+estimated_loc: 620
+files:
+  create:
+    - DuetDiagram.App/Controls/ExportDialog.axaml
+    - DuetDiagram.App/Controls/ExportDialog.axaml.cs
+    - DuetDiagram.App/Services/ExportService.cs
+    - DuetDiagram.E2E.Tests/ExportTests.cs
+  modify:
+    - DuetDiagram.App/MainWindow.axaml
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - DuetDiagram.App/Resources/Strings.cs
+    - DuetDiagram.App/Resources/Strings.resx
+    - DuetDiagram.App/Resources/Strings.en.resx
+    - DuetDiagram.App/Services/MenuEntries.cs
+    - DuetDiagram.E2E.Tests/HeadlessFixture.cs
+    - DuetDiagram.E2E.Tests/I18nTests.cs
+    - DuetDiagram.E2E.Tests/ToolBarTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release -- --filter-trait "Category=Export"
+    expect: 10 条全通过（对话框三档、SVG 写得出来、倍数与范围真的落到像素上、PDF 两种范围产物不同、DSL 带 pin、只读窗口导得出去、失败说话）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release
+    expect: 整份端到端 255 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**一个格式办不到的旋钮在对话框里是灰的。** 收下参数再按缺省值出图的话，用户会以为自己的选择生效了——这与工具那条路拒绝并说清「哪个格式办得到」是同一件事的两种说法"
+  - "**倍数栏里不是大于零的数时，导出那颗按钮灰掉并写一句为什么。** 灰掉不说理由与不灰掉一样糟"
+  - "**导出永远可点，只读也一样。** 导出是读这份文档、写另一个文件，与「能不能改这份文档」是两件事；另存为才是后者"
+  - "**能验的那一段全在同步的 `Export` 里。** 选文件那一步在无头模式下打不开，所以用例直接给路径——走的是与选完文件之后完全相同的那条路"
+  - "**范围与倍数按像素尺寸断言，不按「请求传到了宿主」。** 后者的话，宿主把参数丢掉不用的实现照样能过，而用户拿到的是一张没放大的图"
+  - "**写盘先写临时文件再覆盖式改名。** 与文档那两条写路径同一套；直接往目标文件上写的话，写到一半断电留下的是一份截断的内容"
+  - "**界面这一条路只出当前页。** 拿到的就是画布上那一份绘制列表；工具那条路的 PDF 按文档声明的页序一页一张纸。同一套词汇、不同的页范围"
+  - "**界面这一层拿得到固定位置，工具那一层拿不到。** 所以 DSL 那条在界面上能把 `pin` 写出来、不报丢失；工具那条会把它记进丢失清单"
+  - "**判据要验过「把实现撤掉它就红」。** 撤掉写入路径里的选项映射 → `Category=Export` 红 3 条；把菜单条目的拒绝改回只读时拒绝 → 红 1 条"
+context:
+  - "用户要求「完善导出功能」，并选定「两边都给」：界面给格式 / 范围 / 倍数，工具那条路同时加参数（P5-11 是前半）"
+  - "侦察查实两条真缺陷之一：界面上那条导出条目是永远拒绝的占位，而四种格式的导出器与工具通路早就能用"
+  - "方案 §11 的工具栏分组里「导出」那一档本来就有位置，这一条是把位置填上"
+result: |
+  **结论：界面上终于有地方导出了。一个对话框选格式、范围与倍数，
+  选完之后选文件、写文件，成功与失败都摆在状态栏上；有丢失清单时才另摆一块面板。
+  验报告 `reports/phase5-export.md`。**
+
+  **新增 `ExportDialog`。** 格式四选一（dsl / svg / png / pdf），范围两选一，
+  倍数一个数字框；格式换掉时范围与倍数按 `ExportFormats.HonorsRange` / `HonorsScale` 灰掉或放开。
+  它只把选择交回来（`ExportRequested`），选文件与写文件都由主窗口办——
+  提示自己去做那件事的话，同一件事就有了两个入口。
+
+  **新增 `ExportService`。** 收现成的绘制列表、文档与固定位置，把这一页写成文件；
+  四档格式各一条路，范围与倍数翻译成 `BitmapOptions` / `PdfOptions` 的字段。
+  写盘先写 `.tmp` 再覆盖式改名。
+
+  **两处只有界面这条路能给的东西。** 一是固定位置：界面拿得到会话，所以 DSL 那条能把
+  `pin` 写出来，不报丢失；二是页范围：界面导的是画布上这一页，工具那条路的 PDF 按文档页序。
+
+  **踩到两条门禁，都是真的。**
+
+  1. `Category=SkillDisclosure`：`diagram_export` 的描述超了两百字上限（276）。修法是把范围与倍数
+     那句话从工具描述里拿掉，只留在各自的参数描述上——模型填参数时读到的正是那里。
+  2. `Category=ToolBar`：那条「点一下要么变、要么说话」的门禁红了。导出那一条点下去是摆出对话框，
+     不改文档也不进状态栏，而那份快照当时只看文档、绘制列表、选中、手动布局、诊断面板与两个间距。
+     修法是**把对话框开着与否加进快照**——它本来就是「点一下之前与之后能观察到的东西」，
+     漏掉浮层是那份快照不全，不是那条条目没反馈。
+
+  **两个对话框的坑，都在这一条上撞到。**
+  一是 `RefreshConfirmable` 读了自己的输出当输入，一旦禁用就再也放不开；
+  二是**这个版本的 Avalonia 里，程序化赋值 `TextBox.Text` 不发 `TextChanged`**，
+  订阅要改成 `PropertyChanged` 加 `e.Property == TextBox.TextProperty`——
+  前者是靠一条探针直接调 `RefreshConfirmable()` 才定位到的。
+
+  **判据**：`Category=Export` 10 条（对话框 3 + 真的写出文件 7）。
+
+  **「把实现撤掉它就红」验过两处**：撤掉 `ExportService` 里范围与倍数的映射，
+  10 条里红 3 条（倍数没落到像素、两种范围没区别）；把菜单条目的拒绝改回「只读时拒绝」，
+  10 条里红 1 条（只读窗口里那条条目被灰掉）。两处都复原后 10/10。
+
+  **门禁读数**：本机 Release 构建 0 警告 0 错误；`Category=Export` 10/10；
+  整份端到端 255/255（含 `Category=I18n`、`Category=ToolBar`、`Category=Accessibility`）。
+  CI 读数见 `reports/phase5-export.md` 的补记。
+
+  **没验的：** 选文件那一步（系统选择器在无头模式下打不开）——用例给的是路径，
+  走的虽是与选完文件之后相同的代码，但「对话框长什么样、选完之后回不回得来」没有真机走过；
+  PDF 与 SVG 的产物只断言了文件头与「两种范围不一样」，没有逐像素比对。

@@ -1,0 +1,81 @@
+id: P5-13
+title: 人工产物的读写——固定位置、固定折线与自定义端口不再随保存丢掉
+phase: 5
+status: done
+depends_on: [P5-12]
+estimated_loc: 780
+files:
+  create:
+    - DuetDiagram.E2E.Tests/SidecarTests.cs
+  modify:
+    - DuetDiagram.App/Services/DocumentLaunch.cs
+    - DuetDiagram.App/Services/DiagramSession.cs
+    - DuetDiagram.App/MainWindow.axaml.cs
+    - docs/Sidecar.md
+    - AGENTS.md
+acceptance:
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release -- --filter-trait "Category=Sidecar"
+    expect: 13 条全通过（三条读、七条写、两条恢复、一条备份轮替）
+  - command: dotnet test --project DuetDiagram.Core.Tests -c Release -- --filter-trait "Category=Sidecar"
+    expect: 20 条全通过（核心层原有的存与取，未改动）
+  - command: dotnet test --project DuetDiagram.E2E.Tests -c Release
+    expect: 整份端到端 268 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**断言落在文件与重新打开的窗口上，不落在「某个方法被调过」。** 只断言「读过了」的话，一个读完就把结果丢掉、或者写了但写错地方的实现照样能过，而用户丢的是他摆过的位置"
+  - "**DSL 那一条路不读也不写人工产物。** 两种形态同名同目录共用 `user.json` 与 `layout.json`（`SidecarPaths.Stem` 只去一层后缀），读了它，打开一份 `.dsl` 就会把另一份 `.dgm` 的固定位置带进来、保存时再写回去。宁可让折点在这一形态下存不下来"
+  - "**三样都空、原先又没有这个文件时不建它。** 一份从没被拖过的文档旁边多一个空的 `user.json` 对用户没有意义；反过来原先有内容而现在清空了要照写——不写的话旧内容会留在那儿，下次打开又把删掉的固定位置装回来"
+  - "**写人工产物走带备份的那一条。** 直接调底层写入方法平时看不出区别，直到某天文件坏了、用户点开恢复对话框、发现里面是空的"
+  - "**读不出来时文档照常打开。** 一份附属文件格式坏掉不该让整份文档打不开——文档那一份是好的，用户要看的是它；要问的是他手工摆过的那些怎么办"
+  - "**孤儿条目原样留下，不丢。** 它们指向的节点这会儿不在文档里，因此是惰性的；直接丢掉等于让用户的一次误删顺手毁掉他手工调整过的东西"
+  - "**恢复时由新到旧试第一份能用的。** 备份列表只按文件名里的时间戳排过序，内容能不能用要读过才知道；一份都用不了时不动当前内容"
+  - "**只读的窗口不写人工产物。** 只读说的是「另一个进程正在编辑这份文档」，所以连它旁边那份文件也不该动——那份文件是另一个进程的会话正在写的"
+  - "**自定义端口只做原样带进带出。** 布局与路由还没读它（`docs/Sidecar.md` 里记着这件事），但整份内容不该被顺手抹掉：内容丢了是重算不回来的"
+  - "**判据要验过「把实现撤掉它就红」。** 不装侧车 → 红 3 条；保存不写侧车 → 红 5 条；不弹恢复提示 → 红 3 条；打开时不清备份 → 红 1 条"
+context:
+  - "用户要求「完善保存功能」，并选定「侧车接线」这一档：只接 `user.json`，不做另存为、脏标记、关闭确认、最近文件与自动保存（方案对那几样是沉默的）"
+  - "侦察查实第二条真缺陷：`DuetDiagram.Core/Sidecar/` 那一整套在 `DuetDiagram.App` 里**一个调用点都没有**"
+  - "`docs/Sidecar.md` 的「尚未实现」表里原先记着三件事（`.dsl` 打开时读 `user.json`、恢复对话框、自定义端口的生效路径），这一条收掉其中两件"
+result: |
+  **结论：人工产物接上了。固定位置与固定折线在 IR JSON 那一形态下能存能取，
+  备份会在三处时机轮替，读不出来时弹恢复提示；DSL 那一形态明确不碰它。
+  验报告 `reports/phase5-sidecar.md`。**
+
+  **接线落在四处。** `DocumentLaunch` 多带一份 `SidecarLoad<UserSidecar>?`（IR JSON 那一条读，
+  DSL 那一条给空）；`DiagramSession` 多收一份侧车并装进三样东西，另加 `ApplyUserSidecar`
+  给「从备份恢复」用；`MainWindow.Save` 顺带写人工产物；`MainWindow` 的构造函数里清一次备份、
+  排一只每小时清一次的表（关窗口时停表），并在读不出来时把恢复提示摆出来。
+
+  **DSL 那一条为什么不读。** 两种形态同名同目录共用同一份 `user.json`——
+  `SidecarPaths.Stem` 只去一层后缀，`a.dsl` 与 `a.dgm` 会撞上同一个 `a.user.json`。
+  `.dsl` 的固定位置写在文本的 `pin` 里，读它的话打开一份 `.dsl` 就会把另一份 `.dgm` 的
+  固定位置带进来，保存时再写回去。代价是**折点在这一形态下仍然存不下来**，
+  如实记在 `docs/Sidecar.md` 里，没有写成已解决。
+
+  **空文件那一条分两半。** 「三样都空且原先没有这个文件」不建它；
+  「原先有内容而现在清空了」照写——只按前者做的话，用户撤销掉固定位置再保存，
+  旧内容会留在文件里，下次打开又把它装回来。这条判据在用例里就是
+  「拖一下 → 保存 → 撤销 → 保存 → 重新打开 → 没有固定位置」。
+
+  **自定义端口是这一条里唯一「只进不出」的东西。** 端口本身写在节点的 IR 字段上
+  （属性面板改的就是那一份），而 `user.json` 里那一份是同一件事的另一个记法，
+  布局与路由都还没读它。整份原样带进带出，为的是「打开一份别人给的文档、改一处、保存」
+  不会顺手清掉他文件里那一节。
+
+  **`ShowSidecarRecovery` 从「没有调用点」变成有调用点**——它的注释原先就写着
+  「打开文档那条路还没做，所以现在没有调用点」，这一条把那条路做了。
+
+  **判据**：`Category=Sidecar` 13 条（读 3、写 7、恢复 2、备份轮替 1），
+  核心层那 20 条一条没改。
+
+  **「把实现撤掉它就红」验过四处，逐条对上**：构造里不装侧车 → 3 条读的用例红；
+  保存时不写侧车 → 5 条红（含往返与备份）；不弹恢复提示 → 3 条红；
+  打开时不清备份 → 1 条红。四处都复原后 13/13。
+
+  **门禁读数**：本机 Release 构建 0 警告 0 错误；`Category=Sidecar` 界面侧 13/13、
+  核心侧 20/20；整份端到端 268/268。CI 读数见 `reports/phase5-sidecar.md` 的补记。
+
+  **没验的：** 每小时那一次清理与「关窗口时停表」——那只 `DispatcherTimer` 是私有的，
+  没有可观察的出口，用例只验到了「打开时清一次」（攒够 12 份备份、开一次窗口、剩 10 份）。
+  定时器本身要靠读代码与真机长时间挂着看，这两条都还没做。

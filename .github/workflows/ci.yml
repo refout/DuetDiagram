@@ -388,6 +388,26 @@ jobs:
       - name: 打开门禁
         run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Open"
 
+      # 导出：四档格式各自认哪些旋钮、倍数与范围真的落到产物上、只读的窗口照样导得出去、
+      # 失败要说一句话。退化的表现是「点了导出没反应」或者「倍数选了二倍但出来还是一倍」——
+      # 后者只有按像素量才看得见，只断言「请求传到了宿主」的话，把参数丢掉不用的实现照样能过。
+      - name: 导出门禁
+        run: dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Export"
+
+      # 人工产物：固定位置、固定折线与自定义端口存在文档旁边的 user.json 里，
+      # 打开时装回来、保存时写下去、写之前留一份备份、读不出来时问用户走不走恢复。
+      # 退化的表现是「拖过的位置下一次打开没了」——文件在那儿、内容也在，只是没人读它，
+      # 而画面上完全看不出来。两侧各跑一次：核心层验存与取，界面层验接上了没有。
+      # shell 与下面的 Phase 4 界面门禁同一个理由（这段是 bash 语法），
+      # 而退出码要自己累积：不累的话，前一条失败而后一条通过时这一步会绿。
+      - name: 人工产物门禁
+        shell: bash
+        run: |
+          STATUS=0
+          dotnet test --project DuetDiagram.Core.Tests/DuetDiagram.Core.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Sidecar" || STATUS=1
+          dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -c ${{ env.CONFIGURATION }} -- --filter-trait "Category=Sidecar" || STATUS=1
+          exit $STATUS
+
       # Phase 4 界面侧门禁：形状库面板、富文本编辑器、图层面板、页面标签、导入端到端。
       # 这几样退化的表现是「面板里少一项、或某项操作点了没反应」，全项目跑一遍也只红这一组。
       # shell 必须显式写 bash：Windows 运行器上 `run:` 默认走 pwsh，而这段是 bash 函数语法，

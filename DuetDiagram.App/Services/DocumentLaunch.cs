@@ -110,7 +110,7 @@ public sealed class DocumentLaunch
     /// **DSL 那一条路不带它。** 那个形态的 <c>pin</c> 写在文本里，而文本与
     /// <c>user.json</c> 同名同目录——两个形态共用一份人工产物的话，
     /// 打开 <c>a.dsl</c> 再保存会顺手改掉 <c>a.dgm</c> 的固定位置。
-    /// 所以那一条路既不读也不写这一份，折点因此仍然存不下来（见 <c>docs/Sidecar.md</c>）。
+    /// 所以那一条路既不读也不写这一份，代价是折点在那个形态下存不下来。
     /// </para>
     /// </remarks>
     public SidecarLoad<UserSidecar>? Sidecar { get; }

@@ -13,8 +13,8 @@
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
 | DuetDiagram.E2E.Tests | 36 | 11791 | 7516 | 1832 | 2443 |
-| DuetDiagram.Layout | 19 | 2980 | 1605 | 981 | 394 |
-| DuetDiagram.Layout.Tests | 7 | 1890 | 1332 | 212 | 346 |
+| DuetDiagram.Layout | 19 | 3161 | 1720 | 1029 | 412 |
+| DuetDiagram.Layout.Tests | 7 | 1938 | 1364 | 219 | 355 |
 | DuetDiagram.Llm | 25 | 4942 | 2695 | 1561 | 686 |
 | DuetDiagram.Llm.Tests | 17 | 5028 | 3597 | 410 | 1021 |
 | DuetDiagram.Mcp | 15 | 2605 | 1350 | 873 | 382 |
@@ -24,7 +24,7 @@
 | DuetDiagram.Render | 35 | 6783 | 3551 | 2263 | 969 |
 | DuetDiagram.Render.Tests | 25 | 6455 | 4444 | 839 | 1172 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **520** | **121707** | **75130** | **26046** | **20531** |
+| **合计** | **520** | **121936** | **75277** | **26101** | **20558** |
 
 ## 明细
 
@@ -378,7 +378,7 @@
 
 | 文件 | 代码 |
 |---|---:|
-| ConstraintLayoutEngine.cs | 210 |
+| ConstraintLayoutEngine.cs | 220 |
 | EngineLayoutResult.cs | 73 |
 | Fallback.cs | 78 |
 | FallbackPlan.cs | 115 |
@@ -386,7 +386,7 @@
 | AlignSolver.cs | 70 |
 | AnchorRestorer.cs | 35 |
 | CompositeOutline.cs | 59 |
-| EdgeRouter.cs | 251 |
+| EdgeRouter.cs | 356 |
 | EngineAdapter.cs | 42 |
 | NodeGrid.cs | 70 |
 | OrderSolver.cs | 128 |
@@ -403,7 +403,7 @@
 | 文件 | 代码 |
 |---|---:|
 | AlignTests.cs | 129 |
-| CycleTests.cs | 74 |
+| CycleTests.cs | 106 |
 | FallbackTests.cs | 351 |
 | Graphs.cs | 83 |
 | LayoutRequestFactoryTests.cs | 223 |

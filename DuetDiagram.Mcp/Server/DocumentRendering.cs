@@ -31,10 +31,12 @@ internal static class DocumentRendering
     /// 导出 SVG。排不出结果时返回空，由调用方如实报出来。
     /// </summary>
     /// <param name="document">文档。</param>
-    /// <param name="pageId">只导这一页。为空表示整份文档。</param>
-    public static SvgExport? Svg(DiagramDocument document, string? pageId)
+    /// <param name="request">这次要什么。范围与倍数它不认——矢量图的画布就是内容的外接框。</param>
+    public static SvgExport? Svg(DiagramDocument document, ExportRequest request)
     {
-        var scene = Compose(document, pageId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var scene = Compose(document, request.PageId);
 
         return scene is null ? null : SvgExporter.Export(scene.DrawList);
     }
@@ -43,26 +45,38 @@ internal static class DocumentRendering
     /// 导出 PNG。排不出结果时返回空，由调用方如实报出来。
     /// </summary>
     /// <remarks>
-    /// 选项取默认：不透明底、按内容外接框裁、一倍。工具那一条路还没有让调用方选
-    /// 缩放与范围的地方，而缺省的那一组是"贴进文档里不会变成黑底"的那一组。
+    /// 底一律不透明。缺省透明的话，导出的 PNG 贴进白底文档里会变成黑底，
+    /// 而那是"导出看起来坏了"里最常见的一种。要透明底得有个显式开关，
+    /// 而这一轮那两个旋钮只开了范围与倍数。
     /// </remarks>
     /// <param name="document">文档。</param>
-    /// <param name="pageId">只导这一页。为空表示整份文档。</param>
-    public static BitmapExport? Bitmap(DiagramDocument document, string? pageId)
+    /// <param name="request">这次要什么。范围与倍数都认。</param>
+    public static BitmapExport? Bitmap(DiagramDocument document, ExportRequest request)
     {
-        var scene = Compose(document, pageId);
+        ArgumentNullException.ThrowIfNull(request);
 
-        return scene is null ? null : BitmapExporter.Export(scene.DrawList);
+        var scene = Compose(document, request.PageId);
+
+        if (scene is null)
+        {
+            return null;
+        }
+
+        return BitmapExporter.Export(scene.DrawList, new BitmapOptions
+        {
+            Scale = request.Scale,
+            Crop = request.Range == ExportRanges.Page ? BitmapCrop.Page : BitmapCrop.Content,
+
+            // 纸张尺寸从文档的画布设置里读。导出器只认绘制列表，它读不到文档，
+            // 而重新遍历文档会让导出与画布成为两条绘制路径。
+            PageSize = document.Canvas.PageSize,
+        });
     }
 
     /// <summary>
     /// 导出 PDF。排不出结果时返回空，由调用方如实报出来。
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// 选项取默认：按内容外接框裁。工具那一条路还没有让调用方选范围的地方，
-    /// 而缺省的那一组是"这张图本身有多大就出多大"的那一组。
-    /// </para>
     /// <para>
     /// **整份文档导出来是好几页，一页一张纸。** 页面标识为空时按文档自己声明的页序走，
     /// 每一页各排一次、各占一页；文档一页都没声明时只有一个隐含的页面，
@@ -75,12 +89,14 @@ internal static class DocumentRendering
     /// </para>
     /// </remarks>
     /// <param name="document">文档。</param>
-    /// <param name="pageId">只导这一页。为空表示整份文档，一页一张纸。</param>
-    public static PdfExport? Pdf(DiagramDocument document, string? pageId)
+    /// <param name="request">这次要什么。范围认，倍数不认——PDF 的单位是物理长度。</param>
+    public static PdfExport? Pdf(DiagramDocument document, ExportRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         var lists = new List<DrawList>();
 
-        foreach (var id in PageIds(document, pageId))
+        foreach (var id in PageIds(document, request.PageId))
         {
             if (Compose(document, id) is not { } scene)
             {
@@ -90,7 +106,16 @@ internal static class DocumentRendering
             lists.Add(scene.DrawList);
         }
 
-        return lists.Count == 0 ? null : PdfExporter.Export(lists);
+        if (lists.Count == 0)
+        {
+            return null;
+        }
+
+        return PdfExporter.Export(lists, new PdfOptions
+        {
+            Crop = request.Range == ExportRanges.Page ? PdfCrop.Page : PdfCrop.Content,
+            PageSize = document.Canvas.PageSize,
+        });
     }
 
     /// <summary>

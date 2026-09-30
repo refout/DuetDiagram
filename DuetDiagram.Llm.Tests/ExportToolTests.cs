@@ -49,9 +49,9 @@ public sealed class ExportToolTests
 
         var registry = Harness.Registry(
             document,
-            svgExporter: (_, pageId) =>
+            svgExporter: (_, request) =>
             {
-                seen = pageId;
+                seen = request.PageId;
 
                 return new SvgExport("<svg/>", []);
             });
@@ -184,9 +184,9 @@ public sealed class ExportToolTests
 
         var registry = Harness.Registry(
             document,
-            bitmapExporter: (_, pageId) =>
+            bitmapExporter: (_, request) =>
             {
-                seen = pageId;
+                seen = request.PageId;
 
                 return new BitmapExport([1], 10, 10, []);
             });
@@ -336,9 +336,9 @@ public sealed class ExportToolTests
 
         var registry = Harness.Registry(
             document,
-            pdfExporter: (_, pageId) =>
+            pdfExporter: (_, request) =>
             {
-                seen = pageId;
+                seen = request.PageId;
 
                 return new PdfExport([1], 1, []);
             });
@@ -581,6 +581,170 @@ public sealed class ExportToolTests
 
         text.Should().Contain("second");
         text.Should().NotContain("first", "别的页面上的节点不该出现在这一页的导出里");
+    }
+
+    #endregion
+
+    #region 范围与倍数
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Png_export_honors_the_scale()
+    {
+        ExportRequest? seen = null;
+
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            bitmapExporter: (_, request) =>
+            {
+                seen = request;
+
+                return new BitmapExport([1], 10, 10, []);
+            });
+
+        Harness.Invoke(registry, DiagramToolset.Export, """{"format":"png","scale":2}""")
+            .IsSuccess.Should().BeTrue();
+
+        seen!.Scale.Should().Be(2);
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Png_export_honors_the_page_range()
+    {
+        ExportRequest? seen = null;
+
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            bitmapExporter: (_, request) =>
+            {
+                seen = request;
+
+                return new BitmapExport([1], 10, 10, []);
+            });
+
+        Harness.Invoke(registry, DiagramToolset.Export, """{"format":"png","range":"page"}""")
+            .IsSuccess.Should().BeTrue();
+
+        seen!.Range.Should().Be(ExportRanges.Page);
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Pdf_export_honors_the_page_range_but_not_the_scale()
+    {
+        ExportRequest? seen = null;
+
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            pdfExporter: (_, request) =>
+            {
+                seen = request;
+
+                return new PdfExport([1], 1, []);
+            });
+
+        Harness.Invoke(registry, DiagramToolset.Export, """{"format":"pdf","range":"page"}""")
+            .IsSuccess.Should().BeTrue();
+
+        // PDF 没有倍数这一项——它的单位是物理长度，换算系数由单位的定义定死。
+        // 所以请求走到宿主那里时倍数一定是缺省那一档。
+        seen!.Range.Should().Be(ExportRanges.Page);
+        seen.Scale.Should().Be(1);
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Svg_export_refuses_a_range_it_cannot_honor()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"svg","range":"page"}""");
+
+        // 收下参数再按缺省值出图，会让调用方以为自己的选择生效了。
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.ArgumentInvalid);
+        result.Errors[0].Parameter.Should().Be("range");
+        result.Errors[0].Expected.Should().Contain("png").And.Contain("pdf");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Svg_export_refuses_a_scale_it_cannot_honor()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"svg","scale":2}""");
+
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.ArgumentInvalid);
+        result.Errors[0].Parameter.Should().Be("scale");
+        result.Errors[0].Expected.Should().Contain("png");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void Dsl_export_refuses_a_range_it_cannot_honor()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"dsl","range":"page"}""");
+
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.ArgumentInvalid);
+        result.Errors[0].Parameter.Should().Be("range");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void An_unknown_range_lists_the_available_ones()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"png","range":"sheet"}""");
+
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.ArgumentInvalid);
+        result.Errors[0].Parameter.Should().Be("range");
+        result.Errors[0].Expected.Should().Contain("content").And.Contain("page");
+    }
+
+    [Fact]
+    [Trait("Category", "ExportTool")]
+    public void A_scale_of_zero_is_refused()
+    {
+        var registry = Harness.Registry(new DiagramDocument("doc"));
+
+        var result = Harness.Invoke(registry, DiagramToolset.Export, """{"format":"png","scale":0}""");
+
+        Harness.CodeOf(result).Should().Be(ToolErrorCodes.ArgumentInvalid);
+        result.Errors[0].Parameter.Should().Be("scale");
+    }
+
+    /// <summary>
+    /// 显式给缺省值一律放行，四个格式都一样。
+    /// </summary>
+    /// <remarks>
+    /// 每次都把参数带全的调用方不该被罚——它给的那两个值本来就是缺省那一组，
+    /// 而这个格式认不认它们是另一件事。
+    /// </remarks>
+    [Theory]
+    [InlineData("dsl")]
+    [InlineData("svg")]
+    [InlineData("png")]
+    [InlineData("pdf")]
+    [Trait("Category", "ExportTool")]
+    public void Explicit_defaults_are_accepted_for_every_format(string format)
+    {
+        var registry = Harness.Registry(
+            new DiagramDocument("doc"),
+            svgExporter: (_, _) => new SvgExport("<svg/>", []),
+            bitmapExporter: (_, _) => new BitmapExport([1], 10, 10, []),
+            pdfExporter: (_, _) => new PdfExport([1], 1, []));
+
+        var result = Harness.Invoke(
+            registry,
+            DiagramToolset.Export,
+            $$"""{"format":"{{format}}","range":"content","scale":1}""");
+
+        result.IsSuccess.Should().BeTrue(
+            result.Errors.Length == 0 ? "缺省那一组该被放行" : result.Errors[0].Message);
     }
 
     #endregion

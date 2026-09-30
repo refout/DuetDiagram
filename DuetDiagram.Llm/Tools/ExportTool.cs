@@ -9,7 +9,18 @@ namespace DuetDiagram.Llm.Tools;
 /// </summary>
 /// <param name="Format">导出格式。</param>
 /// <param name="PageId">要导出的页面。</param>
-internal sealed record ExportArguments(string Format, string? PageId = null);
+/// <param name="Range">裁剪范围。留空取缺省那一档。</param>
+/// <param name="Scale">缩放倍数。留空取缺省那一档。</param>
+/// <remarks>
+/// 后两个可空，是为了分辨"没给"与"给了一个等于缺省的值"。两者都放行，
+/// 但只有前者能走"这个格式认不认这个旋钮"那条判断——否则每次调用都要先知道
+/// 缺省值是多少才敢传参。
+/// </remarks>
+internal sealed record ExportArguments(
+    string Format,
+    string? PageId = null,
+    string? Range = null,
+    double? Scale = null);
 
 /// <summary>
 /// 一次导出的产物。
@@ -50,8 +61,6 @@ internal sealed record ExportPayload(
 /// </remarks>
 internal static class ExportTool
 {
-    private const string Formats = "dsl、svg、png、pdf";
-
     public static ToolResult Run(DiagramToolContext context, ExportArguments args)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -62,28 +71,114 @@ internal static class ExportTool
             return ActionDispatch.Missing("要给出导出格式", "format");
         }
 
+        // 格式先认一遍。不认得的话，"范围与倍数该怎么判"根本没有意义——
+        // 报一句"这个格式不认范围"，调用方会去改范围，而真正要改的是格式。
+        if (!ExportFormats.All.Contains(args.Format))
+        {
+            return UnknownFormat(args.Format);
+        }
+
         // 点名的页面不在文档里要如实说，理由与按页读那一条相同。
         if (ActionDispatch.PageMissing(context, args.PageId) is { } missing)
         {
             return missing;
         }
 
+        if (RangeProblem(args) is { } rangeProblem)
+        {
+            return rangeProblem;
+        }
+
+        if (ScaleProblem(args) is { } scaleProblem)
+        {
+            return scaleProblem;
+        }
+
+        var request = new ExportRequest(
+            args.Format,
+            args.PageId,
+            args.Range ?? ExportRanges.Content,
+            args.Scale ?? 1);
+
         return args.Format switch
         {
-            "dsl" => Dsl(context, args.PageId),
+            ExportFormats.Dsl => Dsl(context, request),
 
-            "svg" => Svg(context, args.PageId),
+            ExportFormats.Svg => Svg(context, request),
 
-            "png" => Png(context, args.PageId),
+            ExportFormats.Png => Png(context, request),
 
-            "pdf" => Pdf(context, args.PageId),
+            ExportFormats.Pdf => Pdf(context, request),
 
-            _ => ActionDispatch.Reject(
-                $"{args.Format} 不是它认得的导出格式",
-                "format",
-                $"可用格式：{Formats}"),
+            // 上面已经逐条认过格式，正常走不到这里。留着是因为认得的那一份清单
+            // 与这几条分支是两张表，而两张表迟早会分叉——分叉时落到"不认得的格式"
+            // 这条既有答复上，比抛异常或者静默按某一种格式导出都要好。
+            _ => UnknownFormat(args.Format),
         };
     }
+
+    /// <summary>这个格式不在认得的清单里。</summary>
+    private static ToolResult UnknownFormat(string format) => ActionDispatch.Reject(
+        $"{format} 不是它认得的导出格式",
+        "format",
+        $"可用格式：{ExportFormats.Listed}");
+
+    /// <summary>
+    /// 范围这个参数有没有问题。
+    /// </summary>
+    /// <remarks>
+    /// 等于缺省值的一律放行，哪怕这个格式压根不认范围——见 <see cref="ExportArguments"/> 上那段。
+    /// </remarks>
+    private static ToolResult? RangeProblem(ExportArguments args)
+    {
+        if (args.Range is not { } range || range == ExportRanges.Content)
+        {
+            return null;
+        }
+
+        if (!ExportRanges.All.Contains(range))
+        {
+            return ActionDispatch.Reject(
+                $"{range} 不是它认得的裁剪范围",
+                "range",
+                $"可用范围：{ExportRanges.Listed}");
+        }
+
+        return ExportFormats.HonorsRange(args.Format)
+            ? null
+            : ActionDispatch.Reject(
+                $"{args.Format} 不认裁剪范围，它只有内容外接框这一种画布",
+                "range",
+                $"认这个参数的是：{Honoring(ExportFormats.HonorsRange)}");
+    }
+
+    /// <summary>倍数这个参数有没有问题。判法与范围那一条相同。</summary>
+    private static ToolResult? ScaleProblem(ExportArguments args)
+    {
+        if (args.Scale is not { } scale || scale == 1)
+        {
+            return null;
+        }
+
+        if (scale <= 0)
+        {
+            return ActionDispatch.Reject(
+                $"缩放倍数要大于零，给的是 {scale}",
+                "scale",
+                "给一个大于零的倍数，例如 2");
+        }
+
+        return ExportFormats.HonorsScale(args.Format)
+            ? null
+            : ActionDispatch.Reject(
+                $"{args.Format} 不认缩放倍数，它的单位是物理长度",
+                "scale",
+                $"认这个参数的是：{Honoring(ExportFormats.HonorsScale)}");
+    }
+
+    /// <summary>把认某个旋钮的格式列出来，用来填"该换成哪个格式"那半句。</summary>
+    private static string Honoring(Func<string, bool> honors) =>
+        string.Join('、', ExportFormats.All.Where(honors));
 
     /// <summary>
     /// 导出 DSL。
@@ -100,11 +195,12 @@ internal static class ExportTool
     /// 会回到自动结果——那是要付的代价，但必须说清付了什么。
     /// </para>
     /// </remarks>
-    private static ToolResult Dsl(DiagramToolContext context, string? pageId)
+    private static ToolResult Dsl(DiagramToolContext context, ExportRequest request)
     {
-        var document = PageMembership.Project(context.Document, pageId);
+        var document = PageMembership.Project(context.Document, request.PageId);
         var result = DslExporter.Export(document);
 
+        var pageId = request.PageId;
         var dropped = result.Report.Dropped;
 
         if (context.PinnedNodes.Count > 0)
@@ -144,18 +240,19 @@ internal static class ExportTool
     /// 而那一套口径在 Core 里只有一份。这里只把页面标识原样交给渲染器。
     /// </para>
     /// </remarks>
-    private static ToolResult Svg(DiagramToolContext context, string? pageId)
+    private static ToolResult Svg(DiagramToolContext context, ExportRequest request)
     {
         if (context.SvgExporter is null)
         {
             return HostMissing("SVG");
         }
 
-        if (context.SvgExporter(context.Document, pageId) is not { } result)
+        if (context.SvgExporter(context.Document, request) is not { } result)
         {
             return RenderFailed("SVG");
         }
 
+        var pageId = request.PageId;
         var payload = new ExportPayload("svg", result.Svg, result.Dropped);
 
         var message = result.Dropped.Count == 0
@@ -181,18 +278,19 @@ internal static class ExportTool
     /// 的字段而不是塞进 <c>text</c>：调用方拿到 <c>text</c> 会以为那是图的文本。
     /// </para>
     /// </remarks>
-    private static ToolResult Png(DiagramToolContext context, string? pageId)
+    private static ToolResult Png(DiagramToolContext context, ExportRequest request)
     {
         if (context.BitmapExporter is null)
         {
             return HostMissing("PNG");
         }
 
-        if (context.BitmapExporter(context.Document, pageId) is not { } result)
+        if (context.BitmapExporter(context.Document, request) is not { } result)
         {
             return RenderFailed("PNG");
         }
 
+        var pageId = request.PageId;
         var payload = new ExportPayload("png", null, result.Dropped, Convert.ToBase64String(result.Png));
 
         var message = result.Dropped.Count == 0
@@ -221,18 +319,19 @@ internal static class ExportTool
     /// 放进 <c>base64</c> 而不是 <c>text</c>，是因为调用方拿到 <c>text</c> 会以为那是图的文本。
     /// </para>
     /// </remarks>
-    private static ToolResult Pdf(DiagramToolContext context, string? pageId)
+    private static ToolResult Pdf(DiagramToolContext context, ExportRequest request)
     {
         if (context.PdfExporter is null)
         {
             return HostMissing("PDF");
         }
 
-        if (context.PdfExporter(context.Document, pageId) is not { } result)
+        if (context.PdfExporter(context.Document, request) is not { } result)
         {
             return RenderFailed("PDF");
         }
 
+        var pageId = request.PageId;
         var payload = new ExportPayload("pdf", null, result.Dropped, Convert.ToBase64String(result.Pdf));
         var pages = $"{result.Pages} 页";
 

@@ -97,8 +97,10 @@ public sealed record DiagramToolContext
     /// 对照 DSL 导出——那是文档的纯函数、只依赖 Core，所以它直接调，不绕这一道。
     /// </para>
     /// <para>
-    /// 参数是文档与页面标识：页面过滤那一套口径在 Core 里只有一份，
+    /// 参数是文档与这次导出的选择：页面过滤那一套口径在 Core 里只有一份，
     /// 而它同时被布局与绘制列表构建用到，所以按页过滤不能在这一层先做一遍。
+    /// 选择用 Core 的 <see cref="ExportRequest"/> 而不是渲染层的选项类型带过去——
+    /// 这一层不引渲染层，选项类型也就落不到这里；翻译成各格式自己那一份由宿主做。
     /// </para>
     /// <para>
     /// 为空表示这个宿主没接上渲染层；返回空表示渲染层拿到了文档却排不出结果
@@ -107,7 +109,7 @@ public sealed record DiagramToolContext
     /// 也就无从分辨"排不出来"与"程序坏了"。
     /// </para>
     /// </remarks>
-    public Func<DiagramDocument, string?, SvgExport?>? SvgExporter { get; init; }
+    public Func<DiagramDocument, ExportRequest, SvgExport?>? SvgExporter { get; init; }
 
     /// <summary>
     /// 把一份文档导成 PNG。由宿主喂进来。
@@ -128,7 +130,7 @@ public sealed record DiagramToolContext
     /// 两种都不许悄悄给一张空图——调用方会把空图当成"这张图就是空的"。
     /// </para>
     /// </remarks>
-    public Func<DiagramDocument, string?, BitmapExport?>? BitmapExporter { get; init; }
+    public Func<DiagramDocument, ExportRequest, BitmapExport?>? BitmapExporter { get; init; }
 
     /// <summary>
     /// 把一份文档导成 PDF。由宿主喂进来。
@@ -139,7 +141,7 @@ public sealed record DiagramToolContext
     /// 也不是文档的函数，所以只能由宿主喂进来。
     /// </para>
     /// <para>
-    /// **它与那两个有一处不同：一份文档可以出好几页。** 页面标识为空时，
+    /// **它与那两个有一处不同：一份文档可以出好几页。** 选择里的页面标识为空时，
     /// 文档自己有哪几页就出哪几页；点了名就只出那一页。所以喂进来的这个函数
     /// 要替调用方决定"整份文档是几页"，而那不是这一层能算的——
     /// 这一层看不见页面归属那一套口径。
@@ -149,7 +151,7 @@ public sealed record DiagramToolContext
     /// 两种都不许悄悄给一份空文件——调用方会把空文件当成"这张图就是空的"。
     /// </para>
     /// </remarks>
-    public Func<DiagramDocument, string?, PdfExport?>? PdfExporter { get; init; }
+    public Func<DiagramDocument, ExportRequest, PdfExport?>? PdfExporter { get; init; }
 
     /// <summary>当前文档。与总线管着的是同一个对象。</summary>
     public DiagramDocument Document => Bus.Context.Document;

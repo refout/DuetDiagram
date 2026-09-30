@@ -8,23 +8,23 @@
 | DuetDiagram.AotSmokeTest | 1 | 328 | 221 | 67 | 40 |
 | DuetDiagram.App | 73 | 19429 | 10893 | 5297 | 3239 |
 | DuetDiagram.Benchmarks | 6 | 571 | 337 | 145 | 89 |
-| DuetDiagram.Core | 122 | 18468 | 10408 | 5382 | 2678 |
+| DuetDiagram.Core | 123 | 18571 | 10435 | 5445 | 2691 |
 | DuetDiagram.Core.Tests | 45 | 12940 | 9071 | 1389 | 2480 |
 | DuetDiagram.Dsl | 11 | 3489 | 2140 | 818 | 531 |
 | DuetDiagram.Dsl.Tests | 9 | 3038 | 2241 | 293 | 504 |
 | DuetDiagram.E2E.Tests | 34 | 10773 | 6910 | 1632 | 2231 |
 | DuetDiagram.Layout | 19 | 2974 | 1604 | 977 | 393 |
 | DuetDiagram.Layout.Tests | 6 | 1737 | 1244 | 173 | 320 |
-| DuetDiagram.Llm | 25 | 4836 | 2626 | 1535 | 675 |
-| DuetDiagram.Llm.Tests | 17 | 4838 | 3466 | 390 | 982 |
-| DuetDiagram.Mcp | 15 | 2580 | 1330 | 874 | 376 |
+| DuetDiagram.Llm | 25 | 4942 | 2695 | 1561 | 686 |
+| DuetDiagram.Llm.Tests | 17 | 5028 | 3597 | 410 | 1021 |
+| DuetDiagram.Mcp | 15 | 2605 | 1350 | 873 | 382 |
 | DuetDiagram.Mcp.Tests | 11 | 3423 | 2177 | 560 | 686 |
 | DuetDiagram.Mermaid | 9 | 2041 | 1181 | 548 | 312 |
 | DuetDiagram.Mermaid.Tests | 7 | 2069 | 1510 | 217 | 342 |
 | DuetDiagram.Render | 35 | 6783 | 3551 | 2263 | 969 |
 | DuetDiagram.Render.Tests | 25 | 6455 | 4444 | 839 | 1172 |
 | tools | 44 | 12424 | 8379 | 1988 | 2057 |
-| **合计** | **514** | **119196** | **73733** | **25387** | **20076** |
+| **合计** | **515** | **119620** | **73980** | **25495** | **20145** |
 
 ## 明细
 
@@ -213,6 +213,7 @@
 | DiagramValidator.cs | 440 |
 | DroppedFeature.cs | 2 |
 | EdgeDef.cs | 15 |
+| ExportRequest.cs | 27 |
 | FieldRegistry.cs | 215 |
 | IDefinition.cs | 5 |
 | LayoutConstraintSpec.cs | 44 |
@@ -420,9 +421,9 @@
 | ActionDispatch.cs | 175 |
 | CompositeTool.cs | 64 |
 | DiagramToolContext.cs | 27 |
-| DiagramToolset.cs | 168 |
+| DiagramToolset.cs | 170 |
 | EditTool.cs | 290 |
-| ExportTool.cs | 127 |
+| ExportTool.cs | 194 |
 | HistoryTool.cs | 85 |
 | LayoutTool.cs | 190 |
 | PortParser.cs | 16 |
@@ -442,14 +443,14 @@
 | CompositeToolTests.cs | 226 |
 | EditToolTests.cs | 311 |
 | ErrorLoopTests.cs | 145 |
-| ExportToolTests.cs | 426 |
+| ExportToolTests.cs | 545 |
 | Harness.cs | 92 |
 | HistoryToolTests.cs | 133 |
 | LayerPermissionTests.cs | 98 |
 | LayoutToolTests.cs | 304 |
 | RepairHintTests.cs | 147 |
 | RichTextSummaryTests.cs | 147 |
-| SchemaTests.cs | 181 |
+| SchemaTests.cs | 193 |
 | StyleToolTests.cs | 236 |
 | SummaryTests.cs | 472 |
 | ToolParityTests.cs | 53 |
@@ -465,7 +466,7 @@
 | ChangeFeed.cs | 86 |
 | ConflictResponder.cs | 40 |
 | DiagramMcpServer.cs | 96 |
-| DocumentRendering.cs | 51 |
+| DocumentRendering.cs | 71 |
 | HttpHost.cs | 286 |
 | RateLimiter.cs | 43 |
 | SessionCore.cs | 101 |

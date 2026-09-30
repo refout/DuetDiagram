@@ -69,6 +69,9 @@ public static class DiagramToolset
         + "一个元素只能属于一个组合，移入会把它从原容器里摘出来；成环与超过嵌套深度上限都会被拒绝。"
         + "新建的组合一律在顶层，要嵌套就再发一次移入。";
 
+    // 描述压在两百字以内是一条门禁：它每一轮都在模型的上下文里，八条一起算。
+    // 所以「哪个格式认哪个旋钮」不写在这里，写在各自的参数描述上——那里才是
+    // 模型填参数时会读到的地方。
     private const string ExportDescription =
         "把当前图导出成文本或位图格式。现在能导出 DSL、SVG、PNG 与 PDF。"
         + "要拿一份能贴进别处、或者交给别人看的文本时用它。"
@@ -229,8 +232,10 @@ public static class DiagramToolset
 
         public Task<ToolResult> Export(
             [Description("导出格式：dsl、svg、png 或 pdf。")][Pattern(Patterns.DiagramId)] string format,
-            [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null) =>
-            Task.FromResult(ExportTool.Run(_context, new ExportArguments(format, pageId)));
+            [Description("要导出的页面标识。留空表示当前页。")][Pattern(Patterns.DiagramId)] string? pageId = null,
+            [Description("裁剪范围：content 按内容外接框，page 按纸张。只有 png 与 pdf 认它。留空取 content。")][Pattern(Patterns.DiagramId)] string? range = null,
+            [Description("缩放倍数，要大于零。只有 png 认它。留空取一倍。")] double? scale = null) =>
+            Task.FromResult(ExportTool.Run(_context, new ExportArguments(format, pageId, range, scale)));
 
         #endregion
 

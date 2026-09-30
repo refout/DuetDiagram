@@ -70,9 +70,9 @@ internal static class Harness
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
-        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
-        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null,
-        Func<DiagramDocument, string?, PdfExport?>? pdfExporter = null)
+        Func<DiagramDocument, ExportRequest, SvgExport?>? svgExporter = null,
+        Func<DiagramDocument, ExportRequest, BitmapExport?>? bitmapExporter = null,
+        Func<DiagramDocument, ExportRequest, PdfExport?>? pdfExporter = null)
     {
         var subject = document ?? new DiagramDocument("tool-doc");
         var time = clock ?? new ManualTimeProvider(Now);
@@ -98,9 +98,9 @@ internal static class Harness
         ManualTimeProvider? clock = null,
         ISessionProvider? session = null,
         PermissionSet? permissions = null,
-        Func<DiagramDocument, string?, SvgExport?>? svgExporter = null,
-        Func<DiagramDocument, string?, BitmapExport?>? bitmapExporter = null,
-        Func<DiagramDocument, string?, PdfExport?>? pdfExporter = null) =>
+        Func<DiagramDocument, ExportRequest, SvgExport?>? svgExporter = null,
+        Func<DiagramDocument, ExportRequest, BitmapExport?>? bitmapExporter = null,
+        Func<DiagramDocument, ExportRequest, PdfExport?>? pdfExporter = null) =>
         ToolRegistry.CreateDefault(
             Context(document, placement, pinned, clock, session, permissions, svgExporter, bitmapExporter, pdfExporter));
 

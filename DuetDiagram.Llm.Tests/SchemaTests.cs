@@ -72,6 +72,7 @@ public sealed class SchemaTests
     [InlineData(DiagramToolset.Composite, "targetId")]
     [InlineData(DiagramToolset.Composite, "memberIds")]
     [InlineData(DiagramToolset.Export, "format")]
+    [InlineData(DiagramToolset.Export, "range")]
     [InlineData(DiagramToolset.UndoRedo, "action")]
     [Trait("Category", "ToolSchema")]
     public void Identifier_parameters_carry_a_constraint(string tool, string parameter)
@@ -80,6 +81,31 @@ public sealed class SchemaTests
         var target = IsArray(node) ? node["items"]!.AsObject() : node;
 
         target.Should().ContainKey("pattern", $"{tool} 的 {parameter} 是一个标识，约束要进 schema 而不只写在描述里");
+    }
+
+    /// <summary>
+    /// 导出工具把范围与倍数两个旋钮都声明出来了。
+    /// </summary>
+    /// <remarks>
+    /// 声明出来才谈得上"给了不认它的格式会被拒绝"——参数不在 schema 里的话，
+    /// 模型根本不知道该有这个旋钮，而界面上却有一个。
+    /// </remarks>
+    [Fact]
+    [Trait("Category", "ToolSchema")]
+    public void The_export_tool_declares_range_and_scale()
+    {
+        var schema = SchemaOf(DiagramToolset.Export);
+
+        var scale = Property(schema, "scale");
+
+        Property(schema, "range")["pattern"]!.GetValue<string>().Should().Be(Patterns.DiagramId);
+
+        // 可空的数值参数在 schema 里是两个类型：数值本身与 null。
+        // 断言"里面有 number"而不是断言等于某个形状——形状由生成器定，而这里要验的是
+        // 这个旋钮确实是个数，模型能填一个倍数。
+        scale["type"].Should().BeOfType<JsonArray>();
+        scale["type"]!.AsArray().Select(item => item!.GetValue<string>())
+            .Should().Contain("number");
     }
 
     [Fact]

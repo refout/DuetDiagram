@@ -1,0 +1,79 @@
+id: P5-11
+title: 导出参数——一套词汇，界面与工具层共用
+phase: 5
+status: done
+depends_on: []
+estimated_loc: 260
+files:
+  create:
+    - DuetDiagram.Core/Model/ExportRequest.cs
+  modify:
+    - DuetDiagram.Llm/Tools/ExportTool.cs
+    - DuetDiagram.Llm/Tools/DiagramToolset.cs
+    - DuetDiagram.Llm/Tools/DiagramToolContext.cs
+    - DuetDiagram.Mcp/Server/DocumentRendering.cs
+    - DuetDiagram.Llm.Tests/Harness.cs
+    - DuetDiagram.Llm.Tests/ExportToolTests.cs
+    - DuetDiagram.Llm.Tests/SchemaTests.cs
+acceptance:
+  - command: dotnet test --project DuetDiagram.Llm.Tests -c Release -- --filter-trait "Category=ExportTool"
+    expect: 42 条全通过（原有的载荷与丢失清单 + 新增的 8 条范围与倍数）
+  - command: dotnet test --project DuetDiagram.Llm.Tests -c Release -- --filter-trait "Category=ToolSchema"
+    expect: 28 条全通过（range 进了标识约束那条 Theory，另加一条声明了 range 与 scale）
+  - command: dotnet test --project DuetDiagram.Mcp.Tests -c Release
+    expect: 整份 113 条全通过，退出码 0
+  - command: dotnet build DuetDiagram.slnx -c Release
+    expect: 0 警告 0 错误
+constraints:
+  - "**「这个格式认不认这个旋钮」只写一份表。** 界面与工具层都读 `ExportFormats.HonorsRange` / `HonorsScale`，两处各写一份的话，某一天会对同一个格式给出不同答案，而症状是同一份文档从界面导与从工具导出来不一样"
+  - "**给了不认它的格式要拒绝，不许默默按缺省值出图。** 收下参数再按缺省值出，调用方会以为自己的选择生效了"
+  - "**显式给缺省值一律放行。** 每次都把参数带全的调用方不该被罚——它给的就是缺省那一组"
+  - "**格式先认一遍，再判范围与倍数。** 反过来的话，一个不认得的格式配上 `range:\"page\"` 会报「这个格式不认范围」，而真正要改的是格式"
+  - "**工具描述压在两百字以内。** 它每一轮都在模型的上下文里、八条一起算，`Category=SkillDisclosure` 有一条门禁卡这个数；两个旋钮写在各自的参数描述上，不写在工具描述里"
+  - "**`range` 复用现成的 `Patterns.DiagramId`。** `content` 与 `page` 本来就在它的字符集里，新加一个常量会让「约束只能来自已声明的常量」那条门禁多一处要维护的东西"
+  - "**注入的那三个委托不能引渲染层。** 选择用 Core 的 `ExportRequest` 带过去，翻译成 `SvgOptions` / `BitmapOptions` / `PdfOptions` 由宿主做——那一层本来就引了渲染层"
+  - "**判据要验过「把实现撤掉它就红」。** 撤掉两处适用性校验 → `Category=ExportTool` 42 条里红 5 条"
+context:
+  - "用户要求「完善导出功能」，并选定「两边都给」：界面给格式 / 范围 / 倍数，工具那条路同时加参数，不出现「界面能设、工具不能设」的偏差"
+  - "差异表里原先记着「PNG 与 PDF 的缩放、裁剪范围只在导出器上，diagram_export 不给参数」，并写着「等界面上那个导出对话框开工时一并定」——这一条就是那个时刻的前半"
+  - "P5-12 是它的直接消费者，界面与工具读同一张适用性表"
+result: |
+  **结论：导出这件事有了一套共用词汇，界面与工具层读同一张「哪个格式认哪个旋钮」的表。
+  四档格式里 png 认范围与倍数、pdf 只认范围、dsl 与 svg 两个都不认；
+  给了不认它的格式会被拒绝并指出该换成哪个格式，而不是默默按缺省值出图。
+  验报告 `reports/phase5-export.md`。**
+
+  **词汇。** `DuetDiagram.Core/Model/ExportRequest.cs`：`ExportFormats`（dsl / svg / png / pdf
+  与 `HonorsRange` / `HonorsScale`）、`ExportRanges`（content / page）、`ExportRequest` 记录。
+  放 Core 是因为两条路都要读它，而它们只共用 Core。
+
+  **为什么 svg 两个都不认、pdf 只认范围。** `SvgOptions` 只有 `IncludeBackground` 与 `Padding`——
+  矢量图的画布就是内容外接框，两种范围对它是同一件事；`PdfOptions` 故意没有倍数，
+  因为 PDF 的单位是物理长度（点），换算系数由单位的定义定死，放大它的办法是换纸张尺寸。
+
+  **可空参数是为了分辨「没给」与「给了一个等于缺省的值」。** 两者都放行，
+  但只有前者走适用性判断——否则调用方每次都要先知道缺省值是多少才敢传参。
+
+  **宿主那一侧跟着改。** 三个注入委托的第二个参数从 `string? pageId` 换成 `ExportRequest`
+  （`Llm` 不引 `Render`，选项类型落不到那里），翻译放在 `DocumentRendering`。
+  三处测试替身（`Harness` 的两个工厂 + 三条用例里的 lambda）同步改签名。
+
+  **判据**：`Category=ExportTool` 42 条（原 34 + 新增 8，其中一条 Theory 展开成 4）、
+  `Category=ToolSchema` 28 条。
+
+  **「把实现撤掉它就红」验过**：把 `Run` 里那两处适用性校验短路掉，
+  `Category=ExportTool` 42 条里红 5 条（两条 svg 拒绝、一条 dsl 拒绝、倍数非正、
+  以及认不得的范围——最后一条与适用性无关，但它走的是同一条短路）。
+
+  **踩到一条门禁。** 最初把两个旋钮也写进了工具描述，`Category=SkillDisclosure` 立刻红：
+  描述上限两百字，而它每一轮都在模型的上下文里、八条一起算。改法是旋钮只写在参数描述上——
+  模型填参数时读到的正是那里。
+
+  **门禁读数**：本机 Release 构建 0 警告 0 错误；`Category=ExportTool` 42/42、
+  `Category=ToolSchema` 28/28、整份 `DuetDiagram.Llm.Tests` 233/233、
+  整份 `DuetDiagram.Mcp.Tests` 113/113、`Category=SkillDisclosure` 7/7。
+  CI 读数见 `reports/phase5-export.md` 的补记。
+
+  **没验的：** 界面那条路还没接（P5-12 就是它），所以「用户从界面选倍数」这件事这一条验不到；
+  倍数与范围真正落到画布上的效果只验到"请求原样到了宿主"，没有比对像素——
+  那一条在 P5-12 的端到端用例里量。

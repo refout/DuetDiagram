@@ -263,3 +263,27 @@ dotnet run --project tools/LayoutScore -c Release -- --dump cycle-4
 dotnet test --project DuetDiagram.Layout.Tests/DuetDiagram.Layout.Tests.csproj -- --filter-trait "Category=Layout"
 dotnet test --project DuetDiagram.E2E.Tests/DuetDiagram.E2E.Tests.csproj -- --filter-trait "Category=Open"
 ```
+
+### CI 读数（补记）
+
+分支末端 `f0de561` 推送后，CI 运行 **`36685242859`** 两个作业全绿，但**用了两次尝试**：
+
+| 作业 | 步骤 | 结论 |
+|---|---|---|
+| 编译 + 测试 + 契约门禁（ubuntu） | 49 | success（第 1 次尝试就绿） |
+| 界面栈自检 + 端到端 + 原生发布（windows） | 35 | success（**第 2 次尝试**，第 1 次红在第 27 步） |
+
+**覆盖这次改动的三条门禁都跑到了，而且全绿**：
+ubuntu 第 17 步「布局不变量门禁」（`Category=Layout`）、
+第 45 步「布局质量评分门禁」（`tools/LayoutScore`，退出码 0）、
+windows 第 18 步「打开门禁」（`Category=Open`）。
+
+**第一次尝试红在 windows 第 27 步「冷启动基准」**，它后面 5 个步骤（界面栈自检、原生发布、
+运行原生冒烟程序、原生发布界面程序、原生冷启动基准）被跳过。这一条与本次改动无关：
+2026-09-30 早先记过一次同样的现象，**那次提交只动了两个 `.md` 文件**——
+参照机自己量到 2582 ms、阈值早已放宽到 2600 ms，属运行器抖动而不是退化。
+处置照旧：只重跑失败的作业（`rerun-failed-jobs`，HTTP 201），**不动代码、不动阈值**；
+第 2 次尝试两个作业全绿、**无跳过**。
+
+**为什么不去改那条基准**：它的读数是环境相关的，把阈值调到"这次能过"只会掩盖下一次真退化；
+而它红了之后重跑一次就能区分"抖动"与"退化"——真退化在第二次尝试里照样会红。
